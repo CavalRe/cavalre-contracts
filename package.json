@@ -1,0 +1,19 @@
+{
+  "name": "@cavalre/contracts",
+  "version": "0.1.0",
+  "description": "",
+  "homepage": "",
+  "bugs": "",
+  "license": "MIT",
+  "author": "CavalRe",
+  "files": [
+    "contracts/**/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CavalRe/cavalre-contracts.git"
+  },
+  "devDependencies": {
+    "forge-std": "github:foundry-rs/forge-std"
+  }
+}
