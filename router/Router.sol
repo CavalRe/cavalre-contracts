@@ -15,8 +15,7 @@ contract Router is Module {
     error ModuleNotFound(address _module);
 
     constructor() {
-        RouterStore storage d = routerStore();
-        d.owner = msg.sender;
+        routerStore().owner = msg.sender;
     }
 
     function _getCommands(address _module) internal returns (bytes4[] memory) {
@@ -36,7 +35,7 @@ contract Router is Module {
         bytes4[] memory _commands = _getCommands(_module);
         if (_commands.length == 0) revert ModuleNotFound(_module);
         for (uint256 i = 0; i < _commands.length; i++) {
-            _setCommand(_commands[i], _module);
+            _setCommand(_commands[i], _module); // Access is controlled here
         }
         emit ModuleAdded(_module);
     }
@@ -44,14 +43,13 @@ contract Router is Module {
     function removeModule(address _module) external {
         bytes4[] memory _commands = _getCommands(_module);
         for (uint256 i = 0; i < _commands.length; i++) {
-            _setCommand(_commands[i], address(0));
+            _setCommand(_commands[i], address(0)); // Access is controlled here
         }
         emit ModuleRemoved(_module);
     }
 
     fallback() external payable {
-        RouterStore storage s = routerStore();
-        address module_ = s.modules[msg.sig];
+        address module_ = routerStore().modules[msg.sig];
         if (module_ == address(0)) revert CommandNotFound(msg.sig);
 
         assembly {
