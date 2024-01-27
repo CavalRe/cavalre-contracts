@@ -12,19 +12,6 @@ contract Sentry is Module {
     bytes32 internal constant SENTRY_STORE_POSITION =
         keccak256("@cavalre.sentry.store");
 
-    // Commands
-    bytes4 internal constant TRANSFER_OWNERSHIP =
-        bytes4(keccak256("transferOwnership(address)"));
-    bytes4 internal constant ACCEPT_OWNERSHIP =
-        bytes4(keccak256("acceptOwnership()"));
-    bytes4 internal constant RENOUNCE_OWNERSHIP =
-        bytes4(keccak256("renounceOwnership()"));
-    bytes4 internal constant CONFIRM_RENOUNCE_OWNERSHIP =
-        bytes4(keccak256("confirmRenounceOwnership()"));
-    bytes4 internal constant OWNER = bytes4(keccak256("owner()"));
-    bytes4 internal constant PENDING_OWNER =
-        bytes4(keccak256("pendingOwner()"));
-
     // Errors
     error OwnableInvalidOwner(address owner);
 
@@ -40,11 +27,11 @@ contract Sentry is Module {
 
     function commands() public pure override returns (bytes4[] memory _commands) {
         _commands = new bytes4[](5);
-        _commands[0] = TRANSFER_OWNERSHIP;
-        _commands[1] = ACCEPT_OWNERSHIP;
-        _commands[2] = RENOUNCE_OWNERSHIP;
-        _commands[3] = CONFIRM_RENOUNCE_OWNERSHIP;
-        _commands[4] = PENDING_OWNER;
+        _commands[0] = bytes4(keccak256("transferOwnership(address)"));
+        _commands[1] = bytes4(keccak256("acceptOwnership()"));
+        _commands[2] = bytes4(keccak256("renounceOwnership()"));
+        _commands[3] = bytes4(keccak256("confirmRenounceOwnership()"));
+        _commands[4] = bytes4(keccak256("pendingOwner()"));
     }
 
     function transferOwnership(address _newOwner) external {
