@@ -4,74 +4,55 @@ pragma solidity ^0.8.0;
 import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
 
-struct RouterStore {
-    address owner;
+struct Store {
+    mapping(address => address) owners;
     mapping(bytes4 => address) modules;
 }
 
 library ModuleLib {
     // Stores
-    bytes32 internal constant ROUTER_STORE_POSITION =
-        keccak256("@cavalre.router.store");
+    bytes32 internal constant STORE_POSITION =
+        keccak256("@cavalre.module.store");
 
     // Errors
     error IsDelegated();
     error NotDelegated();
     error OwnableUnauthorizedAccount(address account);
 
-    // Selectors
-    bytes4 internal constant OWNER = bytes4(keccak256("owner()"));
-    bytes4 internal constant MODULE = bytes4(keccak256("module(bytes4)"));
-
-    function enforceIsOwner(RouterStore storage s) internal view {
-        if (s.owner != msg.sender) {
-            revert OwnableUnauthorizedAccount(msg.sender);
-        }
-    }
-
-    function enforceIsOwner() internal view returns (RouterStore storage s) {
-        s = routerStore();
-        if (s.owner != msg.sender) {
+    function enforceIsOwner(
+        address _module
+    ) internal view returns (Store storage s) {
+        s = store();
+        if (s.owners[_module] != msg.sender) {
             revert OwnableUnauthorizedAccount(msg.sender);
         }
         return s;
     }
 
-    function enforceIsDelegated(address __self) internal view {
-        if (address(this) == __self) revert NotDelegated();
+    function enforceIsDelegated(address _module) internal view {
+        if (address(this) == _module) revert NotDelegated();
     }
 
-    function enforceNotDelegated(address __self) internal view {
-        if (address(this) != __self) revert NotDelegated();
+    function enforceNotDelegated(address _module) internal view {
+        if (address(this) != _module) revert IsDelegated();
     }
 
-    function owner() internal view returns (address) {
-        return ModuleLib.routerStore().owner;
-    }
-
-    function module(bytes4 _command) internal view returns (address) {
-        return ModuleLib.routerStore().modules[_command];
-    }
-
-    function routerStore() internal pure returns (RouterStore storage r) {
-        bytes32 position = ROUTER_STORE_POSITION;
+    function store() internal pure returns (Store storage s) {
+        bytes32 position = STORE_POSITION;
         assembly {
-            r.slot := position
+            s.slot := position
         }
     }
 }
 
-contract Module is Test {
+abstract contract Module is Test {
     address private immutable __self = address(this);
 
     // Commands
-    function commands()
-        public
-        pure
-        virtual
-        returns (bytes4[] memory _commands)
-    {
-        _commands = new bytes4[](0);
+    function commands() public pure virtual returns (bytes4[] memory _commands);
+
+    function enforceIsOwner() internal view {
+        ModuleLib.enforceIsOwner(__self);
     }
 
     function enforceIsDelegated() internal view {
@@ -80,13 +61,5 @@ contract Module is Test {
 
     function enforceNotDelegated() internal view {
         ModuleLib.enforceNotDelegated(__self);
-    }
-
-    function owner() public view returns (address) {
-        return ModuleLib.owner();
-    }
-
-    function module(bytes4 _command) public view returns (address) {
-        return ModuleLib.module(_command);
     }
 }

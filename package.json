@@ -13,5 +13,11 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/CavalRe/cavalre-contracts.git"
+  },
+  "dependencies": {
+    "@cavalre/openzeppelin": "github:CavalRe/openzeppellin"
+  },
+  "devDependencies": {
+    "forge-std": "github:foundry-rs/forge-std"
   }
 }

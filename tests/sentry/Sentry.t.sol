@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Router} from "@cavalre/router/Router.sol";
+import {Router, RouterLib as RL} from "@cavalre/router/Router.sol";
 import {Module, ModuleLib as ML} from "@cavalre/router/Module.sol";
 import {Sentry, SentryLib as SL} from "@cavalre/sentry/Sentry.sol";
 import {Test} from "forge-std/Test.sol";
@@ -25,42 +25,41 @@ contract SentryTest is Test {
     }
 
     function testSentryInit() public {
-        assertEq(router.owner(), alice, "SentryTest: Owner not set");
         assertEq(
-            router.module(SL.TRANSFER_OWNERSHIP),
+            router.owner(address(router)),
+            alice,
+            "SentryTest: Owner not set"
+        );
+        assertEq(
+            router.implementation(SL.TRANSFER_OWNERSHIP),
             address(sentry),
             "SentryTest: TransferOwnership not set"
         );
         assertEq(
-            router.module(SL.ACCEPT_OWNERSHIP),
+            router.implementation(SL.ACCEPT_OWNERSHIP),
             address(sentry),
             "SentryTest: AcceptOwnership not set"
         );
         assertEq(
-            router.module(SL.RENOUNCE_OWNERSHIP),
+            router.implementation(SL.RENOUNCE_OWNERSHIP),
             address(sentry),
             "SentryTest: RenounceOwnership not set"
         );
         assertEq(
-            router.module(SL.CONFIRM_RENOUNCE_OWNERSHIP),
+            router.implementation(SL.CONFIRM_RENOUNCE_OWNERSHIP),
             address(sentry),
             "SentryTest: ConfirmRenounceOwnership not set"
         );
     }
 
     function testSentryOwner() public {
-        (success, data) = address(router).call(abi.encodePacked(ML.OWNER));
-        require(success, "SentryTest: Owner failed");
-        assertEq(abi.decode(data, (address)), alice);
+        assertEq(router.owner(address(sentry)), alice);
     }
 
     function testSentryWrongOwner() public {
         vm.startPrank(bob);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ML.OwnableUnauthorizedAccount.selector,
-                bob
-            )
+            abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob)
         );
         router.addModule(address(sentry));
     }
@@ -68,26 +67,34 @@ contract SentryTest is Test {
     function testSentryTransferOwnership() public {
         vm.startPrank(alice);
         // Alice starts the transfer to Bob
+        // emit log("Alice starts the transfer to Bob");
         (success, ) = address(router).call(
-            abi.encodePacked(SL.TRANSFER_OWNERSHIP, abi.encode(bob))
+            abi.encodePacked(
+                SL.TRANSFER_OWNERSHIP,
+                abi.encode(address(router)),
+                abi.encode(bob)
+            )
         );
         require(success, "SentryTest: TransferOwnership failed");
 
         // Bob is now the pending owner
+        // emit log("Verify Bob is now the pending owner");
         (success, data) = address(router).call(
-            abi.encodePacked(SL.PENDING_OWNER)
+            abi.encodePacked(SL.PENDING_OWNER, abi.encode(address(router)))
         );
         require(success, "SentryTest: PendingOwner failed");
         assertEq(abi.decode(data, (address)), bob);
 
         vm.startPrank(bob);
         // Bob accepts the transfer
-        (success, ) = address(router).call(abi.encodePacked(SL.ACCEPT_OWNERSHIP));
+        // emit log("Bob accepts the transfer");
+        (success, ) = address(router).call(
+            abi.encodePacked(SL.ACCEPT_OWNERSHIP, abi.encode(address(router)))
+        );
         require(success, "SentryTest: AcceptOwnership failed");
 
         // Bob is now the owner
-        (success, data) = address(router).call(abi.encodePacked(ML.OWNER));
-        require(success, "SentryTest: Owner failed");
-        assertEq(abi.decode(data, (address)), bob);
+        // emit log("Verify Bob is now the owner");
+        assertEq(router.owner(address(router)), bob);
     }
 }
