@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Module, ModuleLib as ML, RouterStore} from "./Module.sol";
+import {Module, ModuleLib as ML, Store} from "./Module.sol";
+import {console} from "forge-std/console.sol";
 
 library RouterLib {
+    // Stores
+    bytes32 internal constant STORE_POSITION =
+        keccak256("@cavalre.router.store");
+
     // Events
     event CommandSet(bytes4 indexed command, address indexed module);
     event ModuleAdded(address indexed module);
@@ -15,13 +20,10 @@ library RouterLib {
     error ModuleNotFound(address _module);
 
     // Selectors
-    bytes4 internal constant ADD_MODULE =
-        bytes4(keccak256("addModule(address)"));
-    bytes4 internal constant REMOVE_MODULE =
-        bytes4(keccak256("removeModule(address)"));
+    bytes4 internal constant ROUTER = bytes4(keccak256(bytes("Router()")));
 
     // Commands
-    function _getCommands(address _module) internal returns (bytes4[] memory) {
+    function getCommands(address _module) internal returns (bytes4[] memory) {
         (bool success, bytes memory data) = _module.call(
             abi.encodeWithSignature("commands()")
         );
@@ -29,11 +31,10 @@ library RouterLib {
         return abi.decode(data, (bytes4[]));
     }
 
-    function _setCommand(
-        bytes4 _command,
-        address _module
-    ) internal {
-        RouterStore storage s = ML.enforceIsOwner();
+    // To remove a command, set the module to address(0)
+    function setCommand(bytes4 _command, address _module) internal {
+        Store storage s = ML.store();
+        ML.enforceIsOwner(s.modules[ROUTER]);
         if (s.modules[_command] == _module)
             revert CommandAlreadySet(_command, _module);
         s.modules[_command] = _module;
@@ -41,34 +42,48 @@ library RouterLib {
     }
 
     function addModule(address _module) internal {
-        // ML.enforceNotDelegated(_module);
-        ML.enforceIsOwner();
-        bytes4[] memory _commands = _getCommands(_module);
+        bytes4[] memory _commands = getCommands(_module);
         if (_commands.length == 0) revert ModuleNotFound(_module);
         for (uint256 i = 0; i < _commands.length; i++) {
-            _setCommand(_commands[i], _module); // Access is controlled here
+            setCommand(_commands[i], _module); // Access is controlled here
         }
+        ML.store().owners[_module] = msg.sender;
         emit ModuleAdded(_module);
     }
 
     function removeModule(address _module) internal {
-        // ML.enforceNotDelegated(_module);
-        ML.enforceIsOwner();
-        bytes4[] memory _commands = _getCommands(_module);
+        bytes4[] memory _commands = getCommands(_module);
+        if (_commands.length == 0) revert ModuleNotFound(_module);
         for (uint256 i = 0; i < _commands.length; i++) {
-            _setCommand(_commands[i], address(0)); // Access is controlled here
+            setCommand(_commands[i], address(0)); // Access is controlled here
         }
         emit ModuleRemoved(_module);
+    }
+
+    function owner(address _module) internal view returns (address) {
+        return ML.store().owners[_module];
+    }
+
+    function implementation(bytes4 selector) internal view returns (address) {
+        return ML.store().modules[selector];
     }
 }
 
 contract Router is Module {
+    address private immutable __self = address(this);
+
     constructor() {
-        ML.routerStore().owner = msg.sender;
+        Store storage s = ML.store();
+        s.owners[__self] = msg.sender;
+        s.modules[RouterLib.ROUTER] = __self;
+    }
+
+    function commands() public pure override returns (bytes4[] memory) {
+        return new bytes4[](0);
     }
 
     fallback() external payable {
-        address module_ = ML.routerStore().modules[msg.sig];
+        address module_ = ML.store().modules[msg.sig];
         if (module_ == address(0)) revert RouterLib.CommandNotFound(msg.sig);
 
         assembly {
@@ -87,11 +102,27 @@ contract Router is Module {
 
     receive() external payable {}
 
+    function setCommand(bytes4 _command, address _module) external {
+        RouterLib.setCommand(_command, _module);
+    }
+
     function addModule(address _module) external {
         RouterLib.addModule(_module);
     }
 
     function removeModule(address _module) external {
         RouterLib.removeModule(_module);
+    }
+
+    function owner(address _module) public view returns (address) {
+        return RouterLib.owner(_module);
+    }
+
+    function implementation(bytes4 selector)
+        public
+        view
+        returns (address)
+    {
+        return RouterLib.implementation(selector);
     }
 }

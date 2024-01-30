@@ -13,6 +13,6 @@ contract RouterTest is Test {
         vm.startPrank(alice);
 
         Router router = new Router();
-        assertEq(router.owner(), alice, "RouterTest: Owner not set");
+        assertEq(router.owner(address(router)), alice, "RouterTest: Owner not set");
     }
 }
