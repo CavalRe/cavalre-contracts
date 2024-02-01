@@ -31,22 +31,22 @@ contract SentryTest is Test {
             "SentryTest: Owner not set"
         );
         assertEq(
-            router.implementation(SL.TRANSFER_OWNERSHIP),
+            router.module(SL.TRANSFER_OWNERSHIP),
             address(sentry),
             "SentryTest: TransferOwnership not set"
         );
         assertEq(
-            router.implementation(SL.ACCEPT_OWNERSHIP),
+            router.module(SL.ACCEPT_OWNERSHIP),
             address(sentry),
             "SentryTest: AcceptOwnership not set"
         );
         assertEq(
-            router.implementation(SL.RENOUNCE_OWNERSHIP),
+            router.module(SL.RENOUNCE_OWNERSHIP),
             address(sentry),
             "SentryTest: RenounceOwnership not set"
         );
         assertEq(
-            router.implementation(SL.CONFIRM_RENOUNCE_OWNERSHIP),
+            router.module(SL.CONFIRM_RENOUNCE_OWNERSHIP),
             address(sentry),
             "SentryTest: ConfirmRenounceOwnership not set"
         );
