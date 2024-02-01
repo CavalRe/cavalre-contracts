@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity ^0.8.0;
 
 import {Module, ModuleLib as ML} from "@cavalre/router/Module.sol";
 import {IERC20} from "@cavalre/erc20/IERC20.sol";
@@ -19,29 +19,16 @@ library ERC20Lib {
     bytes32 internal constant ERC20_STORE_POSITION =
         keccak256("@cavalre.erc20.depot");
 
-    // Events
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
+    function store() internal pure returns (Store storage s) {
+        bytes32 position = ERC20_STORE_POSITION;
+        assembly {
+            s.slot := position
+        }
+    }
+}
 
-    // Errors
-    error ERC20InsufficientAllowance(
-        address spender,
-        uint256 allowance,
-        uint256 needed
-    );
-    error ERC20InsufficientBalance(
-        address sender,
-        uint256 balance,
-        uint256 needed
-    );
-    error ERC20InvalidApprover(address approver);
-    error ERC20InvalidReceiver(address receiver);
-    error ERC20InvalidSender(address sender);
-    error ERC20InvalidSpender(address spender);
+contract ERC20 is IERC20, Module {
+    address private immutable __self = address(this);
 
     // Selectors
     bytes4 internal constant CLONE = bytes4(keccak256("clone()"));
@@ -66,17 +53,6 @@ library ERC20Lib {
     bytes4 internal constant DECREASE_ALLOWANCE =
         bytes4(keccak256("decreaseAllowance(address,uint256)"));
 
-    function store() internal pure returns (Store storage s) {
-        bytes32 position = ERC20_STORE_POSITION;
-        assembly {
-            s.slot := position
-        }
-    }
-}
-
-contract ERC20 is Module {
-    address private immutable __self = address(this);
-
     function commands()
         public
         pure
@@ -85,19 +61,19 @@ contract ERC20 is Module {
         returns (bytes4[] memory _commands)
     {
         _commands = new bytes4[](13);
-        _commands[0] = ERC20Lib.CLONE;
-        _commands[1] = ERC20Lib.INITIALIZE;
-        _commands[2] = ERC20Lib.NAME;
-        _commands[3] = ERC20Lib.SYMBOL;
-        _commands[4] = ERC20Lib.DECIMALS;
-        _commands[5] = ERC20Lib.TOTAL_SUPPLY;
-        _commands[6] = ERC20Lib.BALANCE_OF;
-        _commands[7] = ERC20Lib.TRANSFER;
-        _commands[8] = ERC20Lib.ALLOWANCE;
-        _commands[9] = ERC20Lib.APPROVE;
-        _commands[10] = ERC20Lib.TRANSFER_FROM;
-        _commands[11] = ERC20Lib.INCREASE_ALLOWANCE;
-        _commands[12] = ERC20Lib.DECREASE_ALLOWANCE;
+        _commands[0] = CLONE;
+        _commands[1] = INITIALIZE;
+        _commands[2] = NAME;
+        _commands[3] = SYMBOL;
+        _commands[4] = DECIMALS;
+        _commands[5] = TOTAL_SUPPLY;
+        _commands[6] = BALANCE_OF;
+        _commands[7] = TRANSFER;
+        _commands[8] = ALLOWANCE;
+        _commands[9] = APPROVE;
+        _commands[10] = TRANSFER_FROM;
+        _commands[11] = INCREASE_ALLOWANCE;
+        _commands[12] = DECREASE_ALLOWANCE;
     }
 
     function initialize(
@@ -241,10 +217,10 @@ contract ERC20 is Module {
      */
     function _transfer(address from, address to, uint256 value) internal {
         if (from == address(0)) {
-            revert ERC20Lib.ERC20InvalidSender(address(0));
+            revert ERC20InvalidSender(address(0));
         }
         if (to == address(0)) {
-            revert ERC20Lib.ERC20InvalidReceiver(address(0));
+            revert ERC20InvalidReceiver(address(0));
         }
         _update(from, to, value);
     }
@@ -264,7 +240,7 @@ contract ERC20 is Module {
         } else {
             uint256 fromBalance = s.balances[from];
             if (fromBalance < value) {
-                revert ERC20Lib.ERC20InsufficientBalance(
+                revert ERC20InsufficientBalance(
                     from,
                     fromBalance,
                     value
@@ -288,7 +264,7 @@ contract ERC20 is Module {
             }
         }
 
-        emit ERC20Lib.Transfer(from, to, value);
+        emit Transfer(from, to, value);
     }
 
     /**
@@ -301,7 +277,7 @@ contract ERC20 is Module {
      */
     function _mint(address account, uint256 value) internal {
         if (account == address(0)) {
-            revert ERC20Lib.ERC20InvalidReceiver(address(0));
+            revert ERC20InvalidReceiver(address(0));
         }
         _update(address(0), account, value);
     }
@@ -316,7 +292,7 @@ contract ERC20 is Module {
      */
     function _burn(address account, uint256 value) internal {
         if (account == address(0)) {
-            revert ERC20Lib.ERC20InvalidSender(address(0));
+            revert ERC20InvalidSender(address(0));
         }
         _update(account, address(0), value);
     }
@@ -364,14 +340,14 @@ contract ERC20 is Module {
         bool emitEvent
     ) internal {
         if (owner == address(0)) {
-            revert ERC20Lib.ERC20InvalidApprover(address(0));
+            revert ERC20InvalidApprover(address(0));
         }
         if (spender == address(0)) {
-            revert ERC20Lib.ERC20InvalidSpender(address(0));
+            revert ERC20InvalidSpender(address(0));
         }
         ERC20Lib.store().allowances[owner][spender] = value;
         if (emitEvent) {
-            emit ERC20Lib.Approval(owner, spender, value);
+            emit Approval(owner, spender, value);
         }
     }
 
@@ -391,7 +367,7 @@ contract ERC20 is Module {
         uint256 currentAllowance = this.allowance(owner, spender);
         if (currentAllowance != type(uint256).max) {
             if (currentAllowance < value) {
-                revert ERC20Lib.ERC20InsufficientAllowance(
+                revert ERC20InsufficientAllowance(
                     spender,
                     currentAllowance,
                     value

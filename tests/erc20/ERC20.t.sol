@@ -8,7 +8,7 @@ import {Sentry, SentryLib as SL} from "@cavalre/sentry/Sentry.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test} from "forge-std/Test.sol";
 
-contract ERC20Test is Test {
+contract ERC20Test is Test, ERC20 {
     ERC20 erc20;
     Router router;
     Sentry sentry;
@@ -30,19 +30,19 @@ contract ERC20Test is Test {
     }
 
     function testERC20Init() public {
-        assertEq(router.module(EL.CLONE), address(erc20), "ERC20Test: Clone not set");
-        assertEq(router.module(EL.INITIALIZE), address(erc20), "ERC20Test: Initialize not set");
-        assertEq(router.module(EL.NAME), address(erc20), "ERC20Test: Name not set");
-        assertEq(router.module(EL.SYMBOL), address(erc20), "ERC20Test: Symbol not set");
-        assertEq(router.module(EL.DECIMALS), address(erc20), "ERC20Test: Decimals not set");
-        assertEq(router.module(EL.TOTAL_SUPPLY), address(erc20), "ERC20Test: TotalSupply not set");
-        assertEq(router.module(EL.BALANCE_OF), address(erc20), "ERC20Test: BalanceOf not set");
-        assertEq(router.module(EL.TRANSFER), address(erc20), "ERC20Test: Transfer not set");
-        assertEq(router.module(EL.TRANSFER_FROM), address(erc20), "ERC20Test: TransferFrom not set");
-        assertEq(router.module(EL.APPROVE), address(erc20), "ERC20Test: Approve not set");
-        assertEq(router.module(EL.ALLOWANCE), address(erc20), "ERC20Test: Allowance not set");
-        assertEq(router.module(EL.INCREASE_ALLOWANCE), address(erc20), "ERC20Test: IncreaseAllowance not set");
-        assertEq(router.module(EL.DECREASE_ALLOWANCE), address(erc20), "ERC20Test: DecreaseAllowance not set");
+        assertEq(router.module(CLONE), address(erc20), "ERC20Test: Clone not set");
+        assertEq(router.module(INITIALIZE), address(erc20), "ERC20Test: Initialize not set");
+        assertEq(router.module(NAME), address(erc20), "ERC20Test: Name not set");
+        assertEq(router.module(SYMBOL), address(erc20), "ERC20Test: Symbol not set");
+        assertEq(router.module(DECIMALS), address(erc20), "ERC20Test: Decimals not set");
+        assertEq(router.module(TOTAL_SUPPLY), address(erc20), "ERC20Test: TotalSupply not set");
+        assertEq(router.module(BALANCE_OF), address(erc20), "ERC20Test: BalanceOf not set");
+        assertEq(router.module(TRANSFER), address(erc20), "ERC20Test: Transfer not set");
+        assertEq(router.module(TRANSFER_FROM), address(erc20), "ERC20Test: TransferFrom not set");
+        assertEq(router.module(APPROVE), address(erc20), "ERC20Test: Approve not set");
+        assertEq(router.module(ALLOWANCE), address(erc20), "ERC20Test: Allowance not set");
+        assertEq(router.module(INCREASE_ALLOWANCE), address(erc20), "ERC20Test: IncreaseAllowance not set");
+        assertEq(router.module(DECREASE_ALLOWANCE), address(erc20), "ERC20Test: DecreaseAllowance not set");
     }
 
     function testERC20Initialize() public {
