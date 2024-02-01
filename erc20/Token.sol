@@ -10,13 +10,15 @@ library TokenLib {
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
 }
 
-interface IToken is IERC20 {   
+interface IToken is IERC20 {
     function mint(address _account, uint256 _amount) external;
+
     function burn(address _account, uint256 _amount) external;
 }
 
 contract Token is IToken, ERC20 {
     address private immutable __self = address(this);
+    address private immutable __owner = msg.sender;
 
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
@@ -48,12 +50,14 @@ contract Token is IToken, ERC20 {
 
     // Commands
     function mint(address _account, uint256 _amount) external {
-        enforceIsOwner();
+        if (msg.sender != __owner)
+            revert ML.OwnableUnauthorizedAccount(msg.sender);
         _mint(_account, _amount);
     }
 
     function burn(address _account, uint256 _amount) external {
-        enforceIsOwner();
+        if (msg.sender != __owner)
+            revert ML.OwnableUnauthorizedAccount(msg.sender);
         _burn(_account, _amount);
     }
 }

@@ -78,6 +78,10 @@ contract TokenTest is Test, Token {
         assertEq(IToken(clone).totalSupply(), 2000);
 
         assertEq(IToken(clone).balanceOf(bob), 1000);
+
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob));
+        IToken(clone).mint(bob, 1000);
     }
 
     function testTokenBurn() public {
@@ -86,10 +90,14 @@ contract TokenTest is Test, Token {
         address clone = Clones.clone(address(token));
         IToken(clone).initialize("Clone", "CLONE", 18, 1000);
 
-        IToken(clone).burn(alice, 1000);
+        IToken(clone).burn(alice, 700);
 
-        assertEq(IToken(clone).totalSupply(), 0);
+        assertEq(IToken(clone).totalSupply(), 300);
 
-        assertEq(IToken(clone).balanceOf(alice), 0);
+        assertEq(IToken(clone).balanceOf(alice), 300);
+
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob));
+        IToken(clone).burn(alice, 300);
     }
 }
