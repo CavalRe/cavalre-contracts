@@ -64,7 +64,7 @@ library RouterLib {
         return ML.store().owners[_module];
     }
 
-    function implementation(bytes4 selector) internal view returns (address) {
+    function module(bytes4 selector) internal view returns (address) {
         return ML.store().modules[selector];
     }
 }
@@ -118,11 +118,11 @@ contract Router is Module {
         return RouterLib.owner(_module);
     }
 
-    function implementation(bytes4 selector)
+    function module(bytes4 selector)
         public
         view
         returns (address)
     {
-        return RouterLib.implementation(selector);
+        return RouterLib.module(selector);
     }
 }
