@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import {Module, ModuleLib as ML} from "@cavalre/router/Module.sol";
+import {IERC20} from "@cavalre/erc20/IERC20.sol";
 
 struct Store {
     bool isInitialized;
