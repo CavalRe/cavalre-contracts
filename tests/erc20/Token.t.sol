@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Router} from "@cavalre/router/Router.sol";
+import {IRouter, Router} from "@cavalre/router/Router.sol";
 import {IToken, Token, TokenLib as TL} from "@cavalre/erc20/Token.sol";
 import {Module, ModuleLib as ML} from "@cavalre/router/Module.sol";
 import {Sentry, SentryLib as SL} from "@cavalre/sentry/Sentry.sol";
@@ -51,6 +51,7 @@ contract TokenTest is Test, Token {
         vm.startPrank(alice);
 
         address clone = Clones.clone(address(token));
+
         IToken(clone).initialize("Clone", "CLONE", 18, 1000);
 
         vm.expectRevert("ERC20: Already initialized");
@@ -70,7 +71,9 @@ contract TokenTest is Test, Token {
     function testTokenMint() public {
         vm.startPrank(alice);
 
+        // address clone = Clones.clone(address(token));
         address clone = Clones.clone(address(token));
+
         IToken(clone).initialize("Clone", "CLONE", 18, 1000);
 
         IToken(clone).mint(bob, 1000);

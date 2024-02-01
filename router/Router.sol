@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Module, ModuleLib as ML, Store} from "./Module.sol";
+import {IRouter} from "./IRouter.sol";
 import {console} from "forge-std/console.sol";
 
 library RouterLib {
@@ -69,7 +70,7 @@ library RouterLib {
     }
 }
 
-contract Router is Module {
+contract Router is IRouter, Module {
     address private immutable __self = address(this);
 
     constructor() {
@@ -118,11 +119,11 @@ contract Router is Module {
         return RouterLib.owner(_module);
     }
 
-    function module(bytes4 selector)
+    function module(bytes4 _selector)
         public
         view
         returns (address)
     {
-        return RouterLib.module(selector);
+        return RouterLib.module(_selector);
     }
 }
