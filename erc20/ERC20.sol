@@ -29,6 +29,7 @@ library ERC20Lib {
 
 contract ERC20 is IERC20, Module {
     address private immutable __self = address(this);
+    address private immutable __owner = msg.sender;
 
     // Selectors
     bytes4 internal constant CLONE = bytes4(keccak256("clone()"));
@@ -82,6 +83,8 @@ contract ERC20 is IERC20, Module {
         uint8 _decimals,
         uint256 _totalSupply
     ) public {
+        if (msg.sender != __owner)
+            revert ML.OwnableUnauthorizedAccount(msg.sender);
         Store storage s = ERC20Lib.store();
         if (s.isInitialized) {
             revert("ERC20: Already initialized");
@@ -92,7 +95,6 @@ contract ERC20 is IERC20, Module {
         s.totalSupply = _totalSupply;
         s.balances[msg.sender] = _totalSupply;
         s.isInitialized = true;
-        ML.store().owners[__self] = msg.sender;
     }
 
     // Functions
@@ -240,11 +242,7 @@ contract ERC20 is IERC20, Module {
         } else {
             uint256 fromBalance = s.balances[from];
             if (fromBalance < value) {
-                revert ERC20InsufficientBalance(
-                    from,
-                    fromBalance,
-                    value
-                );
+                revert ERC20InsufficientBalance(from, fromBalance, value);
             }
             unchecked {
                 // Overflow not possible: value <= fromBalance <= totalSupply.
