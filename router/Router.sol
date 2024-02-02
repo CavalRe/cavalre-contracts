@@ -103,6 +103,10 @@ contract Router is IRouter, Module {
 
     receive() external payable {}
 
+    function getCommands(address _module) external returns (bytes4[] memory) {
+        return RouterLib.getCommands(_module);
+    }
+
     function setCommand(bytes4 _command, address _module) external {
         RouterLib.setCommand(_command, _module);
     }

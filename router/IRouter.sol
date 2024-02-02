@@ -13,6 +13,8 @@ interface IRouter {
     error ModuleNotFound(address _module);
 
     // Commands
+    function getCommands(address _module) external returns (bytes4[] memory);
+    
     function setCommand(bytes4 _command, address _module) external;
 
     function addModule(address _module) external;
