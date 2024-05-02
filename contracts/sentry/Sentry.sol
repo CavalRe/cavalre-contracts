@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
-import {Module, ModuleLib as ML, Store as ModuleStore} from "@cavalre/router/Module.sol";
-import {RouterLib as RL} from "@cavalre/router/Router.sol";
-import {console} from "forge-std/console.sol";
+import {Module, ModuleLib as ML, Store as ModuleStore} from "@cavalre/contracts/router/Module.sol";
+import {RouterLib as RL} from "@cavalre/contracts/router/Router.sol";
+import {console} from "forge-std/src/console.sol";
 
 struct Store {
     mapping(address => address) pendingOwners;

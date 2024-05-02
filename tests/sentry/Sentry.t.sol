@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Router, RouterLib as RL} from "@cavalre/router/Router.sol";
-import {Module, ModuleLib as ML} from "@cavalre/router/Module.sol";
-import {Sentry, SentryLib as SL} from "@cavalre/sentry/Sentry.sol";
-import {Test} from "forge-std/Test.sol";
+import {Router, RouterLib as RL} from "@cavalre/contracts/router/Router.sol";
+import {Module, ModuleLib as ML} from "@cavalre/contracts/router/Module.sol";
+import {Sentry, SentryLib as SL} from "@cavalre/contracts/sentry/Sentry.sol";
+import {Test} from "forge-std/src/Test.sol";
 
 contract SentryTest is Test {
     Router router;

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Router} from "@cavalre/router/Router.sol";
-import {IERC20, ERC20, ERC20Lib as EL} from "@cavalre/erc20/ERC20.sol";
-import {Module, ModuleLib as ML} from "@cavalre/router/Module.sol";
-import {Sentry, SentryLib as SL} from "@cavalre/sentry/Sentry.sol";
+import {Router} from "@cavalre/contracts/router/Router.sol";
+import {ERC20} from "@cavalre/contracts/ERC20/ERC20.sol";
+import {Module, ModuleLib as ML} from "@cavalre/contracts/router/Module.sol";
+// import {Sentry, SentryLib as SL} from "@cavalre/contracts/sentry/Sentry.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
-import {Test} from "forge-std/Test.sol";
+import {Test} from "forge-std/src/Test.sol";
 
 contract ERC20Test is Test, ERC20 {
     ERC20 erc20;
     Router router;
-    Sentry sentry;
+    // Sentry sentry;
 
     address alice = address(1);
     address bob = address(2);
@@ -30,7 +30,6 @@ contract ERC20Test is Test, ERC20 {
     }
 
     function testERC20Init() public {
-        assertEq(router.module(CLONE), address(erc20), "ERC20Test: Clone not set");
         assertEq(router.module(INITIALIZE), address(erc20), "ERC20Test: Initialize not set");
         assertEq(router.module(NAME), address(erc20), "ERC20Test: Name not set");
         assertEq(router.module(SYMBOL), address(erc20), "ERC20Test: Symbol not set");
@@ -41,27 +40,25 @@ contract ERC20Test is Test, ERC20 {
         assertEq(router.module(TRANSFER_FROM), address(erc20), "ERC20Test: TransferFrom not set");
         assertEq(router.module(APPROVE), address(erc20), "ERC20Test: Approve not set");
         assertEq(router.module(ALLOWANCE), address(erc20), "ERC20Test: Allowance not set");
-        assertEq(router.module(INCREASE_ALLOWANCE), address(erc20), "ERC20Test: IncreaseAllowance not set");
-        assertEq(router.module(DECREASE_ALLOWANCE), address(erc20), "ERC20Test: DecreaseAllowance not set");
     }
 
     function testERC20Initialize() public {
         vm.startPrank(alice);
 
         address clone = Clones.clone(address(erc20));
-        IERC20(clone).initialize("Clone", "CLONE", 18, 1000);
+        ERC20(clone).initialize("Clone", "CLONE");
 
-        vm.expectRevert("ERC20: Already initialized");
-        IERC20(clone).initialize("Clone", "CLONE", 18, 1000);
+        vm.expectRevert(abi.encodeWithSelector(InvalidInitialization.selector));
+        ERC20(clone).initialize("Clone", "CLONE");
 
-        assertEq(IERC20(clone).name(), "Clone");
+        assertEq(ERC20(clone).name(), "Clone");
 
-        assertEq(IERC20(clone).symbol(), "CLONE");
+        assertEq(ERC20(clone).symbol(), "CLONE");
 
-        assertEq(IERC20(clone).decimals(), 18);
+        assertEq(ERC20(clone).decimals(), 18);
 
-        assertEq(IERC20(clone).totalSupply(), 1000);
+        assertEq(ERC20(clone).totalSupply(), 0);
 
-        assertEq(IERC20(clone).balanceOf(alice), 1000);
+        assertEq(ERC20(clone).balanceOf(alice), 0);
     }
 }
