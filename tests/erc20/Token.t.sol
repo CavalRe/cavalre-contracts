@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IRouter, Router} from "@cavalre/router/Router.sol";
-import {IToken, Token, ITokenFactory, TokenFactory, TokenLib as TL} from "@cavalre/erc20/Token.sol";
-import {Module, ModuleLib as ML} from "@cavalre/router/Module.sol";
-import {Sentry, SentryLib as SL} from "@cavalre/sentry/Sentry.sol";
+import {IRouter, Router} from "@cavalre/contracts/router/Router.sol";
+import {ERC20} from "@cavalre/contracts/ERC20/ERC20.sol";
+import {Token, TokenFactory, TokenLib as TL} from "@cavalre/contracts/ERC20/Token.sol";
+import {Module, ModuleLib as ML} from "@cavalre/contracts/router/Module.sol";
+import {Sentry, SentryLib as SL} from "@cavalre/contracts/sentry/Sentry.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
-import {Test} from "forge-std/Test.sol";
+import {Test} from "forge-std/src/Test.sol";
 
-contract TokenTest is Test {
+contract TokenTest is Test, Token {
     Token token;
     TokenFactory factory;
     Router router;
@@ -21,7 +22,7 @@ contract TokenTest is Test {
     bool success;
     bytes data;
 
-    bytes4[] commands;
+    bytes4[] commands_;
 
     function setUp() public {
         vm.startPrank(alice);
@@ -35,86 +36,71 @@ contract TokenTest is Test {
     }
 
     function testTokenInit() public {
-        commands = router.getCommands(address(token));
+        commands_ = router.getCommands(address(token));
         assertEq(
-            router.module(commands[0]),
-            address(token),
-            "TokenTest: Clone not set"
-        );
-        assertEq(
-            router.module(commands[1]),
+            router.module(commands_[0]),
             address(token),
             "TokenTest: Initialize not set"
         );
         assertEq(
-            router.module(commands[2]),
+            router.module(commands_[1]),
             address(token),
             "TokenTest: Name not set"
         );
         assertEq(
-            router.module(commands[3]),
+            router.module(commands_[2]),
             address(token),
             "TokenTest: Symbol not set"
         );
         assertEq(
-            router.module(commands[4]),
+            router.module(commands_[3]),
             address(token),
             "TokenTest: Decimals not set"
         );
         assertEq(
-            router.module(commands[5]),
+            router.module(commands_[4]),
             address(token),
             "TokenTest: TotalSupply not set"
         );
         assertEq(
-            router.module(commands[6]),
+            router.module(commands_[5]),
             address(token),
             "TokenTest: BalanceOf not set"
         );
         assertEq(
-            router.module(commands[7]),
+            router.module(commands_[6]),
             address(token),
             "TokenTest: Transfer not set"
         );
         assertEq(
-            router.module(commands[8]),
+            router.module(commands_[7]),
             address(token),
             "TokenTest: TransferFrom not set"
         );
         assertEq(
-            router.module(commands[9]),
+            router.module(commands_[8]),
             address(token),
             "TokenTest: Approve not set"
         );
         assertEq(
-            router.module(commands[10]),
+            router.module(commands_[9]),
             address(token),
             "TokenTest: Allowance not set"
         );
         assertEq(
-            router.module(commands[11]),
-            address(token),
-            "TokenTest: IncreaseAllowance not set"
-        );
-        assertEq(
-            router.module(commands[12]),
-            address(token),
-            "TokenTest: DecreaseAllowance not set"
-        );
-        assertEq(
-            router.module(commands[13]),
+            router.module(commands_[10]),
             address(token),
             "TokenTest: Mint not set"
         );
         assertEq(
-            router.module(commands[14]),
+            router.module(commands_[11]),
             address(token),
             "TokenTest: Burn not set"
         );
 
-        commands = router.getCommands(address(factory));
+        commands_ = router.getCommands(address(factory));
         assertEq(
-            router.module(commands[0]),
+            router.module(commands_[0]),
             address(factory),
             "TokenTest: Create not set"
         );
@@ -125,20 +111,20 @@ contract TokenTest is Test {
 
         address clone = Clones.clone(address(token));
 
-        IToken(clone).initialize("Clone", "CLONE", 18, 1000);
+        Token(clone).initialize("Clone", "CLONE");
 
-        vm.expectRevert("ERC20: Already initialized");
-        IToken(clone).initialize("Clone", "CLONE", 18, 1000);
+        vm.expectRevert(abi.encodeWithSelector(InvalidInitialization.selector));
+        Token(clone).initialize("Clone", "CLONE");
 
-        assertEq(IToken(clone).name(), "Clone");
+        assertEq(Token(clone).name(), "Clone");
 
-        assertEq(IToken(clone).symbol(), "CLONE");
+        assertEq(Token(clone).symbol(), "CLONE");
 
-        assertEq(IToken(clone).decimals(), 18);
+        assertEq(Token(clone).decimals(), 18);
 
-        assertEq(IToken(clone).totalSupply(), 1000);
+        assertEq(Token(clone).totalSupply(), 0);
 
-        assertEq(IToken(clone).balanceOf(alice), 1000);
+        assertEq(Token(clone).balanceOf(alice), 0);
     }
 
     function testTokenMint() public {
@@ -147,38 +133,40 @@ contract TokenTest is Test {
         // address clone = Clones.clone(address(token));
         address clone = Clones.clone(address(token));
 
-        IToken(clone).initialize("Clone", "CLONE", 18, 1000);
+        Token(clone).initialize("Clone", "CLONE");
 
-        IToken(clone).mint(bob, 1000);
+        Token(clone).mint(bob, 1000);
 
-        assertEq(IToken(clone).totalSupply(), 2000);
+        assertEq(Token(clone).totalSupply(), 1000);
 
-        assertEq(IToken(clone).balanceOf(bob), 1000);
+        assertEq(Token(clone).balanceOf(bob), 1000);
 
         vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob)
         );
-        IToken(clone).mint(bob, 1000);
+        Token(clone).mint(bob, 1000);
     }
 
     function testTokenBurn() public {
         vm.startPrank(alice);
 
         address clone = Clones.clone(address(token));
-        IToken(clone).initialize("Clone", "CLONE", 18, 1000);
+        Token(clone).initialize("Clone", "CLONE");
 
-        IToken(clone).burn(alice, 700);
+        Token(clone).mint(bob, 1000);
 
-        assertEq(IToken(clone).totalSupply(), 300);
+        Token(clone).burn(bob, 700);
 
-        assertEq(IToken(clone).balanceOf(alice), 300);
+        assertEq(Token(clone).totalSupply(), 300);
+
+        assertEq(Token(clone).balanceOf(bob), 300);
 
         vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob)
         );
-        IToken(clone).burn(alice, 300);
+        Token(clone).burn(bob, 300);
     }
 
     function testTokenFactoryCreate() public {
@@ -196,14 +184,14 @@ contract TokenTest is Test {
         assertTrue(success, "TokenTest: createToken failed");
         address clone = abi.decode(data, (address));
 
-        assertEq(IToken(clone).name(), "Clone");
+        assertEq(Token(clone).name(), "Clone");
 
-        assertEq(IToken(clone).symbol(), "CLONE");
+        assertEq(Token(clone).symbol(), "CLONE");
 
-        assertEq(IToken(clone).decimals(), 18);
+        assertEq(Token(clone).decimals(), 18);
 
-        assertEq(IToken(clone).totalSupply(), 1000);
+        assertEq(Token(clone).totalSupply(), 0);
 
-        assertEq(IToken(clone).balanceOf(IToken(clone).deployer()), 1000);
+        assertEq(Token(clone).balanceOf(Token(clone).deployer()), 0);
     }
 }

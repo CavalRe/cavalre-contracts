@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-import {Test} from "forge-std/Test.sol";
-import {console} from "forge-std/console.sol";
+pragma solidity ^0.8.20;
 
 struct Store {
     mapping(address => address) owners;
@@ -11,8 +8,10 @@ struct Store {
 
 library ModuleLib {
     // Stores
-    bytes32 internal constant STORE_POSITION =
-        keccak256("@cavalre.module.store");
+    bytes32 private constant STORE_POSITION =
+        keccak256(
+            abi.encode(uint256(keccak256("cavalre.storage.Module")) - 1)
+        ) & ~bytes32(uint256(0xff));
 
     // Errors
     error IsDelegated();
@@ -45,14 +44,14 @@ library ModuleLib {
     }
 }
 
-abstract contract Module is Test {
+abstract contract Module {
     address private immutable __self = address(this);
 
     // Commands
     function commands() public pure virtual returns (bytes4[] memory _commands);
 
-    function enforceIsOwner() internal view {
-        ModuleLib.enforceIsOwner(__self);
+    function enforceIsOwner() internal view returns (Store storage) {
+        return ModuleLib.enforceIsOwner(__self);
     }
 
     function enforceIsDelegated() internal view {

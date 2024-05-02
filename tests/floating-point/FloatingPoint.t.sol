@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 // import {Pool, FixedPointMathLib} from "../contracts/Pool.sol";
-import {FloatingPoint, UFloat} from "@cavalre/floating-point/FloatingPoint.sol";
-import {FloatingPointStrings} from "../libraries/floating-point-strings/FloatingPointStrings.sol";
-import {Test} from "forge-std/Test.sol";
+import {FloatingPoint, UFloat} from "@cavalre/contracts/libraries/FloatingPoint.sol";
+import {FloatingPointStrings} from "@cavalre/contracts/libraries/FloatingPointStrings.sol";
+import {Test} from "forge-std/src/Test.sol";
 
 contract FloatingPointTest is Test {
     using FloatingPoint for uint256;

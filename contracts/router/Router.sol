@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import {Module, ModuleLib as ML, Store} from "./Module.sol";
 import {IRouter} from "./IRouter.sol";
-import {console} from "forge-std/console.sol";
 
 library RouterLib {
     // Stores
-    bytes32 internal constant STORE_POSITION =
-        keccak256("@cavalre.router.store");
+    bytes32 private constant STORE_POSITION =
+        keccak256(
+            abi.encode(uint256(keccak256("cavalre.storage.Router")) - 1)
+        ) & ~bytes32(uint256(0xff));
 
     // Events
     event CommandSet(bytes4 indexed command, address indexed module);
