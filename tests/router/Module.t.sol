@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {ModuleLib as ML} from "@cavalre/contracts/router/Module.sol";
-import {Router} from "@cavalre/contracts/router/Router.sol";
+import {ModuleLib as ML} from "../../router/Module.sol";
+import {Router} from "../../router/Router.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract ModuleTest is Test {
