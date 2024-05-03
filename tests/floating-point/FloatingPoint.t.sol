@@ -2,8 +2,8 @@
 pragma solidity 0.8.24;
 
 // import {Pool, FixedPointMathLib} from "../contracts/Pool.sol";
-import {FloatingPoint, UFloat} from "@cavalre/contracts/libraries/FloatingPoint.sol";
-import {FloatingPointStrings} from "@cavalre/contracts/libraries/FloatingPointStrings.sol";
+import {FloatingPoint, UFloat} from "../../libraries/FloatingPoint.sol";
+import {FloatingPointStrings} from "../../libraries/FloatingPointStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract FloatingPointTest is Test {
