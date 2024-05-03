@@ -7,7 +7,7 @@
   "license": "MIT",
   "author": "CavalRe",
   "files": [
-    "**/*.sol",
+    "contracts/**/*.sol",
     "!/tests/**/*"
   ],
   "repository": {
