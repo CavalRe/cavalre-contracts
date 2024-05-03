@@ -1,5 +1,5 @@
 {
-  "name": "cavalre-contracts",
+  "name": "@cavalre/contracts",
   "version": "0.1.0",
   "description": "",
   "homepage": "",
@@ -7,7 +7,7 @@
   "license": "MIT",
   "author": "CavalRe",
   "files": [
-    "contracts/**/*.sol"
+    "**/*.sol"
   ],
   "repository": {
     "type": "git",
