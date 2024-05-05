@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Module, ModuleLib as ML} from "@cavalre/contracts/router/Module.sol";
 // import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {ERC20Upgradeable, ERC20Lib} from "./ERC20Upgradeable.sol";
+import {ERC20Upgradeable} from "./ERC20Upgradeable.sol";
 
 contract ERC20 is ERC20Upgradeable, Module {
     // Selectors
