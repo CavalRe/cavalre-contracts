@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {IRouter, Router} from "../../contracts/router/Router.sol";
-import {ERC20} from "../../contracts/ERC20/ERC20.sol";
 import {Token, TokenFactory, TokenLib as TL} from "../../contracts/ERC20/Token.sol";
 import {Module, ModuleLib as ML} from "../../contracts/router/Module.sol";
 import {Sentry, SentryLib as SL} from "../../contracts/sentry/Sentry.sol";

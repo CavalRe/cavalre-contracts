@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Module, ModuleLib as ML} from "@cavalre/contracts/router/Module.sol";
 import {ERC20} from "@cavalre/contracts/ERC20/ERC20.sol";
+import {ERC20Lib} from "@cavalre/contracts/ERC20/ERC20Upgradeable.sol";
 
 library TokenLib {
     // Selectors
@@ -84,12 +85,12 @@ contract Token is ERC20 {
     function mint(address _account, uint256 _amount) external {
         if (msg.sender != __owner)
             revert ML.OwnableUnauthorizedAccount(msg.sender);
-        _mint(_account, _amount);
+        ERC20Lib.mint(_account, _amount);
     }
 
     function burn(address _account, uint256 _amount) external {
         if (msg.sender != __owner)
             revert ML.OwnableUnauthorizedAccount(msg.sender);
-        _burn(_account, _amount);
+        ERC20Lib.burn(_account, _amount);
     }
 }
