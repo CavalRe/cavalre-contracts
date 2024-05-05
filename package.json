@@ -6,6 +6,9 @@
   "bugs": "",
   "license": "MIT",
   "author": "CavalRe",
+  "exports": {
+    ".": "./contracts/**/*.sol"
+  },
   "files": [
     "**/*.sol",
     "!tests/**"
