@@ -10,6 +10,7 @@
     "./ERC20": "./contracts/ERC20/*.sol"
   },
   "files": [
+    "**/*.sol",
     "!tests/**"
   ],
   "repository": {
