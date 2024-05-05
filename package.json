@@ -7,8 +7,11 @@
   "license": "MIT",
   "author": "CavalRe",
   "exports": {
-    ".": "./contracts/**/*.sol"
+    "./ERC20": "./contracts/ERC20/*.sol"
   },
+  "files": [
+    "!tests/**"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/CavalRe/cavalre-contracts.git"
