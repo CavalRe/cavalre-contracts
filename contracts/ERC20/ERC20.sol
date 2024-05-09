@@ -47,7 +47,7 @@ contract ERC20 is ERC20Upgradeable, Module {
     function initialize(
         string calldata name,
         string calldata symbol
-    ) public initializer {
+    ) public virtual initializer {
         __ERC20_init(name, symbol);
     }
 }
