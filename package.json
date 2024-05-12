@@ -10,13 +10,15 @@
     "./ERC20/": "./contracts/ERC20/",
     "./libraries/": "./contracts/libraries/",
     "./router/": "./contracts/router/",
-    "./sentry/": "./contracts/sentry/"
+    "./sentry/": "./contracts/sentry/",
+    "./tests/ERC20/": "./tests/ERC20/"
   },
   "files": [
     "contracts/ERC20/",
     "contracts/libraries/",
     "contracts/router/",
-    "contracts/sentry/"
+    "contracts/sentry/",
+    "tests/ERC20/"
   ],
   "repository": {
     "type": "git",
