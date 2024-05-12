@@ -1,37 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {RouterTest} from "../router/Router.t.sol";
 import {IRouter, Router} from "../../contracts/router/Router.sol";
-import {Token, TokenFactory, TokenLib as TL} from "../../contracts/ERC20/Token.sol";
+import {Token, TokenLib as TL} from "../../contracts/ERC20/Token.sol";
+import {ERC20Lib as EL} from "../../contracts/ERC20/ERC20.sol";
 import {Module, ModuleLib as ML} from "../../contracts/router/Module.sol";
-import {Sentry, SentryLib as SL} from "../../contracts/sentry/Sentry.sol";
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
-import {Test} from "forge-std/src/Test.sol";
 
-contract TokenTest is Test, Token {
+import {Test, console} from "forge-std/src/Test.sol";
+
+contract TokenTest is RouterTest, Token {
     Token token;
-    TokenFactory factory;
     Router router;
-    Sentry sentry;
-
-    address alice = address(1);
-    address bob = address(2);
-    address charlie = address(3);
-
-    bool success;
-    bytes data;
 
     bytes4[] commands_;
 
     function setUp() public {
         vm.startPrank(alice);
         token = new Token();
-        factory = new TokenFactory();
-        // sentry = new Sentry();
-        // router.addModule(address(sentry));
         router = new Router();
         router.addModule(address(token));
-        router.addModule(address(factory));
+
+        call(router, TL.INITIALIZE_TOKEN, abi.encode("Token", "TOKEN"));
     }
 
     function testTokenInit() public {
@@ -97,100 +87,71 @@ contract TokenTest is Test, Token {
             "TokenTest: Burn not set"
         );
 
-        commands_ = router.getCommands(address(factory));
-        assertEq(
-            router.module(commands_[0]),
-            address(factory),
-            "TokenTest: Create not set"
-        );
+        // commands_ = router.getCommands(address(factory));
+        // assertEq(
+        //     router.module(commands_[0]),
+        //     address(factory),
+        //     "TokenTest: Create not set"
+        // );
     }
 
     function testTokenInitialize() public {
         vm.startPrank(alice);
 
-        address clone = Clones.clone(address(token));
-
-        Token(clone).initialize("Clone", "CLONE");
-
         vm.expectRevert(abi.encodeWithSelector(InvalidInitialization.selector));
-        Token(clone).initialize("Clone", "CLONE");
+        call(router, TL.INITIALIZE_TOKEN, abi.encode("Token", "TOKEN"));
 
-        assertEq(Token(clone).name(), "Clone");
+        call(router, EL.NAME, abi.encode(address(token)));
+        assertEq(abi.decode(data, (string)), "Token");
 
-        assertEq(Token(clone).symbol(), "CLONE");
+        call(router, EL.SYMBOL, abi.encode(address(token)));
+        assertEq(abi.decode(data, (string)), "TOKEN");
 
-        assertEq(Token(clone).decimals(), 18);
+        call(router, EL.DECIMALS, abi.encode(address(token)));
+        assertEq(abi.decode(data, (uint8)), 18);
 
-        assertEq(Token(clone).totalSupply(), 0);
+        call(router, EL.TOTAL_SUPPLY, abi.encode(address(token)));
+        assertEq(abi.decode(data, (uint256)), 0);
 
-        assertEq(Token(clone).balanceOf(alice), 0);
+        call(router, EL.BALANCE_OF, abi.encode(address(token), alice));
+        assertEq(abi.decode(data, (uint256)), 0);
     }
 
     function testTokenMint() public {
         vm.startPrank(alice);
 
-        // address clone = Clones.clone(address(token));
-        address clone = Clones.clone(address(token));
+        call(router, TL.MINT, abi.encode(bob, 1000));
 
-        Token(clone).initialize("Clone", "CLONE");
+        call(router, EL.TOTAL_SUPPLY, abi.encode(address(token)));
+        assertEq(abi.decode(data, (uint256)), 1000);
 
-        Token(clone).mint(bob, 1000);
-
-        assertEq(Token(clone).totalSupply(), 1000);
-
-        assertEq(Token(clone).balanceOf(bob), 1000);
+        call(router, EL.BALANCE_OF, abi.encode(bob));
+        assertEq(abi.decode(data, (uint256)), 1000);
 
         vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob)
         );
-        Token(clone).mint(bob, 1000);
+        call(router, TL.MINT, abi.encode(bob, 1000));
     }
 
     function testTokenBurn() public {
         vm.startPrank(alice);
 
-        address clone = Clones.clone(address(token));
-        Token(clone).initialize("Clone", "CLONE");
+        call(router, TL.MINT, abi.encode(bob, 1000));
 
-        Token(clone).mint(bob, 1000);
+        call(router, TL.BURN, abi.encode(bob, 700));
 
-        Token(clone).burn(bob, 700);
+        call(router, EL.TOTAL_SUPPLY, abi.encode(address(token)));
+        assertEq(abi.decode(data, (uint256)), 300);
 
-        assertEq(Token(clone).totalSupply(), 300);
-
-        assertEq(Token(clone).balanceOf(bob), 300);
+        call(router, EL.BALANCE_OF, abi.encode(bob));
+        assertEq(abi.decode(data, (uint256)), 300);
 
         vm.startPrank(bob);
         vm.expectRevert(
             abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob)
         );
-        Token(clone).burn(bob, 300);
-    }
-
-    function testTokenFactoryCreate() public {
-        vm.startPrank(alice);
-
-        (success, data) = address(router).call(
-            abi.encodeWithSignature(
-                "createToken(string,string,uint8,uint256)",
-                "Clone",
-                "CLONE",
-                18,
-                1000
-            )
-        );
-        assertTrue(success, "TokenTest: createToken failed");
-        address clone = abi.decode(data, (address));
-
-        assertEq(Token(clone).name(), "Clone");
-
-        assertEq(Token(clone).symbol(), "CLONE");
-
-        assertEq(Token(clone).decimals(), 18);
-
-        assertEq(Token(clone).totalSupply(), 0);
-
-        assertEq(Token(clone).balanceOf(Token(clone).deployer()), 0);
+        call(router, TL.BURN, abi.encode(bob, 300));
     }
 }
