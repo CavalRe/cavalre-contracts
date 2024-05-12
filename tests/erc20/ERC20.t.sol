@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Router} from "../../contracts/router/Router.sol";
-import {ERC20} from "../../contracts/ERC20/ERC20.sol";
+import {ERC20, ERC20Lib} from "../../contracts/ERC20/ERC20.sol";
 import {Module, ModuleLib as ML} from "../../contracts/router/Module.sol";
 // import {Sentry, SentryLib as SL} from "@cavalre/contracts/sentry/Sentry.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
@@ -30,26 +30,25 @@ contract ERC20Test is Test, ERC20 {
     }
 
     function testERC20Init() public {
-        assertEq(router.module(INITIALIZE), address(erc20), "ERC20Test: Initialize not set");
-        assertEq(router.module(NAME), address(erc20), "ERC20Test: Name not set");
-        assertEq(router.module(SYMBOL), address(erc20), "ERC20Test: Symbol not set");
-        assertEq(router.module(DECIMALS), address(erc20), "ERC20Test: Decimals not set");
-        assertEq(router.module(TOTAL_SUPPLY), address(erc20), "ERC20Test: TotalSupply not set");
-        assertEq(router.module(BALANCE_OF), address(erc20), "ERC20Test: BalanceOf not set");
-        assertEq(router.module(TRANSFER), address(erc20), "ERC20Test: Transfer not set");
-        assertEq(router.module(TRANSFER_FROM), address(erc20), "ERC20Test: TransferFrom not set");
-        assertEq(router.module(APPROVE), address(erc20), "ERC20Test: Approve not set");
-        assertEq(router.module(ALLOWANCE), address(erc20), "ERC20Test: Allowance not set");
+        assertEq(router.module(ERC20Lib.NAME), address(erc20), "ERC20Test: Name not set");
+        assertEq(router.module(ERC20Lib.SYMBOL), address(erc20), "ERC20Test: Symbol not set");
+        assertEq(router.module(ERC20Lib.DECIMALS), address(erc20), "ERC20Test: Decimals not set");
+        assertEq(router.module(ERC20Lib.TOTAL_SUPPLY), address(erc20), "ERC20Test: TotalSupply not set");
+        assertEq(router.module(ERC20Lib.BALANCE_OF), address(erc20), "ERC20Test: BalanceOf not set");
+        assertEq(router.module(ERC20Lib.TRANSFER), address(erc20), "ERC20Test: Transfer not set");
+        assertEq(router.module(ERC20Lib.TRANSFER_FROM), address(erc20), "ERC20Test: TransferFrom not set");
+        assertEq(router.module(ERC20Lib.APPROVE), address(erc20), "ERC20Test: Approve not set");
+        assertEq(router.module(ERC20Lib.ALLOWANCE), address(erc20), "ERC20Test: Allowance not set");
     }
 
     function testERC20Initialize() public {
         vm.startPrank(alice);
 
         address clone = Clones.clone(address(erc20));
-        ERC20(clone).initialize("Clone", "CLONE");
+        ERC20(clone).initializeERC20("Clone", "CLONE");
 
         vm.expectRevert(abi.encodeWithSelector(InvalidInitialization.selector));
-        ERC20(clone).initialize("Clone", "CLONE");
+        ERC20(clone).initializeERC20("Clone", "CLONE");
 
         assertEq(ERC20(clone).name(), "Clone");
 
