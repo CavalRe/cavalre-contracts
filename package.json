@@ -18,7 +18,7 @@
     "contracts/libraries/",
     "contracts/router/",
     "contracts/sentry/",
-    "tests/ERC20/"
+    "tests/ERC20/Token.t.sol"
   ],
   "repository": {
     "type": "git",
