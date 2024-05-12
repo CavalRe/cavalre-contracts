@@ -20,6 +20,9 @@ contract Token is ERC20 {
     address private immutable __self = address(this);
     address private immutable __owner = msg.sender;
 
+    event Deposit(address indexed dst, uint256 wad);
+    event Withdrawal(address indexed src, uint256 wad);
+
     function commands()
         public
         pure
@@ -51,14 +54,31 @@ contract Token is ERC20 {
         __ERC20_init(_name, _symbol);
     }
 
-    function mint(address _account, uint256 _amount) external {
+    function mint(address _account, uint256 _amount) public {
         enforceIsOwner();
         ERC20Lib.mint(_account, _amount);
     }
 
-    function burn(address _account, uint256 _amount) external {
+    function burn(address _account, uint256 _amount) public {
         enforceIsOwner();
         ERC20Lib.burn(_account, _amount);
+    }
+
+    receive() external payable {
+        deposit();
+    }
+
+    function deposit() public payable {
+        mint(_msgSender(), msg.value);
+        emit Deposit(_msgSender(), msg.value);
+    }
+
+    function withdraw(uint256 wad) public {
+        require(balanceOf(_msgSender()) >= wad);
+        burn(_msgSender(), wad);
+        (bool success, ) = payable(_msgSender()).call{value: wad}("");
+        require(success, "Transfer failed");
+        emit Withdrawal(_msgSender(), wad);
     }
 }
 
