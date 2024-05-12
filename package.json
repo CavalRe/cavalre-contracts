@@ -11,14 +11,16 @@
     "./libraries/": "./contracts/libraries/",
     "./router/": "./contracts/router/",
     "./sentry/": "./contracts/sentry/",
-    "./tests/ERC20/": "./tests/ERC20/"
+    "./tests/ERC20/": "./tests/ERC20/",
+    "./tests/Router/": "./tests/Router/"
   },
   "files": [
     "contracts/ERC20/",
     "contracts/libraries/",
     "contracts/router/",
     "contracts/sentry/",
-    "tests/ERC20/Token.t.sol"
+    "tests/ERC20/Token.t.sol",
+    "tests/Router/Router.t.sol"
   ],
   "repository": {
     "type": "git",
