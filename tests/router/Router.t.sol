@@ -7,7 +7,7 @@ import {Test, console} from "forge-std/src/Test.sol";
 contract RouterTest is Test {
     address alice = address(1);
     address bob = address(2);
-    address charlie = address(3);
+    address carol = address(3);
 
     bool success;
     bytes data;
