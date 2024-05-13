@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {RouterTest} from "../router/Router.t.sol";
 import {IRouter, Router} from "../../contracts/router/Router.sol";
-import {ERC20, ERC20Lib} from "../../contracts/ERC20/ERC20.sol";
+import {ERC20, ERC20Lib, Store} from "../../contracts/ERC20/ERC20.sol";
 import {ModuleLib} from "../../contracts/router/Module.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
@@ -48,10 +48,18 @@ contract Token is ERC20 {
     // Commands
     function initializeToken(
         string memory _name,
-        string memory _symbol
+        string memory _symbol,
+        uint8 _decimals
     ) external initializer {
         enforceIsOwner();
         __ERC20_init(_name, _symbol);
+        Store storage s = ERC20Lib.store();
+        s.decimals = _decimals;
+    }
+
+    function decimals() public view override returns (uint8) {
+        Store storage s = ERC20Lib.store();
+        return s.decimals;
     }
 
     function mint(address _account, uint256 _amount) public {
@@ -203,7 +211,10 @@ contract TokenTest is RouterTest, Token {
 
         vm.startPrank(bob);
         vm.expectRevert(
-            abi.encodeWithSelector(ModuleLib.OwnableUnauthorizedAccount.selector, bob)
+            abi.encodeWithSelector(
+                ModuleLib.OwnableUnauthorizedAccount.selector,
+                bob
+            )
         );
         call(router, TokenLib.MINT, abi.encode(bob, 1000));
     }
@@ -223,7 +234,10 @@ contract TokenTest is RouterTest, Token {
 
         vm.startPrank(bob);
         vm.expectRevert(
-            abi.encodeWithSelector(ModuleLib.OwnableUnauthorizedAccount.selector, bob)
+            abi.encodeWithSelector(
+                ModuleLib.OwnableUnauthorizedAccount.selector,
+                bob
+            )
         );
         call(router, TokenLib.BURN, abi.encode(bob, 300));
     }
