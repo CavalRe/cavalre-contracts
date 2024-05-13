@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {RouterTest} from "../router/Router.t.sol";
 import {IRouter, Router} from "../../contracts/router/Router.sol";
-import {ERC20, ERC20Lib, Store} from "../../contracts/ERC20/ERC20.sol";
+import {ERC20, ERC20Lib, Store as ERC20Store} from "../../contracts/ERC20/ERC20.sol";
 import {ModuleLib} from "../../contracts/router/Module.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
@@ -53,12 +53,12 @@ contract Token is ERC20 {
     ) public initializer {
         enforceIsOwner();
         __ERC20_init(_name, _symbol);
-        Store storage s = ERC20Lib.store();
+        ERC20Store storage s = ERC20Lib.store();
         s.decimals = _decimals;
     }
 
     function decimals() public view override returns (uint8) {
-        Store storage s = ERC20Lib.store();
+        ERC20Store storage s = ERC20Lib.store();
         return s.decimals;
     }
 
