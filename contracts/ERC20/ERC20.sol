@@ -16,6 +16,7 @@ struct Store {
     uint256 totalSupply;
     string name;
     string symbol;
+    uint8 decimals;
 }
 
 library ERC20Lib {
