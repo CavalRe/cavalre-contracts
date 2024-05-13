@@ -11,7 +11,7 @@ import {Test, console} from "forge-std/src/Test.sol";
 library TokenLib {
     // Selectors
     bytes4 internal constant INITIALIZE_TOKEN =
-        bytes4(keccak256("initializeToken(string,string)"));
+        bytes4(keccak256("initializeToken(string,string,uint8)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
 }
@@ -50,7 +50,7 @@ contract Token is ERC20 {
         string memory _name,
         string memory _symbol,
         uint8 _decimals
-    ) external initializer {
+    ) public initializer {
         enforceIsOwner();
         __ERC20_init(_name, _symbol);
         Store storage s = ERC20Lib.store();
@@ -102,7 +102,7 @@ contract TokenTest is RouterTest, Token {
         router = new Router();
         router.addModule(address(token));
 
-        call(router, TokenLib.INITIALIZE_TOKEN, abi.encode("Token", "TOKEN"));
+        call(router, TokenLib.INITIALIZE_TOKEN, abi.encode("Token", "TOKEN", 18));
     }
 
     function testTokenInit() public {
@@ -180,7 +180,7 @@ contract TokenTest is RouterTest, Token {
         vm.startPrank(alice);
 
         vm.expectRevert(abi.encodeWithSelector(InvalidInitialization.selector));
-        call(router, TokenLib.INITIALIZE_TOKEN, abi.encode("Token", "TOKEN"));
+        call(router, TokenLib.INITIALIZE_TOKEN, abi.encode("Token", "TOKEN", 18));
 
         call(router, ERC20Lib.NAME, abi.encode(address(token)));
         assertEq(abi.decode(data, (string)), "Token");
