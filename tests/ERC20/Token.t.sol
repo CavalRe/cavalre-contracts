@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {RouterTest} from "../router/Router.t.sol";
+import {RouterTest, RouterTestLib} from "../router/Router.t.sol";
 import {IRouter, Router} from "../../contracts/router/Router.sol";
+import {ERC20TestLib} from "./ERC20.t.sol";
 import {ERC20, ERC20Lib, Store as ERC20Store} from "../../contracts/ERC20/ERC20.sol";
 import {ModuleLib} from "../../contracts/router/Module.sol";
 
@@ -90,7 +91,39 @@ contract Token is ERC20 {
     }
 }
 
+library TokenTestLib {
+    using RouterTestLib for Router;
+
+    function initializeToken(
+        Router router_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_
+    ) internal {
+        router_.call(TokenLib.INITIALIZE_TOKEN, abi.encode(name_, symbol_, decimals_));
+    }
+
+    function mint(
+        Router router_,
+        address account_,
+        uint256 amount_
+    ) internal {
+        router_.call(TokenLib.MINT, abi.encode(account_, amount_));
+    }
+
+    function burn(
+        Router router_,
+        address account_,
+        uint256 amount_
+    ) internal {
+        router_.call(TokenLib.BURN, abi.encode(account_, amount_));
+    }
+}
+
 contract TokenTest is RouterTest, Token {
+    using ERC20TestLib for Router;
+    using TokenTestLib for Router;
+
     Token token;
     Router router;
 
@@ -102,7 +135,7 @@ contract TokenTest is RouterTest, Token {
         router = new Router();
         router.addModule(address(token));
 
-        call(router, TokenLib.INITIALIZE_TOKEN, abi.encode("Token", "TOKEN", 18));
+        router.initializeToken("Token", "TOKEN", 18);
     }
 
     function testTokenInit() public {
@@ -180,34 +213,22 @@ contract TokenTest is RouterTest, Token {
         vm.startPrank(alice);
 
         vm.expectRevert(abi.encodeWithSelector(InvalidInitialization.selector));
-        call(router, TokenLib.INITIALIZE_TOKEN, abi.encode("Token", "TOKEN", 18));
+        router.initializeToken("Token", "TOKEN", 18);
 
-        call(router, ERC20Lib.NAME, abi.encode(address(token)));
-        assertEq(abi.decode(data, (string)), "Token");
-
-        call(router, ERC20Lib.SYMBOL, abi.encode(address(token)));
-        assertEq(abi.decode(data, (string)), "TOKEN");
-
-        call(router, ERC20Lib.DECIMALS, abi.encode(address(token)));
-        assertEq(abi.decode(data, (uint8)), 18);
-
-        call(router, ERC20Lib.TOTAL_SUPPLY, abi.encode(address(token)));
-        assertEq(abi.decode(data, (uint256)), 0);
-
-        call(router, ERC20Lib.BALANCE_OF, abi.encode(address(token), alice));
-        assertEq(abi.decode(data, (uint256)), 0);
+        assertEq(router.name(), "Token");
+        assertEq(router.symbol(), "TOKEN");
+        assertEq(router.decimals(), 18);
+        assertEq(router.totalSupply(), 0);
+        assertEq(router.balanceOf(alice), 0);
     }
 
     function testTokenMint() public {
         vm.startPrank(alice);
 
-        call(router, TokenLib.MINT, abi.encode(bob, 1000));
+        router.mint(bob, 1000);
 
-        call(router, ERC20Lib.TOTAL_SUPPLY, abi.encode(address(token)));
-        assertEq(abi.decode(data, (uint256)), 1000);
-
-        call(router, ERC20Lib.BALANCE_OF, abi.encode(bob));
-        assertEq(abi.decode(data, (uint256)), 1000);
+        assertEq(router.totalSupply(), 1000);
+        assertEq(router.balanceOf(bob), 1000);
 
         vm.startPrank(bob);
         vm.expectRevert(
@@ -216,21 +237,17 @@ contract TokenTest is RouterTest, Token {
                 bob
             )
         );
-        call(router, TokenLib.MINT, abi.encode(bob, 1000));
+        router.mint(bob, 1000);
     }
 
     function testTokenBurn() public {
         vm.startPrank(alice);
 
-        call(router, TokenLib.MINT, abi.encode(bob, 1000));
+        router.mint(bob, 1000);
+        router.burn(bob, 700);
 
-        call(router, TokenLib.BURN, abi.encode(bob, 700));
-
-        call(router, ERC20Lib.TOTAL_SUPPLY, abi.encode(address(token)));
-        assertEq(abi.decode(data, (uint256)), 300);
-
-        call(router, ERC20Lib.BALANCE_OF, abi.encode(bob));
-        assertEq(abi.decode(data, (uint256)), 300);
+        assertEq(router.totalSupply(), 300);
+        assertEq(router.balanceOf(bob), 300);
 
         vm.startPrank(bob);
         vm.expectRevert(
@@ -239,6 +256,6 @@ contract TokenTest is RouterTest, Token {
                 bob
             )
         );
-        call(router, TokenLib.BURN, abi.encode(bob, 300));
+        router.burn(bob, 300);
     }
 }
