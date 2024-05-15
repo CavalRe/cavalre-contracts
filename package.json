@@ -19,7 +19,7 @@
     "contracts/libraries/",
     "contracts/router/",
     "contracts/sentry/",
-    "tests/ERC20/Token.t.sol",
+    "tests/ERC20/",
     "tests/Router/Router.t.sol"
   ],
   "repository": {
