@@ -5,19 +5,13 @@ import {Router} from "../../contracts/router/Router.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Test, console} from "forge-std/src/Test.sol";
 
-contract RouterTest is Test, ContextUpgradeable {
-    address alice = address(1);
-    address bob = address(2);
-    address carol = address(3);
-
-    bool success;
-    bytes data;
-
+library RouterTestLib {
     function call(
         Router router,
         bytes4 selector,
         bytes memory payload
-    ) internal {
+    ) internal returns (bytes memory data){
+        bool success;
         (success, data) = payable(router).call(
             abi.encodePacked(selector, payload)
         );
@@ -30,6 +24,12 @@ contract RouterTest is Test, ContextUpgradeable {
             revert(reason);
         }
     }
+}
+
+contract RouterTest is Test, ContextUpgradeable {
+    address alice = address(1);
+    address bob = address(2);
+    address carol = address(3);
 
     function testRouterInit() public {
         vm.startPrank(alice);
