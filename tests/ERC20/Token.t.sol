@@ -10,15 +10,15 @@ import {ModuleLib} from "../../contracts/router/Module.sol";
 import {Test, console} from "forge-std/src/Test.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-library TokenLib {
+library TestTokenLib {
     // Selectors
     bytes4 internal constant INITIALIZE_TOKEN =
-        bytes4(keccak256("initializeToken(string,string,uint8)"));
+        bytes4(keccak256("initializeTestToken(string,string,uint8)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
 }
 
-contract Token is ERC20 {
+contract TestToken is ERC20 {
     address private immutable __self = address(this);
     address private immutable __owner = msg.sender;
 
@@ -33,7 +33,7 @@ contract Token is ERC20 {
         returns (bytes4[] memory _commands)
     {
         _commands = new bytes4[](12);
-        _commands[0] = TokenLib.INITIALIZE_TOKEN;
+        _commands[0] = TestTokenLib.INITIALIZE_TOKEN;
         _commands[1] = ERC20Lib.NAME;
         _commands[2] = ERC20Lib.SYMBOL;
         _commands[3] = ERC20Lib.DECIMALS;
@@ -43,12 +43,12 @@ contract Token is ERC20 {
         _commands[7] = ERC20Lib.ALLOWANCE;
         _commands[7] = ERC20Lib.APPROVE;
         _commands[9] = ERC20Lib.TRANSFER_FROM;
-        _commands[10] = TokenLib.MINT;
-        _commands[11] = TokenLib.BURN;
+        _commands[10] = TestTokenLib.MINT;
+        _commands[11] = TestTokenLib.BURN;
     }
 
     // Commands
-    function initializeToken(
+    function initializeTestToken(
         string memory _name,
         string memory _symbol,
         uint8 _decimals
@@ -92,16 +92,16 @@ contract Token is ERC20 {
     }
 }
 
-library TokenTestLib {
+library TestTokenTestLib {
     using RouterTestLib for Router;
 
-    function initializeToken(
+    function initializeTestToken(
         Router router_,
         string memory name_,
         string memory symbol_,
         uint8 decimals_
     ) internal {
-        router_.call(TokenLib.INITIALIZE_TOKEN, abi.encode(name_, symbol_, decimals_));
+        router_.call(TestTokenLib.INITIALIZE_TOKEN, abi.encode(name_, symbol_, decimals_));
     }
 
     function mint(
@@ -109,7 +109,7 @@ library TokenTestLib {
         address account_,
         uint256 amount_
     ) internal {
-        router_.call(TokenLib.MINT, abi.encode(account_, amount_));
+        router_.call(TestTokenLib.MINT, abi.encode(account_, amount_));
     }
 
     function burn(
@@ -117,15 +117,15 @@ library TokenTestLib {
         address account_,
         uint256 amount_
     ) internal {
-        router_.call(TokenLib.BURN, abi.encode(account_, amount_));
+        router_.call(TestTokenLib.BURN, abi.encode(account_, amount_));
     }
 }
 
-contract TokenTest is Test {
+contract TestTokenTest is Test {
     using ERC20TestLib for Router;
-    using TokenTestLib for Router;
+    using TestTokenTestLib for Router;
 
-    Token token;
+    TestToken token;
     Router router;
 
     address alice = address(1);
@@ -136,98 +136,98 @@ contract TokenTest is Test {
 
     function setUp() public {
         vm.startPrank(alice);
-        token = new Token();
+        token = new TestToken();
         router = new Router();
         router.addModule(address(token));
 
-        router.initializeToken("Token", "TOKEN", 18);
+        router.initializeTestToken("TestToken", "TOKEN", 18);
     }
 
-    function testTokenInit() public {
+    function testTestTokenInit() public {
         commands_ = router.getCommands(address(token));
         assertEq(
             router.module(commands_[0]),
             address(token),
-            "TokenTest: Initialize not set"
+            "TestTokenTest: Initialize not set"
         );
         assertEq(
             router.module(commands_[1]),
             address(token),
-            "TokenTest: Name not set"
+            "TestTokenTest: Name not set"
         );
         assertEq(
             router.module(commands_[2]),
             address(token),
-            "TokenTest: Symbol not set"
+            "TestTokenTest: Symbol not set"
         );
         assertEq(
             router.module(commands_[3]),
             address(token),
-            "TokenTest: Decimals not set"
+            "TestTokenTest: Decimals not set"
         );
         assertEq(
             router.module(commands_[4]),
             address(token),
-            "TokenTest: TotalSupply not set"
+            "TestTokenTest: TotalSupply not set"
         );
         assertEq(
             router.module(commands_[5]),
             address(token),
-            "TokenTest: BalanceOf not set"
+            "TestTokenTest: BalanceOf not set"
         );
         assertEq(
             router.module(commands_[6]),
             address(token),
-            "TokenTest: Transfer not set"
+            "TestTokenTest: Transfer not set"
         );
         assertEq(
             router.module(commands_[7]),
             address(token),
-            "TokenTest: TransferFrom not set"
+            "TestTokenTest: TransferFrom not set"
         );
         assertEq(
             router.module(commands_[8]),
             address(token),
-            "TokenTest: Approve not set"
+            "TestTokenTest: Approve not set"
         );
         assertEq(
             router.module(commands_[9]),
             address(token),
-            "TokenTest: Allowance not set"
+            "TestTokenTest: Allowance not set"
         );
         assertEq(
             router.module(commands_[10]),
             address(token),
-            "TokenTest: Mint not set"
+            "TestTokenTest: Mint not set"
         );
         assertEq(
             router.module(commands_[11]),
             address(token),
-            "TokenTest: Burn not set"
+            "TestTokenTest: Burn not set"
         );
 
         // commands_ = router.getCommands(address(factory));
         // assertEq(
         //     router.module(commands_[0]),
         //     address(factory),
-        //     "TokenTest: Create not set"
+        //     "TestTokenTest: Create not set"
         // );
     }
 
-    function testTokenInitialize() public {
+    function testTestTokenInitialize() public {
         vm.startPrank(alice);
 
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
-        router.initializeToken("Token", "TOKEN", 18);
+        router.initializeTestToken("TestToken", "TOKEN", 18);
 
-        assertEq(router.name(), "Token");
+        assertEq(router.name(), "TestToken");
         assertEq(router.symbol(), "TOKEN");
         assertEq(router.decimals(), 18);
         assertEq(router.totalSupply(), 0);
         assertEq(router.balanceOf(alice), 0);
     }
 
-    function testTokenMint() public {
+    function testTestTokenMint() public {
         vm.startPrank(alice);
 
         router.mint(bob, 1000);
@@ -245,7 +245,7 @@ contract TokenTest is Test {
         router.mint(bob, 1000);
     }
 
-    function testTokenBurn() public {
+    function testTestTokenBurn() public {
         vm.startPrank(alice);
 
         router.mint(bob, 1000);
