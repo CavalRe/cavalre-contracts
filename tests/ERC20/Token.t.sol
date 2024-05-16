@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {RouterTest, RouterTestLib} from "../router/Router.t.sol";
-import {IRouter, Router} from "../../contracts/router/Router.sol";
+import {RouterTestLib} from "../router/Router.t.sol";
+import {Router} from "../../contracts/router/Router.sol";
 import {ERC20TestLib} from "./ERC20.t.sol";
 import {ERC20, ERC20Lib, Store as ERC20Store} from "../../contracts/ERC20/ERC20.sol";
 import {ModuleLib} from "../../contracts/router/Module.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 library TokenLib {
     // Selectors
@@ -120,12 +121,16 @@ library TokenTestLib {
     }
 }
 
-contract TokenTest is RouterTest, Token {
+contract TokenTest is Test {
     using ERC20TestLib for Router;
     using TokenTestLib for Router;
 
     Token token;
     Router router;
+
+    address alice = address(1);
+    address bob = address(2);
+    address carol = address(3);
 
     bytes4[] commands_;
 
@@ -212,7 +217,7 @@ contract TokenTest is RouterTest, Token {
     function testTokenInitialize() public {
         vm.startPrank(alice);
 
-        vm.expectRevert(abi.encodeWithSelector(InvalidInitialization.selector));
+        vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
         router.initializeToken("Token", "TOKEN", 18);
 
         assertEq(router.name(), "Token");
