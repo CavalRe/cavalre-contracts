@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {RouterTestLib} from "../router/Router.t.sol";
 import {Router} from "../../contracts/router/Router.sol";
-import {ERC20TestLib} from "./ERC20.t.sol";
 import {ERC20, ERC20Lib, Store as ERC20Store} from "../../contracts/ERC20/ERC20.sol";
 import {ModuleLib} from "../../contracts/router/Module.sol";
 
@@ -92,39 +90,7 @@ contract TestToken is ERC20 {
     }
 }
 
-library TestTokenTestLib {
-    using RouterTestLib for Router;
-
-    function initializeTestToken(
-        Router router_,
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_
-    ) internal {
-        router_.call(TestTokenLib.INITIALIZE_TOKEN, abi.encode(name_, symbol_, decimals_));
-    }
-
-    function mint(
-        Router router_,
-        address account_,
-        uint256 amount_
-    ) internal {
-        router_.call(TestTokenLib.MINT, abi.encode(account_, amount_));
-    }
-
-    function burn(
-        Router router_,
-        address account_,
-        uint256 amount_
-    ) internal {
-        router_.call(TestTokenLib.BURN, abi.encode(account_, amount_));
-    }
-}
-
 contract TestTokenTest is Test {
-    using ERC20TestLib for Router;
-    using TestTokenTestLib for Router;
-
     TestToken token;
     Router router;
 
@@ -132,108 +98,37 @@ contract TestTokenTest is Test {
     address bob = address(2);
     address carol = address(3);
 
-    bytes4[] commands_;
-
     function setUp() public {
         vm.startPrank(alice);
         token = new TestToken();
         router = new Router();
         router.addModule(address(token));
 
-        router.initializeTestToken("TestToken", "TOKEN", 18);
-    }
+        token = TestToken(payable(router));
 
-    function testTestTokenInit() public {
-        commands_ = router.getCommands(address(token));
-        assertEq(
-            router.module(commands_[0]),
-            address(token),
-            "TestTokenTest: Initialize not set"
-        );
-        assertEq(
-            router.module(commands_[1]),
-            address(token),
-            "TestTokenTest: Name not set"
-        );
-        assertEq(
-            router.module(commands_[2]),
-            address(token),
-            "TestTokenTest: Symbol not set"
-        );
-        assertEq(
-            router.module(commands_[3]),
-            address(token),
-            "TestTokenTest: Decimals not set"
-        );
-        assertEq(
-            router.module(commands_[4]),
-            address(token),
-            "TestTokenTest: TotalSupply not set"
-        );
-        assertEq(
-            router.module(commands_[5]),
-            address(token),
-            "TestTokenTest: BalanceOf not set"
-        );
-        assertEq(
-            router.module(commands_[6]),
-            address(token),
-            "TestTokenTest: Transfer not set"
-        );
-        assertEq(
-            router.module(commands_[7]),
-            address(token),
-            "TestTokenTest: TransferFrom not set"
-        );
-        assertEq(
-            router.module(commands_[8]),
-            address(token),
-            "TestTokenTest: Approve not set"
-        );
-        assertEq(
-            router.module(commands_[9]),
-            address(token),
-            "TestTokenTest: Allowance not set"
-        );
-        assertEq(
-            router.module(commands_[10]),
-            address(token),
-            "TestTokenTest: Mint not set"
-        );
-        assertEq(
-            router.module(commands_[11]),
-            address(token),
-            "TestTokenTest: Burn not set"
-        );
-
-        // commands_ = router.getCommands(address(factory));
-        // assertEq(
-        //     router.module(commands_[0]),
-        //     address(factory),
-        //     "TestTokenTest: Create not set"
-        // );
+        token.initializeTestToken("TestToken", "TOKEN", 18);
     }
 
     function testTestTokenInitialize() public {
         vm.startPrank(alice);
 
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
-        router.initializeTestToken("TestToken", "TOKEN", 18);
+        token.initializeTestToken("TestToken", "TOKEN", 18);
 
-        assertEq(router.name(), "TestToken");
-        assertEq(router.symbol(), "TOKEN");
-        assertEq(router.decimals(), 18);
-        assertEq(router.totalSupply(), 0);
-        assertEq(router.balanceOf(alice), 0);
+        assertEq(token.name(), "TestToken");
+        assertEq(token.symbol(), "TOKEN");
+        assertEq(token.decimals(), 18);
+        assertEq(token.totalSupply(), 0);
+        assertEq(token.balanceOf(alice), 0);
     }
 
     function testTestTokenMint() public {
         vm.startPrank(alice);
 
-        router.mint(bob, 1000);
+        token.mint(bob, 1000);
 
-        assertEq(router.totalSupply(), 1000);
-        assertEq(router.balanceOf(bob), 1000);
+        assertEq(token.totalSupply(), 1000);
+        assertEq(token.balanceOf(bob), 1000);
 
         vm.startPrank(bob);
         vm.expectRevert(
@@ -242,17 +137,17 @@ contract TestTokenTest is Test {
                 bob
             )
         );
-        router.mint(bob, 1000);
+        token.mint(bob, 1000);
     }
 
     function testTestTokenBurn() public {
         vm.startPrank(alice);
 
-        router.mint(bob, 1000);
-        router.burn(bob, 700);
+        token.mint(bob, 1000);
+        token.burn(bob, 700);
 
-        assertEq(router.totalSupply(), 300);
-        assertEq(router.balanceOf(bob), 300);
+        assertEq(token.totalSupply(), 300);
+        assertEq(token.balanceOf(bob), 300);
 
         vm.startPrank(bob);
         vm.expectRevert(
@@ -261,6 +156,6 @@ contract TestTokenTest is Test {
                 bob
             )
         );
-        router.burn(bob, 300);
+        token.burn(bob, 300);
     }
 }

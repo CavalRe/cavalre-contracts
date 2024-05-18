@@ -10,6 +10,9 @@ contract SentryTest is Test {
     Router router;
     Sentry sentry;
 
+    address routerAddress;
+    address sentryAddress;
+
     address alice = address(1);
     address bob = address(2);
     address charlie = address(3);
@@ -19,9 +22,16 @@ contract SentryTest is Test {
 
     function setUp() public {
         vm.startPrank(alice);
+
         sentry = new Sentry();
+        sentryAddress = address(sentry);
+
         router = new Router();
-        router.addModule(address(sentry));
+        routerAddress = address(router);
+
+        router.addModule(sentryAddress);
+
+        sentry = Sentry(payable(router));
     }
 
     function testSentryInit() public {
@@ -32,28 +42,28 @@ contract SentryTest is Test {
         );
         assertEq(
             router.module(SL.TRANSFER_OWNERSHIP),
-            address(sentry),
+            sentryAddress,
             "SentryTest: TransferOwnership not set"
         );
         assertEq(
             router.module(SL.ACCEPT_OWNERSHIP),
-            address(sentry),
+            sentryAddress,
             "SentryTest: AcceptOwnership not set"
         );
         assertEq(
             router.module(SL.RENOUNCE_OWNERSHIP),
-            address(sentry),
+            sentryAddress,
             "SentryTest: RenounceOwnership not set"
         );
         assertEq(
             router.module(SL.CONFIRM_RENOUNCE_OWNERSHIP),
-            address(sentry),
+            sentryAddress,
             "SentryTest: ConfirmRenounceOwnership not set"
         );
     }
 
     function testSentryOwner() public {
-        assertEq(router.owner(address(sentry)), alice);
+        assertEq(router.owner(sentryAddress), alice);
     }
 
     function testSentryWrongOwner() public {
@@ -61,40 +71,22 @@ contract SentryTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob)
         );
-        router.addModule(address(sentry));
+        router.addModule(sentryAddress);
     }
 
     function testSentryTransferOwnership() public {
         vm.startPrank(alice);
-        // Alice starts the transfer to Bob
         // emit log("Alice starts the transfer to Bob");
-        (success, ) = address(router).call(
-            abi.encodePacked(
-                SL.TRANSFER_OWNERSHIP,
-                abi.encode(address(router)),
-                abi.encode(bob)
-            )
-        );
-        require(success, "SentryTest: TransferOwnership failed");
+        sentry.transferOwnership(routerAddress, bob);
 
-        // Bob is now the pending owner
         // emit log("Verify Bob is now the pending owner");
-        (success, data) = address(router).call(
-            abi.encodePacked(SL.PENDING_OWNER, abi.encode(address(router)))
-        );
-        require(success, "SentryTest: PendingOwner failed");
-        assertEq(abi.decode(data, (address)), bob);
+        assertEq(sentry.pendingOwner(routerAddress), bob);
 
         vm.startPrank(bob);
-        // Bob accepts the transfer
         // emit log("Bob accepts the transfer");
-        (success, ) = address(router).call(
-            abi.encodePacked(SL.ACCEPT_OWNERSHIP, abi.encode(address(router)))
-        );
-        require(success, "SentryTest: AcceptOwnership failed");
+        sentry.acceptOwnership(routerAddress);
 
-        // Bob is now the owner
         // emit log("Verify Bob is now the owner");
-        assertEq(router.owner(address(router)), bob);
+        assertEq(router.owner(routerAddress), bob);
     }
 }
