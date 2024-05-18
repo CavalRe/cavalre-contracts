@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {FloatingPoint, UFloat} from "./FloatingPoint.sol";
+import {UFloatLib, UFloat} from "./UFloat.sol";
 
-library FloatingPointStrings {
-    using FloatingPoint for uint256;
-    using FloatingPoint for int256;
-    using FloatingPoint for UFloat;
+library UFloatStrings {
+    using UFloatLib for uint256;
+    using UFloatLib for int256;
+    using UFloatLib for UFloat;
 
     // Most significant bit
     function msb(uint256 value) internal pure returns (uint256) {
