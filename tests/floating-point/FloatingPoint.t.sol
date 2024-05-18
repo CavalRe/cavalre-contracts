@@ -7,9 +7,9 @@ import {UFloatStrings} from "../../contracts/libraries/UFloatStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract UFloatTest is Test {
-    using UFloat for uint256;
-    using UFloat for int256;
-    using UFloat for UFloat;
+    using UFloatLib for uint256;
+    using UFloatLib for int256;
+    using UFloatLib for UFloat;
     using UFloatStrings for uint256;
     using UFloatStrings for int256;
     using UFloatStrings for UFloat;
@@ -78,28 +78,28 @@ contract UFloatTest is Test {
     }
 
     function setUp() public {
-        ZERO = UFloat.normalize(UFloat(0, 0));
-        ONE = UFloat.normalize(UFloat(1, 0));
-        TWO = UFloat.normalize(UFloat(2, 0));
-        THREE = UFloat.normalize(UFloat(3, 0));
-        FOUR = UFloat.normalize(UFloat(4, 0));
-        FIVE = UFloat.normalize(UFloat(5, 0));
-        SIX = UFloat.normalize(UFloat(6, 0));
-        SEVEN = UFloat.normalize(UFloat(7, 0));
-        EIGHT = UFloat.normalize(UFloat(8, 0));
-        NINE = UFloat.normalize(UFloat(9, 0));
-        TEN = UFloat.normalize(UFloat(10, 0));
+        ZERO = UFloatLib.normalize(UFloat(0, 0));
+        ONE = UFloatLib.normalize(UFloat(1, 0));
+        TWO = UFloatLib.normalize(UFloat(2, 0));
+        THREE = UFloatLib.normalize(UFloat(3, 0));
+        FOUR = UFloatLib.normalize(UFloat(4, 0));
+        FIVE = UFloatLib.normalize(UFloat(5, 0));
+        SIX = UFloatLib.normalize(UFloat(6, 0));
+        SEVEN = UFloatLib.normalize(UFloat(7, 0));
+        EIGHT = UFloatLib.normalize(UFloat(8, 0));
+        NINE = UFloatLib.normalize(UFloat(9, 0));
+        TEN = UFloatLib.normalize(UFloat(10, 0));
 
-        HALF = UFloat.normalize(UFloat(5, -1));
-        ONEnHALF = UFloat.normalize(UFloat(15, -1));
-        TWOnHALF = UFloat.normalize(UFloat(25, -1));
-        THREEnHALF = UFloat.normalize(UFloat(35, -1));
-        FOURnHALF = UFloat.normalize(UFloat(45, -1));
-        FIVEnHALF = UFloat.normalize(UFloat(55, -1));
-        SIXnHALF = UFloat.normalize(UFloat(65, -1));
-        SEVENnHALF = UFloat.normalize(UFloat(75, -1));
-        EIGHTnHALF = UFloat.normalize(UFloat(85, -1));
-        NINEnHALF = UFloat.normalize(UFloat(95, -1));
+        HALF = UFloatLib.normalize(UFloat(5, -1));
+        ONEnHALF = UFloatLib.normalize(UFloat(15, -1));
+        TWOnHALF = UFloatLib.normalize(UFloat(25, -1));
+        THREEnHALF = UFloatLib.normalize(UFloat(35, -1));
+        FOURnHALF = UFloatLib.normalize(UFloat(45, -1));
+        FIVEnHALF = UFloatLib.normalize(UFloat(55, -1));
+        SIXnHALF = UFloatLib.normalize(UFloat(65, -1));
+        SEVENnHALF = UFloatLib.normalize(UFloat(75, -1));
+        EIGHTnHALF = UFloatLib.normalize(UFloat(85, -1));
+        NINEnHALF = UFloatLib.normalize(UFloat(95, -1));
 
         ZERO_unnormalized = UFloat(0, 0);
         HALF_unnormalized = UFloat(1, -1);
@@ -231,15 +231,15 @@ contract UFloatTest is Test {
     function testGasBlank() public pure {}
 
     function testGasNormalize() public view {
-        UFloat.normalize(ONE_unnormalized);
+        UFloatLib.normalize(ONE_unnormalized);
     }
 
     function testGasNormalizeNormalized() public view {
-        UFloat.normalize(ONE);
+        UFloatLib.normalize(ONE);
     }
 
     function testGasAlign() public view {
-        UFloat.align(ONE, TWO_unnormalized);
+        UFloatLib.align(ONE, TWO_unnormalized);
     }
 
     function testGasAdd() public view {
@@ -275,48 +275,48 @@ contract UFloatTest is Test {
     // }
 
     // function testMSB() public view {
-    //     assertEq(UFloat.msb(0), 0, "0");
-    //     assertEq(UFloat.msb(1), 1, "1");
-    //     assertEq(UFloat.msb(2), 2, "2");
-    //     assertEq(UFloat.msb(3), 2, "3");
-    //     assertEq(UFloat.msb(4), 3, "4");
-    //     assertEq(UFloat.msb(5), 3, "5");
-    //     assertEq(UFloat.msb(6), 3, "6");
-    //     assertEq(UFloat.msb(7), 3, "7");
-    //     assertEq(UFloat.msb(8), 4, "8");
-    //     assertEq(UFloat.msb(9), 4, "9");
-    //     assertEq(UFloat.msb(10), 4, "10");
-    //     assertEq(UFloat.msb(11), 4, "11");
-    //     assertEq(UFloat.msb(12), 4, "12");
-    //     assertEq(UFloat.msb(13), 4, "13");
-    //     assertEq(UFloat.msb(14), 4, "14");
-    //     assertEq(UFloat.msb(15), 4, "15");
-    //     assertEq(UFloat.msb(16), 5, "16");
-    //     assertEq(UFloat.msb(17), 5, "17");
-    //     assertEq(UFloat.msb(18), 5, "18");
-    //     assertEq(UFloat.msb(19), 5, "19");
-    //     assertEq(UFloat.msb(20), 5, "20");
-    //     assertEq(UFloat.msb(21), 5, "21");
-    //     assertEq(UFloat.msb(22), 5, "22");
-    //     assertEq(UFloat.msb(23), 5, "23");
-    //     assertEq(UFloat.msb(24), 5, "24");
-    //     assertEq(UFloat.msb(25), 5, "25");
-    //     assertEq(UFloat.msb(26), 5, "26");
-    //     assertEq(UFloat.msb(27), 5, "27");
-    //     assertEq(UFloat.msb(28), 5, "28");
-    //     assertEq(UFloat.msb(29), 5, "29");
-    //     assertEq(UFloat.msb(30), 5, "30");
+    //     assertEq(UFloatLib.msb(0), 0, "0");
+    //     assertEq(UFloatLib.msb(1), 1, "1");
+    //     assertEq(UFloatLib.msb(2), 2, "2");
+    //     assertEq(UFloatLib.msb(3), 2, "3");
+    //     assertEq(UFloatLib.msb(4), 3, "4");
+    //     assertEq(UFloatLib.msb(5), 3, "5");
+    //     assertEq(UFloatLib.msb(6), 3, "6");
+    //     assertEq(UFloatLib.msb(7), 3, "7");
+    //     assertEq(UFloatLib.msb(8), 4, "8");
+    //     assertEq(UFloatLib.msb(9), 4, "9");
+    //     assertEq(UFloatLib.msb(10), 4, "10");
+    //     assertEq(UFloatLib.msb(11), 4, "11");
+    //     assertEq(UFloatLib.msb(12), 4, "12");
+    //     assertEq(UFloatLib.msb(13), 4, "13");
+    //     assertEq(UFloatLib.msb(14), 4, "14");
+    //     assertEq(UFloatLib.msb(15), 4, "15");
+    //     assertEq(UFloatLib.msb(16), 5, "16");
+    //     assertEq(UFloatLib.msb(17), 5, "17");
+    //     assertEq(UFloatLib.msb(18), 5, "18");
+    //     assertEq(UFloatLib.msb(19), 5, "19");
+    //     assertEq(UFloatLib.msb(20), 5, "20");
+    //     assertEq(UFloatLib.msb(21), 5, "21");
+    //     assertEq(UFloatLib.msb(22), 5, "22");
+    //     assertEq(UFloatLib.msb(23), 5, "23");
+    //     assertEq(UFloatLib.msb(24), 5, "24");
+    //     assertEq(UFloatLib.msb(25), 5, "25");
+    //     assertEq(UFloatLib.msb(26), 5, "26");
+    //     assertEq(UFloatLib.msb(27), 5, "27");
+    //     assertEq(UFloatLib.msb(28), 5, "28");
+    //     assertEq(UFloatLib.msb(29), 5, "29");
+    //     assertEq(UFloatLib.msb(30), 5, "30");
     // }
 
     function testNormalize() public {
         assertEq(
             ONE_unnormalized.normalize().mantissa.msb(),
-            UFloat.SIGNIFICANT_DIGITS,
+            UFloatLib.SIGNIFICANT_DIGITS,
             "mantissa (from unnormalized)"
         );
         assertEq(
             ONE.mantissa.msb(),
-            UFloat.SIGNIFICANT_DIGITS,
+            UFloatLib.SIGNIFICANT_DIGITS,
             "mantissa (from normalized)"
         );
         assertEq(
@@ -327,7 +327,7 @@ contract UFloatTest is Test {
     }
 
     function testAlign() public {
-        (a, b) = UFloat.align(ONE, TWO_unnormalized);
+        (a, b) = UFloatLib.align(ONE, TWO_unnormalized);
         assertEq(a, ONE, "a!=ONE");
         assertEq(b, TWO_unnormalized, "b!=TWO_unnormalized");
         assertEq(a.exponent, b.exponent, "exponent");
@@ -335,7 +335,7 @@ contract UFloatTest is Test {
 
     function testONE() public {
         a = UFloat(1, 0);
-        a = UFloat.normalize(a);
+        a = UFloatLib.normalize(a);
         assertEq(a.mantissa.msb(), 18, "msb");
         if (failed) {
             emit log_named_uint("ONE.mantissa", a.mantissa);
@@ -1119,7 +1119,7 @@ contract UFloatTest is Test {
     //                 b = floats[j];
     //                 c = floats[k];
     //                 assertEq(
-    //                     UFloat.mulDiv(a, b, c),
+    //                     UFloatLib.mulDiv(a, b, c),
     //                     a.times(b).divide(c),
     //                     "muDiv(a,b,c)!=(a*b)/c"
     //                 );
@@ -1137,7 +1137,7 @@ contract UFloatTest is Test {
     //                 b = floats[j];
     //                 c = floats[k];
     //                 assertEq(
-    //                     UFloat.mulDivAdd(a, b, c),
+    //                     UFloatLib.mulDivAdd(a, b, c),
     //                     a.times(c).divide(b.plus(c)),
     //                     "muDivAdd(a,b,c)!=(a*b)/(c+b)"
     //                 );
@@ -1147,10 +1147,10 @@ contract UFloatTest is Test {
     // }
 
     // function testEncode() public {
-    //     uint256 x = UFloat.encode(1, 1);
+    //     uint256 x = UFloatLib.encode(1, 1);
     //     uint256 m;
     //     uint256 e;
-    //     (m, e) = UFloat.decode(x);
+    //     (m, e) = UFloatLib.decode(x);
     //     assertEq(
     //         x,
     //         0x0000000000000000000000000000000000000000000000000000000000000081,
