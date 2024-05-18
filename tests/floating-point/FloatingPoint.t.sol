@@ -2,17 +2,17 @@
 pragma solidity 0.8.24;
 
 // import {Pool, FixedPointMathLib} from "../contracts/Pool.sol";
-import {FloatingPoint, UFloat} from "../../contracts/libraries/FloatingPoint.sol";
-import {FloatingPointStrings} from "../../contracts/libraries/FloatingPointStrings.sol";
+import {UFloatLib, UFloat} from "../../contracts/libraries/UFloat.sol";
+import {UFloatStrings} from "../../contracts/libraries/UFloatStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
 
-contract FloatingPointTest is Test {
-    using FloatingPoint for uint256;
-    using FloatingPoint for int256;
-    using FloatingPoint for UFloat;
-    using FloatingPointStrings for uint256;
-    using FloatingPointStrings for int256;
-    using FloatingPointStrings for UFloat;
+contract UFloatTest is Test {
+    using UFloat for uint256;
+    using UFloat for int256;
+    using UFloat for UFloat;
+    using UFloatStrings for uint256;
+    using UFloatStrings for int256;
+    using UFloatStrings for UFloat;
 
     UFloat internal ZERO;
     UFloat internal HALF;
@@ -78,28 +78,28 @@ contract FloatingPointTest is Test {
     }
 
     function setUp() public {
-        ZERO = FloatingPoint.normalize(UFloat(0, 0));
-        ONE = FloatingPoint.normalize(UFloat(1, 0));
-        TWO = FloatingPoint.normalize(UFloat(2, 0));
-        THREE = FloatingPoint.normalize(UFloat(3, 0));
-        FOUR = FloatingPoint.normalize(UFloat(4, 0));
-        FIVE = FloatingPoint.normalize(UFloat(5, 0));
-        SIX = FloatingPoint.normalize(UFloat(6, 0));
-        SEVEN = FloatingPoint.normalize(UFloat(7, 0));
-        EIGHT = FloatingPoint.normalize(UFloat(8, 0));
-        NINE = FloatingPoint.normalize(UFloat(9, 0));
-        TEN = FloatingPoint.normalize(UFloat(10, 0));
+        ZERO = UFloat.normalize(UFloat(0, 0));
+        ONE = UFloat.normalize(UFloat(1, 0));
+        TWO = UFloat.normalize(UFloat(2, 0));
+        THREE = UFloat.normalize(UFloat(3, 0));
+        FOUR = UFloat.normalize(UFloat(4, 0));
+        FIVE = UFloat.normalize(UFloat(5, 0));
+        SIX = UFloat.normalize(UFloat(6, 0));
+        SEVEN = UFloat.normalize(UFloat(7, 0));
+        EIGHT = UFloat.normalize(UFloat(8, 0));
+        NINE = UFloat.normalize(UFloat(9, 0));
+        TEN = UFloat.normalize(UFloat(10, 0));
 
-        HALF = FloatingPoint.normalize(UFloat(5, -1));
-        ONEnHALF = FloatingPoint.normalize(UFloat(15, -1));
-        TWOnHALF = FloatingPoint.normalize(UFloat(25, -1));
-        THREEnHALF = FloatingPoint.normalize(UFloat(35, -1));
-        FOURnHALF = FloatingPoint.normalize(UFloat(45, -1));
-        FIVEnHALF = FloatingPoint.normalize(UFloat(55, -1));
-        SIXnHALF = FloatingPoint.normalize(UFloat(65, -1));
-        SEVENnHALF = FloatingPoint.normalize(UFloat(75, -1));
-        EIGHTnHALF = FloatingPoint.normalize(UFloat(85, -1));
-        NINEnHALF = FloatingPoint.normalize(UFloat(95, -1));
+        HALF = UFloat.normalize(UFloat(5, -1));
+        ONEnHALF = UFloat.normalize(UFloat(15, -1));
+        TWOnHALF = UFloat.normalize(UFloat(25, -1));
+        THREEnHALF = UFloat.normalize(UFloat(35, -1));
+        FOURnHALF = UFloat.normalize(UFloat(45, -1));
+        FIVEnHALF = UFloat.normalize(UFloat(55, -1));
+        SIXnHALF = UFloat.normalize(UFloat(65, -1));
+        SEVENnHALF = UFloat.normalize(UFloat(75, -1));
+        EIGHTnHALF = UFloat.normalize(UFloat(85, -1));
+        NINEnHALF = UFloat.normalize(UFloat(95, -1));
 
         ZERO_unnormalized = UFloat(0, 0);
         HALF_unnormalized = UFloat(1, -1);
@@ -231,15 +231,15 @@ contract FloatingPointTest is Test {
     function testGasBlank() public pure {}
 
     function testGasNormalize() public view {
-        FloatingPoint.normalize(ONE_unnormalized);
+        UFloat.normalize(ONE_unnormalized);
     }
 
     function testGasNormalizeNormalized() public view {
-        FloatingPoint.normalize(ONE);
+        UFloat.normalize(ONE);
     }
 
     function testGasAlign() public view {
-        FloatingPoint.align(ONE, TWO_unnormalized);
+        UFloat.align(ONE, TWO_unnormalized);
     }
 
     function testGasAdd() public view {
@@ -275,48 +275,48 @@ contract FloatingPointTest is Test {
     // }
 
     // function testMSB() public view {
-    //     assertEq(FloatingPoint.msb(0), 0, "0");
-    //     assertEq(FloatingPoint.msb(1), 1, "1");
-    //     assertEq(FloatingPoint.msb(2), 2, "2");
-    //     assertEq(FloatingPoint.msb(3), 2, "3");
-    //     assertEq(FloatingPoint.msb(4), 3, "4");
-    //     assertEq(FloatingPoint.msb(5), 3, "5");
-    //     assertEq(FloatingPoint.msb(6), 3, "6");
-    //     assertEq(FloatingPoint.msb(7), 3, "7");
-    //     assertEq(FloatingPoint.msb(8), 4, "8");
-    //     assertEq(FloatingPoint.msb(9), 4, "9");
-    //     assertEq(FloatingPoint.msb(10), 4, "10");
-    //     assertEq(FloatingPoint.msb(11), 4, "11");
-    //     assertEq(FloatingPoint.msb(12), 4, "12");
-    //     assertEq(FloatingPoint.msb(13), 4, "13");
-    //     assertEq(FloatingPoint.msb(14), 4, "14");
-    //     assertEq(FloatingPoint.msb(15), 4, "15");
-    //     assertEq(FloatingPoint.msb(16), 5, "16");
-    //     assertEq(FloatingPoint.msb(17), 5, "17");
-    //     assertEq(FloatingPoint.msb(18), 5, "18");
-    //     assertEq(FloatingPoint.msb(19), 5, "19");
-    //     assertEq(FloatingPoint.msb(20), 5, "20");
-    //     assertEq(FloatingPoint.msb(21), 5, "21");
-    //     assertEq(FloatingPoint.msb(22), 5, "22");
-    //     assertEq(FloatingPoint.msb(23), 5, "23");
-    //     assertEq(FloatingPoint.msb(24), 5, "24");
-    //     assertEq(FloatingPoint.msb(25), 5, "25");
-    //     assertEq(FloatingPoint.msb(26), 5, "26");
-    //     assertEq(FloatingPoint.msb(27), 5, "27");
-    //     assertEq(FloatingPoint.msb(28), 5, "28");
-    //     assertEq(FloatingPoint.msb(29), 5, "29");
-    //     assertEq(FloatingPoint.msb(30), 5, "30");
+    //     assertEq(UFloat.msb(0), 0, "0");
+    //     assertEq(UFloat.msb(1), 1, "1");
+    //     assertEq(UFloat.msb(2), 2, "2");
+    //     assertEq(UFloat.msb(3), 2, "3");
+    //     assertEq(UFloat.msb(4), 3, "4");
+    //     assertEq(UFloat.msb(5), 3, "5");
+    //     assertEq(UFloat.msb(6), 3, "6");
+    //     assertEq(UFloat.msb(7), 3, "7");
+    //     assertEq(UFloat.msb(8), 4, "8");
+    //     assertEq(UFloat.msb(9), 4, "9");
+    //     assertEq(UFloat.msb(10), 4, "10");
+    //     assertEq(UFloat.msb(11), 4, "11");
+    //     assertEq(UFloat.msb(12), 4, "12");
+    //     assertEq(UFloat.msb(13), 4, "13");
+    //     assertEq(UFloat.msb(14), 4, "14");
+    //     assertEq(UFloat.msb(15), 4, "15");
+    //     assertEq(UFloat.msb(16), 5, "16");
+    //     assertEq(UFloat.msb(17), 5, "17");
+    //     assertEq(UFloat.msb(18), 5, "18");
+    //     assertEq(UFloat.msb(19), 5, "19");
+    //     assertEq(UFloat.msb(20), 5, "20");
+    //     assertEq(UFloat.msb(21), 5, "21");
+    //     assertEq(UFloat.msb(22), 5, "22");
+    //     assertEq(UFloat.msb(23), 5, "23");
+    //     assertEq(UFloat.msb(24), 5, "24");
+    //     assertEq(UFloat.msb(25), 5, "25");
+    //     assertEq(UFloat.msb(26), 5, "26");
+    //     assertEq(UFloat.msb(27), 5, "27");
+    //     assertEq(UFloat.msb(28), 5, "28");
+    //     assertEq(UFloat.msb(29), 5, "29");
+    //     assertEq(UFloat.msb(30), 5, "30");
     // }
 
     function testNormalize() public {
         assertEq(
             ONE_unnormalized.normalize().mantissa.msb(),
-            FloatingPoint.SIGNIFICANT_DIGITS,
+            UFloat.SIGNIFICANT_DIGITS,
             "mantissa (from unnormalized)"
         );
         assertEq(
             ONE.mantissa.msb(),
-            FloatingPoint.SIGNIFICANT_DIGITS,
+            UFloat.SIGNIFICANT_DIGITS,
             "mantissa (from normalized)"
         );
         assertEq(
@@ -327,7 +327,7 @@ contract FloatingPointTest is Test {
     }
 
     function testAlign() public {
-        (a, b) = FloatingPoint.align(ONE, TWO_unnormalized);
+        (a, b) = UFloat.align(ONE, TWO_unnormalized);
         assertEq(a, ONE, "a!=ONE");
         assertEq(b, TWO_unnormalized, "b!=TWO_unnormalized");
         assertEq(a.exponent, b.exponent, "exponent");
@@ -335,7 +335,7 @@ contract FloatingPointTest is Test {
 
     function testONE() public {
         a = UFloat(1, 0);
-        a = FloatingPoint.normalize(a);
+        a = UFloat.normalize(a);
         assertEq(a.mantissa.msb(), 18, "msb");
         if (failed) {
             emit log_named_uint("ONE.mantissa", a.mantissa);
@@ -1119,7 +1119,7 @@ contract FloatingPointTest is Test {
     //                 b = floats[j];
     //                 c = floats[k];
     //                 assertEq(
-    //                     FloatingPoint.mulDiv(a, b, c),
+    //                     UFloat.mulDiv(a, b, c),
     //                     a.times(b).divide(c),
     //                     "muDiv(a,b,c)!=(a*b)/c"
     //                 );
@@ -1137,7 +1137,7 @@ contract FloatingPointTest is Test {
     //                 b = floats[j];
     //                 c = floats[k];
     //                 assertEq(
-    //                     FloatingPoint.mulDivAdd(a, b, c),
+    //                     UFloat.mulDivAdd(a, b, c),
     //                     a.times(c).divide(b.plus(c)),
     //                     "muDivAdd(a,b,c)!=(a*b)/(c+b)"
     //                 );
@@ -1147,10 +1147,10 @@ contract FloatingPointTest is Test {
     // }
 
     // function testEncode() public {
-    //     uint256 x = FloatingPoint.encode(1, 1);
+    //     uint256 x = UFloat.encode(1, 1);
     //     uint256 m;
     //     uint256 e;
-    //     (m, e) = FloatingPoint.decode(x);
+    //     (m, e) = UFloat.decode(x);
     //     assertEq(
     //         x,
     //         0x0000000000000000000000000000000000000000000000000000000000000081,
