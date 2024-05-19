@@ -7,11 +7,11 @@ import {UFloatStrings} from "../../contracts/libraries/UFloatStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract UFloatTest is Test {
-    using UFloatLib for uint256;
-    using UFloatLib for int256;
+    using UFloatLib for uint88;
+    using UFloatLib for int8;
     using UFloatLib for UFloat;
-    using UFloatStrings for uint256;
-    using UFloatStrings for int256;
+    using UFloatStrings for uint88;
+    using UFloatStrings for int8;
     using UFloatStrings for UFloat;
 
     UFloat internal ZERO;
@@ -189,40 +189,40 @@ contract UFloatTest is Test {
 
         emit log_named_string("1.15 x 10^-6", UFloat(115, -8).toString());
 
-        UFloat memory bigNumber = UFloat(115, 998).normalize();
+        UFloat memory bigNumber = UFloat(115, 63).normalize();
         emit log("Write big number");
         emit log_named_uint("bigNumber.mantissa", bigNumber.mantissa);
-        emit log_named_string("1.15 x 10^1000", bigNumber.toString());
+        emit log_named_string("1.15 x 10^65", bigNumber.toString());
 
         UFloat memory bigNumberPlus = bigNumber.plus(bigNumber);
         emit log("Plus big number");
-        emit log_named_string("2.30 x 10^1000", bigNumberPlus.toString());
+        emit log_named_string("2.30 x 10^65", bigNumberPlus.toString());
 
         UFloat memory reallyBigNumber = bigNumber.times(bigNumber);
         emit log("Write really big number");
-        emit log_named_string("1.3225 x 10^2000", reallyBigNumber.toString());
+        emit log_named_string("1.3225 x 10^130", reallyBigNumber.toString());
 
-        UFloat memory smallNumber = UFloat(115, -1002).normalize();
+        UFloat memory smallNumber = UFloat(115, -44).normalize();
         emit log("Write small number");
-        emit log_named_string("1.15 x 10^-1000", smallNumber.toString());
+        emit log_named_string("1.15 x 10^-44", smallNumber.toString());
 
         UFloat memory reallySmallNumber = smallNumber.times(smallNumber);
         emit log("Write really small number");
-        emit log_named_string("1.3225 x 10^-2000", reallySmallNumber.toString());
+        emit log_named_string("1.3225 x 10^-88", reallySmallNumber.toString());
 
         UFloat[] memory floats = getFloats();
         emit log("Half integers");
         for (uint256 i = 0; i < floats.length; i++) {
             emit log_named_string("UFloat to string", floats[i].toString());
         }
-        int256 exponent = 19;
+        int8 exponent = 19;
         float = ONE.divide(UFloat(9, exponent)).normalize();
-        for (uint256 i = 0; i < uint256(2 * exponent); i++) {
+        for (uint256 i; i < uint256(2 * int256(exponent)); i++) {
             emit log_named_string("UFloat to string", float.toString());
             float = float.times(TEN);
         }
         float = UFloat(1, exponent).divide(UFloat(9, 0)).normalize();
-        for (uint256 i = 0; i < uint256(2 * exponent); i++) {
+        for (uint256 i; i < uint256(2 * int256(exponent)); i++) {
             emit log_named_string("UFloat to string", float.toString());
             float = float.divide(TEN);
         }
@@ -852,6 +852,9 @@ contract UFloatTest is Test {
     }
 
     function testMultiply() public {
+        // emit log("testMultiply");
+
+        // emit log("ZERO");
         assertEq(ZERO.times(ZERO), ZERO, "0*0!=0");
         assertEq(ZERO.times(HALF), ZERO, "0*0.5!=0");
         assertEq(ZERO.times(ONE), ZERO, "0*1!=0");
@@ -874,6 +877,7 @@ contract UFloatTest is Test {
         assertEq(ZERO.times(NINEnHALF), ZERO, "0*9.5!=0");
         assertEq(ZERO.times(TEN), ZERO, "0*10!=0");
 
+        // emit log("HALF");
         assertEq(HALF.times(ZERO), ZERO, "0.5*0!=0");
         assertEq(HALF.times(ONE), HALF, "0.5*1!=0.5");
         assertEq(HALF.times(TWO), ONE, "0.5*2!=1");
@@ -886,6 +890,7 @@ contract UFloatTest is Test {
         assertEq(HALF.times(NINE), FOURnHALF, "0.5*9!=4.5");
         assertEq(HALF.times(TEN), FIVE, "0.5*10!=5");
 
+        // emit log("ONE");
         assertEq(ONE.times(ZERO), ZERO, "1*0!=0");
         assertEq(ONE.times(HALF), HALF, "1*0.5!=0.5");
         assertEq(ONE.times(ONE), ONE, "1*1!=1");
@@ -908,6 +913,7 @@ contract UFloatTest is Test {
         assertEq(ONE.times(NINEnHALF), NINEnHALF, "1*9.5!=9.5");
         assertEq(ONE.times(TEN), TEN, "1*10!=10");
 
+        // emit log("ONEnHALF");
         assertEq(ONEnHALF.times(ZERO), ZERO, "1.5*0!=0");
         assertEq(ONEnHALF.times(ONE), ONEnHALF, "1.5*1!=1.5");
         assertEq(ONEnHALF.times(TWO), THREE, "1.5*2!=3");
@@ -916,6 +922,7 @@ contract UFloatTest is Test {
         assertEq(ONEnHALF.times(FIVE), SEVENnHALF, "1.5*5!=7.5");
         assertEq(ONEnHALF.times(SIX), NINE, "1.5*6!=9");
 
+        // emit log("TWO");
         assertEq(TWO.times(ZERO), ZERO, "2*0!=0");
         assertEq(TWO.times(HALF), ONE, "2*0.5!=1");
         assertEq(TWO.times(ONE), TWO, "2*1!=2");
@@ -928,12 +935,14 @@ contract UFloatTest is Test {
         assertEq(TWO.times(FOURnHALF), NINE, "2*4.5!=9");
         assertEq(TWO.times(FIVE), TEN, "2*5!=10");
 
+        // emit log("TWOnHALF");
         assertEq(TWOnHALF.times(ZERO), ZERO, "2.5*0!=0");
         assertEq(TWOnHALF.times(ONE), TWOnHALF, "2.5*1!=2.5");
         assertEq(TWOnHALF.times(TWO), FIVE, "2.5*2!=5");
         assertEq(TWOnHALF.times(THREE), SEVENnHALF, "2.5*3!=7.5");
         assertEq(TWOnHALF.times(FOUR), TEN, "2.5*4!=10");
 
+        // emit log("THREE");
         assertEq(THREE.times(ZERO), ZERO, "3*0!=0");
         assertEq(THREE.times(HALF), ONEnHALF, "3*0.5!=1.5");
         assertEq(THREE.times(ONE), THREE, "3*1!=3");
@@ -942,10 +951,12 @@ contract UFloatTest is Test {
         assertEq(THREE.times(TWOnHALF), SEVENnHALF, "3*2.5!=7.5");
         assertEq(THREE.times(THREE), NINE, "3*3!=9");
 
+        // emit log("THREEnHALF");
         assertEq(THREEnHALF.times(ZERO), ZERO, "3.5*0!=0");
         assertEq(THREEnHALF.times(ONE), THREEnHALF, "3.5*1!=3.5");
         assertEq(THREEnHALF.times(TWO), SEVEN, "3.5*2!=7");
 
+        // emit log("FOUR");
         assertEq(FOUR.times(ZERO), ZERO, "4*0!=0");
         assertEq(FOUR.times(HALF), TWO, "4*0.5!=2");
         assertEq(FOUR.times(ONE), FOUR, "4*1!=4");
@@ -953,54 +964,69 @@ contract UFloatTest is Test {
         assertEq(FOUR.times(TWO), EIGHT, "4*2!=8");
         assertEq(FOUR.times(TWOnHALF), TEN, "4*2.5!=10");
 
+        // emit log("FOURnHALF");
         assertEq(FOURnHALF.times(ZERO), ZERO, "4.5*0!=0");
         assertEq(FOURnHALF.times(ONE), FOURnHALF, "4.5*1!=4.5");
         assertEq(FOURnHALF.times(TWO), NINE, "4.5*2!=9");
 
+        // emit log("FIVE");
         assertEq(FIVE.times(ZERO), ZERO, "5*0!=0");
         assertEq(FIVE.times(HALF), TWOnHALF, "5*0.5!=2.5");
         assertEq(FIVE.times(ONE), FIVE, "5*1!=5");
         assertEq(FIVE.times(ONEnHALF), SEVENnHALF, "5*1.5!=7.5");
         assertEq(FIVE.times(TWO), TEN, "5*2!=10");
 
+        // emit log("FIVEnHALF");
         assertEq(FIVEnHALF.times(ZERO), ZERO, "5.5*0!=0");
         assertEq(FIVEnHALF.times(ONE), FIVEnHALF, "5.5*1!=5.5");
 
+        // emit log("SIX");
         assertEq(SIX.times(ZERO), ZERO, "6*0!=0");
         assertEq(SIX.times(HALF), THREE, "6*0.5!=3");
         assertEq(SIX.times(ONE), SIX, "6*1!=6");
         assertEq(SIX.times(ONEnHALF), NINE, "6*1.5!=9");
 
+        // emit log("SIXnHALF");
         assertEq(SIXnHALF.times(ZERO), ZERO, "6.5*0!=0");
         assertEq(SIXnHALF.times(ONE), SIXnHALF, "6.5*1!=6.5");
 
+        // emit log("SEVEN");
         assertEq(SEVEN.times(ZERO), ZERO, "7*0!=0");
         assertEq(SEVEN.times(HALF), THREEnHALF, "7*0.5!=3.5");
         assertEq(SEVEN.times(ONE), SEVEN, "7*1!=7");
 
+        // emit log("SEVENnHALF");
         assertEq(SEVENnHALF.times(ZERO), ZERO, "7.5*0!=0");
         assertEq(SEVENnHALF.times(ONE), SEVENnHALF, "7.5*1!=7.5");
 
+        // emit log("EIGHT");
         assertEq(EIGHT.times(ZERO), ZERO, "8*0!=0");
         assertEq(EIGHT.times(HALF), FOUR, "8*0.5!=4");
         assertEq(EIGHT.times(ONE), EIGHT, "8*1!=8");
 
+        // emit log("EIGHTnHALF");
         assertEq(EIGHTnHALF.times(ZERO), ZERO, "8.5*0!=0");
         assertEq(EIGHTnHALF.times(ONE), EIGHTnHALF, "8.5*1!=8.5");
 
+        // emit log("NINE");
         assertEq(NINE.times(ZERO), ZERO, "9*0!=0");
         assertEq(NINE.times(HALF), FOURnHALF, "9*0.5!=4.5");
         assertEq(NINE.times(ONE), NINE, "9*1!=9");
 
+        // emit log("NINEnHALF");
         assertEq(NINEnHALF.times(ZERO), ZERO, "9.5*0!=0");
         assertEq(NINEnHALF.times(ONE), NINEnHALF, "9.5*1!=9.5");
 
+        // emit log("TEN");
         assertEq(TEN.times(ZERO), ZERO, "10*0!=0");
         assertEq(TEN.times(HALF), FIVE, "10*0.5!=5");
         assertEq(TEN.times(ONE), TEN, "10*1!=10");
     }
 
     function testDivide() public {
+        // emit log("testDivide");
+
+        // emit log("ZERO");
         assertEq(ZERO.divide(HALF), ZERO, "0/0.5!=0");
         assertEq(ZERO.divide(ONE), ZERO, "0/1!=0");
         assertEq(ZERO.divide(ONEnHALF), ZERO, "0/1.5!=0");
@@ -1022,25 +1048,31 @@ contract UFloatTest is Test {
         assertEq(ZERO.divide(NINEnHALF), ZERO, "0/9.5!=0");
         assertEq(ZERO.divide(TEN), ZERO, "0/10!=0");
 
+        // emit log("HALF");
         assertEq(HALF.divide(HALF), ONE, "0.5/0.5!=1");
         assertEq(HALF.divide(ONE), HALF, "0.5/1!=0.5");
 
+        // emit log("ONE");
         assertEq(ONE.divide(HALF), TWO, "1/0.5!=2");
         assertEq(ONE.divide(ONE), ONE, "1/1!=1");
         assertEq(ONE.divide(TWO), HALF, "1/2!=0.5");
 
+        // emit log("ONEnHALF");
         assertEq(ONEnHALF.divide(HALF), THREE, "1.5/0.5!=3");
         assertEq(ONEnHALF.divide(ONE), ONEnHALF, "1.5/1!=1.5");
 
+        // emit log("TWO");
         assertEq(TWO.divide(HALF), FOUR, "2/0.5!=4");
         assertEq(TWO.divide(ONE), TWO, "2/1!=2");
         assertEq(TWO.divide(TWO), ONE, "2/2!=1");
         assertEq(TWO.divide(FOUR), HALF, "2/4!=0.5");
 
+        // emit log("TWOnHALF");
         assertEq(TWOnHALF.divide(HALF), FIVE, "2.5/0.5!=5");
         assertEq(TWOnHALF.divide(ONE), TWOnHALF, "2.5/1!=2.5");
         assertEq(TWOnHALF.divide(TWOnHALF), ONE, "2.5/2.5!=1");
 
+        // emit log("THREE");
         assertEq(THREE.divide(HALF), SIX, "3/0.5!=6");
         assertEq(THREE.divide(ONE), THREE, "3/1!=3");
         assertEq(THREE.divide(ONEnHALF), TWO, "3/1.5!=2");
@@ -1048,61 +1080,75 @@ contract UFloatTest is Test {
         assertEq(THREE.divide(THREE), ONE, "3/3!=1");
         assertEq(THREE.divide(SIX), HALF, "3/6!=0.5");
 
+        // emit log("THREEnHALF");
         assertEq(THREEnHALF.divide(HALF), SEVEN, "3.5/0.5!=7");
         assertEq(THREEnHALF.divide(ONE), THREEnHALF, "3.5/1!=3.5");
         assertEq(THREEnHALF.divide(THREEnHALF), ONE, "3.5/3.5!=1");
 
+        // emit log("FOUR");
         assertEq(FOUR.divide(HALF), EIGHT, "4/0.5!=8");
         assertEq(FOUR.divide(ONE), FOUR, "4/1!=4");
         assertEq(FOUR.divide(TWO), TWO, "4/2!=2");
         assertEq(FOUR.divide(FOUR), ONE, "4/4!=1");
         assertEq(FOUR.divide(EIGHT), HALF, "4/8!=0.5");
 
+        // emit log("FOURnHALF");
         assertEq(FOURnHALF.divide(HALF), NINE, "4.5/0.5!=9");
         assertEq(FOURnHALF.divide(ONE), FOURnHALF, "4.5/1!=4.5");
         assertEq(FOURnHALF.divide(FOURnHALF), ONE, "4.5/4.5!=1");
 
+        // emit log("FIVE");
         assertEq(FIVE.divide(HALF), TEN, "5/0.5!=10");
         assertEq(FIVE.divide(ONE), FIVE, "5/1!=5");
         assertEq(FIVE.divide(TWO), TWOnHALF, "5/2!=2.5");
         assertEq(FIVE.divide(FIVE), ONE, "5/5!=1");
         assertEq(FIVE.divide(TEN), HALF, "5/10!=0.5");
 
+        // emit log("FIVEnHALF");
         assertEq(FIVEnHALF.divide(ONE), FIVEnHALF, "5.5/5.5!=1");
         assertEq(FIVEnHALF.divide(FIVEnHALF), ONE, "5.5/5.5!=1");
 
+        // emit log("SIX");
         assertEq(SIX.divide(ONE), SIX, "6/1!=6");
         assertEq(SIX.divide(TWO), THREE, "6/2!=3");
         assertEq(SIX.divide(THREE), TWO, "6/3!=2");
         assertEq(SIX.divide(FOUR), ONEnHALF, "6/4!=1.5");
         assertEq(SIX.divide(SIX), ONE, "6/6!=1");
 
+        // emit log("SIXnHALF");
         assertEq(SIXnHALF.divide(ONE), SIXnHALF, "6.5/1!=6.5");
         assertEq(SIXnHALF.divide(SIXnHALF), ONE, "6.5/6.5!=1");
 
+        // emit log("SEVEN");
         assertEq(SEVEN.divide(ONE), SEVEN, "7/1!=7");
         assertEq(SEVEN.divide(TWO), THREEnHALF, "7/2!=3.5");
         assertEq(SEVEN.divide(SEVEN), ONE, "7/7!=1");
 
+        // emit log("SEVENnHALF");
         assertEq(SEVENnHALF.divide(ONE), SEVENnHALF, "7.5/1!=7.5");
         assertEq(SEVENnHALF.divide(SEVENnHALF), ONE, "7.5/7.5!=1");
 
+        // emit log("EIGHT");
         assertEq(EIGHT.divide(ONE), EIGHT, "8/1!=8");
         assertEq(EIGHT.divide(TWO), FOUR, "8/2!=4");
         assertEq(EIGHT.divide(FOUR), TWO, "8/4!=2");
         assertEq(EIGHT.divide(EIGHT), ONE, "8/8!=1");
 
+        // emit log("EIGHTnHALF");
         assertEq(EIGHTnHALF.divide(ONE), EIGHTnHALF, "8.5/1!=8.5");
         assertEq(EIGHTnHALF.divide(EIGHTnHALF), ONE, "8.5/8.5!=1");
 
+        // emit log("NINE");
         assertEq(NINE.divide(ONE), NINE, "9/1!=9");
         assertEq(NINE.divide(TWO), FOURnHALF, "9/2!=4.5");
         assertEq(NINE.divide(THREE), THREE, "9/3!=3");
         assertEq(NINE.divide(NINE), ONE, "9/9!=1");
 
+        // emit log("NINEnHALF");
         assertEq(NINEnHALF.divide(ONE), NINEnHALF, "9.5/1!=9.5");
         assertEq(NINEnHALF.divide(NINEnHALF), ONE, "9.5/9.5!=1");
 
+        // emit log("TEN");
         assertEq(TEN.divide(ONE), TEN, "10/1!=10");
         assertEq(TEN.divide(TWO), FIVE, "10/2!=5");
         assertEq(TEN.divide(FOUR), TWOnHALF, "10/4!=2.5");
