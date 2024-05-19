@@ -4,12 +4,12 @@ pragma solidity ^0.8.20;
 import {UFloatLib, UFloat} from "./UFloat.sol";
 
 library UFloatStrings {
-    using UFloatLib for uint88;
+    using UFloatLib for uint64;
     using UFloatLib for int8;
     using UFloatLib for UFloat;
 
     // Most significant bit
-    function msb(uint88 value) internal pure returns (uint256) {
+    function msb(uint64 value) internal pure returns (uint256) {
         if (value == 0) {
             return 0;
         }

@@ -7,10 +7,10 @@ import {UFloatStrings} from "../../contracts/libraries/UFloatStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract UFloatTest is Test {
-    using UFloatLib for uint88;
+    using UFloatLib for uint64;
     using UFloatLib for int8;
     using UFloatLib for UFloat;
-    using UFloatStrings for uint88;
+    using UFloatStrings for uint64;
     using UFloatStrings for int8;
     using UFloatStrings for UFloat;
 
@@ -208,7 +208,7 @@ contract UFloatTest is Test {
 
         UFloat memory reallySmallNumber = smallNumber.times(smallNumber);
         emit log("Write really small number");
-        emit log_named_string("1.3225 x 10^-88", reallySmallNumber.toString());
+        emit log_named_string("1.3225 x 10^-64", reallySmallNumber.toString());
 
         UFloat[] memory floats = getFloats();
         emit log("Half integers");
