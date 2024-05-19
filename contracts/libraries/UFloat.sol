@@ -2,15 +2,15 @@
 pragma solidity ^0.8.20;
 
 struct UFloat {
-    uint256 mantissa;
-    int256 exponent;
+    uint88 mantissa;
+    int8 exponent;
 }
 
 library UFloatLib {
     /****************
      *   Constants   *
      ****************/
-    uint256 constant SIGNIFICANT_DIGITS = 18;
+    uint8 constant SIGNIFICANT_DIGITS = 18;
     uint256 constant NORMALIZED_MANTISSA_MAX = 10 ** SIGNIFICANT_DIGITS - 1;
     uint256 constant NORMALIZED_MANTISSA_MIN = 10 ** (SIGNIFICANT_DIGITS - 1);
 
@@ -23,14 +23,14 @@ library UFloatLib {
         return uint256(a);
     }
 
-    function toInt(uint256 a) internal pure returns (int256) {
-        require(a <= uint256(type(int256).max), "Value out of int256 range");
-        return int256(a);
+    function toInt(uint8 a) internal pure returns (int8) {
+        require(a <= uint8(type(int8).max), "Value out of int8 range");
+        return int8(a);
     }
 
     function toUInt(
         UFloat memory a,
-        uint256 decimals
+        uint8 decimals
     ) internal pure returns (uint256) {
         if (a.exponent + toInt(decimals) >= 0) {
             return a.mantissa * 10 ** toUInt(a.exponent + toInt(decimals));
@@ -48,13 +48,13 @@ library UFloatLib {
     //--------------
 
     function toUFloat(
-        uint256 a,
-        uint256 decimals
+        uint88 a,
+        uint8 decimals
     ) internal pure returns (UFloat memory) {
         return normalize(UFloat(a, -toInt(decimals)));
     }
 
-    function toUFloat(uint256 a) internal pure returns (UFloat memory) {
+    function toUFloat(uint88 a) internal pure returns (UFloat memory) {
         return toUFloat(a, SIGNIFICANT_DIGITS);
     }
 
@@ -62,7 +62,7 @@ library UFloatLib {
     //   toUFloatArray
     //-------------------
     function toUFloatArray(
-        uint256[] memory a,
+        uint88[] memory a,
         uint8[] memory decimals
     ) internal pure returns (UFloat[] memory) {
         UFloat[] memory result = new UFloat[](a.length);
@@ -73,7 +73,7 @@ library UFloatLib {
     }
 
     function toUFloatArray(
-        uint256[] memory a
+        uint88[] memory a
     ) internal pure returns (UFloat[] memory) {
         UFloat[] memory result = new UFloat[](a.length);
         for (uint256 i = 0; i < a.length; i++) {
@@ -106,8 +106,8 @@ library UFloatLib {
         UFloat memory number
     ) internal pure returns (UFloat memory) {
         if (number.exponent < 0) {
-            uint256 temp = number.mantissa;
-            for (uint256 i = 0; i < toUInt(-number.exponent); i++) {
+            uint88 temp = number.mantissa;
+            for (uint256 i; i < toUInt(-number.exponent); i++) {
                 temp /= 10;
                 if (temp == 0) return UFloat(0, 0);
             }
@@ -127,13 +127,13 @@ library UFloatLib {
      */
     function shift(
         UFloat memory a,
-        int256 i
+        int8 i
     ) internal pure returns (UFloat memory) {
-        uint256 mantissa = a.mantissa;
+        uint88 mantissa = a.mantissa;
         if (i > 0) {
-            mantissa /= 10 ** toUInt(i);
+            mantissa /= uint88(10 ** toUInt(i));
         } else if (i < 0) {
-            mantissa *= 10 ** toUInt(-i);
+            mantissa *= uint88(10 ** toUInt(-i));
         }
         return UFloat(mantissa, a.exponent + i);
     }
@@ -142,8 +142,8 @@ library UFloatLib {
     //   Normalize
     //---------------
     function normalize(UFloat memory a) internal pure returns (UFloat memory) {
-        uint256 mantissa = a.mantissa;
-        int256 exponent = a.exponent;
+        uint88 mantissa = a.mantissa;
+        int8 exponent = a.exponent;
         bool isLarge = mantissa > NORMALIZED_MANTISSA_MAX;
         bool isSmall = mantissa < NORMALIZED_MANTISSA_MIN;
         if (!isLarge && !isSmall) {
@@ -188,14 +188,14 @@ library UFloatLib {
         a = normalize(a);
         b = normalize(b);
 
-        int256 delta = a.exponent - b.exponent;
+        int8 delta = a.exponent - b.exponent;
         if (delta >= 0) {
-            if (delta > int256(SIGNIFICANT_DIGITS)) {
+            if (delta > int8(SIGNIFICANT_DIGITS)) {
                 return (UFloat(a.mantissa, a.exponent), UFloat(0, a.exponent));
             }
             return (UFloat(a.mantissa, a.exponent), shift(b, delta));
         } else {
-            if (-delta > int256(SIGNIFICANT_DIGITS)) {
+            if (-delta > int8(SIGNIFICANT_DIGITS)) {
                 return (UFloat(0, b.exponent), UFloat(b.mantissa, b.exponent));
             }
             return (shift(a, -delta), UFloat(b.mantissa, b.exponent));
@@ -250,7 +250,7 @@ library UFloatLib {
         return
             normalize(
                 UFloat(
-                    (a.mantissa * b.mantissa) / 10 ** SIGNIFICANT_DIGITS,
+                    uint88((uint256(a.mantissa) * uint256(b.mantissa)) / 10 ** SIGNIFICANT_DIGITS),
                     toInt(SIGNIFICANT_DIGITS) + a.exponent + b.exponent
                 )
             );
@@ -271,7 +271,7 @@ library UFloatLib {
         return
             normalize(
                 UFloat(
-                    (a.mantissa * 10 ** SIGNIFICANT_DIGITS) / b.mantissa,
+                    uint88((uint256(a.mantissa) * 10 ** SIGNIFICANT_DIGITS) / uint256(b.mantissa)),
                     a.exponent - b.exponent - toInt(SIGNIFICANT_DIGITS)
                 )
             );
