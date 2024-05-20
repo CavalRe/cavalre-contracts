@@ -70,36 +70,36 @@ contract UFloatTest is Test {
         string memory message
     ) internal {
         failed = failed;
-        x = x.normalize();
-        y = y.normalize();
+        x = UFloatLib.normalize(x.mantissa, x.exponent);
+        y = UFloatLib.normalize(y.mantissa, y.exponent);
         assertEq(x.mantissa, y.mantissa, "mantissa");
         assertEq(x.exponent, y.exponent, "exponent");
         if (failed) emit log(message);
     }
 
     function setUp() public {
-        ZERO = UFloatLib.normalize(UFloat(0, 0));
-        ONE = UFloatLib.normalize(UFloat(1, 0));
-        TWO = UFloatLib.normalize(UFloat(2, 0));
-        THREE = UFloatLib.normalize(UFloat(3, 0));
-        FOUR = UFloatLib.normalize(UFloat(4, 0));
-        FIVE = UFloatLib.normalize(UFloat(5, 0));
-        SIX = UFloatLib.normalize(UFloat(6, 0));
-        SEVEN = UFloatLib.normalize(UFloat(7, 0));
-        EIGHT = UFloatLib.normalize(UFloat(8, 0));
-        NINE = UFloatLib.normalize(UFloat(9, 0));
-        TEN = UFloatLib.normalize(UFloat(10, 0));
+        ZERO = UFloatLib.normalize(0, 0);
+        ONE = UFloatLib.normalize(1, 0);
+        TWO = UFloatLib.normalize(2, 0);
+        THREE = UFloatLib.normalize(3, 0);
+        FOUR = UFloatLib.normalize(4, 0);
+        FIVE = UFloatLib.normalize(5, 0);
+        SIX = UFloatLib.normalize(6, 0);
+        SEVEN = UFloatLib.normalize(7, 0);
+        EIGHT = UFloatLib.normalize(8, 0);
+        NINE = UFloatLib.normalize(9, 0);
+        TEN = UFloatLib.normalize(10, 0);
 
-        HALF = UFloatLib.normalize(UFloat(5, -1));
-        ONEnHALF = UFloatLib.normalize(UFloat(15, -1));
-        TWOnHALF = UFloatLib.normalize(UFloat(25, -1));
-        THREEnHALF = UFloatLib.normalize(UFloat(35, -1));
-        FOURnHALF = UFloatLib.normalize(UFloat(45, -1));
-        FIVEnHALF = UFloatLib.normalize(UFloat(55, -1));
-        SIXnHALF = UFloatLib.normalize(UFloat(65, -1));
-        SEVENnHALF = UFloatLib.normalize(UFloat(75, -1));
-        EIGHTnHALF = UFloatLib.normalize(UFloat(85, -1));
-        NINEnHALF = UFloatLib.normalize(UFloat(95, -1));
+        HALF = UFloatLib.normalize(5, -1);
+        ONEnHALF = UFloatLib.normalize(15, -1);
+        TWOnHALF = UFloatLib.normalize(25, -1);
+        THREEnHALF = UFloatLib.normalize(35, -1);
+        FOURnHALF = UFloatLib.normalize(45, -1);
+        FIVEnHALF = UFloatLib.normalize(55, -1);
+        SIXnHALF = UFloatLib.normalize(65, -1);
+        SEVENnHALF = UFloatLib.normalize(75, -1);
+        EIGHTnHALF = UFloatLib.normalize(85, -1);
+        NINEnHALF = UFloatLib.normalize(95, -1);
 
         ZERO_unnormalized = UFloat(0, 0);
         HALF_unnormalized = UFloat(1, -1);
@@ -189,7 +189,7 @@ contract UFloatTest is Test {
 
         emit log_named_string("1.15 x 10^-6", UFloat(115, -8).toString());
 
-        UFloat memory bigNumber = UFloat(115, 63).normalize();
+        UFloat memory bigNumber = UFloatLib.normalize(115, 63);
         emit log("Write big number");
         emit log_named_uint("bigNumber.mantissa", bigNumber.mantissa);
         emit log_named_string("1.15 x 10^65", bigNumber.toString());
@@ -202,7 +202,7 @@ contract UFloatTest is Test {
         emit log("Write really big number");
         emit log_named_string("1.3225 x 10^130", reallyBigNumber.toString());
 
-        UFloat memory smallNumber = UFloat(115, -44).normalize();
+        UFloat memory smallNumber = UFloatLib.normalize(115, -44);
         emit log("Write small number");
         emit log_named_string("1.15 x 10^-44", smallNumber.toString());
 
@@ -216,12 +216,12 @@ contract UFloatTest is Test {
             emit log_named_string("UFloat to string", floats[i].toString());
         }
         int8 exponent = 19;
-        float = ONE.divide(UFloat(9, exponent)).normalize();
+        float = ONE.divide(UFloat(9, exponent));
         for (uint256 i; i < uint256(2 * int256(exponent)); i++) {
             emit log_named_string("UFloat to string", float.toString());
             float = float.times(TEN);
         }
-        float = UFloat(1, exponent).divide(UFloat(9, 0)).normalize();
+        float = UFloat(1, exponent).divide(UFloat(9, 0));
         for (uint256 i; i < uint256(2 * int256(exponent)); i++) {
             emit log_named_string("UFloat to string", float.toString());
             float = float.divide(TEN);
@@ -231,11 +231,14 @@ contract UFloatTest is Test {
     function testGasBlank() public pure {}
 
     function testGasNormalize() public view {
-        UFloatLib.normalize(ONE_unnormalized);
+        UFloatLib.normalize(
+            ONE_unnormalized.mantissa,
+            ONE_unnormalized.exponent
+        );
     }
 
     function testGasNormalizeNormalized() public view {
-        UFloatLib.normalize(ONE);
+        UFloatLib.normalize(ONE.mantissa, ONE.exponent);
     }
 
     function testGasAlign() public view {
@@ -310,7 +313,10 @@ contract UFloatTest is Test {
 
     function testNormalize() public {
         assertEq(
-            ONE_unnormalized.normalize().mantissa.msb(),
+            UFloatLib
+                .normalize(ONE_unnormalized.mantissa, ONE_unnormalized.exponent)
+                .mantissa
+                .msb(),
             UFloatLib.SIGNIFICANT_DIGITS,
             "mantissa (from unnormalized)"
         );
@@ -321,7 +327,9 @@ contract UFloatTest is Test {
         );
         assertEq(
             ONE.exponent,
-            ONE_unnormalized.normalize().exponent,
+            UFloatLib
+                .normalize(ONE_unnormalized.mantissa, ONE_unnormalized.exponent)
+                .exponent,
             "exponent"
         );
     }
@@ -335,7 +343,7 @@ contract UFloatTest is Test {
 
     function testONE() public {
         a = UFloat(1, 0);
-        a = UFloatLib.normalize(a);
+        a = UFloatLib.normalize(a.mantissa, a.exponent);
         assertEq(a.mantissa.msb(), 18, "msb");
         if (failed) {
             emit log_named_uint("ONE.mantissa", a.mantissa);
