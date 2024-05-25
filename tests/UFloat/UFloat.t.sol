@@ -7,6 +7,7 @@ import {UFloatStrings} from "../../contracts/libraries/UFloatStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract UFloatTest is Test {
+    using UFloatLib for uint256;
     using UFloatLib for uint64;
     using UFloatLib for int8;
     using UFloatLib for UFloat;
@@ -344,7 +345,7 @@ contract UFloatTest is Test {
     function testONE() public {
         a = UFloat(1, 0);
         a = UFloatLib.normalize(a.mantissa, a.exponent);
-        assertEq(a.mantissa.msb(), 18, "msb");
+        assertEq(a.mantissa.msb(), UFloatLib.SIGNIFICANT_DIGITS, "msb");
         if (failed) {
             emit log_named_uint("ONE.mantissa", a.mantissa);
             emit log_named_int("ONE.exponent", a.exponent);
@@ -1162,6 +1163,14 @@ contract UFloatTest is Test {
         assertEq(TEN.divide(FOUR), TWOnHALF, "10/4!=2.5");
         assertEq(TEN.divide(FIVE), TWO, "10/5!=2");
         assertEq(TEN.divide(TEN), ONE, "10/10!=1");
+    }
+
+    function testExp() public {
+        emit log("testExp");
+
+        emit log_named_string("exp(200)", UFloatLib.exp(int256(200e18)).toString());
+        emit log_named_string("exp(0)", UFloatLib.exp(int256(0)).toString());
+        emit log_named_string("exp(-200)", UFloatLib.exp(int256(-200e18)).toString());
     }
 
     // function testMulDiv() public {
