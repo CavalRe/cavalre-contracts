@@ -8,11 +8,10 @@ import {Test} from "forge-std/src/Test.sol";
 
 contract UFloatTest is Test {
     using UFloatLib for uint256;
-    using UFloatLib for uint64;
-    using UFloatLib for int8;
+    using UFloatLib for int256;
     using UFloatLib for UFloat;
-    using UFloatStrings for uint64;
-    using UFloatStrings for int8;
+    using UFloatStrings for uint256;
+    using UFloatStrings for int256;
     using UFloatStrings for UFloat;
 
     UFloat internal ZERO;
@@ -216,7 +215,7 @@ contract UFloatTest is Test {
         for (uint256 i = 0; i < floats.length; i++) {
             emit log_named_string("UFloat to string", floats[i].toString());
         }
-        int8 exponent = 19;
+        int256 exponent = 19;
         float = ONE.divide(UFloat(9, exponent));
         for (uint256 i; i < uint256(2 * int256(exponent)); i++) {
             emit log_named_string("UFloat to string", float.toString());
@@ -1168,9 +1167,21 @@ contract UFloatTest is Test {
     function testExp() public {
         emit log("testExp");
 
-        emit log_named_string("exp(200)", UFloatLib.exp(int256(200e18)).toString());
-        emit log_named_string("exp(0)", UFloatLib.exp(int256(0)).toString());
-        emit log_named_string("exp(-200)", UFloatLib.exp(int256(-200e18)).toString());
+        // emit log_named_string("exp(200)", UFloatLib.exp(int256(200e18)).toString());
+        // emit log_named_string("exp(0)", UFloatLib.exp(int256(0)).toString());
+        // emit log_named_string("exp(-200)", UFloatLib.exp(int256(-200e18)).toString());
+
+        // emit log_named_string("exp(1e3)", UFloatLib.exp(int256(1e21)).toString());
+        // emit log_named_string("exp(1e4)", UFloatLib.exp(int256(1e22)).toString());
+        // emit log_named_string("exp(1e5)", UFloatLib.exp(int256(1e23)).toString());
+        emit log_named_uint("exp(1e6)", UFloatLib.exp(int256(1e24)).mantissa);
+        emit log_named_uint("exp(-1e6)", UFloatLib.exp(int256(-1e24)).mantissa);
+        // emit log_named_string("exp(1e7)", UFloatLib.exp(int256(1e25)).toString());
+        // emit log_named_string("exp(1e8)", UFloatLib.exp(int256(1e26)).toString());
+        // emit log_named_string("exp(1e9)", UFloatLib.exp(int256(1e27)).toString());
+        // emit log_named_string("exp(1e10)", UFloatLib.exp(int256(1e28)).toString());
+        // emit log_named_string("exp(1e11)", UFloatLib.exp(int256(1e29)).toString());
+
     }
 
     // function testMulDiv() public {
