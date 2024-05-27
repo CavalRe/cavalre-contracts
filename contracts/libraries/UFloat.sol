@@ -12,6 +12,7 @@ struct UFloat {
 }
 
 library UFloatLib {
+    using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
     using UFloatStrings for UFloat;
 
@@ -284,11 +285,27 @@ library UFloatLib {
             );
     }
 
-    // Special functions
+    /****************
+    Special functions
+    ****************/
 
     function exp(int256 a) internal pure returns (UFloat memory) {
         int256 k = a / _LOG10;
         int256 aprime = a - k * _LOG10;
         return normalize(uint256(aprime.expWad()), k - 18);
+    }
+
+    function fullMulDiv(
+        UFloat memory a,
+        UFloat memory b,
+        UFloat memory c
+    ) internal pure returns (UFloat memory) {
+        a = normalize(a.mantissa, a.exponent);
+        b = normalize(b.mantissa, b.exponent);
+        c = normalize(c.mantissa, c.exponent);
+        return normalize(
+            a.mantissa.fullMulDiv(b.mantissa, c.mantissa),
+            a.exponent + b.exponent - c.exponent
+        );
     }
 }
