@@ -96,12 +96,7 @@ library FloatStrings {
         }
 
         // Determine the length of the decimal number.
-        // uint256 temp = value;
         uint256 digits_ = digits(value);
-        // while (temp != 0) {
-        //     digits_++;
-        //     temp /= 10;
-        // }
 
         // Create a temporary byte array to fill with the digits of the number.
         bytes memory buffer = new bytes(digits_);

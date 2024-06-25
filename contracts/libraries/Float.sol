@@ -2,9 +2,6 @@
 pragma solidity ^0.8.20;
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-// import {UFloatStrings} from "./UFloatStrings.sol";
-
-import {console} from "forge-std/src/Test.sol";
 
 struct Float {
     int256 mantissa;
@@ -14,7 +11,6 @@ struct Float {
 library FloatLib {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
-    // using UFloatStrings for UFloat;
 
     /****************
      *   Constants   *
@@ -100,17 +96,6 @@ library FloatLib {
         return toFloat(a, 18);
     }
 
-    // function toFloat(
-    //     uint256 a,
-    //     uint256 decimals
-    // ) internal pure returns (Float memory) {
-    //     return normalize(a, -toInt(decimals));
-    // }
-
-    // function toFloat(uint256 a) internal pure returns (Float memory) {
-    //     return toFloat(a, 18);
-    // }
-
     //-------------------
     //   toFloatArray
     //-------------------
@@ -136,27 +121,6 @@ library FloatLib {
         return result;
     }
 
-    // function toFloatArray(
-    //     uint256[] memory a,
-    //     uint256[] memory decimals
-    // ) internal pure returns (Float[] memory) {
-    //     Float[] memory result = new Float[](a.length);
-    //     for (uint256 i = 0; i < a.length; i++) {
-    //         result[i] = toFloat(a[i], decimals[i]);
-    //     }
-    //     return result;
-    // }
-
-    // function toFloatArray(
-    //     uint256[] memory a
-    // ) internal pure returns (Float[] memory) {
-    //     Float[] memory result = new Float[](a.length);
-    //     for (uint256 i = 0; i < a.length; i++) {
-    //         result[i] = toFloat(a[i]);
-    //     }
-    //     return result;
-    // }
-
     /*******************
      *   Comparisons   *
      *******************/
@@ -164,18 +128,12 @@ library FloatLib {
     //-------------
     //   isEQ
     //-------------
-    function isEQ(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (bool) {
+    function isEQ(Float memory a, Float memory b) internal pure returns (bool) {
         (a, b) = align(a, b);
         return a.mantissa == b.mantissa;
     }
 
-    function isGT(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (bool) {
+    function isGT(Float memory a, Float memory b) internal pure returns (bool) {
         (a, b) = align(a, b);
         return a.mantissa > b.mantissa;
     }
@@ -188,10 +146,7 @@ library FloatLib {
         return a.mantissa >= b.mantissa;
     }
 
-    function isLT(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (bool) {
+    function isLT(Float memory a, Float memory b) internal pure returns (bool) {
         (a, b) = align(a, b);
         return a.mantissa < b.mantissa;
     }
@@ -208,13 +163,10 @@ library FloatLib {
      *   Transformations   *
      **********************/
 
-     function abs(
-        Float memory a
-    ) internal pure returns (Float memory) {
+    function abs(Float memory a) internal pure returns (Float memory) {
         return Float(int256(a.mantissa.abs()), a.exponent);
     }
 
-    // Must return a UFloat with non-negative exponent
     function integerPart(
         Float memory number
     ) internal pure returns (Float memory) {
@@ -272,7 +224,6 @@ library FloatLib {
         } else if (mantissa == 0) {
             return Float(0, 0);
         } else {
-            // if (isSmall) {
             while (mantissa.abs() < NORMALIZED_MANTISSA_MIN) {
                 mantissa *= 10;
                 exponent--;
@@ -281,37 +232,9 @@ library FloatLib {
         }
     }
 
-    function normalize(
-        Float memory a
-    ) internal pure returns (Float memory) {
+    function normalize(Float memory a) internal pure returns (Float memory) {
         return normalize(a.mantissa, a.exponent);
     }
-
-    // function normalize(
-    //     uint256 mantissa,
-    //     int256 exponent
-    // ) internal pure returns (Float memory) {
-    //     bool isLarge = mantissa > NORMALIZED_MANTISSA_MAX;
-    //     bool isSmall = mantissa < NORMALIZED_MANTISSA_MIN;
-    //     if (!isLarge && !isSmall) {
-    //         return Float(int256(mantissa), exponent);
-    //     } else if (isLarge) {
-    //         while (mantissa > NORMALIZED_MANTISSA_MAX) {
-    //             mantissa /= 10;
-    //             exponent++;
-    //         }
-    //         return Float(int256(mantissa), exponent);
-    //     } else if (mantissa == 0) {
-    //         return Float(0, 0);
-    //     } else {
-    //         // if (isSmall) {
-    //         while (mantissa < NORMALIZED_MANTISSA_MIN) {
-    //             mantissa *= 10;
-    //             exponent--;
-    //         }
-    //         return Float(int256(mantissa), exponent);
-    //     }
-    // }
 
     //-----------
     //   align
@@ -360,10 +283,6 @@ library FloatLib {
         Float memory a,
         Float memory b
     ) internal pure returns (Float memory) {
-        // Do we need this because align already normalizes?
-        // a = normalize(a.mantissa, a.exponent);
-        // b = normalize(b.mantissa, b.exponent);
-
         (a, b) = align(a, b);
         return normalize(a.mantissa + b.mantissa, a.exponent);
     }
@@ -371,9 +290,7 @@ library FloatLib {
     //-----------
     //   minus
     //-----------
-    function minus(
-        Float memory a
-    ) internal pure returns (Float memory) {
+    function minus(Float memory a) internal pure returns (Float memory) {
         return Float(-a.mantissa, a.exponent);
     }
 
@@ -381,10 +298,6 @@ library FloatLib {
         Float memory a,
         Float memory b
     ) internal pure returns (Float memory) {
-        // Do we need this because align already normalizes?
-        // a = normalize(a.mantissa, a.exponent);
-        // b = normalize(b.mantissa, b.exponent);
-
         (a, b) = align(a, b);
         return normalize(a.mantissa - b.mantissa, a.exponent);
     }
@@ -396,18 +309,14 @@ library FloatLib {
         Float memory a,
         Float memory b
     ) internal pure returns (Float memory) {
-        // if (a.mantissa == 0 || b.mantissa == 0) return UFloat(0, 0);
         a = normalize(a);
         b = normalize(b);
 
-        // return
-        //     normalize(UFloat(a.mantissa * b.mantissa, a.exponent + b.exponent));
         return
             normalize(
                 (a.mantissa * b.mantissa) / int256(10 ** SIGNIFICANT_DIGITS),
                 toInt(SIGNIFICANT_DIGITS) + a.exponent + b.exponent
             );
-        // return UFloat(a.mantissa * b.mantissa, a.exponent + b.exponent);
     }
 
     //------------
@@ -417,7 +326,6 @@ library FloatLib {
         Float memory a,
         Float memory b
     ) internal pure returns (Float memory) {
-        // if (a.mantissa == 0) return UFloat(0, 0);
         a = normalize(a);
         b = normalize(b);
 
