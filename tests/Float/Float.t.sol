@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.24;
 
-// import {Pool, FixedPointMathLib} from "../contracts/Pool.sol";
 import {FloatLib, Float} from "../../contracts/libraries/Float.sol";
 import {FloatStrings} from "../../contracts/libraries/FloatStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
@@ -499,10 +498,7 @@ contract FloatTest is Test {
             "exp(1e6)",
             FloatLib.exp(int256(1e24)).toString()
         );
-        emit log_named_string(
-            "exp(1e-18)",
-            FloatLib.exp(int256(1)).toString()
-        );
+        emit log_named_string("exp(1e-18)", FloatLib.exp(int256(1)).toString());
         emit log_named_string(
             "exp(1e-17)",
             FloatLib.exp(int256(1e1)).toString()
