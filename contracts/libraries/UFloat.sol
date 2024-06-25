@@ -295,6 +295,10 @@ library UFloatLib {
         return normalize(uint256(aprime.expWad()), k - 18);
     }
 
+    function log(UFloat memory a) internal pure returns (int256) {
+        return int256(a.mantissa).lnWad() + a.exponent * _LOG10;
+    }
+
     function fullMulDiv(
         UFloat memory a,
         UFloat memory b,
@@ -303,9 +307,10 @@ library UFloatLib {
         a = normalize(a.mantissa, a.exponent);
         b = normalize(b.mantissa, b.exponent);
         c = normalize(c.mantissa, c.exponent);
-        return normalize(
-            a.mantissa.fullMulDiv(b.mantissa, c.mantissa),
-            a.exponent + b.exponent - c.exponent
-        );
+        return
+            normalize(
+                a.mantissa.fullMulDiv(b.mantissa, c.mantissa),
+                a.exponent + b.exponent - c.exponent
+            );
     }
 }
