@@ -519,6 +519,11 @@ contract FloatTest is Test {
             "exp(-1e6)",
             FloatLib.exp(int256(-1e24)).toString()
         );
+
+        emit log_named_string(
+            "exp(log(4e18)/2)",
+            FloatLib.exp(FloatLib.log(Float(4,0))/2).toString()
+        );
         // emit log_named_int("exp(1e6)", FloatLib.exp(int256(1e24)).mantissa);
         // emit log_named_int("exp(-1e6)", FloatLib.exp(int256(-1e24)).mantissa);
         // emit log_named_string("exp(1e7)", FloatLib.exp(int256(1e25)).toString());
