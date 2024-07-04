@@ -358,14 +358,18 @@ library FloatLib {
         return Float(scaled * factor, a.exponent);
     }
 
-    function exp(int256 a) internal pure returns (Float memory) {
+    function exp(
+        int256 a // 18 decimals
+    ) internal pure returns (Float memory) {
         int256 k = a / _LOG10;
         int256 aprime = a - k * _LOG10;
         return normalize(aprime.expWad(), k - 18);
     }
 
-    function log(Float memory a) internal pure returns (int256) {
-        return int256(a.mantissa).lnWad() + a.exponent * _LOG10;
+    function log(Float memory a) internal pure returns (
+        int256 // 18 decimals
+    ) {
+        return int256(a.mantissa).lnWad() + (a.exponent + 18) * _LOG10;
     }
 
     function fullMulDiv(
