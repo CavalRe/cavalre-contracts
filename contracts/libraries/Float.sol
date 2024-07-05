@@ -12,6 +12,9 @@ library FloatLib {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 
+    // Errors
+    error NoSolution();
+
     /****************
      *   Constants   *
      ****************/
@@ -366,10 +369,50 @@ library FloatLib {
         return normalize(aprime.expWad(), k - 18);
     }
 
-    function log(Float memory a) internal pure returns (
-        int256 // 18 decimals
-    ) {
+    function log(
+        Float memory a
+    )
+        internal
+        pure
+        returns (
+            int256 // 18 decimals
+        )
+    {
         return int256(a.mantissa).lnWad() + (a.exponent + 18) * _LOG10;
+    }
+
+    struct Cubic {
+        Float p;
+        Float q;
+        Float rad;
+        Float u;
+        Float w;
+    }
+
+    function cubicsolve(
+        Float memory b,
+        Float memory c,
+        Float memory d
+    ) internal pure returns (Float memory x) {
+        Cubic memory cubic;
+
+        cubic.p = minus(c, divide(times(b, b), Float(3, 0)));
+        cubic.q = minus(
+            plus(d, divide(times(b, times(b, b)), Float(135, -1))),
+            divide(times(b, c), Float(3e17, -17))
+        );
+        cubic.rad = plus(
+            divide(times(cubic.q, cubic.q), Float(4, 0)),
+            divide(times(cubic.p, times(cubic.p, cubic.p)), Float(27, 0))
+        );
+        if (isLT(cubic.rad, Float(0, 0))) revert NoSolution();
+        cubic.u = minus(exp(log(cubic.rad) / 2), divide(cubic.q, Float(2, 0)));
+        cubic.w = exp(log(cubic.u) / 3);
+
+        x = minus(
+            minus(cubic.w, divide(cubic.p, times(Float(3, 0), cubic.w))),
+            divide(b, Float(3, 0))
+        );
     }
 
     function fullMulDiv(

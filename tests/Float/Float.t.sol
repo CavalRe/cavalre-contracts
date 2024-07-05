@@ -533,6 +533,11 @@ contract FloatTest is Test {
         // emit log_named_string("exp(1e11)", FloatLib.exp(int256(1e29)).toString());
     }
 
+    function testCubic() public {
+        Float memory x = FloatLib.cubicsolve(Float(-5,0), Float(1, 0), Float(-5,0));
+        emit log_named_string("x", x.toString());
+    }
+
     // function testMulDiv() public {
     //     Float[] memory floats = getFloats();
     //     for (uint256 i; i < floats.length; i++) {
