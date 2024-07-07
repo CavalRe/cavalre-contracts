@@ -15,6 +15,7 @@ library RouterLib {
     event CommandSet(bytes4 indexed command, address indexed module);
     event ModuleAdded(address indexed module);
     event ModuleRemoved(address indexed module);
+    event RouterCreated(address indexed router);
 
     // Errors
     error CommandAlreadySet(bytes4 _command, address _module);
@@ -78,6 +79,7 @@ contract Router is IRouter, Module {
         Store storage s = ML.store();
         s.owners[__self] = msg.sender;
         s.modules[RouterLib.ROUTER] = __self;
+        emit RouterLib.RouterCreated(__self);
     }
 
     function commands() public pure override returns (bytes4[] memory) {
