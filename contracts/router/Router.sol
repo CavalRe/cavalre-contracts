@@ -60,6 +60,7 @@ library RouterLib {
         for (uint256 i = 0; i < _commands.length; i++) {
             setCommand(_commands[i], address(0)); // Access is controlled here
         }
+        delete ML.store().owners[_module];
         emit ModuleRemoved(_module);
     }
 
@@ -73,12 +74,11 @@ library RouterLib {
 }
 
 contract Router is IRouter, Module {
-    address private immutable __self = address(this);
 
-    constructor(address _owner) {
+    constructor(address owner_) {
         Store storage s = ML.store();
-        s.owners[__self] = _owner;
         s.modules[RouterLib.ROUTER] = __self;
+        s.owners[__self] = owner_;
         emit RouterLib.RouterCreated(__self);
     }
 

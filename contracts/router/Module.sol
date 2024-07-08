@@ -45,11 +45,7 @@ library ModuleLib {
 }
 
 abstract contract Module {
-    address private immutable __self = address(this);
-
-    constructor() {
-        ModuleLib.store().owners[__self] = msg.sender;
-    }
+    address internal immutable __self = address(this);
 
     // Commands
     function commands() public pure virtual returns (bytes4[] memory _commands);

@@ -17,7 +17,6 @@ library TestTokenLib {
 }
 
 contract TestToken is ERC20 {
-    address private immutable __self = address(this);
     address private immutable __owner = msg.sender;
 
     event Deposit(address indexed dst, uint256 wad);
