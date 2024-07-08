@@ -17,7 +17,6 @@ library TestTokenLib {
 }
 
 contract TestToken is ERC20 {
-    address private immutable __owner = msg.sender;
 
     event Deposit(address indexed dst, uint256 wad);
     event Withdrawal(address indexed src, uint256 wad);
@@ -50,7 +49,6 @@ contract TestToken is ERC20 {
         string memory _symbol,
         uint8 _decimals
     ) public initializer {
-        enforceIsOwner();
         __ERC20_init(_name, _symbol);
         ERC20Store storage s = ERC20Lib.store();
         s.decimals = _decimals;
