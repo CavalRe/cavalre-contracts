@@ -60,12 +60,10 @@ contract TestToken is ERC20 {
     }
 
     function mint(address _account, uint256 _amount) public {
-        enforceIsOwner();
         ERC20Lib.mint(_account, _amount);
     }
 
     function burn(address _account, uint256 _amount) public {
-        enforceIsOwner();
         ERC20Lib.burn(_account, _amount);
     }
 
