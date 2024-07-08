@@ -13,7 +13,7 @@ contract ModuleTest is Test {
     function testModuleInit() public {
         vm.startPrank(alice);
 
-        Router router = new Router();
+        Router router = new Router(alice);
         assertEq(router.owner(address(router)), alice, "RouterTest: Owner not set");
     }
 }

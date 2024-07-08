@@ -75,9 +75,9 @@ library RouterLib {
 contract Router is IRouter, Module {
     address private immutable __self = address(this);
 
-    constructor() {
+    constructor(address _owner) {
         Store storage s = ML.store();
-        s.owners[__self] = msg.sender;
+        s.owners[__self] = _owner;
         s.modules[RouterLib.ROUTER] = __self;
         emit RouterLib.RouterCreated(__self);
     }

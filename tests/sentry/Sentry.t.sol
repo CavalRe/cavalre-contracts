@@ -26,7 +26,7 @@ contract SentryTest is Test {
         sentry = new Sentry();
         sentryAddress = address(sentry);
 
-        router = new Router();
+        router = new Router(alice);
         routerAddress = address(router);
 
         router.addModule(sentryAddress);

@@ -101,7 +101,7 @@ contract TestTokenTest is Test {
     function setUp() public {
         vm.startPrank(alice);
         token = new TestToken();
-        router = new Router();
+        router = new Router(alice);
         router.addModule(address(token));
 
         token = TestToken(payable(router));
