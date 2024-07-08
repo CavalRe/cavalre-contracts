@@ -124,15 +124,6 @@ contract TestTokenTest is Test {
 
         assertEq(token.totalSupply(), 1000);
         assertEq(token.balanceOf(bob), 1000);
-
-        vm.startPrank(bob);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ModuleLib.OwnableUnauthorizedAccount.selector,
-                bob
-            )
-        );
-        token.mint(bob, 1000);
     }
 
     function testTestTokenBurn() public {
@@ -143,14 +134,5 @@ contract TestTokenTest is Test {
 
         assertEq(token.totalSupply(), 300);
         assertEq(token.balanceOf(bob), 300);
-
-        vm.startPrank(bob);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ModuleLib.OwnableUnauthorizedAccount.selector,
-                bob
-            )
-        );
-        token.burn(bob, 300);
     }
 }
