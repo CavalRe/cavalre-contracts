@@ -13,29 +13,6 @@ library ModuleLib {
             abi.encode(uint256(keccak256("cavalre.storage.Module")) - 1)
         ) & ~bytes32(uint256(0xff));
 
-    // Errors
-    error IsDelegated();
-    error NotDelegated();
-    error OwnableUnauthorizedAccount(address account);
-
-    function enforceIsOwner(
-        address _module
-    ) internal view returns (Store storage s) {
-        s = store();
-        if (s.owners[_module] != msg.sender) {
-            revert OwnableUnauthorizedAccount(msg.sender);
-        }
-        return s;
-    }
-
-    function enforceIsDelegated(address _module) internal view {
-        if (address(this) == _module) revert NotDelegated();
-    }
-
-    function enforceNotDelegated(address _module) internal view {
-        if (address(this) != _module) revert IsDelegated();
-    }
-
     function store() internal pure returns (Store storage s) {
         bytes32 position = STORE_POSITION;
         assembly {
@@ -47,18 +24,26 @@ library ModuleLib {
 abstract contract Module {
     address internal immutable __self = address(this);
 
+    // Errors
+    error IsDelegated();
+    error NotDelegated();
+    error OwnableUnauthorizedAccount(address account);
+
     // Commands
     function commands() public pure virtual returns (bytes4[] memory _commands);
 
-    function enforceIsOwner() internal view returns (Store storage) {
-        return ModuleLib.enforceIsOwner(__self);
+    function enforceIsOwner() internal view returns (Store storage s) {
+        s = ModuleLib.store();
+        if (s.owners[__self] != msg.sender) {
+            revert OwnableUnauthorizedAccount(msg.sender);
+        }
     }
 
     function enforceIsDelegated() internal view {
-        ModuleLib.enforceIsDelegated(__self);
+        if (address(this) == __self) revert NotDelegated();
     }
 
     function enforceNotDelegated() internal view {
-        ModuleLib.enforceNotDelegated(__self);
+        if (address(this) != __self) revert IsDelegated();
     }
 }

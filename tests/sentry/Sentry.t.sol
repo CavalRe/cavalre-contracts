@@ -69,7 +69,7 @@ contract SentryTest is Test {
     function testSentryWrongOwner() public {
         vm.startPrank(bob);
         vm.expectRevert(
-            abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob)
+            abi.encodeWithSelector(Module.OwnableUnauthorizedAccount.selector, bob)
         );
         router.addModule(sentryAddress);
     }
