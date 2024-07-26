@@ -41,7 +41,7 @@ library ERC20Lib {
         }
     }
 
-    function totalSuply() internal view returns (uint256) {
+    function totalSupply() internal view returns (uint256) {
         return store()._totalSupply;
     }
 
