@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Module, ModuleLib as ML} from "@cavalre/contracts/router/Module.sol";
+import {Module} from "@cavalre/contracts/router/Module.sol";
 
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 library ERC20Lib {
     // Selectors
@@ -23,6 +25,43 @@ library ERC20Lib {
         bytes4(keccak256("approve(address,uint256)"));
     bytes4 internal constant TRANSFER_FROM =
         bytes4(keccak256("transferFrom(address,address,uint256)"));
+
+    // Stores
+    bytes32 private constant STORE_POSITION =
+        0x52c63247e1f47db19d5ce0460030c497f067ca4cebf71ba98eeadabe20bace00;
+
+    function store()
+        internal
+        pure
+        returns (ERC20Upgradeable.ERC20Storage storage s)
+    {
+        bytes32 position = STORE_POSITION;
+        assembly {
+            s.slot := position
+        }
+    }
+
+    function mint(address _to, uint256 _amount) public {
+        if (_to == address(0)) {
+            revert IERC20Errors.ERC20InvalidReceiver(address(0));
+        }
+        ERC20Upgradeable.ERC20Storage storage _store = store();
+        _store._totalSupply += _amount;
+        _store._balances[_to] += _amount;
+
+        emit IERC20.Transfer(address(0), _to, _amount);
+    }
+
+    function burn(address _from, uint256 _amount) public {
+        if (_from == address(0)) {
+            revert IERC20Errors.ERC20InvalidSender(address(0));
+        }
+        ERC20Upgradeable.ERC20Storage storage _store = store();
+        _store._totalSupply -= _amount;
+        _store._balances[_from] -= _amount;
+
+        emit IERC20.Transfer(_from, address(0), _amount);
+    }
 }
 
 contract ERC20 is Module, ERC20Upgradeable {

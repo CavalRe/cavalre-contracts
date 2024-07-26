@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Router, RouterLib as RL} from "../../contracts/router/Router.sol";
+import {Router} from "../../contracts/router/Router.sol";
 import {Module, ModuleLib as ML} from "../../contracts/router/Module.sol";
 import {Sentry, SentryLib as SL} from "../../contracts/sentry/Sentry.sol";
 import {Test} from "forge-std/src/Test.sol";
@@ -69,7 +69,7 @@ contract SentryTest is Test {
     function testSentryWrongOwner() public {
         vm.startPrank(bob);
         vm.expectRevert(
-            abi.encodeWithSelector(ML.OwnableUnauthorizedAccount.selector, bob)
+            abi.encodeWithSelector(Module.OwnableUnauthorizedAccount.selector, bob)
         );
         router.addModule(sentryAddress);
     }
