@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Router} from "../../contracts/router/Router.sol";
-import {ERC20, ERC20Lib, Store as ERC20Store} from "../../contracts/ERC20/ERC20.sol";
+import {ERC20, ERC20Lib} from "../../contracts/ERC20/ERC20.sol";
 import {ModuleLib} from "../../contracts/router/Module.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
@@ -11,7 +11,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 library TestTokenLib {
     // Selectors
     bytes4 internal constant INITIALIZE_TOKEN =
-        bytes4(keccak256("initializeTestToken(string,string,uint8)"));
+        bytes4(keccak256("initializeTestToken(string,string)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
 }
@@ -46,25 +46,17 @@ contract TestToken is ERC20 {
     // Commands
     function initializeTestToken(
         string memory _name,
-        string memory _symbol,
-        uint8 _decimals
+        string memory _symbol
     ) public initializer {
         __ERC20_init(_name, _symbol);
-        ERC20Store storage s = ERC20Lib.store();
-        s.decimals = _decimals;
-    }
-
-    function decimals() public view override returns (uint8) {
-        ERC20Store storage s = ERC20Lib.store();
-        return s.decimals;
     }
 
     function mint(address _account, uint256 _amount) public {
-        ERC20Lib.mint(_account, _amount);
+        super._mint(_account, _amount);
     }
 
     function burn(address _account, uint256 _amount) public {
-        ERC20Lib.burn(_account, _amount);
+        super._burn(_account, _amount);
     }
 
     receive() external payable {
@@ -101,14 +93,14 @@ contract TestTokenTest is Test {
 
         token = TestToken(payable(router));
 
-        token.initializeTestToken("TestToken", "TOKEN", 18);
+        token.initializeTestToken("TestToken", "TOKEN");
     }
 
     function testTestTokenInitialize() public {
         vm.startPrank(alice);
 
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
-        token.initializeTestToken("TestToken", "TOKEN", 18);
+        token.initializeTestToken("TestToken", "TOKEN");
 
         assertEq(token.name(), "TestToken");
         assertEq(token.symbol(), "TOKEN");
