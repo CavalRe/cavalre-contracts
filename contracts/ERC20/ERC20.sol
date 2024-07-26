@@ -41,11 +41,11 @@ library ERC20Lib {
         }
     }
 
-    function totalSuply() public view returns (uint256) {
+    function totalSuply() internal view returns (uint256) {
         return store()._totalSupply;
     }
 
-    function mint(address _to, uint256 _amount) public {
+    function mint(address _to, uint256 _amount) internal {
         if (_to == address(0)) {
             revert IERC20Errors.ERC20InvalidReceiver(address(0));
         }
@@ -56,7 +56,7 @@ library ERC20Lib {
         emit IERC20.Transfer(address(0), _to, _amount);
     }
 
-    function burn(address _from, uint256 _amount) public {
+    function burn(address _from, uint256 _amount) internal {
         if (_from == address(0)) {
             revert IERC20Errors.ERC20InvalidSender(address(0));
         }
