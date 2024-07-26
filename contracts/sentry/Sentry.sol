@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import {Module, ModuleLib as ML, Store as ModuleStore} from "@cavalre/contracts/router/Module.sol";
-import {RouterLib as RL} from "@cavalre/contracts/router/Router.sol";
 import {console} from "forge-std/src/console.sol";
 
 struct Store {
@@ -48,7 +47,7 @@ library SentryLib {
         Store storage s = store();
         s.pendingOwners[_module] = _newOwner;
 
-        emit SentryLib.OwnershipTransferStarted(RL.owner(_module), _newOwner);
+        emit SentryLib.OwnershipTransferStarted(ML.store().owners[_module], _newOwner);
     }
 
     function acceptOwnership(address _module) internal {
