@@ -21,6 +21,12 @@ contract TestToken is ERC20 {
     event Deposit(address indexed dst, uint256 wad);
     event Withdrawal(address indexed src, uint256 wad);
 
+    uint8 immutable private _decimals;
+
+    constructor(uint8 _decimals_) {
+        _decimals = _decimals_;
+    }
+
     function commands()
         public
         pure
@@ -44,6 +50,10 @@ contract TestToken is ERC20 {
     }
 
     // Commands
+    function decimals() public view override returns (uint8) {
+        return _decimals;
+    }
+
     function initializeTestToken(
         string memory _name,
         string memory _symbol
@@ -87,7 +97,7 @@ contract TestTokenTest is Test {
 
     function setUp() public {
         vm.startPrank(alice);
-        token = new TestToken();
+        token = new TestToken(18);
         router = new Router(alice);
         router.addModule(address(token));
 
