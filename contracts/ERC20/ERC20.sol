@@ -41,6 +41,10 @@ library ERC20Lib {
         }
     }
 
+    function totalSuply() public view returns (uint256) {
+        return store()._totalSupply;
+    }
+
     function mint(address _to, uint256 _amount) public {
         if (_to == address(0)) {
             revert IERC20Errors.ERC20InvalidReceiver(address(0));
