@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Module, ModuleLib as ML, Store} from "./Module.sol";
+import {Module, ModuleLib as ML, Store as MS} from "./Module.sol";
 
 contract Router is Module {
     // Events
@@ -16,7 +16,7 @@ contract Router is Module {
     error ModuleNotFound(address _module);
 
     constructor(address owner_) {
-        Store storage s = ML.store();
+        MS storage s = ML.store();
         s.owners[__self] = owner_;
         emit RouterCreated(__self);
     }
@@ -54,7 +54,7 @@ contract Router is Module {
     }
 
     function setCommand(bytes4 _command, address _module) public {
-        Store storage s = enforceIsOwner();
+        MS storage s = enforceIsOwner();
         if (s.modules[_command] == _module)
             revert CommandAlreadySet(_command, _module);
         s.modules[_command] = _module;

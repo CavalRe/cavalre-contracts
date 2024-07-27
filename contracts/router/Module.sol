@@ -25,8 +25,6 @@ abstract contract Module {
     address internal immutable __self = address(this);
 
     // Errors
-    error IsDelegated();
-    error NotDelegated();
     error OwnableUnauthorizedAccount(address account);
 
     // Commands
@@ -37,13 +35,5 @@ abstract contract Module {
         if (s.owners[__self] != msg.sender) {
             revert OwnableUnauthorizedAccount(msg.sender);
         }
-    }
-
-    function enforceIsDelegated() internal view {
-        if (address(this) == __self) revert NotDelegated();
-    }
-
-    function enforceNotDelegated() internal view {
-        if (address(this) != __self) revert IsDelegated();
     }
 }
