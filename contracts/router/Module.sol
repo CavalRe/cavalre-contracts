@@ -3,11 +3,9 @@ pragma solidity ^0.8.20;
 
 struct Store {
     mapping(address => address) owners;
-    mapping(bytes4 => address) modules;
 }
 
 library ModuleLib {
-    // Stores
     bytes32 private constant STORE_POSITION =
         keccak256(
             abi.encode(uint256(keccak256("cavalre.storage.Module")) - 1)
@@ -25,8 +23,6 @@ abstract contract Module {
     address internal immutable __self = address(this);
 
     // Errors
-    error IsDelegated();
-    error NotDelegated();
     error OwnableUnauthorizedAccount(address account);
 
     // Commands
@@ -37,13 +33,5 @@ abstract contract Module {
         if (s.owners[__self] != msg.sender) {
             revert OwnableUnauthorizedAccount(msg.sender);
         }
-    }
-
-    function enforceIsDelegated() internal view {
-        if (address(this) == __self) revert NotDelegated();
-    }
-
-    function enforceNotDelegated() internal view {
-        if (address(this) != __self) revert IsDelegated();
     }
 }
