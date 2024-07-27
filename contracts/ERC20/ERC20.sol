@@ -4,8 +4,6 @@ pragma solidity ^0.8.20;
 import {Module} from "@cavalre/contracts/router/Module.sol";
 
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 library ERC20Lib {
     // Selectors
@@ -39,32 +37,6 @@ library ERC20Lib {
         assembly {
             s.slot := position
         }
-    }
-
-    function totalSupply() internal view returns (uint256) {
-        return store()._totalSupply;
-    }
-
-    function mint(address _to, uint256 _amount) internal {
-        if (_to == address(0)) {
-            revert IERC20Errors.ERC20InvalidReceiver(address(0));
-        }
-        ERC20Upgradeable.ERC20Storage storage _store = store();
-        _store._totalSupply += _amount;
-        _store._balances[_to] += _amount;
-
-        emit IERC20.Transfer(address(0), _to, _amount);
-    }
-
-    function burn(address _from, uint256 _amount) internal {
-        if (_from == address(0)) {
-            revert IERC20Errors.ERC20InvalidSender(address(0));
-        }
-        ERC20Upgradeable.ERC20Storage storage _store = store();
-        _store._totalSupply -= _amount;
-        _store._balances[_from] -= _amount;
-
-        emit IERC20.Transfer(_from, address(0), _amount);
     }
 }
 
