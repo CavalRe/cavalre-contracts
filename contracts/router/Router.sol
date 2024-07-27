@@ -3,6 +3,24 @@ pragma solidity ^0.8.20;
 
 import {Module, ModuleLib as ML, Store as MS} from "./Module.sol";
 
+struct Store {
+    mapping(bytes4 => address) modules;
+}
+
+library RouterLib {
+    bytes32 private constant STORE_POSITION =
+        keccak256(
+            abi.encode(uint256(keccak256("cavalre.storage.Router")) - 1)
+        ) & ~bytes32(uint256(0xff));
+
+    function store() internal pure returns (Store storage s) {
+        bytes32 position = STORE_POSITION;
+        assembly {
+            s.slot := position
+        }
+    }
+}   
+
 contract Router is Module {
     // Events
     event CommandSet(bytes4 indexed command, address indexed module);
@@ -26,7 +44,7 @@ contract Router is Module {
     }
 
     fallback() external payable {
-        address module_ = ML.store().modules[msg.sig];
+        address module_ = RouterLib.store().modules[msg.sig];
         if (module_ == address(0)) revert CommandNotFound(msg.sig);
 
         assembly {
@@ -54,8 +72,9 @@ contract Router is Module {
     }
 
     function setCommand(bytes4 _command, address _module) public {
-        MS storage s = enforceIsOwner();
-        if (s.modules[_command] == _module)
+        enforceIsOwner();
+        Store storage s = RouterLib.store();
+        if (s.modules[_command] != address(0))
             revert CommandAlreadySet(_command, _module);
         s.modules[_command] = _module;
         emit CommandSet(_command, _module);
@@ -86,6 +105,6 @@ contract Router is Module {
     }
 
     function module(bytes4 _selector) public view returns (address) {
-        return ML.store().modules[_selector];
+        return RouterLib.store().modules[_selector];
     }
 }

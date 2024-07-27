@@ -3,11 +3,9 @@ pragma solidity ^0.8.20;
 
 struct Store {
     mapping(address => address) owners;
-    mapping(bytes4 => address) modules;
 }
 
 library ModuleLib {
-    // Stores
     bytes32 private constant STORE_POSITION =
         keccak256(
             abi.encode(uint256(keccak256("cavalre.storage.Module")) - 1)
