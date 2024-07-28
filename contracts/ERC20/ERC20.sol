@@ -41,6 +41,13 @@ library ERC20Lib {
 }
 
 contract ERC20 is Module, ERC20Upgradeable {
+
+    uint8 immutable private _decimals;
+
+    constructor(uint8 decimals_) {
+        _decimals = decimals_;
+    }
+
     function commands()
         public
         pure
@@ -59,6 +66,10 @@ contract ERC20 is Module, ERC20Upgradeable {
         _commands[7] = ERC20Lib.ALLOWANCE;
         _commands[8] = ERC20Lib.APPROVE;
         _commands[9] = ERC20Lib.TRANSFER_FROM;
+    }
+
+    function decimals() public view override returns (uint8) {
+        return _decimals;
     }
 
     function initializeERC20(
