@@ -18,7 +18,7 @@ contract ERC20Test is Test {
 
     function setUp() public {
         vm.startPrank(alice);
-        erc20 = new ERC20();
+        erc20 = new ERC20(18);
         router = new Router(alice);
         router.addModule(address(erc20));
         erc20 = ERC20(payable(router));
