@@ -21,11 +21,7 @@ contract TestToken is ERC20 {
     event Deposit(address indexed dst, uint256 wad);
     event Withdrawal(address indexed src, uint256 wad);
 
-    uint8 immutable private _decimals;
-
-    constructor(uint8 _decimals_) {
-        _decimals = _decimals_;
-    }
+    constructor(uint8 _decimals) ERC20(_decimals) {}
 
     function commands()
         public
@@ -50,10 +46,6 @@ contract TestToken is ERC20 {
     }
 
     // Commands
-    function decimals() public view override returns (uint8) {
-        return _decimals;
-    }
-
     function initializeTestToken(
         string memory _name,
         string memory _symbol
