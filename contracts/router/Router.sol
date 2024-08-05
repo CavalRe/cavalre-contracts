@@ -19,7 +19,7 @@ library RouterLib {
             s.slot := position
         }
     }
-}   
+}
 
 contract Router is Module {
     // Events
@@ -71,30 +71,29 @@ contract Router is Module {
         return abi.decode(data, (bytes4[]));
     }
 
-    function setCommand(bytes4 _command, address _module) public {
-        enforceIsOwner();
-        Store storage s = RouterLib.store();
-        if (s.modules[_command] != address(0))
-            revert CommandAlreadySet(_command, _module);
-        s.modules[_command] = _module;
-        emit CommandSet(_command, _module);
-    }
-
     function addModule(address _module) external {
+        enforceIsOwner();
         bytes4[] memory _commands = getCommands(_module);
         if (_commands.length == 0) revert ModuleNotFound(_module);
+        Store storage s = RouterLib.store();
         for (uint256 i = 0; i < _commands.length; i++) {
-            setCommand(_commands[i], _module); // Access is controlled here
+            if (s.modules[_commands[i]] != address(0))
+                revert CommandAlreadySet(_commands[i], _module);
+            s.modules[_commands[i]] = _module;
+            emit CommandSet(_commands[i], _module);
         }
         ML.store().owners[_module] = msg.sender;
         emit ModuleAdded(_module);
     }
 
     function removeModule(address _module) external {
+        enforceIsOwner();
         bytes4[] memory _commands = getCommands(_module);
         if (_commands.length == 0) revert ModuleNotFound(_module);
+        Store storage s = RouterLib.store();
         for (uint256 i = 0; i < _commands.length; i++) {
-            setCommand(_commands[i], address(0)); // Access is controlled here
+            s.modules[_commands[i]] = address(0);
+            emit CommandSet(_commands[i], address(0));
         }
         delete ML.store().owners[_module];
         emit ModuleRemoved(_module);
