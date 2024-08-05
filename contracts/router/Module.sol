@@ -24,6 +24,8 @@ abstract contract Module {
 
     // Errors
     error OwnableUnauthorizedAccount(address account);
+    error NotDelegated();
+    error IsDelegated();
 
     // Commands
     function commands() public pure virtual returns (bytes4[] memory _commands);
@@ -33,5 +35,13 @@ abstract contract Module {
         if (s.owners[__self] != msg.sender) {
             revert OwnableUnauthorizedAccount(msg.sender);
         }
+    }
+
+    function enforceIsDelegated() internal view {
+        if (address(this) == __self) revert NotDelegated();
+    }
+
+    function enforceNotDelegated() internal view {
+        if (address(this) != __self) revert IsDelegated();
     }
 }
