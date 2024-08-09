@@ -8,6 +8,7 @@
   "author": "CavalRe",
   "exports": {
     "./ERC20/": "./contracts/ERC20/",
+    "./ERC4626/": "./contracts/ERC4626/",
     "./libraries/": "./contracts/libraries/",
     "./router/": "./contracts/router/",
     "./sentry/": "./contracts/sentry/",
@@ -16,6 +17,7 @@
   },
   "files": [
     "contracts/ERC20/",
+    "contracts/ERC4626/",
     "contracts/libraries/",
     "contracts/router/",
     "contracts/sentry/",
