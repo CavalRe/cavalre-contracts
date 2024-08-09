@@ -407,7 +407,7 @@ library FloatLib {
         );
         if (isLT(cubic.rad, Float(0, 0))) revert NoSolution();
         cubic.u = minus(exp(log(cubic.rad) / 2), divide(cubic.q, Float(2, 0)));
-        cubic.w = exp(log(cubic.u) / 3);
+        cubic.w = cubic.u.mantissa > 0 ? exp(log(cubic.u) / 3) : minus(exp(log(minus(cubic.u)) / 3));
 
         x = minus(
             minus(cubic.w, divide(cubic.p, times(Float(3, 0), cubic.w))),
