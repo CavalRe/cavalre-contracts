@@ -12,8 +12,8 @@ library TestTokenLib {
     // Selectors
     bytes4 internal constant INITIALIZE_TOKEN =
         bytes4(keccak256("initializeTestToken(string,string)"));
-    bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
-    bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
+    bytes4 internal constant MINT = bytes4(keccak256("mint(uint256)"));
+    bytes4 internal constant BURN = bytes4(keccak256("burn(uint256)"));
 }
 
 contract TestToken is ERC20 {
@@ -53,12 +53,12 @@ contract TestToken is ERC20 {
         __ERC20_init(_name, _symbol);
     }
 
-    function mint(address _account, uint256 _amount) public {
-        super._mint(_account, _amount);
+    function mint(uint256 _amount) public {
+        super._mint(msg.sender, _amount);
     }
 
-    function burn(address _account, uint256 _amount) public {
-        super._burn(_account, _amount);
+    function burn(uint256 _amount) public {
+        super._burn(msg.sender, _amount);
     }
 
     receive() external payable {
@@ -66,13 +66,13 @@ contract TestToken is ERC20 {
     }
 
     function deposit() public payable {
-        mint(_msgSender(), msg.value);
+        mint(msg.value);
         emit Deposit(_msgSender(), msg.value);
     }
 
     function withdraw(uint256 wad) public {
         require(balanceOf(_msgSender()) >= wad);
-        burn(_msgSender(), wad);
+        burn(wad);
         (bool success, ) = payable(_msgSender()).call{value: wad}("");
         require(success, "Transfer failed");
         emit Withdrawal(_msgSender(), wad);
@@ -114,19 +114,19 @@ contract TestTokenTest is Test {
     function testTestTokenMint() public {
         vm.startPrank(alice);
 
-        token.mint(bob, 1000);
+        token.mint(1000);
 
         assertEq(token.totalSupply(), 1000);
-        assertEq(token.balanceOf(bob), 1000);
+        assertEq(token.balanceOf(alice), 1000);
     }
 
     function testTestTokenBurn() public {
         vm.startPrank(alice);
 
-        token.mint(bob, 1000);
-        token.burn(bob, 700);
+        token.mint(1000);
+        token.burn(700);
 
         assertEq(token.totalSupply(), 300);
-        assertEq(token.balanceOf(bob), 300);
+        assertEq(token.balanceOf(alice), 300);
     }
 }
