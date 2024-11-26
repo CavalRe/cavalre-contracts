@@ -16,7 +16,7 @@ struct Store {
     mapping(bytes32 allowanceKey => uint256) allowances;
 }
 
-library ERC20WithSubaccountsLib {
+library Lib {
     // Selectors
     bytes4 internal constant SET_TOKEN_METADATA =
         bytes4(keccak256("setTokenMetadata(address,string,string)"));
@@ -50,36 +50,6 @@ library ERC20WithSubaccountsLib {
             s.slot := position
         }
     }
-}
-
-contract ERC20WithSubaccounts is Module {
-    function commands()
-        public
-        pure
-        virtual
-        override
-        returns (bytes4[] memory _commands)
-    {
-        _commands = new bytes4[](10);
-        _commands[0] = ERC20WithSubaccountsLib.NAME;
-        _commands[1] = ERC20WithSubaccountsLib.SYMBOL;
-        _commands[2] = ERC20WithSubaccountsLib.DECIMALS;
-        _commands[3] = ERC20WithSubaccountsLib.TOTAL_SUPPLY;
-        _commands[4] = ERC20WithSubaccountsLib.BALANCE_OF;
-        _commands[5] = ERC20WithSubaccountsLib.TRANSFER;
-        _commands[6] = ERC20WithSubaccountsLib.APPROVE;
-        _commands[7] = ERC20WithSubaccountsLib.ALLOWANCE;
-        _commands[8] = ERC20WithSubaccountsLib.TRANSFER_FROM;
-        _commands[9] = ERC20WithSubaccountsLib.SET_TOKEN_METADATA;
-    }
-
-    // Events for ERC20 compatibility
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
 
     // Compute a unique key for storage
     function rootKey(address tokenAddress_) internal pure returns (bytes32) {
@@ -125,6 +95,36 @@ contract ERC20WithSubaccounts is Module {
                 )
             );
     }
+}
+
+contract ERC20WithSubaccounts is Module {
+    function commands()
+        public
+        pure
+        virtual
+        override
+        returns (bytes4[] memory _commands)
+    {
+        _commands = new bytes4[](10);
+        _commands[0] = Lib.NAME;
+        _commands[1] = Lib.SYMBOL;
+        _commands[2] = Lib.DECIMALS;
+        _commands[3] = Lib.TOTAL_SUPPLY;
+        _commands[4] = Lib.BALANCE_OF;
+        _commands[5] = Lib.TRANSFER;
+        _commands[6] = Lib.APPROVE;
+        _commands[7] = Lib.ALLOWANCE;
+        _commands[8] = Lib.TRANSFER_FROM;
+        _commands[9] = Lib.SET_TOKEN_METADATA;
+    }
+
+    // Events for ERC20 compatibility
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 
     // Set token metadata
     function setTokenMetadata(
@@ -133,17 +133,17 @@ contract ERC20WithSubaccounts is Module {
         string memory symbol_
     ) public {
         enforceIsOwner();
-        Store storage s = ERC20WithSubaccountsLib.store();
+        Store storage s = Lib.store();
 
-        bytes32 _rootKey = rootKey(tokenAddress_);
+        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
         s.name[_rootKey] = name_;
         s.symbol[_rootKey] = symbol_;
     }
 
     // Get token metadata
     function name(address tokenAddress_) public view returns (string memory) {
-        Store storage s = ERC20WithSubaccountsLib.store();
-        bytes32 _rootKey = rootKey(tokenAddress_);
+        Store storage s = Lib.store();
+        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
         return s.name[_rootKey];
     }
 
@@ -154,8 +154,8 @@ contract ERC20WithSubaccounts is Module {
 
     // Get token metadata
     function symbol(address tokenAddress_) public view returns (string memory) {
-        Store storage s = ERC20WithSubaccountsLib.store();
-        bytes32 _rootKey = rootKey(tokenAddress_);
+        Store storage s = Lib.store();
+        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
         return s.symbol[_rootKey];
     }
 
@@ -166,8 +166,8 @@ contract ERC20WithSubaccounts is Module {
 
     // Get token metadata
     function decimals(address tokenAddress_) public view returns (uint8) {
-        Store storage s = ERC20WithSubaccountsLib.store();
-        bytes32 _rootKey = rootKey(tokenAddress_);
+        Store storage s = Lib.store();
+        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
         return s.decimals[_rootKey];
     }
 
@@ -183,13 +183,13 @@ contract ERC20WithSubaccounts is Module {
         string memory accountName_
     ) public {
         enforceIsOwner();
-        Store storage s = ERC20WithSubaccountsLib.store();
+        Store storage s = Lib.store();
 
-        bytes32 _accountKey = accountKey(tokenAddress_, accountName_);
+        bytes32 _accountKey = Lib.accountKey(tokenAddress_, accountName_);
         if (s.totalBalance[_accountKey] != 0) {
             revert("Account already exists");
         }
-        bytes32 _parentKey = accountKey(tokenAddress_, parentName_);
+        bytes32 _parentKey = Lib.accountKey(tokenAddress_, parentName_);
         s.parent[_accountKey] = _parentKey;
     }
 
@@ -199,8 +199,8 @@ contract ERC20WithSubaccounts is Module {
         string memory accountName_,
         address ownerAddress_
     ) public view returns (uint256) {
-        Store storage s = ERC20WithSubaccountsLib.store();
-        bytes32 _accountUserKey = accountUserKey(
+        Store storage s = Lib.store();
+        bytes32 _accountUserKey = Lib.accountUserKey(
             tokenAddress_,
             accountName_,
             ownerAddress_
@@ -218,15 +218,15 @@ contract ERC20WithSubaccounts is Module {
         address tokenAddress_,
         string memory accountName_
     ) public view returns (uint256) {
-        Store storage s = ERC20WithSubaccountsLib.store();
-        bytes32 _accountKey = accountKey(tokenAddress_, accountName_);
+        Store storage s = Lib.store();
+        bytes32 _accountKey = Lib.accountKey(tokenAddress_, accountName_);
         return s.totalBalance[_accountKey];
     }
 
     // Get the total supply of a token
     function totalSupply(address tokenAddress_) public view returns (uint256) {
-        Store storage s = ERC20WithSubaccountsLib.store();
-        bytes32 _rootKey = rootKey(tokenAddress_);
+        Store storage s = Lib.store();
+        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
         return s.totalBalance[_rootKey];
     }
 
@@ -240,7 +240,7 @@ contract ERC20WithSubaccounts is Module {
         bytes32 parentAccountKey_,
         int256 delta_
     ) internal {
-        Store storage s = ERC20WithSubaccountsLib.store();
+        Store storage s = Lib.store();
         if (parentAccountKey_ == 0) {
             return;
         }
@@ -260,14 +260,14 @@ contract ERC20WithSubaccounts is Module {
         address recipientAddress_,
         uint256 amount_
     ) public {
-        Store storage s = ERC20WithSubaccountsLib.store();
+        Store storage s = Lib.store();
 
-        bytes32 _fromAccountUserKey = accountUserKey(
+        bytes32 _fromAccountUserKey = Lib.accountUserKey(
             tokenAddress_,
             fromAccountName_,
             msg.sender
         );
-        bytes32 _toAccountUserKey = accountUserKey(
+        bytes32 _toAccountUserKey = Lib.accountUserKey(
             tokenAddress_,
             toAccountName_,
             recipientAddress_
@@ -292,14 +292,14 @@ contract ERC20WithSubaccounts is Module {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        Store storage s = ERC20WithSubaccountsLib.store();
+        Store storage s = Lib.store();
 
-        bytes32 _fromAccountUserKey = accountUserKey(
+        bytes32 _fromAccountUserKey = Lib.accountUserKey(
             address(this),
             "Root",
             msg.sender
         );
-        bytes32 _toAccountUserKey = accountUserKey(
+        bytes32 _toAccountUserKey = Lib.accountUserKey(
             address(this),
             "Root",
             recipientAddress_
@@ -325,9 +325,9 @@ contract ERC20WithSubaccounts is Module {
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
-        Store storage s = ERC20WithSubaccountsLib.store();
+        Store storage s = Lib.store();
 
-        bytes32 _allowanceKey = allowanceKey(
+        bytes32 _allowanceKey = Lib.allowanceKey(
             tokenAddress_,
             ownerAccountName_,
             msg.sender,
@@ -353,9 +353,9 @@ contract ERC20WithSubaccounts is Module {
         string memory spenderAccountName_,
         address spenderAddress_
     ) public view returns (uint256) {
-        Store storage s = ERC20WithSubaccountsLib.store();
+        Store storage s = Lib.store();
 
-        bytes32 _allowanceKey = allowanceKey(
+        bytes32 _allowanceKey = Lib.allowanceKey(
             tokenAddress_,
             ownerAccountName_,
             ownerAddress_,
@@ -378,20 +378,20 @@ contract ERC20WithSubaccounts is Module {
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
-        Store storage s = ERC20WithSubaccountsLib.store();
+        Store storage s = Lib.store();
 
-        bytes32 _ownerAccountUserKey = accountUserKey(
+        bytes32 _ownerAccountUserKey = Lib.accountUserKey(
             tokenAddress_,
             ownerAccountName_,
             msg.sender
         );
-        bytes32 _spenderAccountUserKey = accountUserKey(
+        bytes32 _spenderAccountUserKey = Lib.accountUserKey(
             tokenAddress_,
             spenderAccountName_,
             spenderAddress_
         );
 
-        bytes32 _allowanceKey = allowanceKey(
+        bytes32 _allowanceKey = Lib.allowanceKey(
             tokenAddress_,
             ownerAccountName_,
             msg.sender,
