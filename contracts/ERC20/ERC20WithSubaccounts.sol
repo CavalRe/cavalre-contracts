@@ -4,15 +4,11 @@ pragma solidity ^0.8.0;
 import {Module} from "@cavalre/contracts/router/Module.sol";
 
 struct Store {
-    // Token metadata
     mapping(bytes32 rootKey => string) name;
     mapping(bytes32 rootKey => string) symbol;
     mapping(bytes32 rootKey => uint8) decimals;
-    // Mappings for balances and relationships
-    mapping(bytes32 accountUserKey => uint256) balance;
-    mapping(bytes32 accountKey => uint256) totalBalance;
+    mapping(bytes32 accountUserKey => uint256) balances;
     mapping(bytes32 accountKey => bytes32) parent;
-    // Allowances with hashed keys for efficiency
     mapping(bytes32 allowanceKey => uint256) allowances;
 }
 
@@ -98,6 +94,14 @@ library Lib {
 }
 
 contract ERC20WithSubaccounts is Module {
+    // Events for ERC20 compatibility
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
+
     function commands()
         public
         pure
@@ -117,14 +121,6 @@ contract ERC20WithSubaccounts is Module {
         _commands[8] = Lib.TRANSFER_FROM;
         _commands[9] = Lib.SET_TOKEN_METADATA;
     }
-
-    // Events for ERC20 compatibility
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
 
     // Set token metadata
     function setTokenMetadata(
@@ -186,7 +182,7 @@ contract ERC20WithSubaccounts is Module {
         Store storage s = Lib.store();
 
         bytes32 _accountKey = Lib.accountKey(tokenAddress_, accountName_);
-        if (s.totalBalance[_accountKey] != 0) {
+        if (s.balances[_accountKey] != 0) {
             revert("Account already exists");
         }
         bytes32 _parentKey = Lib.accountKey(tokenAddress_, parentName_);
@@ -205,7 +201,7 @@ contract ERC20WithSubaccounts is Module {
             accountName_,
             ownerAddress_
         );
-        return s.balance[_accountUserKey];
+        return s.balances[_accountUserKey];
     }
 
     // Get the balance of an account (default to root subaccount for ERC20 compatibility)
@@ -220,14 +216,12 @@ contract ERC20WithSubaccounts is Module {
     ) public view returns (uint256) {
         Store storage s = Lib.store();
         bytes32 _accountKey = Lib.accountKey(tokenAddress_, accountName_);
-        return s.totalBalance[_accountKey];
+        return s.balances[_accountKey];
     }
 
     // Get the total supply of a token
     function totalSupply(address tokenAddress_) public view returns (uint256) {
-        Store storage s = Lib.store();
-        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
-        return s.totalBalance[_rootKey];
+        return totalBalanceOf(tokenAddress_, "Root");
     }
 
     // Get the total supply of a token for ERC20 compatibility
@@ -244,16 +238,16 @@ contract ERC20WithSubaccounts is Module {
         if (parentAccountKey_ == 0) {
             return;
         }
-        int256 _newBalance = int256(s.totalBalance[parentAccountKey_]) + delta_;
+        int256 _newBalance = int256(s.balances[parentAccountKey_]) + delta_;
         if (_newBalance < 0) {
             revert("Insufficient balance");
         }
-        s.totalBalance[parentAccountKey_] = uint256(_newBalance);
+        s.balances[parentAccountKey_] = uint256(_newBalance);
         updateParentBalances(s.parent[parentAccountKey_], delta_);
     }
 
     // Transfer between subaccounts
-    function transferToSubaccount(
+    function transfer(
         address tokenAddress_,
         string memory fromAccountName_,
         string memory toAccountName_,
@@ -261,6 +255,13 @@ contract ERC20WithSubaccounts is Module {
         uint256 amount_
     ) public {
         Store storage s = Lib.store();
+
+        bytes32 _fromAccountKey = Lib.accountKey(
+            tokenAddress_,
+            fromAccountName_
+        );
+
+        bytes32 _toAccountKey = Lib.accountKey(tokenAddress_, toAccountName_);
 
         bytes32 _fromAccountUserKey = Lib.accountUserKey(
             tokenAddress_,
@@ -274,15 +275,15 @@ contract ERC20WithSubaccounts is Module {
         );
 
         require(
-            s.balance[_fromAccountUserKey] >= amount_,
+            s.balances[_fromAccountUserKey] >= amount_,
             "Insufficient balance"
         );
 
-        s.balance[_fromAccountUserKey] -= amount_;
-        s.balance[_toAccountUserKey] += amount_;
+        s.balances[_fromAccountUserKey] -= amount_;
+        s.balances[_toAccountUserKey] += amount_;
 
-        updateParentBalances(s.parent[_fromAccountUserKey], -int256(amount_));
-        updateParentBalances(s.parent[_toAccountUserKey], int256(amount_));
+        updateParentBalances(s.parent[_fromAccountKey], -int256(amount_));
+        updateParentBalances(s.parent[_toAccountKey], int256(amount_));
 
         emit Transfer(msg.sender, recipientAddress_, amount_);
     }
@@ -292,28 +293,7 @@ contract ERC20WithSubaccounts is Module {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        Store storage s = Lib.store();
-
-        bytes32 _fromAccountUserKey = Lib.accountUserKey(
-            address(this),
-            "Root",
-            msg.sender
-        );
-        bytes32 _toAccountUserKey = Lib.accountUserKey(
-            address(this),
-            "Root",
-            recipientAddress_
-        );
-
-        require(
-            s.balance[_fromAccountUserKey] >= amount_,
-            "Insufficient balance"
-        );
-
-        s.balance[_fromAccountUserKey] -= amount_;
-        s.balance[_toAccountUserKey] += amount_;
-
-        emit Transfer(msg.sender, recipientAddress_, amount_);
+        transfer(address(this), "Root", "Root", recipientAddress_, amount_);
         return true;
     }
 
@@ -400,13 +380,13 @@ contract ERC20WithSubaccounts is Module {
         );
 
         require(
-            s.balance[_ownerAccountUserKey] >= amount_,
+            s.balances[_ownerAccountUserKey] >= amount_,
             "Insufficient balance"
         );
         require(s.allowances[_allowanceKey] >= amount_, "Allowance exceeded");
 
-        s.balance[_ownerAccountUserKey] -= amount_;
-        s.balance[_spenderAccountUserKey] += amount_;
+        s.balances[_ownerAccountUserKey] -= amount_;
+        s.balances[_spenderAccountUserKey] += amount_;
         s.allowances[_allowanceKey] -= amount_;
 
         updateParentBalances(s.parent[_ownerAccountUserKey], -int256(amount_));
