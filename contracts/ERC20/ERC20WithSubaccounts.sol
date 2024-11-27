@@ -47,12 +47,34 @@ library Lib {
         }
     }
 
-    function toBytes(address x) internal pure returns (bytes32) {
-        return bytes32(uint256(uint160(x)));
+    function toAddress(
+        address parentAddress_,
+        address originalAddress_
+    ) internal pure returns (address) {
+        return
+            address(
+                uint160(
+                    uint256(
+                        keccak256(
+                            abi.encodePacked(parentAddress_, originalAddress_)
+                        )
+                    )
+                )
+            );
     }
 
-    function toAddress(bytes32 x) internal pure returns (address) {
-        return address(uint160(uint256(x)));
+    function toAddress(
+        address parentAddress_,
+        string memory originalId_
+    ) internal pure returns (address) {
+        return
+            address(
+                uint160(
+                    uint256(
+                        keccak256(abi.encodePacked(parentAddress_, originalId_))
+                    )
+                )
+            );
     }
 }
 
@@ -164,17 +186,18 @@ contract ERC20WithSubaccounts is Module {
 
         Store storage s = Lib.store();
 
-        int256 _newBalance = int256(s.balances[parentAccountAddress_]) + delta_;
-        if (_newBalance < 0) {
-            revert("Insufficient balance");
-        }
-        s.balances[parentAccountAddress_] = uint256(_newBalance);
+        if (s.parent[parentAccountAddress_] != address(0)) {
+            int256 _newBalance = int256(s.balances[parentAccountAddress_]) +
+                delta_;
+            if (_newBalance < 0) {
+                revert("Insufficient balance");
+            }
+            s.balances[parentAccountAddress_] = uint256(_newBalance);
 
-        if (s.parent[parentAccountAddress_] == address(0)) {
-            return parentAccountAddress_;
+            updateParentBalances(s.parent[parentAccountAddress_], delta_);
         }
 
-        updateParentBalances(s.parent[parentAccountAddress_], delta_);
+        return parentAccountAddress_;
     }
 
     function transfer(
@@ -197,12 +220,8 @@ contract ERC20WithSubaccounts is Module {
 
         Store storage s = Lib.store();
 
-        address _fromAddress = Lib.toAddress(
-            keccak256(abi.encodePacked(fromParentAddress_, fromAddress_))
-        );
-        address _toAddress = Lib.toAddress(
-            keccak256(abi.encodePacked(toParentAddress_, toAddress_))
-        );
+        address _fromAddress = Lib.toAddress(fromParentAddress_, fromAddress_);
+        address _toAddress = Lib.toAddress(toParentAddress_, toAddress_);
 
         require(
             s.balances[_fromAddress] >= amount_,
@@ -341,6 +360,12 @@ contract ERC20WithSubaccounts is Module {
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
-        return transferFrom(address(this), address(this), spenderAddress_, amount_);
+        return
+            transferFrom(
+                address(this),
+                address(this),
+                spenderAddress_,
+                amount_
+            );
     }
 }
