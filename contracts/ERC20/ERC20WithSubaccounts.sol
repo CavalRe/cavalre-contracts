@@ -4,11 +4,11 @@ pragma solidity ^0.8.0;
 import {Module} from "@cavalre/contracts/router/Module.sol";
 
 struct Store {
-    mapping(bytes32 rootKey => string) name;
-    mapping(bytes32 rootKey => string) symbol;
-    mapping(bytes32 rootKey => uint8) decimals;
-    mapping(bytes32 accountUserKey => uint256) balances;
-    mapping(bytes32 accountKey => bytes32) parent;
+    mapping(address accountAddress => address) parent;
+    mapping(address accountAddress => string) name;
+    mapping(address accountAddress => string) symbol;
+    mapping(address accountAddress => uint8) decimals;
+    mapping(address accountUserAddress => uint256) balances;
     mapping(bytes32 allowanceKey => uint256) allowances;
 }
 
@@ -47,49 +47,12 @@ library Lib {
         }
     }
 
-    // Compute a unique key for storage
-    function rootKey(address tokenAddress_) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(tokenAddress_, "Root"));
+    function toBytes(address x) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(x)));
     }
 
-    // Compute a unique key for storage
-    function accountKey(
-        address tokenAddress_,
-        string memory accountName_
-    ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(tokenAddress_, accountName_));
-    }
-
-    // Compute a unique key for storage
-    function accountUserKey(
-        address tokenAddress_,
-        string memory accountName_,
-        address userAddress_
-    ) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(tokenAddress_, accountName_, userAddress_)
-            );
-    }
-
-    // Compute a unique key for storage
-    function allowanceKey(
-        address tokenAddress_,
-        string memory ownerAccountName_,
-        address ownerAddress_,
-        string memory spenderAccountName_,
-        address spenderAddress_
-    ) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(
-                    tokenAddress_,
-                    ownerAccountName_,
-                    ownerAddress_,
-                    spenderAccountName_,
-                    spenderAddress_
-                )
-            );
+    function toAddress(bytes32 x) internal pure returns (address) {
+        return address(uint160(uint256(x)));
     }
 }
 
@@ -122,170 +85,151 @@ contract ERC20WithSubaccounts is Module {
         _commands[9] = Lib.SET_TOKEN_METADATA;
     }
 
-    // Set token metadata
-    function setTokenMetadata(
-        address tokenAddress_,
-        string memory name_,
-        string memory symbol_
-    ) public {
+    //==================
+    // Metadata Setters
+    //==================
+    function name(address accountAddress_, string memory name_) public {
         enforceIsOwner();
         Store storage s = Lib.store();
-
-        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
-        s.name[_rootKey] = name_;
-        s.symbol[_rootKey] = symbol_;
+        s.name[accountAddress_] = name_;
     }
 
-    // Get token metadata
-    function name(address tokenAddress_) public view returns (string memory) {
+    function symbol(address accountAddress_, string memory symbol_) public {
+        enforceIsOwner();
         Store storage s = Lib.store();
-        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
-        return s.name[_rootKey];
+        s.symbol[accountAddress_] = symbol_;
     }
 
-    // Get token metadata for ERC20 compatibility
+    function decimals(address accountAddress_, uint8 decimals_) public {
+        enforceIsOwner();
+        Store storage s = Lib.store();
+        s.decimals[accountAddress_] = decimals_;
+    }
+
+    //==================
+    // Metadata Getters
+    //==================
+    function name(
+        address accountAddress_
+    ) internal view returns (string memory) {
+        return Lib.store().name[accountAddress_];
+    }
+
+    function symbol(
+        address accountAddress_
+    ) public view returns (string memory) {
+        return Lib.store().symbol[accountAddress_];
+    }
+
+    function decimals(address accountAddress_) public view returns (uint8) {
+        return Lib.store().decimals[accountAddress_];
+    }
+
+    //========================
+    // ERC20 Metadata Getters
+    //========================
     function name() public view returns (string memory) {
         return name(address(this));
     }
 
-    // Get token metadata
-    function symbol(address tokenAddress_) public view returns (string memory) {
-        Store storage s = Lib.store();
-        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
-        return s.symbol[_rootKey];
-    }
-
-    // Get token metadata for ERC20 compatibility
     function symbol() public view returns (string memory) {
         return symbol(address(this));
     }
 
-    // Get token metadata
-    function decimals(address tokenAddress_) public view returns (uint8) {
-        Store storage s = Lib.store();
-        bytes32 _rootKey = Lib.rootKey(tokenAddress_);
-        return s.decimals[_rootKey];
-    }
-
-    // Get token metadata for ERC20 compatibility
     function decimals() public view returns (uint8) {
         return decimals(address(this));
     }
 
-    // Add a subaccount with a parent
-    function addSubaccount(
-        address tokenAddress_,
-        string memory parentName_,
-        string memory accountName_
-    ) public {
-        enforceIsOwner();
-        Store storage s = Lib.store();
-
-        bytes32 _accountKey = Lib.accountKey(tokenAddress_, accountName_);
-        if (s.balances[_accountKey] != 0) {
-            revert("Account already exists");
-        }
-        bytes32 _parentKey = Lib.accountKey(tokenAddress_, parentName_);
-        s.parent[_accountKey] = _parentKey;
-    }
+    //======================
+    // Balances & Transfers
+    //======================
 
     // Get the balance of an account
-    function balanceOf(
-        address tokenAddress_,
-        string memory accountName_,
-        address ownerAddress_
-    ) public view returns (uint256) {
+    function balanceOf(address accountAddress_) public view returns (uint256) {
         Store storage s = Lib.store();
-        bytes32 _accountUserKey = Lib.accountUserKey(
-            tokenAddress_,
-            accountName_,
-            ownerAddress_
-        );
-        return s.balances[_accountUserKey];
-    }
-
-    // Get the balance of an account (default to root subaccount for ERC20 compatibility)
-    function balanceOf(address ownerAddress_) public view returns (uint256) {
-        return balanceOf(address(this), "Root", ownerAddress_);
-    }
-
-    // Get the total balance of an account
-    function totalBalanceOf(
-        address tokenAddress_,
-        string memory accountName_
-    ) public view returns (uint256) {
-        Store storage s = Lib.store();
-        bytes32 _accountKey = Lib.accountKey(tokenAddress_, accountName_);
-        return s.balances[_accountKey];
-    }
-
-    // Get the total supply of a token
-    function totalSupply(address tokenAddress_) public view returns (uint256) {
-        return totalBalanceOf(tokenAddress_, "Root");
+        return s.balances[accountAddress_];
     }
 
     // Get the total supply of a token for ERC20 compatibility
     function totalSupply() public view returns (uint256) {
-        return totalSupply(address(this));
+        return balanceOf(address(this));
     }
 
     // Update parent balances recursively
     function updateParentBalances(
-        bytes32 parentAccountKey_,
+        address parentAccountAddress_,
         int256 delta_
-    ) internal {
+    ) internal returns (address) {
+        if (parentAccountAddress_ == address(0)) revert("Invalid parent");
+
         Store storage s = Lib.store();
-        if (parentAccountKey_ == 0) {
-            return;
-        }
-        int256 _newBalance = int256(s.balances[parentAccountKey_]) + delta_;
+
+        int256 _newBalance = int256(s.balances[parentAccountAddress_]) + delta_;
         if (_newBalance < 0) {
             revert("Insufficient balance");
         }
-        s.balances[parentAccountKey_] = uint256(_newBalance);
-        updateParentBalances(s.parent[parentAccountKey_], delta_);
+        s.balances[parentAccountAddress_] = uint256(_newBalance);
+
+        if (s.parent[parentAccountAddress_] == address(0)) {
+            return parentAccountAddress_;
+        }
+
+        updateParentBalances(s.parent[parentAccountAddress_], delta_);
     }
 
-    // Transfer between subaccounts
     function transfer(
-        address tokenAddress_,
-        string memory fromAccountName_,
-        string memory toAccountName_,
-        address recipientAddress_,
+        address fromParentAddress_,
+        address fromAddress_,
+        address toParentAddress_,
+        address toAddress_,
         uint256 amount_
-    ) public {
+    ) internal returns (bool) {
+        address _fromRoot = updateParentBalances(
+            fromParentAddress_,
+            -int256(amount_)
+        );
+        address _toRoot = updateParentBalances(
+            toParentAddress_,
+            int256(amount_)
+        );
+        if (_fromRoot != _toRoot)
+            revert("ERC20WithSubaccounts: Different roots");
+
         Store storage s = Lib.store();
 
-        bytes32 _fromAccountKey = Lib.accountKey(
-            tokenAddress_,
-            fromAccountName_
+        address _fromAddress = Lib.toAddress(
+            keccak256(abi.encodePacked(fromParentAddress_, fromAddress_))
         );
-
-        bytes32 _toAccountKey = Lib.accountKey(tokenAddress_, toAccountName_);
-
-        bytes32 _fromAccountUserKey = Lib.accountUserKey(
-            tokenAddress_,
-            fromAccountName_,
-            msg.sender
-        );
-        bytes32 _toAccountUserKey = Lib.accountUserKey(
-            tokenAddress_,
-            toAccountName_,
-            recipientAddress_
+        address _toAddress = Lib.toAddress(
+            keccak256(abi.encodePacked(toParentAddress_, toAddress_))
         );
 
         require(
-            s.balances[_fromAccountUserKey] >= amount_,
-            "Insufficient balance"
+            s.balances[_fromAddress] >= amount_,
+            "ERC20WithSubaccounts: Insufficient balance"
         );
 
-        s.balances[_fromAccountUserKey] -= amount_;
-        s.balances[_toAccountUserKey] += amount_;
+        s.balances[_fromAddress] -= amount_;
+        s.balances[_toAddress] += amount_;
 
-        updateParentBalances(s.parent[_fromAccountKey], -int256(amount_));
-        updateParentBalances(s.parent[_toAccountKey], int256(amount_));
+        emit Transfer(msg.sender, toAddress_, amount_);
+        return true;
+    }
 
-        emit Transfer(msg.sender, recipientAddress_, amount_);
+    function transfer(
+        address fromParentAddress_,
+        address toParentAddress_,
+        address toAddress_,
+        uint256 amount_
+    ) public returns (bool) {
+        return
+            transfer(
+                fromParentAddress_,
+                msg.sender,
+                toParentAddress_,
+                toAddress_,
+                amount_
+            );
     }
 
     // ERC20 Transfer
@@ -293,27 +237,34 @@ contract ERC20WithSubaccounts is Module {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        transfer(address(this), "Root", "Root", recipientAddress_, amount_);
-        return true;
+        return
+            transfer(
+                address(this),
+                msg.sender,
+                address(this),
+                recipientAddress_,
+                amount_
+            );
     }
 
     // Approve a spender for a subaccount
     function approve(
-        address tokenAddress_,
-        string memory ownerAccountName_,
-        string memory spenderAccountName_,
+        address ownerParentAddress_,
+        address spenderParentAddress_,
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
         Store storage s = Lib.store();
 
-        bytes32 _allowanceKey = Lib.allowanceKey(
-            tokenAddress_,
-            ownerAccountName_,
-            msg.sender,
-            spenderAccountName_,
-            spenderAddress_
+        bytes32 _allowanceKey = keccak256(
+            abi.encodePacked(
+                ownerParentAddress_,
+                msg.sender,
+                spenderParentAddress_,
+                spenderAddress_
+            )
         );
+
         s.allowances[_allowanceKey] = amount_;
 
         emit Approval(msg.sender, spenderAddress_, amount_);
@@ -321,86 +272,75 @@ contract ERC20WithSubaccounts is Module {
     }
 
     // ERC20 Approve
-    function approve(address spender, uint256 amount) public returns (bool) {
-        return approve(address(this), "Root", "Root", spender, amount);
+    function approve(address spender_, uint256 amount_) public returns (bool) {
+        return approve(address(this), address(this), spender_, amount_);
     }
 
     // Allowance Query
     function allowance(
-        address tokenAddress_,
-        string memory ownerAccountName_,
-        address ownerAddress_,
-        string memory spenderAccountName_,
+        address ownerParentAddress_,
+        address spenderParentAddress_,
         address spenderAddress_
     ) public view returns (uint256) {
         Store storage s = Lib.store();
 
-        bytes32 _allowanceKey = Lib.allowanceKey(
-            tokenAddress_,
-            ownerAccountName_,
-            ownerAddress_,
-            spenderAccountName_,
-            spenderAddress_
+        bytes32 _allowanceKey = keccak256(
+            abi.encodePacked(
+                ownerParentAddress_,
+                msg.sender,
+                spenderParentAddress_,
+                spenderAddress_
+            )
         );
         return s.allowances[_allowanceKey];
     }
 
     // ERC20 Allowance Query
-    function allowance(address spender) public view returns (uint256) {
-        return allowance(address(this), "Root", msg.sender, "Root", spender);
+    function allowance(address spenderAddress_) public view returns (uint256) {
+        return allowance(address(this), address(this), spenderAddress_);
     }
 
     // Transfer From
     function transferFrom(
-        address tokenAddress_,
-        string memory ownerAccountName_,
-        string memory spenderAccountName_,
+        address ownerParentAddress_,
+        address spenderParentAddress_,
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
         Store storage s = Lib.store();
 
-        bytes32 _ownerAccountUserKey = Lib.accountUserKey(
-            tokenAddress_,
-            ownerAccountName_,
-            msg.sender
-        );
-        bytes32 _spenderAccountUserKey = Lib.accountUserKey(
-            tokenAddress_,
-            spenderAccountName_,
-            spenderAddress_
+        bytes32 _allowanceKey = keccak256(
+            abi.encodePacked(
+                ownerParentAddress_,
+                msg.sender,
+                spenderParentAddress_,
+                spenderAddress_
+            )
         );
 
-        bytes32 _allowanceKey = Lib.allowanceKey(
-            tokenAddress_,
-            ownerAccountName_,
-            msg.sender,
-            spenderAccountName_,
-            spenderAddress_
-        );
-
+        uint256 _allowance = s.allowances[_allowanceKey];
         require(
-            s.balances[_ownerAccountUserKey] >= amount_,
-            "Insufficient balance"
+            _allowance >= amount_,
+            "ERC20WithSubaccounts: Insufficient allowance"
         );
-        require(s.allowances[_allowanceKey] >= amount_, "Allowance exceeded");
 
-        s.balances[_ownerAccountUserKey] -= amount_;
-        s.balances[_spenderAccountUserKey] += amount_;
-        s.allowances[_allowanceKey] -= amount_;
+        s.allowances[_allowanceKey] = _allowance - amount_;
 
-        updateParentBalances(s.parent[_ownerAccountUserKey], -int256(amount_));
-        updateParentBalances(s.parent[_spenderAccountUserKey], int256(amount_));
-
-        emit Transfer(msg.sender, spenderAddress_, amount_);
-        return true;
+        return
+            transfer(
+                ownerParentAddress_,
+                msg.sender,
+                spenderParentAddress_,
+                spenderAddress_,
+                amount_
+            );
     }
 
     // ERC20 Transfer From
     function transferFrom(
-        address spender,
-        uint256 amount
+        address spenderAddress_,
+        uint256 amount_
     ) public returns (bool) {
-        return transferFrom(address(this), "Root", "Root", spender, amount);
+        return transferFrom(address(this), address(this), spenderAddress_, amount_);
     }
 }
