@@ -79,6 +79,8 @@ library Lib {
 }
 
 contract ERC20WithSubaccounts is Module {
+    uint8 internal immutable _maxDepth;
+
     // Events for ERC20 compatibility
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(
@@ -86,6 +88,16 @@ contract ERC20WithSubaccounts is Module {
         address indexed spender,
         uint256 value
     );
+
+    // Custom errors
+    error InvalidAddress();
+    error InvalidParent();
+    error InsufficientBalance();
+    error MaxDepthExceeded();
+
+    constructor(uint8 maxDepth_) {
+        _maxDepth = maxDepth_;
+    }
 
     function commands()
         public
@@ -167,9 +179,19 @@ contract ERC20WithSubaccounts is Module {
     //======================
 
     // Get the balance of an account
+    function balanceOf(
+        address parentAddress_,
+        address accountAddress_
+    ) public view returns (uint256) {
+        return
+            Lib.store().balances[
+                Lib.toAddress(parentAddress_, accountAddress_)
+            ];
+    }
+
+    // Get the balance of an account for ERC20 compatibility
     function balanceOf(address accountAddress_) public view returns (uint256) {
-        Store storage s = Lib.store();
-        return s.balances[accountAddress_];
+        return balanceOf(address(this), accountAddress_);
     }
 
     // Get the total supply of a token for ERC20 compatibility
@@ -177,27 +199,85 @@ contract ERC20WithSubaccounts is Module {
         return balanceOf(address(this));
     }
 
-    // Update parent balances recursively
-    function updateParentBalances(
-        address parentAccountAddress_,
-        int256 delta_
-    ) internal returns (address) {
-        if (parentAccountAddress_ == address(0)) revert("Invalid parent");
+    function __root(
+        address accountAddress_,
+        uint256 maxDepth_
+    ) internal view returns (address _current, uint256 _depth) {
+        if (accountAddress_ == address(0)) revert InvalidAddress();
 
         Store storage s = Lib.store();
+        _current = accountAddress_;
 
-        if (s.parent[parentAccountAddress_] != address(0)) {
-            int256 _newBalance = int256(s.balances[parentAccountAddress_]) +
-                delta_;
-            if (_newBalance < 0) {
-                revert("Insufficient balance");
+        while (_depth < maxDepth_) {
+            _depth++;
+
+            address _parent = s.parent[_current];
+            if (_parent == address(0)) {
+                // Root found
+                return (_current, _depth);
             }
-            s.balances[parentAccountAddress_] = uint256(_newBalance);
 
-            updateParentBalances(s.parent[parentAccountAddress_], delta_);
+            _current = _parent;
         }
 
-        return parentAccountAddress_;
+        revert MaxDepthExceeded();
+    }
+
+    function root(
+        address accountAddress_
+    ) public view returns (address, uint256) {
+        return __root(accountAddress_, _maxDepth);
+    }
+
+    function __updateParentBalances(
+        address accountAddress_,
+        int256 delta_,
+        bool skipRoot_,
+        uint256 maxDepth_
+    ) internal returns (address _root) {
+        if (accountAddress_ == address(0)) revert InvalidAddress();
+
+        Store storage s = Lib.store();
+        address _current = accountAddress_;
+        uint8 _depth;
+        int256 _newBalance;
+
+        while (_depth < maxDepth_) {
+            _depth++;
+
+            address _parent = s.parent[_current];
+            if (_parent == address(0)) {
+                // Root found
+                _root = _current;
+                if (!skipRoot_) {
+                    _newBalance = int256(s.balances[_current]) + delta_;
+                    if (_newBalance < 0) revert InsufficientBalance();
+                    s.balances[_current] = uint256(_newBalance);
+                }
+                return _root;
+            }
+            _newBalance = int256(s.balances[_current]) + delta_;
+            if (_newBalance < 0) revert InsufficientBalance();
+            s.balances[_current] = uint256(_newBalance);
+
+            _current = _parent;
+        }
+
+        revert MaxDepthExceeded();
+    }
+
+    function updateParentBalances(
+        address accountAddress_,
+        int256 delta_,
+        bool skipRoot_
+    ) public returns (address) {
+        return
+            __updateParentBalances(
+                accountAddress_,
+                delta_,
+                skipRoot_,
+                _maxDepth
+            );
     }
 
     function transfer(
@@ -209,11 +289,13 @@ contract ERC20WithSubaccounts is Module {
     ) internal returns (bool) {
         address _fromRoot = updateParentBalances(
             fromParentAddress_,
-            -int256(amount_)
+            -int256(amount_),
+            true // Skip root
         );
         address _toRoot = updateParentBalances(
             toParentAddress_,
-            int256(amount_)
+            int256(amount_),
+            true // Skip root
         );
         if (_fromRoot != _toRoot)
             revert("ERC20WithSubaccounts: Different roots");
@@ -231,24 +313,7 @@ contract ERC20WithSubaccounts is Module {
         s.balances[_fromAddress] -= amount_;
         s.balances[_toAddress] += amount_;
 
-        emit Transfer(msg.sender, toAddress_, amount_);
         return true;
-    }
-
-    function transfer(
-        address fromParentAddress_,
-        address toParentAddress_,
-        address toAddress_,
-        uint256 amount_
-    ) public returns (bool) {
-        return
-            transfer(
-                fromParentAddress_,
-                msg.sender,
-                toParentAddress_,
-                toAddress_,
-                amount_
-            );
     }
 
     // ERC20 Transfer
@@ -256,6 +321,7 @@ contract ERC20WithSubaccounts is Module {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
+        emit Transfer(msg.sender, recipientAddress_, amount_);
         return
             transfer(
                 address(this),
@@ -275,13 +341,14 @@ contract ERC20WithSubaccounts is Module {
     ) public returns (bool) {
         Store storage s = Lib.store();
 
+        address _ownerAddress = Lib.toAddress(ownerParentAddress_, msg.sender);
+        address _spenderAddress = Lib.toAddress(
+            spenderParentAddress_,
+            spenderAddress_
+        );
+
         bytes32 _allowanceKey = keccak256(
-            abi.encodePacked(
-                ownerParentAddress_,
-                msg.sender,
-                spenderParentAddress_,
-                spenderAddress_
-            )
+            abi.encodePacked(_ownerAddress, _spenderAddress)
         );
 
         s.allowances[_allowanceKey] = amount_;
