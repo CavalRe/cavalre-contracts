@@ -264,12 +264,7 @@ contract ERC20WithSubaccounts is Module {
         address accountAddress_,
         int256 delta_
     ) public returns (address) {
-        return
-            __updateParentBalances(
-                accountAddress_,
-                delta_,
-                _maxDepth
-            );
+        return __updateParentBalances(accountAddress_, delta_, _maxDepth);
     }
 
     function transfer(
@@ -280,14 +275,8 @@ contract ERC20WithSubaccounts is Module {
         uint256 amount_
     ) internal returns (bool) {
         int256 _amount = int256(amount_);
-        address _fromRoot = updateParentBalances(
-            fromParentAddress_,
-            -_amount
-        );
-        address _toRoot = updateParentBalances(
-            toParentAddress_,
-            _amount
-        );
+        address _fromRoot = updateParentBalances(fromParentAddress_, -_amount);
+        address _toRoot = updateParentBalances(toParentAddress_, _amount);
         if (_fromRoot != _toRoot)
             revert("ERC20WithSubaccounts: Different roots");
 
