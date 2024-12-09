@@ -320,6 +320,34 @@ contract ERC20WithSubaccounts is Module {
         return __transfer(_fromAddress, _toAddress, amount_);
     }
 
+    function __mint(
+        address fromAddress_,
+        address toAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        if (fromAddress_ == address(0) || toAddress_ == address(0))
+            revert InvalidAddress();
+        if (Lib.store().parent[fromAddress_] != root(fromAddress_))
+            revert InvalidParent();
+
+        __transfer(fromAddress_, toAddress_, amount_);
+        return true;
+    }
+
+    function __burn(
+        address fromAddress_,
+        address toAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        if (fromAddress_ == address(0) || toAddress_ == address(0))
+            revert InvalidAddress();
+        if (Lib.store().parent[toAddress_] != root(toAddress_))
+            revert InvalidParent();
+
+        __transfer(fromAddress_, toAddress_, amount_);
+        return true;
+    }
+
     // Approve a spender for a subaccount
     function approve(
         address ownerParentAddress_,
