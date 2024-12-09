@@ -98,6 +98,8 @@ library Lib {
 
 contract ERC20WithSubaccounts is Module {
     uint8 internal immutable _maxDepth;
+    address internal immutable _totalSupplyAddress =
+        Lib.toAddress(address(this), "Total Supply");
 
     // Events for ERC20 compatibility
     event InternalTransfer(
@@ -240,7 +242,7 @@ contract ERC20WithSubaccounts is Module {
 
     // Get the total supply of a token for ERC20 compatibility
     function totalSupply() public view returns (uint256) {
-        return balanceOf(address(this));
+        return balanceOf(_totalSupplyAddress);
     }
 
     function __updateBalances(
