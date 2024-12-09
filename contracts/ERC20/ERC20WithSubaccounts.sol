@@ -27,18 +27,28 @@ library Lib {
     bytes4 internal constant GET_BASE_SYMBOL = bytes4(keccak256("symbol()"));
     bytes4 internal constant GET_BASE_DECIMALS =
         bytes4(keccak256("decimals()"));
+    bytes4 internal constant BALANCE_OF =
+        bytes4(keccak256("balanceOf(address,address)"));
+    bytes4 internal constant BASE_BALANCE_OF =
+        bytes4(keccak256("balanceOf(address)"));
     bytes4 internal constant TOTAL_SUPPLY =
         bytes4(keccak256("totalSupply(address)"));
-    bytes4 internal constant BALANCE_OF =
-        bytes4(keccak256("balanceOf(address,address,address)"));
+    bytes4 internal constant BASE_TOTAL_SUPPLY =
+        bytes4(keccak256("totalSupply()"));
     bytes4 internal constant TRANSFER =
+        bytes4(keccak256("transfer(address,address,uint256)"));
+    bytes4 internal constant BASE_TRANSFER =
         bytes4(keccak256("transfer(address,uint256)"));
     bytes4 internal constant APPROVE =
+        bytes4(keccak256("approve(address,address,uint256)"));
+    bytes4 internal constant BASE_APPROVE =
         bytes4(keccak256("approve(address,uint256)"));
     bytes4 internal constant ALLOWANCE =
         bytes4(keccak256("allowance(address,address)"));
     bytes4 internal constant TRANSFER_FROM =
-        bytes4(keccak256("transferFrom(address,address,uint256)"));
+        bytes4(keccak256("transferFrom(address,address,address,uint256)"));
+    bytes4 internal constant BASE_TRANSFER_FROM =
+        bytes4(keccak256("transferFrom(address,uint256)"));
 
     // Stores
     bytes32 private constant STORE_POSITION =
@@ -119,16 +129,26 @@ contract ERC20WithSubaccounts is Module {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](10);
-        // _commands[0] = Lib.NAME;
-        // _commands[1] = Lib.SYMBOL;
-        // _commands[2] = Lib.DECIMALS;
-        // _commands[3] = Lib.TOTAL_SUPPLY;
-        // _commands[4] = Lib.BALANCE_OF;
-        // _commands[5] = Lib.TRANSFER;
-        // _commands[6] = Lib.APPROVE;
-        // _commands[7] = Lib.ALLOWANCE;
-        // _commands[8] = Lib.TRANSFER_FROM;
+        _commands = new bytes4[](19);
+        _commands[0] = Lib.SET_NAME;
+        _commands[1] = Lib.SET_SYMBOL;
+        _commands[2] = Lib.GET_NAME;
+        _commands[3] = Lib.GET_SYMBOL;
+        _commands[4] = Lib.GET_DECIMALS;
+        _commands[5] = Lib.GET_BASE_NAME;
+        _commands[6] = Lib.GET_BASE_SYMBOL;
+        _commands[7] = Lib.GET_BASE_DECIMALS;
+        _commands[8] = Lib.BALANCE_OF;
+        _commands[9] = Lib.BASE_BALANCE_OF;
+        _commands[10] = Lib.TOTAL_SUPPLY;
+        _commands[11] = Lib.BASE_TOTAL_SUPPLY;
+        _commands[12] = Lib.TRANSFER;
+        _commands[13] = Lib.BASE_TRANSFER;
+        _commands[14] = Lib.APPROVE;
+        _commands[15] = Lib.BASE_APPROVE;
+        _commands[16] = Lib.ALLOWANCE;
+        _commands[17] = Lib.TRANSFER_FROM;
+        _commands[18] = Lib.BASE_TRANSFER_FROM;
     }
 
     //==================
@@ -281,11 +301,10 @@ contract ERC20WithSubaccounts is Module {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        Store storage s = Lib.store();
-
         address _fromAddress = Lib.toAddress(address(this), msg.sender);
         address _toAddress = Lib.toAddress(address(this), recipientAddress_);
 
+        Store storage s = Lib.store();
         require(
             s.balances[_fromAddress] >= int256(amount_),
             "ERC20WithSubaccounts: Insufficient balance"
@@ -300,10 +319,9 @@ contract ERC20WithSubaccounts is Module {
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
-        Store storage s = Lib.store();
-
         address _ownerAddress = Lib.toAddress(ownerParentAddress_, msg.sender);
 
+        Store storage s = Lib.store();
         s.allowances[_ownerAddress][spenderAddress_] = amount_;
 
         emit Approval(_ownerAddress, spenderAddress_, amount_);
@@ -359,6 +377,7 @@ contract ERC20WithSubaccounts is Module {
             spenderAddress_
         );
 
+        emit InternalTransfer(_ownerAddress, _spenderAddress, amount_);
         return __transferFrom(_ownerAddress, _spenderAddress, amount_);
     }
 
@@ -367,12 +386,10 @@ contract ERC20WithSubaccounts is Module {
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
-        return
-            transferFrom(
-                address(this),
-                address(this),
-                spenderAddress_,
-                amount_
-            );
+        address _ownerAddress = Lib.toAddress(address(this), msg.sender);
+        address _spenderAddress = Lib.toAddress(address(this), spenderAddress_);
+
+        emit Transfer(msg.sender, spenderAddress_, amount_);
+        return __transferFrom(_ownerAddress, _spenderAddress, amount_);
     }
 }
