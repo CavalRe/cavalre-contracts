@@ -97,6 +97,7 @@ library Lib {
 }
 
 contract ERC20WithSubaccounts is Module {
+    uint8 internal immutable _decimals;
     uint8 internal immutable _maxDepth;
     address internal immutable _totalSupplyAddress =
         Lib.toAddress(address(this), "Total Supply");
@@ -120,7 +121,8 @@ contract ERC20WithSubaccounts is Module {
     error InsufficientBalance();
     error MaxDepthExceeded();
 
-    constructor(uint8 maxDepth_) {
+    constructor(uint8 decimals_, uint8 maxDepth_) {
+        _decimals = decimals_;
         _maxDepth = maxDepth_;
     }
 
