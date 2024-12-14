@@ -251,34 +251,50 @@ contract ERC20WithSubaccounts is Module {
     }
 
     function __updateBalances(
+        address parent_,
         address current_,
         int256 delta_
     ) internal returns (address _root) {
-        if (current_ == address(0)) revert InvalidAddress();
+        if (parent_ == address(0) || current_ == address(0))
+            revert InvalidAddress();
 
         Store storage s = Lib.store();
         uint8 _depth;
         while (_depth < _maxDepth) {
-            _depth++;
-            address _parent = s.parent[current_];
-            if (_parent == address(0)) {
+            // Do not update the balance of the root
+            if (parent_ == address(0)) {
                 // Root found
                 return current_;
             }
             s.balances[current_] += delta_;
-            current_ = _parent;
+            current_ = parent_;
+            parent_ = s.parent[parent_];
+            _depth++;
         }
         revert MaxDepthExceeded();
     }
 
     function __transfer(
+        address fromParentAddress_,
         address fromAddress_,
+        address toParentAddress_,
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
+        address _fromAddress = Lib.toAddress(fromParentAddress_, fromAddress_);
+        address _toAddress = Lib.toAddress(toParentAddress_, toAddress_);
+
         int256 _amount = int256(amount_);
-        address _fromRoot = __updateBalances(fromAddress_, -_amount);
-        address _toRoot = __updateBalances(toAddress_, _amount);
+        address _fromRoot = __updateBalances(
+            fromParentAddress_,
+            _fromAddress,
+            -_amount
+        );
+        address _toRoot = __updateBalances(
+            toParentAddress_,
+            _toAddress,
+            _amount
+        );
         if (_fromRoot != _toRoot)
             revert("ERC20WithSubaccounts: Different roots");
 
@@ -300,7 +316,14 @@ contract ERC20WithSubaccounts is Module {
             "ERC20WithSubaccounts: Insufficient balance"
         );
         emit InternalTransfer(_fromAddress, _toAddress, amount_);
-        return __transfer(_fromAddress, _toAddress, amount_);
+        return
+            __transfer(
+                fromParentAddress_,
+                msg.sender,
+                toParentAddress_,
+                _toAddress,
+                amount_
+            );
     }
 
     // ERC20 Transfer
@@ -317,34 +340,57 @@ contract ERC20WithSubaccounts is Module {
             "ERC20WithSubaccounts: Insufficient balance"
         );
         emit Transfer(msg.sender, recipientAddress_, amount_);
-        return __transfer(_fromAddress, _toAddress, amount_);
+        return
+            __transfer(
+                address(this),
+                _fromAddress,
+                address(this),
+                _toAddress,
+                amount_
+            );
     }
 
     function __mint(
-        address fromAddress_,
+        address assetAddress_,
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        if (fromAddress_ == address(0) || toAddress_ == address(0))
+        if (assetAddress_ == address(0) || toAddress_ == address(0))
             revert InvalidAddress();
-        if (Lib.store().parent[fromAddress_] != root(fromAddress_))
+        if (Lib.store().parent[assetAddress_] != address(0))
             revert InvalidParent();
 
-        __transfer(fromAddress_, toAddress_, amount_);
+        address _fromAddress = Lib.toAddress(assetAddress_, "Total Supply");
+
+        __transfer(
+            assetAddress_,
+            _fromAddress,
+            assetAddress_,
+            toAddress_,
+            amount_
+        );
         return true;
     }
 
     function __burn(
+        address assetAddress_,
         address fromAddress_,
-        address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        if (fromAddress_ == address(0) || toAddress_ == address(0))
+        if (assetAddress_ == address(0) || fromAddress_ == address(0))
             revert InvalidAddress();
-        if (Lib.store().parent[toAddress_] != root(toAddress_))
+        if (Lib.store().parent[assetAddress_] != address(0))
             revert InvalidParent();
 
-        __transfer(fromAddress_, toAddress_, amount_);
+        address _toAddress = Lib.toAddress(assetAddress_, "Total Supply");
+
+        __transfer(
+            assetAddress_,
+            fromAddress_,
+            assetAddress_,
+            _toAddress,
+            amount_
+        );
         return true;
     }
 
@@ -383,48 +429,71 @@ contract ERC20WithSubaccounts is Module {
 
     // Transfer From
     function __transferFrom(
+        address ownerParentAddress_,
         address ownerAddress_,
-        address spenderAddress_,
+        address recipientParentAddress_,
+        address recipientAddress_,
         uint256 amount_
     ) internal returns (bool) {
         Store storage s = Lib.store();
 
-        uint256 _allowance = s.allowances[ownerAddress_][spenderAddress_];
-        require(
-            _allowance >= amount_,
-            "ERC20WithSubaccounts: Insufficient allowance"
+        address _ownerAddress = Lib.toAddress(
+            ownerParentAddress_,
+            ownerAddress_
         );
+        s.allowances[_ownerAddress][msg.sender] -= amount_;
 
-        s.allowances[ownerAddress_][spenderAddress_] -= amount_;
-
-        return __transfer(ownerAddress_, spenderAddress_, amount_);
+        return
+            __transfer(
+                ownerParentAddress_,
+                ownerAddress_,
+                recipientParentAddress_,
+                recipientAddress_,
+                amount_
+            );
     }
 
     function transferFrom(
         address ownerParentAddress_,
-        address spenderParentAddress_,
-        address spenderAddress_,
+        address ownerAddress_,
+        address recipientParentAddress_,
+        address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        address _ownerAddress = Lib.toAddress(ownerParentAddress_, msg.sender);
-        address _spenderAddress = Lib.toAddress(
-            spenderParentAddress_,
-            spenderAddress_
+        address _ownerAddress = Lib.toAddress(
+            ownerParentAddress_,
+            ownerAddress_
+        );
+        address _recipientAddress = Lib.toAddress(
+            recipientParentAddress_,
+            recipientAddress_
         );
 
-        emit InternalTransfer(_ownerAddress, _spenderAddress, amount_);
-        return __transferFrom(_ownerAddress, _spenderAddress, amount_);
+        emit InternalTransfer(_ownerAddress, _recipientAddress, amount_);
+        return
+            __transferFrom(
+                ownerParentAddress_,
+                ownerAddress_,
+                recipientParentAddress_,
+                recipientAddress_,
+                amount_
+            );
     }
 
     // ERC20 Transfer From
     function transferFrom(
-        address spenderAddress_,
+        address ownerAddress_,
+        address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        address _ownerAddress = Lib.toAddress(address(this), msg.sender);
-        address _spenderAddress = Lib.toAddress(address(this), spenderAddress_);
-
-        emit Transfer(msg.sender, spenderAddress_, amount_);
-        return __transferFrom(_ownerAddress, _spenderAddress, amount_);
+        emit Transfer(ownerAddress_, recipientAddress_, amount_);
+        return
+            __transferFrom(
+                address(this),
+                ownerAddress_,
+                address(this),
+                recipientAddress_,
+                amount_
+            );
     }
 }
