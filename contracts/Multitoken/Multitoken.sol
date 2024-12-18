@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {Module} from "@cavalre/contracts/router/Module.sol";
 
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
 struct Store {
     mapping(address => address) parent;
     mapping(address => string) name;
@@ -15,6 +17,8 @@ struct Store {
 
 library Lib {
     // Selectors
+    bytes4 internal constant INITIALIZE_MULTITOKEN =
+        bytes4(keccak256("initializeMultitoken(string,string)"));
     bytes4 internal constant SET_NAME =
         bytes4(keccak256("name(address,string)"));
     bytes4 internal constant SET_SYMBOL =
@@ -66,6 +70,13 @@ library Lib {
     }
 
     function toAddress(
+        string memory originalId_
+    ) internal pure returns (address) {
+        return
+            address(uint160(uint256(keccak256(abi.encodePacked(originalId_)))));
+    }
+
+    function toAddress(
         address parentAddress_,
         address originalAddress_
     ) internal pure returns (address) {
@@ -96,9 +107,11 @@ library Lib {
     }
 }
 
-contract ERC20WithSubaccounts is Module {
+contract Multitoken is Module, Initializable {
     uint8 internal immutable _decimals;
     uint8 internal immutable _maxDepth;
+    address internal immutable _totalSupplyAddress =
+        Lib.toAddress("Total Supply");
 
     // Events for ERC20 compatibility
     event InternalTransfer(
@@ -131,26 +144,37 @@ contract ERC20WithSubaccounts is Module {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](19);
-        _commands[0] = Lib.SET_NAME;
-        _commands[1] = Lib.SET_SYMBOL;
-        _commands[2] = Lib.GET_NAME;
-        _commands[3] = Lib.GET_SYMBOL;
-        _commands[4] = Lib.GET_DECIMALS;
-        _commands[5] = Lib.GET_BASE_NAME;
-        _commands[6] = Lib.GET_BASE_SYMBOL;
-        _commands[7] = Lib.GET_BASE_DECIMALS;
-        _commands[8] = Lib.BALANCE_OF;
-        _commands[9] = Lib.BASE_BALANCE_OF;
-        _commands[10] = Lib.TOTAL_SUPPLY;
-        _commands[11] = Lib.BASE_TOTAL_SUPPLY;
-        _commands[12] = Lib.TRANSFER;
-        _commands[13] = Lib.BASE_TRANSFER;
-        _commands[14] = Lib.APPROVE;
-        _commands[15] = Lib.BASE_APPROVE;
-        _commands[16] = Lib.ALLOWANCE;
-        _commands[17] = Lib.TRANSFER_FROM;
-        _commands[18] = Lib.BASE_TRANSFER_FROM;
+        _commands = new bytes4[](20);
+        _commands[0] = Lib.INITIALIZE_MULTITOKEN;
+        _commands[1] = Lib.SET_NAME;
+        _commands[2] = Lib.SET_SYMBOL;
+        _commands[3] = Lib.GET_NAME;
+        _commands[4] = Lib.GET_SYMBOL;
+        _commands[5] = Lib.GET_DECIMALS;
+        _commands[6] = Lib.GET_BASE_NAME;
+        _commands[7] = Lib.GET_BASE_SYMBOL;
+        _commands[8] = Lib.GET_BASE_DECIMALS;
+        _commands[9] = Lib.BALANCE_OF;
+        _commands[10] = Lib.BASE_BALANCE_OF;
+        _commands[11] = Lib.TOTAL_SUPPLY;
+        _commands[12] = Lib.BASE_TOTAL_SUPPLY;
+        _commands[13] = Lib.TRANSFER;
+        _commands[14] = Lib.BASE_TRANSFER;
+        _commands[15] = Lib.APPROVE;
+        _commands[16] = Lib.BASE_APPROVE;
+        _commands[17] = Lib.ALLOWANCE;
+        _commands[18] = Lib.TRANSFER_FROM;
+        _commands[19] = Lib.BASE_TRANSFER_FROM;
+    }
+
+    function initializeMultitoken(
+        string memory name_,
+        string memory symbol_
+    ) public initializer {
+        enforceIsOwner();
+        Store storage s = Lib.store();
+        s.name[address(this)] = name_;
+        s.symbol[address(this)] = symbol_;
     }
 
     //==================
@@ -214,7 +238,7 @@ contract ERC20WithSubaccounts is Module {
     }
 
     function decimals() public view returns (uint8) {
-        return decimals(address(this));
+        return _decimals;
     }
 
     //======================
@@ -245,7 +269,7 @@ contract ERC20WithSubaccounts is Module {
         return
             uint256(
                 -Lib.store().balances[
-                    Lib.toAddress(address(this), "Total Supply")
+                    Lib.toAddress(address(this), _totalSupplyAddress)
                 ]
             );
     }
@@ -360,11 +384,9 @@ contract ERC20WithSubaccounts is Module {
         if (Lib.store().parent[assetAddress_] != address(0))
             revert InvalidParent();
 
-        address _fromAddress = Lib.toAddress(assetAddress_, "Total Supply");
-
         __transfer(
             assetAddress_,
-            _fromAddress,
+            _totalSupplyAddress,
             assetAddress_,
             toAddress_,
             amount_
@@ -382,13 +404,11 @@ contract ERC20WithSubaccounts is Module {
         if (Lib.store().parent[assetAddress_] != address(0))
             revert InvalidParent();
 
-        address _toAddress = Lib.toAddress(assetAddress_, "Total Supply");
-
         __transfer(
             assetAddress_,
             fromAddress_,
             assetAddress_,
-            _toAddress,
+            _totalSupplyAddress,
             amount_
         );
         return true;
