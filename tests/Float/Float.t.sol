@@ -65,15 +65,12 @@ contract FloatTest is Test {
 
     function assertEq(
         Float memory x,
-        Float memory y,
-        string memory message
+        Float memory y
     ) internal {
-        failed = failed;
         x = FloatLib.normalize(x);
         y = FloatLib.normalize(y);
         assertEq(x.mantissa, y.mantissa, "mantissa");
         assertEq(x.exponent, y.exponent, "exponent");
-        if (failed) emit log(message);
     }
 
     function setUp() public {
@@ -358,8 +355,8 @@ contract FloatTest is Test {
 
     function testAlign() public {
         (a, b) = FloatLib.align(ONE, TWO_unnormalized);
-        assertEq(a, ONE, "a!=ONE");
-        assertEq(b, TWO_unnormalized, "b!=TWO_unnormalized");
+        assertEq(a, ONE);
+        assertEq(b, TWO_unnormalized);
         assertEq(a.exponent, b.exponent, "exponent");
     }
 
@@ -367,10 +364,6 @@ contract FloatTest is Test {
         a = Float(1, 0);
         a = FloatLib.normalize(a);
         assertEq(a.mantissa.msb(), FloatLib.SIGNIFICANT_DIGITS, "msb");
-        if (failed) {
-            emit log_named_int("ONE.mantissa", a.mantissa);
-            emit log_named_int("ONE.exponent", a.exponent);
-        }
     }
 
     function testAdd() public {

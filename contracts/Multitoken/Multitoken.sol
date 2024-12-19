@@ -7,11 +7,12 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 
 struct Store {
     mapping(address => address) parent;
+    mapping(address => bool) hasChild;
     mapping(address => string) name;
     mapping(address => string) symbol;
     mapping(address => uint8) decimals;
     mapping(address => bool) isCredit;
-    mapping(address => int256) balances;
+    mapping(address => int256) balance;
     mapping(address owner => mapping(address spender => uint256)) allowances;
 }
 
@@ -23,10 +24,15 @@ library Lib {
         bytes4(keccak256("name(address,string)"));
     bytes4 internal constant SET_SYMBOL =
         bytes4(keccak256("symbol(address,string)"));
+    bytes4 internal constant GET_ROOT = bytes4(keccak256("root(address)"));
+    bytes4 internal constant ADD_CHILD =
+        bytes4(keccak256("addChild(address,address)"));
     bytes4 internal constant GET_NAME = bytes4(keccak256("name(address)"));
     bytes4 internal constant GET_SYMBOL = bytes4(keccak256("symbol(address)"));
     bytes4 internal constant GET_DECIMALS =
         bytes4(keccak256("decimals(address)"));
+    bytes4 internal constant GET_PARENT = bytes4(keccak256("parent(address)"));
+    bytes4 internal constant GET_HAS_CHILD = bytes4(keccak256("hasChild(address)"));
     bytes4 internal constant GET_BASE_NAME = bytes4(keccak256("name()"));
     bytes4 internal constant GET_BASE_SYMBOL = bytes4(keccak256("symbol()"));
     bytes4 internal constant GET_BASE_DECIMALS =
@@ -125,8 +131,12 @@ contract Multitoken is Module, Initializable {
         address indexed spender,
         uint256 value
     );
+    event ParentAdded(address indexed root, address indexed parent, address indexed child);
 
     // Custom errors
+    error HasBalance(address child);
+    error HasChild(address child);
+    error HasParent(address parent, address child);
     error InvalidAddress();
     error InvalidParent();
     error InsufficientBalance();
@@ -144,27 +154,31 @@ contract Multitoken is Module, Initializable {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](20);
+        _commands = new bytes4[](24);
         _commands[0] = Lib.INITIALIZE_MULTITOKEN;
         _commands[1] = Lib.SET_NAME;
         _commands[2] = Lib.SET_SYMBOL;
-        _commands[3] = Lib.GET_NAME;
-        _commands[4] = Lib.GET_SYMBOL;
-        _commands[5] = Lib.GET_DECIMALS;
-        _commands[6] = Lib.GET_BASE_NAME;
-        _commands[7] = Lib.GET_BASE_SYMBOL;
-        _commands[8] = Lib.GET_BASE_DECIMALS;
-        _commands[9] = Lib.BALANCE_OF;
-        _commands[10] = Lib.BASE_BALANCE_OF;
-        _commands[11] = Lib.TOTAL_SUPPLY;
-        _commands[12] = Lib.BASE_TOTAL_SUPPLY;
-        _commands[13] = Lib.TRANSFER;
-        _commands[14] = Lib.BASE_TRANSFER;
-        _commands[15] = Lib.APPROVE;
-        _commands[16] = Lib.BASE_APPROVE;
-        _commands[17] = Lib.ALLOWANCE;
-        _commands[18] = Lib.TRANSFER_FROM;
-        _commands[19] = Lib.BASE_TRANSFER_FROM;
+        _commands[3] = Lib.GET_ROOT;
+        _commands[4] = Lib.ADD_CHILD;
+        _commands[5] = Lib.GET_NAME;
+        _commands[6] = Lib.GET_SYMBOL;
+        _commands[7] = Lib.GET_DECIMALS;
+        _commands[8] = Lib.GET_PARENT;
+        _commands[9] = Lib.GET_HAS_CHILD;
+        _commands[10] = Lib.GET_BASE_NAME;
+        _commands[11] = Lib.GET_BASE_SYMBOL;
+        _commands[12] = Lib.GET_BASE_DECIMALS;
+        _commands[13] = Lib.BALANCE_OF;
+        _commands[14] = Lib.BASE_BALANCE_OF;
+        _commands[15] = Lib.TOTAL_SUPPLY;
+        _commands[16] = Lib.BASE_TOTAL_SUPPLY;
+        _commands[17] = Lib.TRANSFER;
+        _commands[18] = Lib.BASE_TRANSFER;
+        _commands[19] = Lib.APPROVE;
+        _commands[20] = Lib.BASE_APPROVE;
+        _commands[21] = Lib.ALLOWANCE;
+        _commands[22] = Lib.TRANSFER_FROM;
+        _commands[23] = Lib.BASE_TRANSFER_FROM;
     }
 
     function initializeMultitoken(
@@ -192,9 +206,6 @@ contract Multitoken is Module, Initializable {
         s.symbol[accountAddress_] = symbol_;
     }
 
-    //==================
-    // Metadata Getters
-    //==================
     function root(address current_) public view returns (address) {
         if (current_ == address(0)) revert InvalidAddress();
 
@@ -212,6 +223,27 @@ contract Multitoken is Module, Initializable {
         revert MaxDepthExceeded();
     }
 
+    function addChild(address parent_, address child_) public {
+        enforceIsOwner();
+        if (parent_ == child_) revert InvalidParent();
+        if (parent_ == address(0) || child_ == address(0))
+            revert InvalidAddress();
+        // Child can only have 1 parent
+        if (Lib.store().parent[child_] != address(0))
+            revert HasParent(parent_, child_);
+        // Must build tree from the top down
+        if (Lib.store().hasChild[child_]) revert HasChild(child_);
+        // Cannot redirect a balance to a new parent
+        if (Lib.store().balance[child_] != 0) revert HasBalance(child_);
+        Lib.store().parent[child_] = parent_;
+        Lib.store().hasChild[parent_] = true;
+        address _root = root(child_);
+        emit ParentAdded(_root, parent_, child_);
+    }
+
+    //==================
+    // Metadata Getters
+    //==================
     function name(address accountAddress_) public view returns (string memory) {
         return Lib.store().name[root(accountAddress_)];
     }
@@ -224,6 +256,14 @@ contract Multitoken is Module, Initializable {
 
     function decimals(address accountAddress_) public view returns (uint8) {
         return Lib.store().decimals[root(accountAddress_)];
+    }
+
+    function parent(address child_) public view returns (address) {
+        return Lib.store().parent[child_];
+    }
+
+    function hasChild(address parent_) public view returns (bool) {
+        return Lib.store().hasChild[parent_];
     }
 
     //========================
@@ -255,7 +295,7 @@ contract Multitoken is Module, Initializable {
             ownerAddress_
         );
         bool _isCredit = Lib.store().isCredit[_parentAccountAddress];
-        int256 _balance = Lib.store().balances[_parentAccountAddress];
+        int256 _balance = Lib.store().balance[_parentAccountAddress];
         return _isCredit ? uint256(-_balance) : uint256(_balance);
     }
 
@@ -268,7 +308,7 @@ contract Multitoken is Module, Initializable {
     function totalSupply() public view returns (uint256) {
         return
             uint256(
-                -Lib.store().balances[
+                -Lib.store().balance[
                     Lib.toAddress(address(this), _totalSupplyAddress)
                 ]
             );
@@ -290,7 +330,7 @@ contract Multitoken is Module, Initializable {
                 // Root found
                 return current_;
             }
-            s.balances[current_] += delta_;
+            s.balance[current_] += delta_;
             current_ = parent_;
             parent_ = s.parent[parent_];
             _depth++;
@@ -336,7 +376,7 @@ contract Multitoken is Module, Initializable {
 
         Store storage s = Lib.store();
         require(
-            s.balances[_fromAddress] >= int256(amount_),
+            s.balance[_fromAddress] >= int256(amount_),
             "ERC20WithSubaccounts: Insufficient balance"
         );
         emit InternalTransfer(_fromAddress, _toAddress, amount_);
@@ -360,7 +400,7 @@ contract Multitoken is Module, Initializable {
 
         Store storage s = Lib.store();
         require(
-            s.balances[_fromAddress] >= int256(amount_),
+            s.balance[_fromAddress] >= int256(amount_),
             "ERC20WithSubaccounts: Insufficient balance"
         );
         emit Transfer(msg.sender, recipientAddress_, amount_);

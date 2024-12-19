@@ -29,6 +29,7 @@
     "url": "https://github.com/CavalRe/cavalre-contracts.git"
   },
   "devDependencies": {
+    "ds-test": "github:dapphub/ds-test",
     "forge-std": "github:foundry-rs/forge-std"
   },
   "dependencies": {
