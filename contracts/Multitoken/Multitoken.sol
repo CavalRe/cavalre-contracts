@@ -5,6 +5,8 @@ import {Module} from "@cavalre/contracts/router/Module.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+import {console} from "forge-std/src/Test.sol";
+
 struct Store {
     mapping(address => address) parent;
     mapping(address => bool) hasChild;
@@ -32,7 +34,8 @@ library Lib {
     bytes4 internal constant GET_DECIMALS =
         bytes4(keccak256("decimals(address)"));
     bytes4 internal constant GET_PARENT = bytes4(keccak256("parent(address)"));
-    bytes4 internal constant GET_HAS_CHILD = bytes4(keccak256("hasChild(address)"));
+    bytes4 internal constant GET_HAS_CHILD =
+        bytes4(keccak256("hasChild(address)"));
     bytes4 internal constant GET_BASE_NAME = bytes4(keccak256("name()"));
     bytes4 internal constant GET_BASE_SYMBOL = bytes4(keccak256("symbol()"));
     bytes4 internal constant GET_BASE_DECIMALS =
@@ -46,7 +49,7 @@ library Lib {
     bytes4 internal constant BASE_TOTAL_SUPPLY =
         bytes4(keccak256("totalSupply()"));
     bytes4 internal constant TRANSFER =
-        bytes4(keccak256("transfer(address,address,uint256)"));
+        bytes4(keccak256("transfer(address,address,address,uint256)"));
     bytes4 internal constant BASE_TRANSFER =
         bytes4(keccak256("transfer(address,uint256)"));
     bytes4 internal constant APPROVE =
@@ -131,12 +134,15 @@ contract Multitoken is Module, Initializable {
         address indexed spender,
         uint256 value
     );
-    event ParentAdded(address indexed root, address indexed parent, address indexed child);
+    event ParentAdded(
+        address indexed root,
+        address indexed parent,
+        address indexed child
+    );
 
     // Custom errors
     error HasBalance(address child);
     error HasChild(address child);
-    error HasParent(address parent, address child);
     error InvalidAddress();
     error InvalidParent();
     error InsufficientBalance();
@@ -228,16 +234,15 @@ contract Multitoken is Module, Initializable {
         if (parent_ == child_) revert InvalidParent();
         if (parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
-        // Child can only have 1 parent
-        if (Lib.store().parent[child_] != address(0))
-            revert HasParent(parent_, child_);
+
+        address _child = Lib.toAddress(parent_, child_);
         // Must build tree from the top down
-        if (Lib.store().hasChild[child_]) revert HasChild(child_);
+        if (Lib.store().hasChild[_child]) revert HasChild(_child);
         // Cannot redirect a balance to a new parent
-        if (Lib.store().balance[child_] != 0) revert HasBalance(child_);
-        Lib.store().parent[child_] = parent_;
+        if (Lib.store().balance[_child] != 0) revert HasBalance(_child);
+        Lib.store().parent[_child] = parent_;
         Lib.store().hasChild[parent_] = true;
-        address _root = root(child_);
+        address _root = root(_child);
         emit ParentAdded(_root, parent_, child_);
     }
 
@@ -290,12 +295,9 @@ contract Multitoken is Module, Initializable {
         address parentAddress_,
         address ownerAddress_
     ) public view returns (uint256) {
-        address _parentAccountAddress = Lib.toAddress(
-            parentAddress_,
-            ownerAddress_
-        );
-        bool _isCredit = Lib.store().isCredit[_parentAccountAddress];
-        int256 _balance = Lib.store().balance[_parentAccountAddress];
+        address _balanceAddress = Lib.toAddress(parentAddress_, ownerAddress_);
+        bool _isCredit = Lib.store().isCredit[_balanceAddress];
+        int256 _balance = Lib.store().balance[_balanceAddress];
         return _isCredit ? uint256(-_balance) : uint256(_balance);
     }
 
@@ -304,14 +306,13 @@ contract Multitoken is Module, Initializable {
         return balanceOf(address(this), ownerAddress_);
     }
 
+    function totalSupply(address assetAddress_) public view returns (uint256) {
+        return uint256(-Lib.store().balance[Lib.toAddress(assetAddress_, _totalSupplyAddress)]);
+    }
+
     // Get the total supply of a token for ERC20 compatibility
     function totalSupply() public view returns (uint256) {
-        return
-            uint256(
-                -Lib.store().balance[
-                    Lib.toAddress(address(this), _totalSupplyAddress)
-                ]
-            );
+        return totalSupply(address(this));
     }
 
     function __updateBalances(
@@ -385,7 +386,7 @@ contract Multitoken is Module, Initializable {
                 fromParentAddress_,
                 msg.sender,
                 toParentAddress_,
-                _toAddress,
+                toAddress_,
                 amount_
             );
     }
@@ -396,7 +397,6 @@ contract Multitoken is Module, Initializable {
         uint256 amount_
     ) public returns (bool) {
         address _fromAddress = Lib.toAddress(address(this), msg.sender);
-        address _toAddress = Lib.toAddress(address(this), recipientAddress_);
 
         Store storage s = Lib.store();
         require(
@@ -407,9 +407,9 @@ contract Multitoken is Module, Initializable {
         return
             __transfer(
                 address(this),
-                _fromAddress,
+                msg.sender,
                 address(this),
-                _toAddress,
+                recipientAddress_,
                 amount_
             );
     }

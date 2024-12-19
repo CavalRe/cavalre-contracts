@@ -118,6 +118,14 @@ contract MultitokenTest is Test {
     address _110 = MTLib.toAddress("110");
     address _111 = MTLib.toAddress("111");
 
+    address r1 = _1;
+    address r10 = MTLib.toAddress(_1, _10);
+    address r11 = MTLib.toAddress(_1, _11);
+    address r100 = MTLib.toAddress(r10, _100);
+    address r101 = MTLib.toAddress(r10, _101);
+    address r110 = MTLib.toAddress(r11, _110);
+    address r111 = MTLib.toAddress(r11, _111);
+
     function setUp() public {
         vm.startPrank(alice);
         mt = new TestMultitoken(18, 10);
@@ -127,12 +135,12 @@ contract MultitokenTest is Test {
 
         mt.initializeTestMultitoken("Test Multitoken", "MULTI");
 
-        mt.addChild(_1, _10);
-        mt.addChild(_1, _11);
-        mt.addChild(_10, _100);
-        mt.addChild(_10, _101);
-        mt.addChild(_11, _110);
-        mt.addChild(_11, _111);
+        mt.addChild(r1, _10);
+        mt.addChild(r1, _11);
+        mt.addChild(r10, _100);
+        mt.addChild(r10, _101);
+        mt.addChild(r11, _110);
+        mt.addChild(r11, _111);
     }
 
     function testMultitokenInit() public {
@@ -153,26 +161,86 @@ contract MultitokenTest is Test {
 
         assertEq(mt.balanceOf(alice), 0);
 
-        assertEq(mt.balanceOf(address(this)), 0);
+        assertEq(mt.balanceOf(address(mt)), 0);
     }
 
     function testMultitokenMint() public {
         vm.startPrank(alice);
 
-        mt.mint(address(this), 1000);
+        mt.mint(address(mt), 1000);
 
-        assertEq(mt.balanceOf(address(this)), 0);
-        assertEq(mt.totalSupply(), 1000);
-        assertEq(mt.balanceOf(alice), 1000);
+        assertEq(mt.balanceOf(address(mt)), 0, "balanceOf(address(this))");
+        assertEq(mt.balanceOf(alice), 1000, "balanceOf(alice)");
+        assertEq(mt.totalSupply(), 1000, "totalSupply");
+
+        mt.mint(_1, 1000);
+        assertEq(mt.balanceOf(_100), 0, "balanceOf(_100)");
+        assertEq(mt.totalSupply(_1), 1000, "totalSupply");
     }
 
     function testMultitokenBurn() public {
         vm.startPrank(alice);
 
-        mt.mint(address(this), 1000);
-        mt.burn(address(this), 700);
+        mt.mint(address(mt), 1000);
+        mt.burn(address(mt), 700);
 
-        assertEq(mt.totalSupply(), 300);
-        assertEq(mt.balanceOf(alice), 300);
+        assertEq(mt.balanceOf(address(mt)), 0, "balanceOf(address(this))");
+        assertEq(mt.balanceOf(alice), 300, "balanceOf(alice)");
+        assertEq(mt.totalSupply(), 300, "totalSupply");
+
+        mt.mint(_1, 1000);
+        mt.burn(_1, 700);
+
+        assertEq(mt.balanceOf(_100), 0, "balanceOf(_1)");
+        assertEq(mt.balanceOf(_1, alice), 300, "balanceOf(_1, alice)");
+        assertEq(mt.totalSupply(_1), 300, "totalSupply(_1)");
+    }
+
+    function testMultitokenParents() public view {
+        assertEq(mt.root(r10), r1, "root(_10)");
+        assertEq(mt.root(r11), r1, "root(_11)");
+        assertEq(mt.root(r100), r1, "root(_100)");
+        assertEq(mt.root(r101), r1, "root(_101)");
+        assertEq(mt.root(r110), r1, "root(_110)");
+        assertEq(mt.root(r111), r1, "root(_111)");
+
+        assertEq(mt.parent(r10), r1, "parent(_10)");
+        assertEq(mt.parent(r11), r1, "parent(_11)");
+        assertEq(mt.parent(r100), r10, "parent(_100)");
+        assertEq(mt.parent(r101), r10, "parent(_101)");
+        assertEq(mt.parent(r110), r11, "parent(_110)");
+        assertEq(mt.parent(r111), r11, "parent(_111)");
+    }
+
+    function testMultitokenTransfer() public {
+        vm.startPrank(alice);
+
+        mt.mint(address(mt), 1000);
+        mt.transfer(bob, 700);
+
+        assertEq(mt.balanceOf(address(mt)), 0, "balanceOf(this)");
+        assertEq(mt.balanceOf(alice), 300, "balanceOf(alice)");
+        assertEq(mt.balanceOf(bob), 700, "balanceOf(bob)");
+        assertEq(mt.totalSupply(), 1000, "totalSupply()");
+
+        mt.transfer(address(mt), address(mt), bob, 100);
+
+        assertEq(mt.balanceOf(alice), 200, "balanceOf(alice)");
+        assertEq(mt.balanceOf(address(mt)), 0, "balanceOf(this)");
+        assertEq(mt.balanceOf(bob), 800, "balanceOf(bob)");
+        assertEq(mt.totalSupply(), 1000, "totalSupply()");
+
+        mt.mint(_1, 1000);
+        mt.transfer(r1, r10, _100, 800);
+        mt.transfer(r1, r10, _101, 50);
+        mt.transfer(r1, r11, _110, 75);
+
+        assertEq(mt.balanceOf(r1, alice), 75, "balanceOf(_1, alice)");
+        assertEq(mt.balanceOf(r1), 0, "balanceOf(_1)");
+        assertEq(mt.balanceOf(r1, _10), 850, "balanceOf(_1, _10)");
+        assertEq(mt.balanceOf(r10, _100), 800, "balanceOf(_10, _100)");
+        assertEq(mt.balanceOf(r10, _101), 50, "balanceOf(_10, _101)");
+        assertEq(mt.balanceOf(r11, _110), 75, "balanceOf(_11, _110)");
+        assertEq(mt.totalSupply(_1), 1000, "totalSupply(_1)");
     }
 }
