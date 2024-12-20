@@ -53,7 +53,7 @@ library Lib {
     bytes4 internal constant BASE_TRANSFER =
         bytes4(keccak256("transfer(address,uint256)"));
     bytes4 internal constant APPROVE =
-        bytes4(keccak256("approve(address,address,uint256)"));
+        bytes4(keccak256("approve(address,address,address,uint256)"));
     bytes4 internal constant BASE_APPROVE =
         bytes4(keccak256("approve(address,uint256)"));
     bytes4 internal constant ALLOWANCE =
@@ -243,7 +243,7 @@ contract Multitoken is Module, Initializable {
         if (Lib.store().hasChild[parent_]) revert HasChild(parent_);
     }
 
-    function __addChild(address parent_, address child_) internal {
+    function __addChild(address parent_, address child_) internal returns (address) {
         if (parent_ == child_) revert InvalidParent();
         if (parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
@@ -257,6 +257,7 @@ contract Multitoken is Module, Initializable {
         Lib.store().hasChild[parent_] = true;
         address _root = root(_child);
         emit ParentAdded(_root, parent_, child_);
+        return _child;
     }
 
     //==================

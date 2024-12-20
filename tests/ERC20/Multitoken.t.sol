@@ -86,6 +86,8 @@ contract TestMultitoken is Multitoken {
         address r10 = MTLib.toAddress(_1, _10);
         address r11 = MTLib.toAddress(_1, _11);
 
+        __addChild(__addChild(__addChild(address(this), _1), _10), _100);
+
         __addChild(r1, _10);
         __addChild(r1, _11);
         __addChild(r10, _100);
@@ -253,6 +255,15 @@ contract MultitokenTest is Test {
         );
         mt.transfer(address(mt), _1, _10, 100);
 
+        // Expect revert if sender has children
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multitoken.HasChild.selector,
+                MTLib.toAddress(address(mt), _1)
+            )
+        );
+        mt.transfer(address(mt), address(mt), _1, 100);
+
         mt.mint(_1, 1000);
         mt.transfer(r1, r10, _100, 800);
         mt.transfer(r1, r10, _101, 50);
@@ -278,18 +289,14 @@ contract MultitokenTest is Test {
         assertEq(mt.allowance(bob, bob), 0, "allowance(bob, bob)");
         assertEq(mt.allowance(alice, alice), 0, "allowance(alice, alice)");
 
-        mt.mint(_1, 1000);
-
-        // Expect revert if spender has children
-        // vm.expectRevert(
-        //     abi.encodeWithSelector(Multitoken.HasChild.selector, _1)
-        // );
-        // mt.approve(r1, 100);
-
-        // Expert revert if parents have different roots
-        // vm.expectRevert(
-        //     abi.encodeWithSelector(Multitoken.DifferentRoots.selector, _10, alice)
-        // );
-        // mt.approve(_1, _10, address(mt), 100);
+        mt.mint(r1, 1000);
+        // Expect revert if spender has a child
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multitoken.HasChild.selector,
+                r10
+            )
+        );
+        mt.approve(r1, _10, r1, 100);
     }
 }
