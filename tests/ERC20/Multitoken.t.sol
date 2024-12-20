@@ -297,6 +297,35 @@ contract MultitokenTest is Test {
                 r10
             )
         );
-        mt.approve(r1, _10, r1, 100);
+        mt.approve(r1, r1, _10, 100);
+    }
+
+    function testMultitokenTransferFrom() public {
+        vm.startPrank(alice);
+
+        mt.mint(address(mt), 1000);
+        mt.approve(bob, 100);
+
+        vm.startPrank(bob);
+
+        mt.transferFrom(alice, bob, 100);
+
+        assertEq(mt.balanceOf(alice), 900, "balanceOf(alice)");
+        assertEq(mt.balanceOf(bob), 100, "balanceOf(bob)");
+        assertEq(mt.totalSupply(), 1000, "totalSupply()");
+
+        vm.startPrank(alice);
+
+        mt.mint(r1, 1000);
+        mt.approve(r1, r1, bob, 100);
+
+        vm.startPrank(bob);
+
+        mt.transferFrom(r1, alice, r1, r10, _100, 100);
+
+        assertEq(mt.balanceOf(r1, alice), 900, "balanceOf(_1, alice)");
+        assertEq(mt.balanceOf(r1, bob), 0, "balanceOf(_1, bob)");
+        assertEq(mt.balanceOf(r10, _100), 100, "balanceOf(_10, _100)");
+        assertEq(mt.totalSupply(_1), 1000, "totalSupply(_1)");
     }
 }

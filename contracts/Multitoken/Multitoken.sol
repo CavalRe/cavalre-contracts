@@ -59,9 +59,9 @@ library Lib {
     bytes4 internal constant ALLOWANCE =
         bytes4(keccak256("allowance(address,address)"));
     bytes4 internal constant TRANSFER_FROM =
-        bytes4(keccak256("transferFrom(address,address,address,uint256)"));
+        bytes4(keccak256("transferFrom(address,address,address,address,address,uint256)"));
     bytes4 internal constant BASE_TRANSFER_FROM =
-        bytes4(keccak256("transferFrom(address,uint256)"));
+        bytes4(keccak256("transferFrom(address,address,uint256)"));
 
     // Stores
     bytes32 private constant STORE_POSITION =
@@ -481,6 +481,7 @@ contract Multitoken is Module, Initializable {
             spenderParentAddress_,
             spenderAddress_
         );
+        __checkChild(_spenderAddress);
 
         Store storage s = Lib.store();
         s.allowances[_ownerAddress][_spenderAddress] = amount_;
@@ -491,25 +492,25 @@ contract Multitoken is Module, Initializable {
     // Approve a spender for a subaccount
     function approve(
         address ownerParentAddress_,
-        address ownerAddress_,
         address spenderParentAddress_,
+        address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
         address _ownerAddress = Lib.toAddress(
             ownerParentAddress_,
-            ownerAddress_
+            msg.sender
         );
         address _spenderAddress = Lib.toAddress(
             spenderParentAddress_,
-            msg.sender
+            spenderAddress_
         );
         emit InternalApproval(_ownerAddress, _spenderAddress, amount_);
         return
             __approve(
                 ownerParentAddress_,
-                ownerAddress_,
-                spenderParentAddress_,
                 msg.sender,
+                spenderParentAddress_,
+                spenderAddress_,
                 amount_
             );
     }
@@ -567,6 +568,8 @@ contract Multitoken is Module, Initializable {
     function __transferFrom(
         address ownerParentAddress_,
         address ownerAddress_,
+        address spenderParentAddress_,
+        address spenderAddress_,
         address recipientParentAddress_,
         address recipientAddress_,
         uint256 amount_
@@ -577,7 +580,11 @@ contract Multitoken is Module, Initializable {
             ownerParentAddress_,
             ownerAddress_
         );
-        s.allowances[_ownerAddress][msg.sender] -= amount_;
+        address _spenderAddress = Lib.toAddress(
+            spenderParentAddress_,
+            spenderAddress_
+        );
+        s.allowances[_ownerAddress][_spenderAddress] -= amount_;
 
         return
             __transfer(
@@ -592,6 +599,7 @@ contract Multitoken is Module, Initializable {
     function transferFrom(
         address ownerParentAddress_,
         address ownerAddress_,
+        address spenderParentAddress_,
         address recipientParentAddress_,
         address recipientAddress_,
         uint256 amount_
@@ -610,6 +618,8 @@ contract Multitoken is Module, Initializable {
             __transferFrom(
                 ownerParentAddress_,
                 ownerAddress_,
+                spenderParentAddress_,
+                msg.sender,
                 recipientParentAddress_,
                 recipientAddress_,
                 amount_
@@ -627,6 +637,8 @@ contract Multitoken is Module, Initializable {
             __transferFrom(
                 address(this),
                 ownerAddress_,
+                address(this),
+                msg.sender,
                 address(this),
                 recipientAddress_,
                 amount_
