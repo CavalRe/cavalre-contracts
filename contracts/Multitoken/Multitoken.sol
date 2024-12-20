@@ -123,15 +123,19 @@ contract Multitoken is Module, Initializable {
         Lib.toAddress("Total Supply");
 
     // Events for ERC20 compatibility
-    event InternalTransfer(
-        address indexed from,
-        address indexed to,
-        uint256 value
-    );
-    event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(
         address indexed owner,
         address indexed spender,
+        uint256 value
+    );
+    event InternalApproval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
+    event InternalTransfer(
+        address indexed from,
+        address indexed to,
         uint256 value
     );
     event ParentAdded(
@@ -139,10 +143,12 @@ contract Multitoken is Module, Initializable {
         address indexed parent,
         address indexed child
     );
+    event Transfer(address indexed from, address indexed to, uint256 value);
 
     // Custom errors
     error HasBalance(address child);
     error HasChild(address child);
+    error DifferentRoots(address a, address b);
     error InvalidAddress();
     error InvalidParent();
     error InsufficientBalance();
@@ -160,31 +166,30 @@ contract Multitoken is Module, Initializable {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](24);
+        _commands = new bytes4[](23);
         _commands[0] = Lib.INITIALIZE_MULTITOKEN;
         _commands[1] = Lib.SET_NAME;
         _commands[2] = Lib.SET_SYMBOL;
         _commands[3] = Lib.GET_ROOT;
-        _commands[4] = Lib.ADD_CHILD;
-        _commands[5] = Lib.GET_NAME;
-        _commands[6] = Lib.GET_SYMBOL;
-        _commands[7] = Lib.GET_DECIMALS;
-        _commands[8] = Lib.GET_PARENT;
-        _commands[9] = Lib.GET_HAS_CHILD;
-        _commands[10] = Lib.GET_BASE_NAME;
-        _commands[11] = Lib.GET_BASE_SYMBOL;
-        _commands[12] = Lib.GET_BASE_DECIMALS;
-        _commands[13] = Lib.BALANCE_OF;
-        _commands[14] = Lib.BASE_BALANCE_OF;
-        _commands[15] = Lib.TOTAL_SUPPLY;
-        _commands[16] = Lib.BASE_TOTAL_SUPPLY;
-        _commands[17] = Lib.TRANSFER;
-        _commands[18] = Lib.BASE_TRANSFER;
-        _commands[19] = Lib.APPROVE;
-        _commands[20] = Lib.BASE_APPROVE;
-        _commands[21] = Lib.ALLOWANCE;
-        _commands[22] = Lib.TRANSFER_FROM;
-        _commands[23] = Lib.BASE_TRANSFER_FROM;
+        _commands[4] = Lib.GET_NAME;
+        _commands[5] = Lib.GET_SYMBOL;
+        _commands[6] = Lib.GET_DECIMALS;
+        _commands[7] = Lib.GET_PARENT;
+        _commands[8] = Lib.GET_HAS_CHILD;
+        _commands[9] = Lib.GET_BASE_NAME;
+        _commands[10] = Lib.GET_BASE_SYMBOL;
+        _commands[11] = Lib.GET_BASE_DECIMALS;
+        _commands[12] = Lib.BALANCE_OF;
+        _commands[13] = Lib.BASE_BALANCE_OF;
+        _commands[14] = Lib.TOTAL_SUPPLY;
+        _commands[15] = Lib.BASE_TOTAL_SUPPLY;
+        _commands[16] = Lib.TRANSFER;
+        _commands[17] = Lib.BASE_TRANSFER;
+        _commands[18] = Lib.APPROVE;
+        _commands[19] = Lib.BASE_APPROVE;
+        _commands[20] = Lib.ALLOWANCE;
+        _commands[21] = Lib.TRANSFER_FROM;
+        _commands[22] = Lib.BASE_TRANSFER_FROM;
     }
 
     function initializeMultitoken(
@@ -229,8 +234,16 @@ contract Multitoken is Module, Initializable {
         revert MaxDepthExceeded();
     }
 
-    function addChild(address parent_, address child_) public {
-        enforceIsOwner();
+    function __checkRoots(address a_, address b_) internal view {
+        if (root(a_) != root(b_)) revert DifferentRoots(a_, b_);
+    }
+
+    // Only leaf accounts can hold and transfer balances
+    function __checkChild(address parent_) internal view {
+        if (Lib.store().hasChild[parent_]) revert HasChild(parent_);
+    }
+
+    function __addChild(address parent_, address child_) internal {
         if (parent_ == child_) revert InvalidParent();
         if (parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
@@ -307,7 +320,12 @@ contract Multitoken is Module, Initializable {
     }
 
     function totalSupply(address assetAddress_) public view returns (uint256) {
-        return uint256(-Lib.store().balance[Lib.toAddress(assetAddress_, _totalSupplyAddress)]);
+        return
+            uint256(
+                -Lib.store().balance[
+                    Lib.toAddress(assetAddress_, _totalSupplyAddress)
+                ]
+            );
     }
 
     // Get the total supply of a token for ERC20 compatibility
@@ -322,6 +340,7 @@ contract Multitoken is Module, Initializable {
     ) internal returns (address _root) {
         if (parent_ == address(0) || current_ == address(0))
             revert InvalidAddress();
+        __checkChild(current_);
 
         Store storage s = Lib.store();
         uint8 _depth;
@@ -346,22 +365,13 @@ contract Multitoken is Module, Initializable {
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
+        __checkRoots(fromParentAddress_, toParentAddress_);
         address _fromAddress = Lib.toAddress(fromParentAddress_, fromAddress_);
         address _toAddress = Lib.toAddress(toParentAddress_, toAddress_);
 
         int256 _amount = int256(amount_);
-        address _fromRoot = __updateBalances(
-            fromParentAddress_,
-            _fromAddress,
-            -_amount
-        );
-        address _toRoot = __updateBalances(
-            toParentAddress_,
-            _toAddress,
-            _amount
-        );
-        if (_fromRoot != _toRoot)
-            revert("ERC20WithSubaccounts: Different roots");
+        __updateBalances(fromParentAddress_, _fromAddress, -_amount);
+        __updateBalances(toParentAddress_, _toAddress, _amount);
 
         return true;
     }
@@ -454,19 +464,53 @@ contract Multitoken is Module, Initializable {
         return true;
     }
 
+    function __approve(
+        address ownerParentAddress_,
+        address ownerAddress_,
+        address spenderParentAddress_,
+        address spenderAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        address _ownerAddress = Lib.toAddress(
+            ownerParentAddress_,
+            ownerAddress_
+        );
+        __checkChild(_ownerAddress);
+        address _spenderAddress = Lib.toAddress(
+            spenderParentAddress_,
+            spenderAddress_
+        );
+
+        Store storage s = Lib.store();
+        s.allowances[_ownerAddress][_spenderAddress] = amount_;
+
+        return true;
+    }
+
     // Approve a spender for a subaccount
     function approve(
         address ownerParentAddress_,
-        address spenderAddress_,
+        address ownerAddress_,
+        address spenderParentAddress_,
         uint256 amount_
     ) public returns (bool) {
-        address _ownerAddress = Lib.toAddress(ownerParentAddress_, msg.sender);
-
-        Store storage s = Lib.store();
-        s.allowances[_ownerAddress][spenderAddress_] = amount_;
-
-        emit Approval(_ownerAddress, spenderAddress_, amount_);
-        return true;
+        address _ownerAddress = Lib.toAddress(
+            ownerParentAddress_,
+            ownerAddress_
+        );
+        address _spenderAddress = Lib.toAddress(
+            spenderParentAddress_,
+            msg.sender
+        );
+        emit InternalApproval(_ownerAddress, _spenderAddress, amount_);
+        return
+            __approve(
+                ownerParentAddress_,
+                ownerAddress_,
+                spenderParentAddress_,
+                msg.sender,
+                amount_
+            );
     }
 
     // ERC20 Approve
@@ -474,8 +518,34 @@ contract Multitoken is Module, Initializable {
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
-        address _spenderAddress = Lib.toAddress(address(this), spenderAddress_);
-        return approve(address(this), _spenderAddress, amount_);
+        emit Approval(msg.sender, spenderAddress_, amount_);
+        return
+            __approve(
+                address(this),
+                msg.sender,
+                address(this),
+                spenderAddress_,
+                amount_
+            );
+    }
+
+    function allowance(
+        address ownerParentAddress_,
+        address ownerAddress_,
+        address spenderParentAddress_,
+        address spenderAddress_
+    ) public view returns (uint256) {
+        address _ownerAddress = Lib.toAddress(
+            ownerParentAddress_,
+            ownerAddress_
+        );
+        if (hasChild(_ownerAddress)) revert HasChild(_ownerAddress);
+        address _spenderAddress = Lib.toAddress(
+            spenderParentAddress_,
+            spenderAddress_
+        );
+        if (hasChild(_spenderAddress)) revert HasChild(_spenderAddress);
+        return Lib.store().allowances[_ownerAddress][_spenderAddress];
     }
 
     // ERC20 Allowance Query
@@ -483,8 +553,13 @@ contract Multitoken is Module, Initializable {
         address ownerAddress_,
         address spenderAddress_
     ) public view returns (uint256) {
-        Store storage s = Lib.store();
-        return s.allowances[ownerAddress_][spenderAddress_];
+        return
+            allowance(
+                address(this),
+                ownerAddress_,
+                address(this),
+                spenderAddress_
+            );
     }
 
     // Transfer From

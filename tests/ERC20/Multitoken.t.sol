@@ -37,28 +37,27 @@ contract TestMultitoken is Multitoken {
         _commands[1] = MTLib.SET_NAME;
         _commands[2] = MTLib.SET_SYMBOL;
         _commands[3] = MTLib.GET_ROOT;
-        _commands[4] = MTLib.ADD_CHILD;
-        _commands[5] = MTLib.GET_NAME;
-        _commands[6] = MTLib.GET_SYMBOL;
-        _commands[7] = MTLib.GET_DECIMALS;
-        _commands[8] = MTLib.GET_PARENT;
-        _commands[9] = MTLib.GET_HAS_CHILD;
-        _commands[10] = MTLib.GET_BASE_NAME;
-        _commands[11] = MTLib.GET_BASE_SYMBOL;
-        _commands[12] = MTLib.GET_BASE_DECIMALS;
-        _commands[13] = MTLib.BALANCE_OF;
-        _commands[14] = MTLib.BASE_BALANCE_OF;
-        _commands[15] = MTLib.TOTAL_SUPPLY;
-        _commands[16] = MTLib.BASE_TOTAL_SUPPLY;
-        _commands[17] = MTLib.TRANSFER;
-        _commands[18] = MTLib.BASE_TRANSFER;
-        _commands[19] = MTLib.APPROVE;
-        _commands[20] = MTLib.BASE_APPROVE;
-        _commands[21] = MTLib.ALLOWANCE;
-        _commands[22] = MTLib.TRANSFER_FROM;
-        _commands[23] = MTLib.BASE_TRANSFER_FROM;
-        _commands[24] = TTLib.MINT;
-        _commands[25] = TTLib.BURN;
+        _commands[4] = MTLib.GET_NAME;
+        _commands[5] = MTLib.GET_SYMBOL;
+        _commands[6] = MTLib.GET_DECIMALS;
+        _commands[7] = MTLib.GET_PARENT;
+        _commands[8] = MTLib.GET_HAS_CHILD;
+        _commands[9] = MTLib.GET_BASE_NAME;
+        _commands[10] = MTLib.GET_BASE_SYMBOL;
+        _commands[11] = MTLib.GET_BASE_DECIMALS;
+        _commands[12] = MTLib.BALANCE_OF;
+        _commands[13] = MTLib.BASE_BALANCE_OF;
+        _commands[14] = MTLib.TOTAL_SUPPLY;
+        _commands[15] = MTLib.BASE_TOTAL_SUPPLY;
+        _commands[16] = MTLib.TRANSFER;
+        _commands[17] = MTLib.BASE_TRANSFER;
+        _commands[18] = MTLib.APPROVE;
+        _commands[19] = MTLib.BASE_APPROVE;
+        _commands[20] = MTLib.ALLOWANCE;
+        _commands[21] = MTLib.TRANSFER_FROM;
+        _commands[22] = MTLib.BASE_TRANSFER_FROM;
+        _commands[23] = TTLib.MINT;
+        _commands[24] = TTLib.BURN;
     }
 
     // Commands
@@ -71,6 +70,32 @@ contract TestMultitoken is Multitoken {
         Store storage s = MTLib.store();
         s.name[address(this)] = name_;
         s.symbol[address(this)] = symbol_;
+
+        // Root
+        address _1 = MTLib.toAddress("1");
+        // Depth 1
+        address _10 = MTLib.toAddress("10");
+        address _11 = MTLib.toAddress("11");
+        // Depth 2
+        address _100 = MTLib.toAddress("100");
+        address _101 = MTLib.toAddress("101");
+        address _110 = MTLib.toAddress("110");
+        address _111 = MTLib.toAddress("111");
+
+        address r1 = _1;
+        address r10 = MTLib.toAddress(_1, _10);
+        address r11 = MTLib.toAddress(_1, _11);
+
+        __addChild(r1, _10);
+        __addChild(r1, _11);
+        __addChild(r10, _100);
+        __addChild(r10, _101);
+        __addChild(r11, _110);
+        __addChild(r11, _111);
+    }
+
+    function addChild(address parent_, address child_) public {
+        super.__addChild(parent_, child_);
     }
 
     function mint(address assetAddress_, uint256 amount_) public {
@@ -81,22 +106,7 @@ contract TestMultitoken is Multitoken {
         super.__burn(assetAddress_, msg.sender, _amount);
     }
 
-    receive() external payable {
-        // deposit();
-    }
-
-    // function deposit() public payable {
-    //     mint(msg.value);
-    //     emit Deposit(msg.sender, msg.value);
-    // }
-
-    // function withdraw(uint256 wad) public {
-    //     require(balanceOf(msg.sender) >= wad);
-    //     burn(wad);
-    //     (bool success, ) = payable(msg.sender).call{value: wad}("");
-    //     require(success, "Transfer failed");
-    //     emit Withdrawal(msg.sender, wad);
-    // }
+    receive() external payable {}
 }
 
 contract MultitokenTest is Test {
@@ -134,13 +144,6 @@ contract MultitokenTest is Test {
         mt = TestMultitoken(payable(router));
 
         mt.initializeTestMultitoken("Test Multitoken", "MULTI");
-
-        mt.addChild(r1, _10);
-        mt.addChild(r1, _11);
-        mt.addChild(r10, _100);
-        mt.addChild(r10, _101);
-        mt.addChild(r11, _110);
-        mt.addChild(r11, _111);
     }
 
     function testMultitokenInit() public {
@@ -212,6 +215,16 @@ contract MultitokenTest is Test {
         assertEq(mt.parent(r111), r11, "parent(_111)");
     }
 
+    function testMultitokenHasChild() public view {
+        assertTrue(mt.hasChild(r1), "hasChild(r1)");
+        assertTrue(mt.hasChild(r10), "hasChild(r10)");
+        assertTrue(mt.hasChild(r11), "hasChild(r11)");
+        assertFalse(mt.hasChild(r100), "hasChild(r100)");
+        assertFalse(mt.hasChild(r101), "hasChild(r101)");
+        assertFalse(mt.hasChild(r110), "hasChild(r110)");
+        assertFalse(mt.hasChild(r111), "hasChild(r111)");
+    }
+
     function testMultitokenTransfer() public {
         vm.startPrank(alice);
 
@@ -230,6 +243,16 @@ contract MultitokenTest is Test {
         assertEq(mt.balanceOf(bob), 800, "balanceOf(bob)");
         assertEq(mt.totalSupply(), 1000, "totalSupply()");
 
+        // Expect revert if sender and receiver have different roots
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Multitoken.DifferentRoots.selector,
+                address(mt),
+                _1
+            )
+        );
+        mt.transfer(address(mt), _1, _10, 100);
+
         mt.mint(_1, 1000);
         mt.transfer(r1, r10, _100, 800);
         mt.transfer(r1, r10, _101, 50);
@@ -242,5 +265,31 @@ contract MultitokenTest is Test {
         assertEq(mt.balanceOf(r10, _101), 50, "balanceOf(_10, _101)");
         assertEq(mt.balanceOf(r11, _110), 75, "balanceOf(_11, _110)");
         assertEq(mt.totalSupply(_1), 1000, "totalSupply(_1)");
+    }
+
+    function testMultitokenApprove() public {
+        vm.startPrank(alice);
+
+        mt.mint(address(mt), 1000);
+        mt.approve(bob, 100);
+
+        assertEq(mt.allowance(alice, bob), 100, "allowance(alice, bob)");
+        assertEq(mt.allowance(bob, alice), 0, "allowance(bob, alice)");
+        assertEq(mt.allowance(bob, bob), 0, "allowance(bob, bob)");
+        assertEq(mt.allowance(alice, alice), 0, "allowance(alice, alice)");
+
+        mt.mint(_1, 1000);
+
+        // Expect revert if spender has children
+        // vm.expectRevert(
+        //     abi.encodeWithSelector(Multitoken.HasChild.selector, _1)
+        // );
+        // mt.approve(r1, 100);
+
+        // Expert revert if parents have different roots
+        // vm.expectRevert(
+        //     abi.encodeWithSelector(Multitoken.DifferentRoots.selector, _10, alice)
+        // );
+        // mt.approve(_1, _10, address(mt), 100);
     }
 }
