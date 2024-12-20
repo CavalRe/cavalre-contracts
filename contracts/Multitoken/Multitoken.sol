@@ -192,14 +192,21 @@ contract Multitoken is Module, Initializable {
         _commands[22] = Lib.BASE_TRANSFER_FROM;
     }
 
-    function initializeMultitoken(
+    function initializeMultitoken_unchained(
         string memory name_,
         string memory symbol_
-    ) public initializer {
+    ) public onlyInitializing {
         enforceIsOwner();
         Store storage s = Lib.store();
         s.name[address(this)] = name_;
         s.symbol[address(this)] = symbol_;
+    }
+
+    function initializeMultitoken(
+        string memory name_,
+        string memory symbol_
+    ) public initializer {
+        initializeMultitoken_unchained(name_, symbol_);
     }
 
     //==================
