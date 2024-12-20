@@ -9,19 +9,23 @@
   "exports": {
     "./ERC20/": "./contracts/ERC20/",
     "./ERC4626/": "./contracts/ERC4626/",
+    "./Multitoken/": "./contracts/Mulitoken/",
     "./libraries/": "./contracts/libraries/",
     "./router/": "./contracts/router/",
     "./sentry/": "./contracts/sentry/",
     "./tests/ERC20/": "./tests/ERC20/",
+    "./tests/Multitoken/": "./tests/Multitoken/",
     "./tests/Router/": "./tests/Router/"
   },
   "files": [
     "contracts/ERC20/",
     "contracts/ERC4626/",
+    "contracts/Multitoken/",
     "contracts/libraries/",
     "contracts/router/",
     "contracts/sentry/",
     "tests/ERC20/",
+    "tests/Multitoken/",
     "tests/Router/Router.t.sol"
   ],
   "repository": {
