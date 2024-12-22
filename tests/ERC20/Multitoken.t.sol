@@ -20,10 +20,7 @@ contract TestMultitoken is Multitoken {
     event Deposit(address indexed dst, uint256 wad);
     event Withdrawal(address indexed src, uint256 wad);
 
-    constructor(
-        uint8 decimals_,
-        uint8 maxDepth_
-    ) Multitoken(decimals_) {}
+    constructor(uint8 decimals_, uint8 maxDepth_) Multitoken(decimals_) {}
 
     function commands()
         public
@@ -86,7 +83,10 @@ contract TestMultitoken is Multitoken {
         address r10 = MTLib.toAddress(_1, _10);
         address r11 = MTLib.toAddress(_1, _11);
 
-        MTLib.addChild(MTLib.addChild(MTLib.addChild(address(this), _1), _10), _100);
+        MTLib.addChild(
+            MTLib.addChild(MTLib.addChild(address(this), _1), _10),
+            _100
+        );
 
         MTLib.addChild(r1, _10);
         MTLib.addChild(r1, _11);
@@ -100,12 +100,12 @@ contract TestMultitoken is Multitoken {
         MTLib.addChild(parent_, child_);
     }
 
-    function mint(address assetAddress_, uint256 amount_) public {
-        MTLib.mint(assetAddress_, msg.sender, amount_);
+    function mint(address parentAddress_, uint256 amount_) public {
+        MTLib.mint(parentAddress_, msg.sender, amount_);
     }
 
-    function burn(address assetAddress_, uint256 _amount) public {
-        MTLib.burn(assetAddress_, msg.sender, _amount);
+    function burn(address parentAddress_, uint256 _amount) public {
+        MTLib.burn(parentAddress_, msg.sender, _amount);
     }
 
     receive() external payable {}
@@ -179,8 +179,16 @@ contract MultitokenTest is Test {
         assertEq(mt.totalSupply(), 1000, "totalSupply");
 
         mt.mint(_1, 1000);
-        assertEq(mt.balanceOf(_100), 0, "balanceOf(_100)");
-        assertEq(mt.totalSupply(_1), 1000, "totalSupply");
+        assertEq(mt.balanceOf(_1, alice), 1000, "balanceOf(_1, alice)");
+        assertEq(mt.totalSupply(_1), 1000, "totalSupply(_1)");
+
+        vm.startPrank(_100);
+
+        mt.mint(r10, 1000);
+
+        assertEq(mt.balanceOf(r10, _100), 1000, "balanceOf(r10, _100)");
+        assertEq(mt.balanceOf(r1, _10), 1000, "balanceOf(r1, _10)");
+        assertEq(mt.totalSupply(r1), 2000, "totalSupply(_1)");
     }
 
     function testMultitokenBurn() public {
@@ -292,10 +300,7 @@ contract MultitokenTest is Test {
         mt.mint(r1, 1000);
         // Expect revert if spender has a child
         vm.expectRevert(
-            abi.encodeWithSelector(
-                Multitoken.HasChild.selector,
-                r10
-            )
+            abi.encodeWithSelector(Multitoken.HasChild.selector, r10)
         );
         mt.approve(r1, r1, _10, 100);
     }

@@ -211,19 +211,18 @@ library Lib {
     }
 
     function mint(
-        address assetAddress_,
+        address parentAddress_,
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        if (assetAddress_ == address(0) || toAddress_ == address(0))
+        if (parentAddress_ == address(0) || toAddress_ == address(0))
             revert Multitoken.InvalidAddress();
-        if (store().parent[assetAddress_] != address(0))
-            revert Multitoken.InvalidParent();
+        address _root = root(parentAddress_);
 
         transfer(
-            assetAddress_,
+            _root,
             _totalSupplyAddress,
-            assetAddress_,
+            parentAddress_,
             toAddress_,
             amount_
         );
@@ -231,19 +230,18 @@ library Lib {
     }
 
     function burn(
-        address assetAddress_,
+        address parentAddress_,
         address fromAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        if (assetAddress_ == address(0) || fromAddress_ == address(0))
+        if (parentAddress_ == address(0) || fromAddress_ == address(0))
             revert Multitoken.InvalidAddress();
-        if (store().parent[assetAddress_] != address(0))
-            revert Multitoken.InvalidParent();
+        address _root = root(parentAddress_);
 
         transfer(
-            assetAddress_,
+            parentAddress_,
             fromAddress_,
-            assetAddress_,
+            _root,
             _totalSupplyAddress,
             amount_
         );
