@@ -19,6 +19,8 @@ struct Store {
 }
 
 library Lib {
+    uint8 internal constant _maxDepth = 10;
+    address internal constant _totalSupplyAddress = 0x234b3144C2ef624a5e5c8B7922d4E9067104A9B9;
     // Selectors
     bytes4 internal constant INITIALIZE_MULTITOKEN =
         bytes4(keccak256("initializeMultitoken(string,string)"));
@@ -59,7 +61,11 @@ library Lib {
     bytes4 internal constant ALLOWANCE =
         bytes4(keccak256("allowance(address,address)"));
     bytes4 internal constant TRANSFER_FROM =
-        bytes4(keccak256("transferFrom(address,address,address,address,address,uint256)"));
+        bytes4(
+            keccak256(
+                "transferFrom(address,address,address,address,address,uint256)"
+            )
+        );
     bytes4 internal constant BASE_TRANSFER_FROM =
         bytes4(keccak256("transferFrom(address,address,uint256)"));
 
@@ -114,11 +120,190 @@ library Lib {
                 )
             );
     }
+
+    function root(address current_) internal view returns (address) {
+        if (current_ == address(0)) revert Multitoken.InvalidAddress();
+
+        Store storage s = store();
+        uint256 _depth;
+        while (_depth < _maxDepth) {
+            _depth++;
+            address _parent = s.parent[current_];
+            if (_parent == address(0)) {
+                // Root found
+                return current_;
+            }
+            current_ = _parent;
+        }
+        revert Multitoken.MaxDepthExceeded();
+    }
+
+    function checkRoots(address a_, address b_) internal view {
+        if (root(a_) != root(b_)) revert Multitoken.DifferentRoots(a_, b_);
+    }
+
+    // Only leaf accounts can hold and transfer balances
+    function checkChild(address parent_) internal view {
+        if (store().hasChild[parent_]) revert Multitoken.HasChild(parent_);
+    }
+
+    function addChild(
+        address parent_,
+        address child_
+    ) internal returns (address) {
+        if (parent_ == child_) revert Multitoken.InvalidParent();
+        if (parent_ == address(0) || child_ == address(0))
+            revert Multitoken.InvalidAddress();
+
+        address _child = toAddress(parent_, child_);
+        // Must build tree from the top down
+        if (store().hasChild[_child]) revert Multitoken.HasChild(_child);
+        // Cannot redirect a balance to a new parent
+        if (store().balance[_child] != 0) revert Multitoken.HasBalance(_child);
+        store().parent[_child] = parent_;
+        store().hasChild[parent_] = true;
+        address _root = root(_child);
+        emit Multitoken.ParentAdded(_root, parent_, child_);
+        return _child;
+    }
+
+    function updateBalances(
+        address parent_,
+        address current_,
+        int256 delta_
+    ) internal returns (address _root) {
+        if (parent_ == address(0) || current_ == address(0))
+            revert Multitoken.InvalidAddress();
+        checkChild(current_);
+
+        Store storage s = store();
+        uint8 _depth;
+        while (_depth < _maxDepth) {
+            // Do not update the balance of the root
+            if (parent_ == address(0)) {
+                // Root found
+                return current_;
+            }
+            s.balance[current_] += delta_;
+            current_ = parent_;
+            parent_ = s.parent[parent_];
+            _depth++;
+        }
+        revert Multitoken.MaxDepthExceeded();
+    }
+
+    function transfer(
+        address fromParentAddress_,
+        address fromAddress_,
+        address toParentAddress_,
+        address toAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        checkRoots(fromParentAddress_, toParentAddress_);
+        address _fromAddress = toAddress(fromParentAddress_, fromAddress_);
+        address _toAddress = toAddress(toParentAddress_, toAddress_);
+
+        int256 _amount = int256(amount_);
+        updateBalances(fromParentAddress_, _fromAddress, -_amount);
+        updateBalances(toParentAddress_, _toAddress, _amount);
+
+        return true;
+    }
+
+    function mint(
+        address assetAddress_,
+        address toAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        if (assetAddress_ == address(0) || toAddress_ == address(0))
+            revert Multitoken.InvalidAddress();
+        if (store().parent[assetAddress_] != address(0))
+            revert Multitoken.InvalidParent();
+
+        transfer(
+            assetAddress_,
+            _totalSupplyAddress,
+            assetAddress_,
+            toAddress_,
+            amount_
+        );
+        return true;
+    }
+
+    function burn(
+        address assetAddress_,
+        address fromAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        if (assetAddress_ == address(0) || fromAddress_ == address(0))
+            revert Multitoken.InvalidAddress();
+        if (store().parent[assetAddress_] != address(0))
+            revert Multitoken.InvalidParent();
+
+        transfer(
+            assetAddress_,
+            fromAddress_,
+            assetAddress_,
+            _totalSupplyAddress,
+            amount_
+        );
+        return true;
+    }
+
+    function approve(
+        address ownerParentAddress_,
+        address ownerAddress_,
+        address spenderParentAddress_,
+        address spenderAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        address _ownerAddress = toAddress(ownerParentAddress_, ownerAddress_);
+        checkChild(_ownerAddress);
+        address _spenderAddress = toAddress(
+            spenderParentAddress_,
+            spenderAddress_
+        );
+        checkChild(_spenderAddress);
+
+        Store storage s = store();
+        s.allowances[_ownerAddress][_spenderAddress] = amount_;
+
+        return true;
+    }
+
+    // Transfer From
+    function transferFrom(
+        address ownerParentAddress_,
+        address ownerAddress_,
+        address spenderParentAddress_,
+        address spenderAddress_,
+        address recipientParentAddress_,
+        address recipientAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        Store storage s = store();
+
+        address _ownerAddress = toAddress(ownerParentAddress_, ownerAddress_);
+        address _spenderAddress = toAddress(
+            spenderParentAddress_,
+            spenderAddress_
+        );
+        s.allowances[_ownerAddress][_spenderAddress] -= amount_;
+
+        return
+            transfer(
+                ownerParentAddress_,
+                ownerAddress_,
+                recipientParentAddress_,
+                recipientAddress_,
+                amount_
+            );
+    }
 }
 
 contract Multitoken is Module, Initializable {
     uint8 internal immutable _decimals;
-    uint8 internal immutable _maxDepth;
+    uint8 internal constant _maxDepth = 10;
     address internal immutable _totalSupplyAddress =
         Lib.toAddress("Total Supply");
 
@@ -154,9 +339,8 @@ contract Multitoken is Module, Initializable {
     error InsufficientBalance();
     error MaxDepthExceeded();
 
-    constructor(uint8 decimals_, uint8 maxDepth_) {
+    constructor(uint8 decimals_) {
         _decimals = decimals_;
-        _maxDepth = maxDepth_;
     }
 
     function commands()
@@ -224,64 +408,25 @@ contract Multitoken is Module, Initializable {
         s.symbol[accountAddress_] = symbol_;
     }
 
-    function root(address current_) public view returns (address) {
-        if (current_ == address(0)) revert InvalidAddress();
-
-        Store storage s = Lib.store();
-        uint256 _depth;
-        while (_depth < _maxDepth) {
-            _depth++;
-            address _parent = s.parent[current_];
-            if (_parent == address(0)) {
-                // Root found
-                return current_;
-            }
-            current_ = _parent;
-        }
-        revert MaxDepthExceeded();
-    }
-
-    function __checkRoots(address a_, address b_) internal view {
-        if (root(a_) != root(b_)) revert DifferentRoots(a_, b_);
-    }
-
-    // Only leaf accounts can hold and transfer balances
-    function __checkChild(address parent_) internal view {
-        if (Lib.store().hasChild[parent_]) revert HasChild(parent_);
-    }
-
-    function __addChild(address parent_, address child_) internal returns (address) {
-        if (parent_ == child_) revert InvalidParent();
-        if (parent_ == address(0) || child_ == address(0))
-            revert InvalidAddress();
-
-        address _child = Lib.toAddress(parent_, child_);
-        // Must build tree from the top down
-        if (Lib.store().hasChild[_child]) revert HasChild(_child);
-        // Cannot redirect a balance to a new parent
-        if (Lib.store().balance[_child] != 0) revert HasBalance(_child);
-        Lib.store().parent[_child] = parent_;
-        Lib.store().hasChild[parent_] = true;
-        address _root = root(_child);
-        emit ParentAdded(_root, parent_, child_);
-        return _child;
-    }
-
     //==================
     // Metadata Getters
     //==================
     function name(address accountAddress_) public view returns (string memory) {
-        return Lib.store().name[root(accountAddress_)];
+        return Lib.store().name[Lib.root(accountAddress_)];
     }
 
     function symbol(
         address accountAddress_
     ) public view returns (string memory) {
-        return Lib.store().symbol[root(accountAddress_)];
+        return Lib.store().symbol[Lib.root(accountAddress_)];
     }
 
     function decimals(address accountAddress_) public view returns (uint8) {
-        return Lib.store().decimals[root(accountAddress_)];
+        return Lib.store().decimals[Lib.root(accountAddress_)];
+    }
+
+    function root(address accountAddress_) public view returns (address) {
+        return Lib.root(accountAddress_);
     }
 
     function parent(address child_) public view returns (address) {
@@ -341,49 +486,6 @@ contract Multitoken is Module, Initializable {
         return totalSupply(address(this));
     }
 
-    function __updateBalances(
-        address parent_,
-        address current_,
-        int256 delta_
-    ) internal returns (address _root) {
-        if (parent_ == address(0) || current_ == address(0))
-            revert InvalidAddress();
-        __checkChild(current_);
-
-        Store storage s = Lib.store();
-        uint8 _depth;
-        while (_depth < _maxDepth) {
-            // Do not update the balance of the root
-            if (parent_ == address(0)) {
-                // Root found
-                return current_;
-            }
-            s.balance[current_] += delta_;
-            current_ = parent_;
-            parent_ = s.parent[parent_];
-            _depth++;
-        }
-        revert MaxDepthExceeded();
-    }
-
-    function __transfer(
-        address fromParentAddress_,
-        address fromAddress_,
-        address toParentAddress_,
-        address toAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        __checkRoots(fromParentAddress_, toParentAddress_);
-        address _fromAddress = Lib.toAddress(fromParentAddress_, fromAddress_);
-        address _toAddress = Lib.toAddress(toParentAddress_, toAddress_);
-
-        int256 _amount = int256(amount_);
-        __updateBalances(fromParentAddress_, _fromAddress, -_amount);
-        __updateBalances(toParentAddress_, _toAddress, _amount);
-
-        return true;
-    }
-
     function transfer(
         address fromParentAddress_,
         address toParentAddress_,
@@ -400,7 +502,7 @@ contract Multitoken is Module, Initializable {
         );
         emit InternalTransfer(_fromAddress, _toAddress, amount_);
         return
-            __transfer(
+            Lib.transfer(
                 fromParentAddress_,
                 msg.sender,
                 toParentAddress_,
@@ -423,77 +525,13 @@ contract Multitoken is Module, Initializable {
         );
         emit Transfer(msg.sender, recipientAddress_, amount_);
         return
-            __transfer(
+            Lib.transfer(
                 address(this),
                 msg.sender,
                 address(this),
                 recipientAddress_,
                 amount_
             );
-    }
-
-    function __mint(
-        address assetAddress_,
-        address toAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        if (assetAddress_ == address(0) || toAddress_ == address(0))
-            revert InvalidAddress();
-        if (Lib.store().parent[assetAddress_] != address(0))
-            revert InvalidParent();
-
-        __transfer(
-            assetAddress_,
-            _totalSupplyAddress,
-            assetAddress_,
-            toAddress_,
-            amount_
-        );
-        return true;
-    }
-
-    function __burn(
-        address assetAddress_,
-        address fromAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        if (assetAddress_ == address(0) || fromAddress_ == address(0))
-            revert InvalidAddress();
-        if (Lib.store().parent[assetAddress_] != address(0))
-            revert InvalidParent();
-
-        __transfer(
-            assetAddress_,
-            fromAddress_,
-            assetAddress_,
-            _totalSupplyAddress,
-            amount_
-        );
-        return true;
-    }
-
-    function __approve(
-        address ownerParentAddress_,
-        address ownerAddress_,
-        address spenderParentAddress_,
-        address spenderAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        address _ownerAddress = Lib.toAddress(
-            ownerParentAddress_,
-            ownerAddress_
-        );
-        __checkChild(_ownerAddress);
-        address _spenderAddress = Lib.toAddress(
-            spenderParentAddress_,
-            spenderAddress_
-        );
-        __checkChild(_spenderAddress);
-
-        Store storage s = Lib.store();
-        s.allowances[_ownerAddress][_spenderAddress] = amount_;
-
-        return true;
     }
 
     // Approve a spender for a subaccount
@@ -503,17 +541,14 @@ contract Multitoken is Module, Initializable {
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
-        address _ownerAddress = Lib.toAddress(
-            ownerParentAddress_,
-            msg.sender
-        );
+        address _ownerAddress = Lib.toAddress(ownerParentAddress_, msg.sender);
         address _spenderAddress = Lib.toAddress(
             spenderParentAddress_,
             spenderAddress_
         );
         emit InternalApproval(_ownerAddress, _spenderAddress, amount_);
         return
-            __approve(
+            Lib.approve(
                 ownerParentAddress_,
                 msg.sender,
                 spenderParentAddress_,
@@ -529,7 +564,7 @@ contract Multitoken is Module, Initializable {
     ) public returns (bool) {
         emit Approval(msg.sender, spenderAddress_, amount_);
         return
-            __approve(
+            Lib.approve(
                 address(this),
                 msg.sender,
                 address(this),
@@ -571,38 +606,6 @@ contract Multitoken is Module, Initializable {
             );
     }
 
-    // Transfer From
-    function __transferFrom(
-        address ownerParentAddress_,
-        address ownerAddress_,
-        address spenderParentAddress_,
-        address spenderAddress_,
-        address recipientParentAddress_,
-        address recipientAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        Store storage s = Lib.store();
-
-        address _ownerAddress = Lib.toAddress(
-            ownerParentAddress_,
-            ownerAddress_
-        );
-        address _spenderAddress = Lib.toAddress(
-            spenderParentAddress_,
-            spenderAddress_
-        );
-        s.allowances[_ownerAddress][_spenderAddress] -= amount_;
-
-        return
-            __transfer(
-                ownerParentAddress_,
-                ownerAddress_,
-                recipientParentAddress_,
-                recipientAddress_,
-                amount_
-            );
-    }
-
     function transferFrom(
         address ownerParentAddress_,
         address ownerAddress_,
@@ -622,7 +625,7 @@ contract Multitoken is Module, Initializable {
 
         emit InternalTransfer(_ownerAddress, _recipientAddress, amount_);
         return
-            __transferFrom(
+            Lib.transferFrom(
                 ownerParentAddress_,
                 ownerAddress_,
                 spenderParentAddress_,
@@ -641,7 +644,7 @@ contract Multitoken is Module, Initializable {
     ) public returns (bool) {
         emit Transfer(ownerAddress_, recipientAddress_, amount_);
         return
-            __transferFrom(
+            Lib.transferFrom(
                 address(this),
                 ownerAddress_,
                 address(this),

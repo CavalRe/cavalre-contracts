@@ -23,7 +23,7 @@ contract TestMultitoken is Multitoken {
     constructor(
         uint8 decimals_,
         uint8 maxDepth_
-    ) Multitoken(decimals_, maxDepth_) {}
+    ) Multitoken(decimals_) {}
 
     function commands()
         public
@@ -86,26 +86,26 @@ contract TestMultitoken is Multitoken {
         address r10 = MTLib.toAddress(_1, _10);
         address r11 = MTLib.toAddress(_1, _11);
 
-        __addChild(__addChild(__addChild(address(this), _1), _10), _100);
+        MTLib.addChild(MTLib.addChild(MTLib.addChild(address(this), _1), _10), _100);
 
-        __addChild(r1, _10);
-        __addChild(r1, _11);
-        __addChild(r10, _100);
-        __addChild(r10, _101);
-        __addChild(r11, _110);
-        __addChild(r11, _111);
+        MTLib.addChild(r1, _10);
+        MTLib.addChild(r1, _11);
+        MTLib.addChild(r10, _100);
+        MTLib.addChild(r10, _101);
+        MTLib.addChild(r11, _110);
+        MTLib.addChild(r11, _111);
     }
 
     function addChild(address parent_, address child_) public {
-        super.__addChild(parent_, child_);
+        MTLib.addChild(parent_, child_);
     }
 
     function mint(address assetAddress_, uint256 amount_) public {
-        super.__mint(assetAddress_, msg.sender, amount_);
+        MTLib.mint(assetAddress_, msg.sender, amount_);
     }
 
     function burn(address assetAddress_, uint256 _amount) public {
-        super.__burn(assetAddress_, msg.sender, _amount);
+        MTLib.burn(assetAddress_, msg.sender, _amount);
     }
 
     receive() external payable {}
