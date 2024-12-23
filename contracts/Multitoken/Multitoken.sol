@@ -156,6 +156,7 @@ library Lib {
             revert Multitoken.InvalidAddress();
 
         address _child = toAddress(parent_, child_);
+        if (store().parent[_child] == parent_) return _child;
         // Must build tree from the top down
         if (store().hasChild[_child]) revert Multitoken.HasChild(_child);
         // Cannot redirect a balance to a new parent
