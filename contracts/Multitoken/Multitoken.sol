@@ -167,6 +167,21 @@ library Lib {
         return _child;
     }
 
+    function removeChild(
+        address parent_,
+        address child_
+    ) internal returns (address) {
+        if (parent_ == address(0) || child_ == address(0))
+            revert Multitoken.InvalidAddress();
+        address _child = toAddress(parent_, child_);
+        if (store().parent[_child] != parent_)
+            revert Multitoken.InvalidParent();
+        if (store().balance[_child] != 0) revert Multitoken.HasBalance(_child);
+        store().parent[_child] = address(0);
+        store().hasChild[parent_] = false;
+        return _child;
+    }
+
     function updateBalances(
         address parent_,
         address current_,

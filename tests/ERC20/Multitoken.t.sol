@@ -169,6 +169,10 @@ contract MultitokenTest is Test {
         assertEq(mt.balanceOf(address(mt)), 0);
     }
 
+    // TODO: Implement addChild, removeChild
+    function testAddChild() public {}
+    function testRemoveChild() public {}
+
     function testMultitokenMint() public {
         vm.startPrank(alice);
 
