@@ -183,6 +183,16 @@ library Lib {
         return _child;
     }
 
+    function balanceOf(
+        address parentAddress_,
+        address ownerAddress_
+    ) public view returns (uint256) {
+        address _balanceAddress = toAddress(parentAddress_, ownerAddress_);
+        bool _isCredit = store().isCredit[_balanceAddress];
+        int256 _balance = store().balance[_balanceAddress];
+        return _isCredit ? uint256(-_balance) : uint256(_balance);
+    }
+
     function updateBalances(
         address parent_,
         address current_,
@@ -475,15 +485,12 @@ contract Multitoken is Module, Initializable {
         address parentAddress_,
         address ownerAddress_
     ) public view returns (uint256) {
-        address _balanceAddress = Lib.toAddress(parentAddress_, ownerAddress_);
-        bool _isCredit = Lib.store().isCredit[_balanceAddress];
-        int256 _balance = Lib.store().balance[_balanceAddress];
-        return _isCredit ? uint256(-_balance) : uint256(_balance);
+        return Lib.balanceOf(parentAddress_, ownerAddress_);
     }
 
     // Get the balance of an account for ERC20 compatibility
     function balanceOf(address ownerAddress_) public view returns (uint256) {
-        return balanceOf(address(this), ownerAddress_);
+        return Lib.balanceOf(address(this), ownerAddress_);
     }
 
     function totalSupply(address assetAddress_) public view returns (uint256) {
