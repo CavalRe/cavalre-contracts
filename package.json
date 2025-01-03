@@ -9,8 +9,10 @@
   "exports": {
     "./ERC20/": "./contracts/ERC20/",
     "./ERC4626/": "./contracts/ERC4626/",
+    "./Initializable/": "./contracts/Initializable/",
     "./Multitoken/": "./contracts/Mulitoken/",
     "./libraries/": "./contracts/libraries/",
+    "./ReentrancyGuard/": "./contracts/ReentrancyGuard/",
     "./router/": "./contracts/router/",
     "./sentry/": "./contracts/sentry/",
     "./tests/ERC20/": "./tests/ERC20/",
@@ -20,8 +22,10 @@
   "files": [
     "contracts/ERC20/",
     "contracts/ERC4626/",
+    "contracts/Initializable/",
     "contracts/Multitoken/",
     "contracts/libraries/",
+    "contracts/ReentrancyGuard/",
     "contracts/router/",
     "contracts/sentry/",
     "tests/ERC20/",
