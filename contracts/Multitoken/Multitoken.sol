@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Module} from "@cavalre/contracts/router/Module.sol";
-
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Initializable} from "@cavalre/contracts/Initializable/Initializable.sol";
 
 import {console} from "forge-std/src/Test.sol";
 
@@ -325,7 +323,7 @@ library Lib {
     }
 }
 
-contract Multitoken is Module, Initializable {
+contract Multitoken is Initializable {
     uint8 internal immutable _decimals;
     uint8 internal constant _maxDepth = 10;
     address internal immutable _totalSupplyAddress =
