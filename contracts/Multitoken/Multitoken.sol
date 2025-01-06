@@ -36,6 +36,8 @@ library Lib {
     bytes4 internal constant GET_DECIMALS =
         bytes4(keccak256("decimals(address)"));
     bytes4 internal constant GET_PARENT = bytes4(keccak256("parent(address)"));
+    bytes4 internal constant GET_CHILDREN =
+        bytes4(keccak256("children(address)"));
     bytes4 internal constant GET_HAS_CHILD =
         bytes4(keccak256("hasChild(address)"));
     bytes4 internal constant GET_BASE_NAME = bytes4(keccak256("name()"));
@@ -138,14 +140,27 @@ library Lib {
         revert Multitoken.MaxDepthExceeded();
     }
 
+    function parent(address child_) internal view returns (address) {
+        return store().parent[child_];
+    }
+
+    function children(
+        address parent_
+    ) internal view returns (address[] memory) {
+        return store().children[parent_];
+    }
+
+    function hasChild(address parent_) internal view returns (bool) {
+        return store().children[parent_].length > 0;
+    }
+
     function checkRoots(address a_, address b_) internal view {
         if (root(a_) != root(b_)) revert Multitoken.DifferentRoots(a_, b_);
     }
 
     // Only leaf accounts can hold and transfer balances
     function checkChild(address parent_) internal view {
-        if (store().children[parent_].length > 0)
-            revert Multitoken.HasChild(parent_);
+        if (hasChild(parent_)) revert Multitoken.HasChild(parent_);
     }
 
     function addChild(
@@ -380,7 +395,7 @@ contract Multitoken is Initializable {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](23);
+        _commands = new bytes4[](24);
         _commands[0] = Lib.INITIALIZE_MULTITOKEN;
         _commands[1] = Lib.SET_NAME;
         _commands[2] = Lib.SET_SYMBOL;
@@ -389,21 +404,22 @@ contract Multitoken is Initializable {
         _commands[5] = Lib.GET_SYMBOL;
         _commands[6] = Lib.GET_DECIMALS;
         _commands[7] = Lib.GET_PARENT;
-        _commands[8] = Lib.GET_HAS_CHILD;
-        _commands[9] = Lib.GET_BASE_NAME;
-        _commands[10] = Lib.GET_BASE_SYMBOL;
-        _commands[11] = Lib.GET_BASE_DECIMALS;
-        _commands[12] = Lib.BALANCE_OF;
-        _commands[13] = Lib.BASE_BALANCE_OF;
-        _commands[14] = Lib.TOTAL_SUPPLY;
-        _commands[15] = Lib.BASE_TOTAL_SUPPLY;
-        _commands[16] = Lib.TRANSFER;
-        _commands[17] = Lib.BASE_TRANSFER;
-        _commands[18] = Lib.APPROVE;
-        _commands[19] = Lib.BASE_APPROVE;
-        _commands[20] = Lib.ALLOWANCE;
-        _commands[21] = Lib.TRANSFER_FROM;
-        _commands[22] = Lib.BASE_TRANSFER_FROM;
+        _commands[8] = Lib.GET_CHILDREN;
+        _commands[9] = Lib.GET_HAS_CHILD;
+        _commands[10] = Lib.GET_BASE_NAME;
+        _commands[11] = Lib.GET_BASE_SYMBOL;
+        _commands[12] = Lib.GET_BASE_DECIMALS;
+        _commands[13] = Lib.BALANCE_OF;
+        _commands[14] = Lib.BASE_BALANCE_OF;
+        _commands[15] = Lib.TOTAL_SUPPLY;
+        _commands[16] = Lib.BASE_TOTAL_SUPPLY;
+        _commands[17] = Lib.TRANSFER;
+        _commands[18] = Lib.BASE_TRANSFER;
+        _commands[19] = Lib.APPROVE;
+        _commands[20] = Lib.BASE_APPROVE;
+        _commands[21] = Lib.ALLOWANCE;
+        _commands[22] = Lib.TRANSFER_FROM;
+        _commands[23] = Lib.BASE_TRANSFER_FROM;
     }
 
     function initializeMultitoken_unchained(
@@ -460,11 +476,11 @@ contract Multitoken is Initializable {
     }
 
     function parent(address child_) public view returns (address) {
-        return Lib.store().parent[child_];
+        return Lib.parent(child_);
     }
 
     function children(address parent_) public view returns (address[] memory) {
-        return Lib.store().children[parent_];
+        return Lib.children(parent_);
     }
 
     function hasChild(address parent_) public view returns (bool) {
