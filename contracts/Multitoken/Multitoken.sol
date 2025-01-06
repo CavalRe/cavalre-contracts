@@ -376,6 +376,7 @@ contract Multitoken is Initializable {
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     // Custom errors
+    error ChildNotFound(address child);
     error HasBalance(address child);
     error HasChild(address child);
     error DifferentRoots(address a, address b);
