@@ -7,7 +7,7 @@ import {console} from "forge-std/src/Test.sol";
 
 struct Store {
     mapping(address child => address) parent;
-    mapping(address child => uint256) childIndex;
+    mapping(address child => uint32) childIndex;
     mapping(address parent => address[]) children;
     mapping(address => string) name;
     mapping(address => string) symbol;
@@ -150,7 +150,7 @@ library Lib {
         return store().children[parent_];
     }
 
-    function childIndex(address child_) internal view returns (uint256) {
+    function childIndex(address child_) internal view returns (uint32) {
         return store().childIndex[child_];
     }
 
