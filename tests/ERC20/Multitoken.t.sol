@@ -3,12 +3,13 @@ pragma solidity ^0.8.0;
 
 import {Router} from "../../contracts/router/Router.sol";
 import {Multitoken, Lib as MTLib, Store} from "../../contracts/Multitoken/Multitoken.sol";
-import {Module, ModuleLib as ML} from "../../contracts/router/Module.sol";
+import {Module, ModuleLib as MLib} from "../../contracts/router/Module.sol";
+import {Initializable} from "../../contracts/Initializable/Initializable.sol";
+
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test, console} from "forge-std/src/Test.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-library TTLib {
+library Lib {
     // Selectors
     bytes4 internal constant INITIALIZE_TEST_TOKEN =
         bytes4(keccak256("initializeTestMultitoken(string,string)"));
@@ -30,7 +31,7 @@ contract TestMultitoken is Multitoken {
         returns (bytes4[] memory _commands)
     {
         _commands = new bytes4[](26);
-        _commands[0] = TTLib.INITIALIZE_TEST_TOKEN;
+        _commands[0] = Lib.INITIALIZE_TEST_TOKEN;
         _commands[1] = MTLib.SET_NAME;
         _commands[2] = MTLib.SET_SYMBOL;
         _commands[3] = MTLib.GET_ROOT;
@@ -53,8 +54,8 @@ contract TestMultitoken is Multitoken {
         _commands[20] = MTLib.ALLOWANCE;
         _commands[21] = MTLib.TRANSFER_FROM;
         _commands[22] = MTLib.BASE_TRANSFER_FROM;
-        _commands[23] = TTLib.MINT;
-        _commands[24] = TTLib.BURN;
+        _commands[23] = Lib.MINT;
+        _commands[24] = Lib.BURN;
     }
 
     // Commands
@@ -84,20 +85,25 @@ contract TestMultitoken is Multitoken {
         address r11 = MTLib.toAddress(_1, _11);
 
         MTLib.addChild(
-            MTLib.addChild(MTLib.addChild(address(this), _1), _10),
-            _100
+            MTLib.addChild(
+                MTLib.addChild(address(this), _1, false),
+                _10,
+                false
+            ),
+            _100,
+            false
         );
 
-        MTLib.addChild(r1, _10);
-        MTLib.addChild(r1, _11);
-        MTLib.addChild(r10, _100);
-        MTLib.addChild(r10, _101);
-        MTLib.addChild(r11, _110);
-        MTLib.addChild(r11, _111);
+        MTLib.addChild(r1, _10, false);
+        MTLib.addChild(r1, _11, false);
+        MTLib.addChild(r10, _100, false);
+        MTLib.addChild(r10, _101, false);
+        MTLib.addChild(r11, _110, false);
+        MTLib.addChild(r11, _111, false);
     }
 
     function addChild(address parent_, address child_) public {
-        MTLib.addChild(parent_, child_);
+        MTLib.addChild(parent_, child_, false);
     }
 
     function mint(address parentAddress_, uint256 amount_) public {
@@ -152,7 +158,10 @@ contract MultitokenTest is Test {
         vm.startPrank(alice);
 
         vm.expectRevert(
-            abi.encodeWithSelector(Initializable.InvalidInitialization.selector)
+            abi.encodeWithSelector(
+                Initializable.InvalidInitialization.selector,
+                router.module(Lib.INITIALIZE_TEST_TOKEN)
+            )
         );
         mt.initializeTestMultitoken("Clone", "CLONE");
 
@@ -171,6 +180,7 @@ contract MultitokenTest is Test {
 
     // TODO: Implement addChild, removeChild
     function testAddChild() public {}
+
     function testRemoveChild() public {}
 
     function testMultitokenMint() public {

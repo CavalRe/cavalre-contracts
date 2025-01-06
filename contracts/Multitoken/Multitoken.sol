@@ -6,8 +6,9 @@ import {Initializable} from "@cavalre/contracts/Initializable/Initializable.sol"
 import {console} from "forge-std/src/Test.sol";
 
 struct Store {
-    mapping(address => address) parent;
-    mapping(address => bool) hasChild;
+    mapping(address child => address) parent;
+    mapping(address child => uint256) childIndex;
+    mapping(address parent => address[]) children;
     mapping(address => string) name;
     mapping(address => string) symbol;
     mapping(address => uint8) decimals;
@@ -18,7 +19,8 @@ struct Store {
 
 library Lib {
     uint8 internal constant _maxDepth = 10;
-    address internal constant _totalSupplyAddress = 0x234b3144C2ef624a5e5c8B7922d4E9067104A9B9;
+    address internal constant _totalSupplyAddress =
+        0x234b3144C2ef624a5e5c8B7922d4E9067104A9B9;
     // Selectors
     bytes4 internal constant INITIALIZE_MULTITOKEN =
         bytes4(keccak256("initializeMultitoken(string,string)"));
@@ -142,25 +144,27 @@ library Lib {
 
     // Only leaf accounts can hold and transfer balances
     function checkChild(address parent_) internal view {
-        if (store().hasChild[parent_]) revert Multitoken.HasChild(parent_);
+        if (store().children[parent_].length > 0)
+            revert Multitoken.HasChild(parent_);
     }
 
     function addChild(
         address parent_,
-        address child_
+        address child_,
+        bool isCredit_
     ) internal returns (address) {
-        if (parent_ == child_) revert Multitoken.InvalidParent();
-        if (parent_ == address(0) || child_ == address(0))
+        if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert Multitoken.InvalidAddress();
-
         address _child = toAddress(parent_, child_);
         if (store().parent[_child] == parent_) return _child;
         // Must build tree from the top down
-        if (store().hasChild[_child]) revert Multitoken.HasChild(_child);
+        if (store().children[_child].length > 0)
+            revert Multitoken.HasChild(_child);
         // Cannot redirect a balance to a new parent
         if (store().balance[_child] != 0) revert Multitoken.HasBalance(_child);
         store().parent[_child] = parent_;
-        store().hasChild[parent_] = true;
+        store().children[parent_].push(child_);
+        store().isCredit[_child] = isCredit_;
         address _root = root(_child);
         emit Multitoken.ParentAdded(_root, parent_, child_);
         return _child;
@@ -170,14 +174,18 @@ library Lib {
         address parent_,
         address child_
     ) internal returns (address) {
-        if (parent_ == address(0) || child_ == address(0))
+        if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert Multitoken.InvalidAddress();
         address _child = toAddress(parent_, child_);
         if (store().parent[_child] != parent_)
             revert Multitoken.InvalidParent();
         if (store().balance[_child] != 0) revert Multitoken.HasBalance(_child);
         store().parent[_child] = address(0);
-        store().hasChild[parent_] = false;
+        uint256 _index = store().childIndex[_child];
+        store().children[parent_][_index] = store().children[parent_][
+            store().children[parent_].length - 1
+        ];
+        store().children[parent_].pop();
         return _child;
     }
 
@@ -455,8 +463,12 @@ contract Multitoken is Initializable {
         return Lib.store().parent[child_];
     }
 
+    function children(address parent_) public view returns (address[] memory) {
+        return Lib.store().children[parent_];
+    }
+
     function hasChild(address parent_) public view returns (bool) {
-        return Lib.store().hasChild[parent_];
+        return Lib.store().children[parent_].length > 0;
     }
 
     //========================
