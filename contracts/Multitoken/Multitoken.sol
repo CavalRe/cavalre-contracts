@@ -150,6 +150,10 @@ library Lib {
         return store().children[parent_];
     }
 
+    function childIndex(address child_) internal view returns (uint256) {
+        return store().childIndex[child_];
+    }
+
     function hasChild(address parent_) internal view returns (bool) {
         return store().children[parent_].length > 0;
     }
