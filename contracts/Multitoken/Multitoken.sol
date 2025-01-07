@@ -175,7 +175,7 @@ library Lib {
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert Multitoken.InvalidAddress();
         address _child = toAddress(parent_, child_);
-        if (store().parent[_child] == parent_) return _child;
+        if (store().parent[_child] == parent_) revert Multitoken.DuplicateChild(child_);
         // Must build tree from the top down
         if (store().children[_child].length > 0)
             revert Multitoken.HasChild(_child);
@@ -384,6 +384,7 @@ contract Multitoken is Initializable {
     error HasBalance(address child);
     error HasChild(address child);
     error DifferentRoots(address a, address b);
+    error DuplicateChild(address child);
     error InvalidAddress();
     error InvalidParent();
     error InsufficientBalance();
