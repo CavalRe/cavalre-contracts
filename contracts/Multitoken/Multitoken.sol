@@ -18,9 +18,43 @@ struct Store {
 }
 
 library Lib {
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
+    event InternalApproval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
+    event InternalTransfer(
+        address indexed from,
+        address indexed to,
+        uint256 value
+    );
+    event ParentAdded(
+        address indexed root,
+        address indexed parent,
+        address indexed child
+    );
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    // Custom errors
+    error ChildNotFound(address child);
+    error HasBalance(address child);
+    error HasChild(address child);
+    error DifferentRoots(address a, address b);
+    error DuplicateChild(address child);
+    error InvalidAddress();
+    error InvalidParent();
+    error InsufficientBalance();
+    error MaxDepthExceeded();
+
     uint8 internal constant _maxDepth = 10;
     address internal constant _totalSupplyAddress =
         0x234b3144C2ef624a5e5c8B7922d4E9067104A9B9;
+
     // Selectors
     bytes4 internal constant INITIALIZE_MULTITOKEN =
         bytes4(keccak256("initializeMultitoken(string,string)"));
@@ -40,6 +74,8 @@ library Lib {
         bytes4(keccak256("children(address)"));
     bytes4 internal constant GET_HAS_CHILD =
         bytes4(keccak256("hasChild(address)"));
+    bytes4 internal constant GET_CHILD_INDEX =
+        bytes4(keccak256("childIndex(address)"));
     bytes4 internal constant GET_BASE_NAME = bytes4(keccak256("name()"));
     bytes4 internal constant GET_BASE_SYMBOL = bytes4(keccak256("symbol()"));
     bytes4 internal constant GET_BASE_DECIMALS =
@@ -74,9 +110,7 @@ library Lib {
     // Stores
     bytes32 private constant STORE_POSITION =
         keccak256(
-            abi.encode(
-                uint256(keccak256("cavalre.storage.ERC20WithSubaccounts")) - 1
-            )
+            abi.encode(uint256(keccak256("cavalre.storage.Multitoken")) - 1)
         ) & ~bytes32(uint256(0xff));
 
     function store() internal pure returns (Store storage s) {
@@ -123,8 +157,38 @@ library Lib {
             );
     }
 
+    //==================
+    // Metadata Setters
+    //==================
+    function name(address accountAddress_, string memory name_) internal {
+        store().name[accountAddress_] = name_;
+    }
+
+    function symbol(address accountAddress_, string memory symbol_) internal {
+        store().symbol[accountAddress_] = symbol_;
+    }
+
+    //==================
+    // Metadata Getters
+    //==================
+    function name(
+        address accountAddress_
+    ) internal view returns (string memory) {
+        return store().name[root(accountAddress_)];
+    }
+
+    function symbol(
+        address accountAddress_
+    ) internal view returns (string memory) {
+        return store().symbol[root(accountAddress_)];
+    }
+
+    function decimals(address accountAddress_) internal view returns (uint8) {
+        return store().decimals[root(accountAddress_)];
+    }
+
     function root(address current_) internal view returns (address) {
-        if (current_ == address(0)) revert Multitoken.InvalidAddress();
+        if (current_ == address(0)) revert InvalidAddress();
 
         Store storage s = store();
         uint256 _depth;
@@ -137,7 +201,7 @@ library Lib {
             }
             current_ = _parent;
         }
-        revert Multitoken.MaxDepthExceeded();
+        revert MaxDepthExceeded();
     }
 
     function parent(address child_) internal view returns (address) {
@@ -150,21 +214,40 @@ library Lib {
         return store().children[parent_];
     }
 
-    function childIndex(address child_) internal view returns (uint32) {
-        return store().childIndex[child_];
-    }
-
     function hasChild(address parent_) internal view returns (bool) {
         return store().children[parent_].length > 0;
     }
 
+    function childIndex(address child_) internal view returns (uint32) {
+        return store().childIndex[child_];
+    }
+
+    function balanceOf(
+        address parentAddress_,
+        address ownerAddress_
+    ) internal view returns (uint256) {
+        address _balanceAddress = toAddress(parentAddress_, ownerAddress_);
+        bool _isCredit = store().isCredit[_balanceAddress];
+        int256 _balance = store().balance[_balanceAddress];
+        return _isCredit ? uint256(-_balance) : uint256(_balance);
+    }
+
+    function totalSupply(
+        address assetAddress_
+    ) internal view returns (uint256) {
+        return
+            uint256(
+                -store().balance[toAddress(assetAddress_, _totalSupplyAddress)]
+            );
+    }
+
     function checkRoots(address a_, address b_) internal view {
-        if (root(a_) != root(b_)) revert Multitoken.DifferentRoots(a_, b_);
+        if (root(a_) != root(b_)) revert DifferentRoots(a_, b_);
     }
 
     // Only leaf accounts can hold and transfer balances
     function checkChild(address parent_) internal view {
-        if (hasChild(parent_)) revert Multitoken.HasChild(parent_);
+        if (hasChild(parent_)) revert HasChild(parent_);
     }
 
     function addChild(
@@ -173,19 +256,22 @@ library Lib {
         bool isCredit_
     ) internal returns (address) {
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
-            revert Multitoken.InvalidAddress();
+            revert InvalidAddress();
         address _child = toAddress(parent_, child_);
-        if (store().parent[_child] == parent_) revert Multitoken.DuplicateChild(child_);
+        if (store().parent[_child] == parent_)
+            revert DuplicateChild(child_);
         // Must build tree from the top down
         if (store().children[_child].length > 0)
-            revert Multitoken.HasChild(_child);
+            revert HasChild(_child);
         // Cannot redirect a balance to a new parent
-        if (store().balance[_child] != 0) revert Multitoken.HasBalance(_child);
+        if (store().balance[_child] != 0) revert HasBalance(_child);
+
         store().parent[_child] = parent_;
         store().children[parent_].push(child_);
+        store().childIndex[_child] = uint32(store().children[parent_].length);
         store().isCredit[_child] = isCredit_;
         address _root = root(_child);
-        emit Multitoken.ParentAdded(_root, parent_, child_);
+        emit ParentAdded(_root, parent_, child_);
         return _child;
     }
 
@@ -194,29 +280,25 @@ library Lib {
         address child_
     ) internal returns (address) {
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
-            revert Multitoken.InvalidAddress();
+            revert InvalidAddress();
         address _child = toAddress(parent_, child_);
         if (store().parent[_child] != parent_)
-            revert Multitoken.ChildNotFound(child_);
-        if (hasChild(_child)) revert Multitoken.HasChild(_child);
-        if (store().balance[_child] != 0) revert Multitoken.HasBalance(_child);
-        store().parent[_child] = address(0);
-        uint256 _index = store().childIndex[_child];
-        store().children[parent_][_index] = store().children[parent_][
+            revert ChildNotFound(child_);
+        if (hasChild(_child)) revert HasChild(_child);
+        if (store().balance[_child] != 0) revert HasBalance(_child);
+
+        uint256 _index = store().childIndex[_child] - 1;
+        address _lastChild = store().children[parent_][
             store().children[parent_].length - 1
         ];
+        store().children[parent_][_index] = _lastChild;
         store().children[parent_].pop();
-        return _child;
-    }
+        store().childIndex[_lastChild] = uint32(_index + 1);
 
-    function balanceOf(
-        address parentAddress_,
-        address ownerAddress_
-    ) public view returns (uint256) {
-        address _balanceAddress = toAddress(parentAddress_, ownerAddress_);
-        bool _isCredit = store().isCredit[_balanceAddress];
-        int256 _balance = store().balance[_balanceAddress];
-        return _isCredit ? uint256(-_balance) : uint256(_balance);
+        store().parent[_child] = address(0);
+        store().childIndex[_child] = 0;
+        store().isCredit[_child] = false;
+        return _child;
     }
 
     function updateBalances(
@@ -225,7 +307,7 @@ library Lib {
         int256 delta_
     ) internal returns (address _root) {
         if (parent_ == address(0) || current_ == address(0))
-            revert Multitoken.InvalidAddress();
+            revert InvalidAddress();
         checkChild(current_);
 
         Store storage s = store();
@@ -241,7 +323,7 @@ library Lib {
             parent_ = s.parent[parent_];
             _depth++;
         }
-        revert Multitoken.MaxDepthExceeded();
+        revert MaxDepthExceeded();
     }
 
     function transfer(
@@ -262,13 +344,59 @@ library Lib {
         return true;
     }
 
+    function transfer(
+        address fromParentAddress_,
+        address toParentAddress_,
+        address toAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        address _fromAddress = toAddress(fromParentAddress_, msg.sender);
+        address _toAddress = toAddress(toParentAddress_, toAddress_);
+
+        require(
+            store().balance[_fromAddress] >= int256(amount_),
+            "ERC20WithSubaccounts: Insufficient balance"
+        );
+        emit InternalTransfer(_fromAddress, _toAddress, amount_);
+        return
+            transfer(
+                fromParentAddress_,
+                msg.sender,
+                toParentAddress_,
+                toAddress_,
+                amount_
+            );
+    }
+
+    // ERC20 Transfer
+    function transfer(
+        address recipientAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        address _fromAddress = toAddress(address(this), msg.sender);
+
+        require(
+            store().balance[_fromAddress] >= int256(amount_),
+            "ERC20WithSubaccounts: Insufficient balance"
+        );
+        emit Transfer(msg.sender, recipientAddress_, amount_);
+        return
+            transfer(
+                address(this),
+                msg.sender,
+                address(this),
+                recipientAddress_,
+                amount_
+            );
+    }
+
     function mint(
         address toParentAddress_,
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
         if (toParentAddress_ == address(0) || toAddress_ == address(0))
-            revert Multitoken.InvalidAddress();
+            revert InvalidAddress();
         address _root = root(toParentAddress_);
 
         transfer(
@@ -287,7 +415,7 @@ library Lib {
         uint256 amount_
     ) internal returns (bool) {
         if (fromParentAddress_ == address(0) || fromAddress_ == address(0))
-            revert Multitoken.InvalidAddress();
+            revert InvalidAddress();
         address _root = root(fromParentAddress_);
 
         transfer(
@@ -315,10 +443,66 @@ library Lib {
         );
         checkChild(_spenderAddress);
 
-        Store storage s = store();
-        s.allowances[_ownerAddress][_spenderAddress] = amount_;
+        store().allowances[_ownerAddress][_spenderAddress] = amount_;
 
         return true;
+    }
+
+    function approve(
+        address ownerParentAddress_,
+        address spenderParentAddress_,
+        address spenderAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        address _ownerAddress = toAddress(ownerParentAddress_, msg.sender);
+        address _spenderAddress = toAddress(
+            spenderParentAddress_,
+            spenderAddress_
+        );
+        emit InternalApproval(_ownerAddress, _spenderAddress, amount_);
+        return
+            approve(
+                ownerParentAddress_,
+                msg.sender,
+                spenderParentAddress_,
+                spenderAddress_,
+                amount_
+            );
+    }
+
+    // ERC20 Approve
+    function approve(
+        address spenderAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        emit Approval(msg.sender, spenderAddress_, amount_);
+        return
+            approve(
+                address(this),
+                msg.sender,
+                address(this),
+                spenderAddress_,
+                amount_
+            );
+    }
+
+    function allowance(
+        address ownerParentAddress_,
+        address ownerAddress_,
+        address spenderParentAddress_,
+        address spenderAddress_
+    ) internal view returns (uint256) {
+        address _ownerAddress = toAddress(
+            ownerParentAddress_,
+            ownerAddress_
+        );
+        if (hasChild(_ownerAddress)) revert HasChild(_ownerAddress);
+        address _spenderAddress = toAddress(
+            spenderParentAddress_,
+            spenderAddress_
+        );
+        if (hasChild(_spenderAddress)) revert HasChild(_spenderAddress);
+        return store().allowances[_ownerAddress][_spenderAddress];
     }
 
     // Transfer From
@@ -349,47 +533,59 @@ library Lib {
                 amount_
             );
     }
+
+    function transferFrom(
+        address ownerParentAddress_,
+        address ownerAddress_,
+        address spenderParentAddress_,
+        address recipientParentAddress_,
+        address recipientAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        address _ownerAddress = toAddress(
+            ownerParentAddress_,
+            ownerAddress_
+        );
+        address _recipientAddress = toAddress(
+            recipientParentAddress_,
+            recipientAddress_
+        );
+
+        emit InternalTransfer(_ownerAddress, _recipientAddress, amount_);
+        return
+            transferFrom(
+                ownerParentAddress_,
+                ownerAddress_,
+                spenderParentAddress_,
+                msg.sender,
+                recipientParentAddress_,
+                recipientAddress_,
+                amount_
+            );
+    }
+
+    // ERC20 Transfer From
+    function transferFrom(
+        address ownerAddress_,
+        address recipientAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        emit Transfer(ownerAddress_, recipientAddress_, amount_);
+        return
+            transferFrom(
+                address(this),
+                ownerAddress_,
+                address(this),
+                msg.sender,
+                address(this),
+                recipientAddress_,
+                amount_
+            );
+    }
 }
 
 contract Multitoken is Initializable {
     uint8 internal immutable _decimals;
-    uint8 internal constant _maxDepth = 10;
-    address internal immutable _totalSupplyAddress =
-        Lib.toAddress("Total Supply");
-
-    // Events for ERC20 compatibility
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
-    event InternalApproval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
-    event InternalTransfer(
-        address indexed from,
-        address indexed to,
-        uint256 value
-    );
-    event ParentAdded(
-        address indexed root,
-        address indexed parent,
-        address indexed child
-    );
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    // Custom errors
-    error ChildNotFound(address child);
-    error HasBalance(address child);
-    error HasChild(address child);
-    error DifferentRoots(address a, address b);
-    error DuplicateChild(address child);
-    error InvalidAddress();
-    error InvalidParent();
-    error InsufficientBalance();
-    error MaxDepthExceeded();
 
     constructor(uint8 decimals_) {
         _decimals = decimals_;
@@ -402,7 +598,7 @@ contract Multitoken is Initializable {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](24);
+        _commands = new bytes4[](25);
         _commands[0] = Lib.INITIALIZE_MULTITOKEN;
         _commands[1] = Lib.SET_NAME;
         _commands[2] = Lib.SET_SYMBOL;
@@ -413,20 +609,21 @@ contract Multitoken is Initializable {
         _commands[7] = Lib.GET_PARENT;
         _commands[8] = Lib.GET_CHILDREN;
         _commands[9] = Lib.GET_HAS_CHILD;
-        _commands[10] = Lib.GET_BASE_NAME;
-        _commands[11] = Lib.GET_BASE_SYMBOL;
-        _commands[12] = Lib.GET_BASE_DECIMALS;
-        _commands[13] = Lib.BALANCE_OF;
-        _commands[14] = Lib.BASE_BALANCE_OF;
-        _commands[15] = Lib.TOTAL_SUPPLY;
-        _commands[16] = Lib.BASE_TOTAL_SUPPLY;
-        _commands[17] = Lib.TRANSFER;
-        _commands[18] = Lib.BASE_TRANSFER;
-        _commands[19] = Lib.APPROVE;
-        _commands[20] = Lib.BASE_APPROVE;
-        _commands[21] = Lib.ALLOWANCE;
-        _commands[22] = Lib.TRANSFER_FROM;
-        _commands[23] = Lib.BASE_TRANSFER_FROM;
+        _commands[10] = Lib.GET_CHILD_INDEX;
+        _commands[11] = Lib.GET_BASE_NAME;
+        _commands[12] = Lib.GET_BASE_SYMBOL;
+        _commands[13] = Lib.GET_BASE_DECIMALS;
+        _commands[14] = Lib.BALANCE_OF;
+        _commands[15] = Lib.BASE_BALANCE_OF;
+        _commands[16] = Lib.TOTAL_SUPPLY;
+        _commands[17] = Lib.BASE_TOTAL_SUPPLY;
+        _commands[18] = Lib.TRANSFER;
+        _commands[19] = Lib.BASE_TRANSFER;
+        _commands[20] = Lib.APPROVE;
+        _commands[21] = Lib.BASE_APPROVE;
+        _commands[22] = Lib.ALLOWANCE;
+        _commands[23] = Lib.TRANSFER_FROM;
+        _commands[24] = Lib.BASE_TRANSFER_FROM;
     }
 
     function initializeMultitoken_unchained(
@@ -451,31 +648,29 @@ contract Multitoken is Initializable {
     //==================
     function name(address accountAddress_, string memory name_) public {
         enforceIsOwner();
-        Store storage s = Lib.store();
-        s.name[accountAddress_] = name_;
+        Lib.name(accountAddress_, name_);
     }
 
     function symbol(address accountAddress_, string memory symbol_) public {
         enforceIsOwner();
-        Store storage s = Lib.store();
-        s.symbol[accountAddress_] = symbol_;
+        Lib.symbol(accountAddress_, symbol_);
     }
 
     //==================
     // Metadata Getters
     //==================
     function name(address accountAddress_) public view returns (string memory) {
-        return Lib.store().name[Lib.root(accountAddress_)];
+        return Lib.name(accountAddress_);
     }
 
     function symbol(
         address accountAddress_
     ) public view returns (string memory) {
-        return Lib.store().symbol[Lib.root(accountAddress_)];
+        return Lib.symbol(accountAddress_);
     }
 
     function decimals(address accountAddress_) public view returns (uint8) {
-        return Lib.store().decimals[Lib.root(accountAddress_)];
+        return Lib.decimals(accountAddress_);
     }
 
     function root(address accountAddress_) public view returns (address) {
@@ -491,18 +686,22 @@ contract Multitoken is Initializable {
     }
 
     function hasChild(address parent_) public view returns (bool) {
-        return Lib.store().children[parent_].length > 0;
+        return Lib.hasChild(parent_);
+    }
+
+    function childIndex(address child_) public view returns (uint32) {
+        return Lib.childIndex(child_);
     }
 
     //========================
     // ERC20 Metadata Getters
     //========================
     function name() public view returns (string memory) {
-        return name(address(this));
+        return Lib.name(address(this));
     }
 
     function symbol() public view returns (string memory) {
-        return symbol(address(this));
+        return Lib.symbol(address(this));
     }
 
     function decimals() public view returns (uint8) {
@@ -527,17 +726,12 @@ contract Multitoken is Initializable {
     }
 
     function totalSupply(address assetAddress_) public view returns (uint256) {
-        return
-            uint256(
-                -Lib.store().balance[
-                    Lib.toAddress(assetAddress_, _totalSupplyAddress)
-                ]
-            );
+        return Lib.totalSupply(assetAddress_);
     }
 
     // Get the total supply of a token for ERC20 compatibility
     function totalSupply() public view returns (uint256) {
-        return totalSupply(address(this));
+        return Lib.totalSupply(address(this));
     }
 
     function transfer(
@@ -546,19 +740,9 @@ contract Multitoken is Initializable {
         address toAddress_,
         uint256 amount_
     ) public returns (bool) {
-        address _fromAddress = Lib.toAddress(fromParentAddress_, msg.sender);
-        address _toAddress = Lib.toAddress(toParentAddress_, toAddress_);
-
-        Store storage s = Lib.store();
-        require(
-            s.balance[_fromAddress] >= int256(amount_),
-            "ERC20WithSubaccounts: Insufficient balance"
-        );
-        emit InternalTransfer(_fromAddress, _toAddress, amount_);
         return
             Lib.transfer(
                 fromParentAddress_,
-                msg.sender,
                 toParentAddress_,
                 toAddress_,
                 amount_
@@ -570,22 +754,7 @@ contract Multitoken is Initializable {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        address _fromAddress = Lib.toAddress(address(this), msg.sender);
-
-        Store storage s = Lib.store();
-        require(
-            s.balance[_fromAddress] >= int256(amount_),
-            "ERC20WithSubaccounts: Insufficient balance"
-        );
-        emit Transfer(msg.sender, recipientAddress_, amount_);
-        return
-            Lib.transfer(
-                address(this),
-                msg.sender,
-                address(this),
-                recipientAddress_,
-                amount_
-            );
+        return Lib.transfer(recipientAddress_, amount_);
     }
 
     // Approve a spender for a subaccount
@@ -595,16 +764,9 @@ contract Multitoken is Initializable {
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
-        address _ownerAddress = Lib.toAddress(ownerParentAddress_, msg.sender);
-        address _spenderAddress = Lib.toAddress(
-            spenderParentAddress_,
-            spenderAddress_
-        );
-        emit InternalApproval(_ownerAddress, _spenderAddress, amount_);
         return
             Lib.approve(
                 ownerParentAddress_,
-                msg.sender,
                 spenderParentAddress_,
                 spenderAddress_,
                 amount_
@@ -616,15 +778,7 @@ contract Multitoken is Initializable {
         address spenderAddress_,
         uint256 amount_
     ) public returns (bool) {
-        emit Approval(msg.sender, spenderAddress_, amount_);
-        return
-            Lib.approve(
-                address(this),
-                msg.sender,
-                address(this),
-                spenderAddress_,
-                amount_
-            );
+        return Lib.approve(spenderAddress_, amount_);
     }
 
     function allowance(
@@ -633,17 +787,12 @@ contract Multitoken is Initializable {
         address spenderParentAddress_,
         address spenderAddress_
     ) public view returns (uint256) {
-        address _ownerAddress = Lib.toAddress(
+        return Lib.allowance(
             ownerParentAddress_,
-            ownerAddress_
-        );
-        if (hasChild(_ownerAddress)) revert HasChild(_ownerAddress);
-        address _spenderAddress = Lib.toAddress(
+            ownerAddress_,
             spenderParentAddress_,
             spenderAddress_
         );
-        if (hasChild(_spenderAddress)) revert HasChild(_spenderAddress);
-        return Lib.store().allowances[_ownerAddress][_spenderAddress];
     }
 
     // ERC20 Allowance Query
@@ -652,7 +801,7 @@ contract Multitoken is Initializable {
         address spenderAddress_
     ) public view returns (uint256) {
         return
-            allowance(
+            Lib.allowance(
                 address(this),
                 ownerAddress_,
                 address(this),
@@ -668,26 +817,14 @@ contract Multitoken is Initializable {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        address _ownerAddress = Lib.toAddress(
+        return Lib.transferFrom(
             ownerParentAddress_,
-            ownerAddress_
-        );
-        address _recipientAddress = Lib.toAddress(
+            ownerAddress_,
+            spenderParentAddress_,
             recipientParentAddress_,
-            recipientAddress_
+            recipientAddress_,
+            amount_
         );
-
-        emit InternalTransfer(_ownerAddress, _recipientAddress, amount_);
-        return
-            Lib.transferFrom(
-                ownerParentAddress_,
-                ownerAddress_,
-                spenderParentAddress_,
-                msg.sender,
-                recipientParentAddress_,
-                recipientAddress_,
-                amount_
-            );
     }
 
     // ERC20 Transfer From
@@ -696,14 +833,9 @@ contract Multitoken is Initializable {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        emit Transfer(ownerAddress_, recipientAddress_, amount_);
         return
             Lib.transferFrom(
-                address(this),
                 ownerAddress_,
-                address(this),
-                msg.sender,
-                address(this),
                 recipientAddress_,
                 amount_
             );

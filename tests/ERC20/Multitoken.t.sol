@@ -13,6 +13,8 @@ library Lib {
     // Selectors
     bytes4 internal constant INITIALIZE_TEST_TOKEN =
         bytes4(keccak256("initializeTestMultitoken(string,string)"));
+    bytes4 internal constant ADD_CHILD =
+        bytes4(keccak256("addChild(address,address)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
 }
@@ -30,7 +32,7 @@ contract TestMultitoken is Multitoken {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](26);
+        _commands = new bytes4[](28);
         _commands[0] = Lib.INITIALIZE_TEST_TOKEN;
         _commands[1] = MTLib.SET_NAME;
         _commands[2] = MTLib.SET_SYMBOL;
@@ -39,23 +41,26 @@ contract TestMultitoken is Multitoken {
         _commands[5] = MTLib.GET_SYMBOL;
         _commands[6] = MTLib.GET_DECIMALS;
         _commands[7] = MTLib.GET_PARENT;
-        _commands[8] = MTLib.GET_HAS_CHILD;
-        _commands[9] = MTLib.GET_BASE_NAME;
-        _commands[10] = MTLib.GET_BASE_SYMBOL;
-        _commands[11] = MTLib.GET_BASE_DECIMALS;
-        _commands[12] = MTLib.BALANCE_OF;
-        _commands[13] = MTLib.BASE_BALANCE_OF;
-        _commands[14] = MTLib.TOTAL_SUPPLY;
-        _commands[15] = MTLib.BASE_TOTAL_SUPPLY;
-        _commands[16] = MTLib.TRANSFER;
-        _commands[17] = MTLib.BASE_TRANSFER;
-        _commands[18] = MTLib.APPROVE;
-        _commands[19] = MTLib.BASE_APPROVE;
-        _commands[20] = MTLib.ALLOWANCE;
-        _commands[21] = MTLib.TRANSFER_FROM;
-        _commands[22] = MTLib.BASE_TRANSFER_FROM;
-        _commands[23] = Lib.MINT;
-        _commands[24] = Lib.BURN;
+        _commands[8] = MTLib.GET_CHILDREN;
+        _commands[9] = MTLib.GET_HAS_CHILD;
+        _commands[10] = MTLib.GET_CHILD_INDEX;
+        _commands[11] = MTLib.GET_BASE_NAME;
+        _commands[12] = MTLib.GET_BASE_SYMBOL;
+        _commands[13] = MTLib.GET_BASE_DECIMALS;
+        _commands[14] = MTLib.BALANCE_OF;
+        _commands[15] = MTLib.BASE_BALANCE_OF;
+        _commands[16] = MTLib.TOTAL_SUPPLY;
+        _commands[17] = MTLib.BASE_TOTAL_SUPPLY;
+        _commands[18] = MTLib.TRANSFER;
+        _commands[19] = MTLib.BASE_TRANSFER;
+        _commands[20] = MTLib.APPROVE;
+        _commands[21] = MTLib.BASE_APPROVE;
+        _commands[22] = MTLib.ALLOWANCE;
+        _commands[23] = MTLib.TRANSFER_FROM;
+        _commands[24] = MTLib.BASE_TRANSFER_FROM;
+        _commands[25] = Lib.ADD_CHILD;
+        _commands[26] = Lib.MINT;
+        _commands[27] = Lib.BURN;
     }
 
     // Commands
@@ -64,46 +69,17 @@ contract TestMultitoken is Multitoken {
         string memory symbol_
     ) public initializer {
         enforceIsOwner();
-        // initializeMultitoken(name_, symbol_);
-        Store storage s = MTLib.store();
-        s.name[address(this)] = name_;
-        s.symbol[address(this)] = symbol_;
-
-        // Root
-        address _1 = MTLib.toAddress("1");
-        // Depth 1
-        address _10 = MTLib.toAddress("10");
-        address _11 = MTLib.toAddress("11");
-        // Depth 2
-        address _100 = MTLib.toAddress("100");
-        address _101 = MTLib.toAddress("101");
-        address _110 = MTLib.toAddress("110");
-        address _111 = MTLib.toAddress("111");
-
-        address r1 = _1;
-        address r10 = MTLib.toAddress(_1, _10);
-        address r11 = MTLib.toAddress(_1, _11);
-
-        MTLib.addChild(
-            MTLib.addChild(
-                MTLib.addChild(address(this), _1, false),
-                _10,
-                false
-            ),
-            _100,
-            false
-        );
-
-        MTLib.addChild(r1, _10, false);
-        MTLib.addChild(r1, _11, false);
-        MTLib.addChild(r10, _100, false);
-        MTLib.addChild(r10, _101, false);
-        MTLib.addChild(r11, _110, false);
-        MTLib.addChild(r11, _111, false);
+        initializeMultitoken_unchained(name_, symbol_);
+        // Store storage s = MTLib.store();
+        // s.name[address(this)] = name_;
+        // s.symbol[address(this)] = symbol_;
     }
 
-    function addChild(address parent_, address child_) public {
-        MTLib.addChild(parent_, child_, false);
+    function addChild(
+        address parent_,
+        address child_
+    ) public returns (address) {
+        return MTLib.addChild(parent_, child_, false);
     }
 
     function mint(address parentAddress_, uint256 amount_) public {
@@ -137,8 +113,8 @@ contract MultitokenTest is Test {
     address _111 = MTLib.toAddress("111");
 
     address r1 = _1;
-    address r10 = MTLib.toAddress(_1, _10);
-    address r11 = MTLib.toAddress(_1, _11);
+    address r10 = MTLib.toAddress(r1, _10);
+    address r11 = MTLib.toAddress(r1, _11);
     address r100 = MTLib.toAddress(r10, _100);
     address r101 = MTLib.toAddress(r10, _101);
     address r110 = MTLib.toAddress(r11, _110);
@@ -152,6 +128,15 @@ contract MultitokenTest is Test {
         mt = TestMultitoken(payable(router));
 
         mt.initializeTestMultitoken("Test Multitoken", "MULTI");
+
+        mt.addChild(mt.addChild(mt.addChild(address(router), _1), _10), _100);
+
+        mt.addChild(r1, _10);
+        mt.addChild(r1, _11);
+        mt.addChild(r10, _100);
+        mt.addChild(r10, _101);
+        mt.addChild(r11, _110);
+        mt.addChild(r11, _111);
     }
 
     function testMultitokenInit() public {
@@ -169,13 +154,35 @@ contract MultitokenTest is Test {
 
         assertEq(mt.symbol(), "MULTI");
 
-        assertEq(mt.decimals(), 18);
+        assertEq(mt.decimals(), 18, "Decimals mismatch");
 
-        assertEq(mt.totalSupply(), 0);
+        assertEq(mt.totalSupply(), 0, "Total supply mismatch");
 
-        assertEq(mt.balanceOf(alice), 0);
+        assertEq(mt.balanceOf(alice), 0, "Balance mismatch");
 
-        assertEq(mt.balanceOf(address(mt)), 0);
+        assertEq(mt.balanceOf(address(mt)), 0, "Balance mismatch");
+
+        assertEq(mt.children(address(router)).length, 1, "Children mismatch (router)");
+
+        assertEq(mt.children(r1).length, 2, "Children mismatch (r1)");
+
+        assertEq(mt.children(r10).length, 2, "Children mismatch (r10)");
+
+        assertEq(mt.children(r11).length, 2, "Children mismatch (r11)");
+
+        assertEq(mt.childIndex(r1), 0, "Child index mismatch (r1)");
+
+        assertEq(mt.childIndex(r11), 2, "Child index mismatch (r11)");
+
+        assertEq(mt.childIndex(r10), 1, "Child index mismatch (r10)");
+
+        assertEq(mt.childIndex(r100), 1, "Child index mismatch (r100)");
+
+        assertEq(mt.childIndex(r101), 2, "Child index mismatch (r101)");
+
+        assertEq(mt.childIndex(r110), 1, "Child index mismatch (r110)");
+
+        assertEq(mt.childIndex(r111), 2, "Child index mismatch (r111)");
     }
 
     // TODO: Implement addChild, removeChild
@@ -270,7 +277,7 @@ contract MultitokenTest is Test {
         // Expect revert if sender and receiver have different roots
         vm.expectRevert(
             abi.encodeWithSelector(
-                Multitoken.DifferentRoots.selector,
+                MTLib.DifferentRoots.selector,
                 address(mt),
                 _1
             )
@@ -280,7 +287,7 @@ contract MultitokenTest is Test {
         // Expect revert if sender has children
         vm.expectRevert(
             abi.encodeWithSelector(
-                Multitoken.HasChild.selector,
+                MTLib.HasChild.selector,
                 MTLib.toAddress(address(mt), _1)
             )
         );
@@ -313,9 +320,7 @@ contract MultitokenTest is Test {
 
         mt.mint(r1, 1000);
         // Expect revert if spender has a child
-        vm.expectRevert(
-            abi.encodeWithSelector(Multitoken.HasChild.selector, r10)
-        );
+        vm.expectRevert(abi.encodeWithSelector(MTLib.HasChild.selector, r10));
         mt.approve(r1, r1, _10, 100);
     }
 
