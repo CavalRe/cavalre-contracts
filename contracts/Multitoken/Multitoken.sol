@@ -198,6 +198,7 @@ library Lib {
         address _child = toAddress(parent_, child_);
         if (store().parent[_child] != parent_)
             revert Multitoken.ChildNotFound(child_);
+        if (hasChild(_child)) revert Multitoken.HasChild(_child);
         if (store().balance[_child] != 0) revert Multitoken.HasBalance(_child);
         store().parent[_child] = address(0);
         uint256 _index = store().childIndex[_child];
