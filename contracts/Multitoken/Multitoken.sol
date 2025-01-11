@@ -49,8 +49,8 @@ library Lib {
     error InsufficientBalance();
     error MaxDepthExceeded();
 
-    uint8 internal constant _maxDepth = 10;
-    address internal constant _totalSupplyAddress =
+    uint8 internal constant MAX_DEPTH = 10;
+    address internal constant TOTAL_SUPPLY_ADDRESS =
         0x234b3144C2ef624a5e5c8B7922d4E9067104A9B9;
 
     // Selectors
@@ -190,7 +190,7 @@ library Lib {
 
         Store storage s = store();
         uint256 _depth;
-        while (_depth < _maxDepth) {
+        while (_depth < MAX_DEPTH) {
             _depth++;
             address _parent = s.parent[current_];
             if (_parent == address(0)) {
@@ -235,7 +235,7 @@ library Lib {
     ) internal view returns (uint256) {
         return
             uint256(
-                -store().balance[toAddress(assetAddress_, _totalSupplyAddress)]
+                -store().balance[toAddress(assetAddress_, TOTAL_SUPPLY_ADDRESS)]
             );
     }
 
@@ -310,7 +310,7 @@ library Lib {
 
         Store storage s = store();
         uint8 _depth;
-        while (_depth < _maxDepth) {
+        while (_depth < MAX_DEPTH) {
             // Do not update the balance of the root
             if (parent_ == address(0)) {
                 // Root found
@@ -399,7 +399,7 @@ library Lib {
 
         transfer(
             _root,
-            _totalSupplyAddress,
+            TOTAL_SUPPLY_ADDRESS,
             toParentAddress_,
             toAddress_,
             amount_
@@ -420,7 +420,7 @@ library Lib {
             fromParentAddress_,
             fromAddress_,
             _root,
-            _totalSupplyAddress,
+            TOTAL_SUPPLY_ADDRESS,
             amount_
         );
         return true;
