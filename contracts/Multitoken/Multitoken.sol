@@ -389,19 +389,46 @@ library Lib {
     }
 
     function mint(
+        address rootAddress_,
         address toParentAddress_,
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
         if (toParentAddress_ == address(0) || toAddress_ == address(0))
             revert InvalidAddress();
-        address _root = root(toParentAddress_);
 
         transfer(
-            _root,
+            rootAddress_,
             TOTAL_SUPPLY_ADDRESS,
             toParentAddress_,
             toAddress_,
+            amount_
+        );
+        return true;
+    }
+
+    function mint(
+        address toParentAddress_,
+        address toAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        return mint(address(this), toParentAddress_, toAddress_, amount_);
+    }   
+
+    function burn(
+        address rootAddress_,
+        address fromParentAddress_,
+        address fromAddress_,
+        uint256 amount_
+    ) internal returns (bool) {
+        if (fromParentAddress_ == address(0) || fromAddress_ == address(0))
+            revert InvalidAddress();
+
+        transfer(
+            fromParentAddress_,
+            fromAddress_,
+            rootAddress_,
+            TOTAL_SUPPLY_ADDRESS,
             amount_
         );
         return true;
@@ -412,18 +439,7 @@ library Lib {
         address fromAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        if (fromParentAddress_ == address(0) || fromAddress_ == address(0))
-            revert InvalidAddress();
-        address _root = root(fromParentAddress_);
-
-        transfer(
-            fromParentAddress_,
-            fromAddress_,
-            _root,
-            TOTAL_SUPPLY_ADDRESS,
-            amount_
-        );
-        return true;
+        return burn(address(this), fromParentAddress_, fromAddress_, amount_);
     }
 
     function approve(
