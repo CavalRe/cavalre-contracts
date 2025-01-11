@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import {Initializable} from "@cavalre/contracts/Initializable/Initializable.sol";
 
-import {console} from "forge-std/src/Test.sol";
-
 struct Store {
     mapping(address child => address) parent;
     mapping(address child => uint32) childIndex;
@@ -255,7 +253,6 @@ library Lib {
         address child_,
         bool isCredit_
     ) internal returns (address) {
-        console.log("Adding child", parent_, child_, toAddress(parent_, child_));
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
         address _child = toAddress(parent_, child_);
