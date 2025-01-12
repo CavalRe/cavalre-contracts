@@ -14,9 +14,75 @@ library Lib {
     bytes4 internal constant INITIALIZE_TEST_TOKEN =
         bytes4(keccak256("initializeTestMultitoken(string,string)"));
     bytes4 internal constant ADD_CHILD =
-        bytes4(keccak256("addChild(address,address,bool)"));
+        bytes4(keccak256("addChild(string,address,address,bool)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
+
+    function addressToString(
+        address addr_
+    ) internal pure returns (string memory) {
+        bytes32 value = bytes32(uint256(uint160(addr_)));
+        bytes memory alphabet = "0123456789abcdef";
+
+        bytes memory str = new bytes(42);
+        str[0] = "0";
+        str[1] = "x";
+        for (uint256 i = 0; i < 20; i++) {
+            str[2 + i * 2] = alphabet[uint8(value[i + 12] >> 4)];
+            str[3 + i * 2] = alphabet[uint8(value[i + 12] & 0x0f)];
+        }
+        return string(str);
+    }
+
+    function logTree(
+        Multitoken mt,
+        address root,
+        string memory prefix,
+        bool isFirst,
+        bool isLast
+    ) internal view {
+        string memory label;
+        string memory name = mt.name(root);
+        if (bytes(name).length != 0) {
+            label = name;
+        } else {
+            label = addressToString(root);
+        }
+        // Print the current node
+        console.log(
+            "%s%s%s",
+            prefix,
+            isFirst ? "" : isLast ? unicode"└─ " : unicode"├─ ",
+            label
+        );
+
+        // Update the prefix for child nodes
+        string memory childPrefix = string(
+            abi.encodePacked(
+                prefix,
+                isFirst ? "" : isLast ? "   " : unicode"│  "
+            )
+        );
+
+        // Recursively log children
+        address[] memory children = mt.children(root);
+        uint256 childCount = children.length;
+        // console.log("Child count", childCount);
+        for (uint256 i = 0; i < childCount; i++) {
+            logTree(
+                mt,
+                MTLib.toAddress(root, children[i]),
+                childPrefix,
+                false,
+                i == childCount - 1 // Check if this is the last child
+            );
+        }
+    }
+
+    function debugTree(Multitoken mt, address root) public view {
+        // console.log("Tree Structure:");
+        logTree(mt, root, "", true, true);
+    }
 }
 
 contract TestMultitoken is Multitoken {
@@ -76,11 +142,12 @@ contract TestMultitoken is Multitoken {
     }
 
     function addChild(
+        string memory name_,
         address parent_,
         address child_,
         bool isCredit_
     ) public returns (address) {
-        return MTLib.addChild(parent_, child_, isCredit_);
+        return MTLib.addChild(name_, parent_, child_, isCredit_);
     }
 
     function mint(address parentAddress_, uint256 amount_) public {
@@ -141,26 +208,76 @@ contract MultitokenTest is Test {
         mt.initializeTestMultitoken("Test Multitoken", "MULTI");
 
         mt.addChild(
-            mt.addChild(mt.addChild(address(router), _1, false), _10, false),
+            "100",
+            mt.addChild(
+                "10",
+                mt.addChild("1", address(router), _1, false),
+                _10,
+                false
+            ),
             _100,
             false
         );
 
+        mt.name(r1, "1");
         mt.addChild(
-            mt.addChild(r1, MTLib.TOTAL_SUPPLY_ADDRESS, true),
+            "1",
+            mt.addChild("Total", r1, MTLib.TOTAL_SUPPLY_ADDRESS, true),
             r1,
             true
         );
 
-        mt.addChild(r1, _10, false);
-        mt.addChild(r1, _11, false);
-        mt.addChild(r10, _100, false);
-        mt.addChild(r10, _101, false);
-        mt.addChild(r11, _110, false);
-        mt.addChild(r11, _111, false);
+        mt.addChild("10", r1, _10, false);
+        mt.addChild("11", r1, _11, false);
+        mt.addChild("100", r10, _100, false);
+        mt.addChild("101", r10, _101, false);
+        mt.addChild("110", r11, _110, false);
+        mt.addChild("111", r11, _111, false);
     }
 
     function testMultitokenInit() public {
+        // console.log("root", address(router));
+        // console.log("root->1", MTLib.toAddress(address(router), _1));
+        // console.log(
+        //     "root->1->10",
+        //     MTLib.toAddress(MTLib.toAddress(address(router), _1), _10)
+        // );
+        // console.log(
+        //     "root->1->11",
+        //     MTLib.toAddress(MTLib.toAddress(address(router), _1), _11)
+        // );
+        // console.log(
+        //     "root->1->10->100",
+        //     MTLib.toAddress(
+        //         MTLib.toAddress(MTLib.toAddress(address(router), _1), _10),
+        //         _100
+        //     )
+        // );
+        // console.log(
+        //     "root->1->10->101",
+        //     MTLib.toAddress(
+        //         MTLib.toAddress(MTLib.toAddress(address(router), _1), _10),
+        //         _101
+        //     )
+        // );
+        // console.log(
+        //     "root->1->11->110",
+        //     MTLib.toAddress(
+        //         MTLib.toAddress(MTLib.toAddress(address(router), _1), _11),
+        //         _110
+        //     )
+        // );
+        // console.log(
+        //     "root->1->11->111",
+        //     MTLib.toAddress(
+        //         MTLib.toAddress(MTLib.toAddress(address(router), _1), _11),
+        //         _111
+        //     )
+        // );
+        // console.log("--------------------");
+        Lib.debugTree(mt, address(router));
+        console.log("--------------------");
+        Lib.debugTree(mt, r1);
         vm.startPrank(alice);
 
         vm.expectRevert(

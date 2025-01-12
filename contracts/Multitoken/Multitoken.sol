@@ -172,7 +172,7 @@ library Lib {
     function name(
         address accountAddress_
     ) internal view returns (string memory) {
-        return store().name[root(accountAddress_)];
+        return store().name[accountAddress_];
     }
 
     function symbol(
@@ -249,6 +249,7 @@ library Lib {
     }
 
     function addChild(
+        string memory name_,
         address parent_,
         address child_,
         bool isCredit_
@@ -262,6 +263,7 @@ library Lib {
         // Cannot redirect a balance to a new parent
         if (store().balance[_child] != 0) revert HasBalance(_child);
 
+        store().name[_child] = name_;
         store().parent[_child] = parent_;
         store().children[parent_].push(child_);
         store().childIndex[_child] = uint32(store().children[parent_].length);
@@ -269,6 +271,14 @@ library Lib {
         address _root = root(_child);
         emit ChildAdded(_root, parent_, child_);
         return _child;
+    }
+
+    function addChild(
+        address parent_,
+        address child_,
+        bool isCredit_
+    ) internal returns (address) {
+        return addChild("", parent_, child_, isCredit_);
     }
 
     function removeChild(
@@ -640,8 +650,13 @@ contract Multitoken is Initializable {
         s.name[address(this)] = name_;
         s.symbol[address(this)] = symbol_;
 
-        Lib.addChild(address(this), Lib.TOTAL_SUPPLY_ADDRESS, true);
-        Lib.addChild(Lib.toAddress(address(this), Lib.TOTAL_SUPPLY_ADDRESS), address(this), true);
+        Lib.addChild("Total", address(this), Lib.TOTAL_SUPPLY_ADDRESS, true);
+        Lib.addChild(
+            name_,
+            Lib.toAddress(address(this), Lib.TOTAL_SUPPLY_ADDRESS),
+            address(this),
+            true
+        );
     }
 
     function initializeMultitoken(
