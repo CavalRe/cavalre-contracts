@@ -14,7 +14,7 @@ library Lib {
     bytes4 internal constant INITIALIZE_TEST_TOKEN =
         bytes4(keccak256("initializeTestMultitoken(string,string)"));
     bytes4 internal constant ADD_CHILD =
-        bytes4(keccak256("addChild(address,address)"));
+        bytes4(keccak256("addChild(address,address,bool)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
 }
@@ -77,17 +77,28 @@ contract TestMultitoken is Multitoken {
 
     function addChild(
         address parent_,
-        address child_
+        address child_,
+        bool isCredit_
     ) public returns (address) {
-        return MTLib.addChild(parent_, child_, false);
+        return MTLib.addChild(parent_, child_, isCredit_);
     }
 
     function mint(address parentAddress_, uint256 amount_) public {
-        MTLib.mint(parentAddress_, msg.sender, amount_);
+        MTLib.mint(
+            MTLib.root(parentAddress_),
+            parentAddress_,
+            msg.sender,
+            amount_
+        );
     }
 
     function burn(address parentAddress_, uint256 _amount) public {
-        MTLib.burn(parentAddress_, msg.sender, _amount);
+        MTLib.burn(
+            MTLib.root(parentAddress_),
+            parentAddress_,
+            msg.sender,
+            _amount
+        );
     }
 
     receive() external payable {}
@@ -129,14 +140,24 @@ contract MultitokenTest is Test {
 
         mt.initializeTestMultitoken("Test Multitoken", "MULTI");
 
-        mt.addChild(mt.addChild(mt.addChild(address(router), _1), _10), _100);
+        mt.addChild(
+            mt.addChild(mt.addChild(address(router), _1, false), _10, false),
+            _100,
+            false
+        );
 
-        mt.addChild(r1, _10);
-        mt.addChild(r1, _11);
-        mt.addChild(r10, _100);
-        mt.addChild(r10, _101);
-        mt.addChild(r11, _110);
-        mt.addChild(r11, _111);
+        mt.addChild(
+            mt.addChild(r1, MTLib.TOTAL_SUPPLY_ADDRESS, true),
+            r1,
+            true
+        );
+
+        mt.addChild(r1, _10, false);
+        mt.addChild(r1, _11, false);
+        mt.addChild(r10, _100, false);
+        mt.addChild(r10, _101, false);
+        mt.addChild(r11, _110, false);
+        mt.addChild(r11, _111, false);
     }
 
     function testMultitokenInit() public {
@@ -162,9 +183,13 @@ contract MultitokenTest is Test {
 
         assertEq(mt.balanceOf(address(mt)), 0, "Balance mismatch");
 
-        assertEq(mt.children(address(router)).length, 1, "Children mismatch (router)");
+        assertEq(
+            mt.children(address(router)).length,
+            2,
+            "Children mismatch (router)"
+        );
 
-        assertEq(mt.children(r1).length, 2, "Children mismatch (r1)");
+        assertEq(mt.children(r1).length, 3, "Children mismatch (r1)");
 
         assertEq(mt.children(r10).length, 2, "Children mismatch (r10)");
 
@@ -172,9 +197,9 @@ contract MultitokenTest is Test {
 
         assertEq(mt.childIndex(r1), 0, "Child index mismatch (r1)");
 
-        assertEq(mt.childIndex(r11), 2, "Child index mismatch (r11)");
+        assertEq(mt.childIndex(r11), 3, "Child index mismatch (r11)");
 
-        assertEq(mt.childIndex(r10), 1, "Child index mismatch (r10)");
+        assertEq(mt.childIndex(r10), 2, "Child index mismatch (r10)");
 
         assertEq(mt.childIndex(r100), 1, "Child index mismatch (r100)");
 
@@ -193,18 +218,21 @@ contract MultitokenTest is Test {
     function testMultitokenMint() public {
         vm.startPrank(alice);
 
+        // console.log("Initial mint address(this): Alice");
         mt.mint(address(mt), 1000);
 
         assertEq(mt.balanceOf(address(mt)), 0, "balanceOf(address(this))");
         assertEq(mt.balanceOf(alice), 1000, "balanceOf(alice)");
         assertEq(mt.totalSupply(), 1000, "totalSupply");
 
+        // console.log("Mint token 1: Alice");
         mt.mint(_1, 1000);
         assertEq(mt.balanceOf(_1, alice), 1000, "balanceOf(_1, alice)");
         assertEq(mt.totalSupply(_1), 1000, "totalSupply(_1)");
 
         vm.startPrank(_100);
 
+        // console.log("Mint token 1: 100");
         mt.mint(r10, 1000);
 
         assertEq(mt.balanceOf(r10, _100), 1000, "balanceOf(r10, _100)");

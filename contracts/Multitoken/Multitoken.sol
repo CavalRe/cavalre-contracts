@@ -31,7 +31,7 @@ library Lib {
         address indexed to,
         uint256 value
     );
-    event ParentAdded(
+    event ChildAdded(
         address indexed root,
         address indexed parent,
         address indexed child
@@ -256,11 +256,9 @@ library Lib {
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
         address _child = toAddress(parent_, child_);
-        if (store().parent[_child] == parent_)
-            revert DuplicateChild(child_);
+        if (store().parent[_child] == parent_) revert DuplicateChild(child_);
         // Must build tree from the top down
-        if (store().children[_child].length > 0)
-            revert HasChild(_child);
+        if (store().children[_child].length > 0) revert HasChild(_child);
         // Cannot redirect a balance to a new parent
         if (store().balance[_child] != 0) revert HasBalance(_child);
 
@@ -269,7 +267,7 @@ library Lib {
         store().childIndex[_child] = uint32(store().children[parent_].length);
         store().isCredit[_child] = isCredit_;
         address _root = root(_child);
-        emit ParentAdded(_root, parent_, child_);
+        emit ChildAdded(_root, parent_, child_);
         return _child;
     }
 
@@ -280,8 +278,7 @@ library Lib {
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
         address _child = toAddress(parent_, child_);
-        if (store().parent[_child] != parent_)
-            revert ChildNotFound(child_);
+        if (store().parent[_child] != parent_) revert ChildNotFound(child_);
         if (hasChild(_child)) revert HasChild(_child);
         if (store().balance[_child] != 0) revert HasBalance(_child);
 
@@ -389,7 +386,7 @@ library Lib {
     }
 
     function mint(
-        address rootAddress_,
+        address groupAddress_,
         address toParentAddress_,
         address toAddress_,
         uint256 amount_
@@ -398,8 +395,8 @@ library Lib {
             revert InvalidAddress();
 
         transfer(
-            rootAddress_,
-            TOTAL_SUPPLY_ADDRESS,
+            toAddress(root(toParentAddress_), TOTAL_SUPPLY_ADDRESS),
+            groupAddress_,
             toParentAddress_,
             toAddress_,
             amount_
@@ -413,10 +410,10 @@ library Lib {
         uint256 amount_
     ) internal returns (bool) {
         return mint(address(this), toParentAddress_, toAddress_, amount_);
-    }   
+    }
 
     function burn(
-        address rootAddress_,
+        address groupAddress_,
         address fromParentAddress_,
         address fromAddress_,
         uint256 amount_
@@ -427,8 +424,8 @@ library Lib {
         transfer(
             fromParentAddress_,
             fromAddress_,
-            rootAddress_,
-            TOTAL_SUPPLY_ADDRESS,
+            toAddress(root(fromParentAddress_), TOTAL_SUPPLY_ADDRESS),
+            groupAddress_,
             amount_
         );
         return true;
@@ -506,10 +503,7 @@ library Lib {
         address spenderParentAddress_,
         address spenderAddress_
     ) internal view returns (uint256) {
-        address _ownerAddress = toAddress(
-            ownerParentAddress_,
-            ownerAddress_
-        );
+        address _ownerAddress = toAddress(ownerParentAddress_, ownerAddress_);
         if (hasChild(_ownerAddress)) revert HasChild(_ownerAddress);
         address _spenderAddress = toAddress(
             spenderParentAddress_,
@@ -556,10 +550,7 @@ library Lib {
         address recipientAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        address _ownerAddress = toAddress(
-            ownerParentAddress_,
-            ownerAddress_
-        );
+        address _ownerAddress = toAddress(ownerParentAddress_, ownerAddress_);
         address _recipientAddress = toAddress(
             recipientParentAddress_,
             recipientAddress_
@@ -648,6 +639,9 @@ contract Multitoken is Initializable {
         Store storage s = Lib.store();
         s.name[address(this)] = name_;
         s.symbol[address(this)] = symbol_;
+
+        Lib.addChild(address(this), Lib.TOTAL_SUPPLY_ADDRESS, true);
+        Lib.addChild(Lib.toAddress(address(this), Lib.TOTAL_SUPPLY_ADDRESS), address(this), true);
     }
 
     function initializeMultitoken(
@@ -801,12 +795,13 @@ contract Multitoken is Initializable {
         address spenderParentAddress_,
         address spenderAddress_
     ) public view returns (uint256) {
-        return Lib.allowance(
-            ownerParentAddress_,
-            ownerAddress_,
-            spenderParentAddress_,
-            spenderAddress_
-        );
+        return
+            Lib.allowance(
+                ownerParentAddress_,
+                ownerAddress_,
+                spenderParentAddress_,
+                spenderAddress_
+            );
     }
 
     // ERC20 Allowance Query
@@ -831,14 +826,15 @@ contract Multitoken is Initializable {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        return Lib.transferFrom(
-            ownerParentAddress_,
-            ownerAddress_,
-            spenderParentAddress_,
-            recipientParentAddress_,
-            recipientAddress_,
-            amount_
-        );
+        return
+            Lib.transferFrom(
+                ownerParentAddress_,
+                ownerAddress_,
+                spenderParentAddress_,
+                recipientParentAddress_,
+                recipientAddress_,
+                amount_
+            );
     }
 
     // ERC20 Transfer From
@@ -847,11 +843,6 @@ contract Multitoken is Initializable {
         address recipientAddress_,
         uint256 amount_
     ) public returns (bool) {
-        return
-            Lib.transferFrom(
-                ownerAddress_,
-                recipientAddress_,
-                amount_
-            );
+        return Lib.transferFrom(ownerAddress_, recipientAddress_, amount_);
     }
 }
