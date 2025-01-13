@@ -350,7 +350,7 @@ library Lib {
     function applications(
         address tokenAddress_
     ) internal view returns (address[] memory) {
-        return children(tokenAddress_);
+        return children(toAddress(tokenAddress_, TOTAL_ADDRESS));
     }
 
     function addToken(
