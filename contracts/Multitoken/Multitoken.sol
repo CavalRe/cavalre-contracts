@@ -421,7 +421,7 @@ library Lib {
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        return mint(address(this), toParentAddress_, toAddress_, amount_);
+        return mint(ROOT_ADDRESS, toParentAddress_, toAddress_, amount_);
     }
 
     function burn(
@@ -448,7 +448,7 @@ library Lib {
         address fromAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        return burn(address(this), fromParentAddress_, fromAddress_, amount_);
+        return burn(ROOT_ADDRESS, fromParentAddress_, fromAddress_, amount_);
     }
 
     function approve(
