@@ -652,7 +652,7 @@ contract Multitoken is Initializable {
 
         Lib.addChild("Total", address(this), Lib.TOTAL_SUPPLY_ADDRESS, true);
         Lib.addChild(
-            name_,
+            "Root",
             Lib.toAddress(address(this), Lib.TOTAL_SUPPLY_ADDRESS),
             address(this),
             true
