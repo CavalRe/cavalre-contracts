@@ -14,9 +14,13 @@ library Lib {
     bytes4 internal constant INITIALIZE_TEST_TOKEN =
         bytes4(keccak256("initializeTestMultitoken(string,string)"));
     bytes4 internal constant ADD_CHILD =
-        bytes4(keccak256("addChild(string,address,address,bool)"));
+        bytes4(keccak256("addChild(string,address,address)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
+    bytes4 internal constant ADD_APPLICATION =
+        bytes4(keccak256("addApplication(string)"));
+    bytes4 internal constant ADD_TOKEN =
+        bytes4(keccak256("addToken(address,string,string,uint8,string[])"));
 
     function addressToString(
         address addr_
@@ -41,13 +45,7 @@ library Lib {
         bool isFirst,
         bool isLast
     ) internal view {
-        string memory label;
-        string memory name = mt.name(root);
-        if (bytes(name).length != 0) {
-            label = name;
-        } else {
-            label = addressToString(root);
-        }
+        string memory label = mt.name(root);
         // Print the current node
         console.log(
             "%s%s%s",
@@ -98,7 +96,7 @@ contract TestMultitoken is Multitoken {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](28);
+        _commands = new bytes4[](30);
         _commands[0] = Lib.INITIALIZE_TEST_TOKEN;
         _commands[1] = MTLib.SET_NAME;
         _commands[2] = MTLib.SET_SYMBOL;
@@ -127,6 +125,8 @@ contract TestMultitoken is Multitoken {
         _commands[25] = Lib.ADD_CHILD;
         _commands[26] = Lib.MINT;
         _commands[27] = Lib.BURN;
+        _commands[28] = Lib.ADD_APPLICATION;
+        _commands[29] = Lib.ADD_TOKEN;
     }
 
     // Commands
@@ -144,10 +144,23 @@ contract TestMultitoken is Multitoken {
     function addChild(
         string memory name_,
         address parent_,
-        address child_,
-        bool isCredit_
+        address child_
     ) public returns (address) {
-        return MTLib.addChild(name_, parent_, child_, isCredit_);
+        return MTLib.addChild(name_, parent_, child_);
+    }
+
+    function addApplication(string memory appName_) public {
+        MTLib.addApplication(appName_);
+    }
+
+    function addToken(
+        address tokenAddress_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        string[] memory appNames_
+    ) public {
+        MTLib.addToken(tokenAddress_, name_, symbol_, decimals_, appNames_);
     }
 
     function mint(address parentAddress_, uint256 amount_) public {
@@ -209,30 +222,19 @@ contract MultitokenTest is Test {
 
         mt.addChild(
             "100",
-            mt.addChild(
-                "10",
-                mt.addChild("1", address(router), _1, false),
-                _10,
-                false
-            ),
-            _100,
-            false
+            mt.addChild("10", mt.addChild("1", address(router), _1), _10),
+            _100
         );
+        mt.addApplication("Test Application");
 
-        mt.name(r1, "1");
-        mt.addChild(
-            "1",
-            mt.addChild("Total", r1, MTLib.TOTAL_ADDRESS, true),
-            r1,
-            true
-        );
+        mt.addToken(r1, "1", "1", 18, new string[](0));
 
-        mt.addChild("10", r1, _10, false);
-        mt.addChild("11", r1, _11, false);
-        mt.addChild("100", r10, _100, false);
-        mt.addChild("101", r10, _101, false);
-        mt.addChild("110", r11, _110, false);
-        mt.addChild("111", r11, _111, false);
+        mt.addChild("10", r1, _10);
+        mt.addChild("11", r1, _11);
+        mt.addChild("100", r10, _100);
+        mt.addChild("101", r10, _101);
+        mt.addChild("110", r11, _110);
+        mt.addChild("111", r11, _111);
     }
 
     function testMultitokenInit() public {
@@ -274,10 +276,12 @@ contract MultitokenTest is Test {
         //         _111
         //     )
         // );
-        // console.log("--------------------");
+        console.log("--------------------");
         Lib.debugTree(mt, address(router));
         console.log("--------------------");
         Lib.debugTree(mt, r1);
+        console.log("--------------------");
+
         vm.startPrank(alice);
 
         vm.expectRevert(
@@ -306,7 +310,7 @@ contract MultitokenTest is Test {
             "Children mismatch (router)"
         );
 
-        assertEq(mt.children(r1).length, 3, "Children mismatch (r1)");
+        assertEq(mt.children(r1).length, 2, "Children mismatch (r1)");
 
         assertEq(mt.children(r10).length, 2, "Children mismatch (r10)");
 
@@ -314,9 +318,9 @@ contract MultitokenTest is Test {
 
         assertEq(mt.childIndex(r1), 0, "Child index mismatch (r1)");
 
-        assertEq(mt.childIndex(r11), 3, "Child index mismatch (r11)");
+        assertEq(mt.childIndex(r11), 2, "Child index mismatch (r11)");
 
-        assertEq(mt.childIndex(r10), 2, "Child index mismatch (r10)");
+        assertEq(mt.childIndex(r10), 1, "Child index mismatch (r10)");
 
         assertEq(mt.childIndex(r100), 1, "Child index mismatch (r100)");
 

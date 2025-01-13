@@ -16,6 +16,8 @@ struct Store {
 }
 
 library Lib {
+    event ApplicationAdded(string indexed appName);
+    event ApplicationRemoved(string indexed appName);
     event Approval(
         address indexed owner,
         address indexed spender,
@@ -39,6 +41,7 @@ library Lib {
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     // Custom errors
+    error ApplicationNotFound(string appName);
     error ChildNotFound(address child);
     error HasBalance(address child);
     error HasChild(address child);
@@ -236,9 +239,7 @@ library Lib {
         address assetAddress_
     ) internal view returns (uint256) {
         return
-            uint256(
-                -store().balance[toAddress(assetAddress_, TOTAL_ADDRESS)]
-            );
+            uint256(-store().balance[toAddress(assetAddress_, TOTAL_ADDRESS)]);
     }
 
     function checkRoots(address a_, address b_) internal view {
@@ -254,7 +255,8 @@ library Lib {
         string memory name_,
         address parent_,
         address child_,
-        bool isCredit_
+        bool isCredit_,
+        bool includeChild_
     ) internal returns (address) {
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
@@ -267,8 +269,12 @@ library Lib {
 
         store().name[_child] = name_;
         store().parent[_child] = parent_;
-        store().children[parent_].push(child_);
-        store().childIndex[_child] = uint32(store().children[parent_].length);
+        if (includeChild_) {
+            store().children[parent_].push(child_);
+            store().childIndex[_child] = uint32(
+                store().children[parent_].length
+            );
+        }
         store().isCredit[_child] = isCredit_;
         address _root = root(_child);
         emit ChildAdded(_root, parent_, child_);
@@ -276,11 +282,20 @@ library Lib {
     }
 
     function addChild(
+        string memory name_,
         address parent_,
         address child_,
         bool isCredit_
     ) internal returns (address) {
-        return addChild("", parent_, child_, isCredit_);
+        return addChild(name_, parent_, child_, isCredit_, true);
+    }
+
+    function addChild(
+        string memory name_,
+        address parent_,
+        address child_
+    ) internal returns (address) {
+        return addChild(name_, parent_, child_, false, true);
     }
 
     function removeChild(
@@ -294,6 +309,7 @@ library Lib {
         if (hasChild(_child)) revert HasChild(_child);
         if (store().balance[_child] != 0) revert HasBalance(_child);
 
+        store().name[_child] = "";
         uint256 _index = store().childIndex[_child] - 1;
         address _lastChild = store().children[parent_][
             store().children[parent_].length - 1
@@ -306,6 +322,73 @@ library Lib {
         store().childIndex[_child] = 0;
         store().isCredit[_child] = false;
         return _child;
+    }
+
+    function addApplication(
+        string memory appName_
+    ) internal {
+        emit ApplicationAdded(appName_);
+        address _appAddress = toAddress(appName_);
+        name(_appAddress, appName_);
+        addChild(
+            appName_,
+            toAddress(address(this), TOTAL_ADDRESS),
+            _appAddress,
+            true
+        );
+        addChild(appName_, address(this), _appAddress, false);
+    }
+
+    function removeApplication(string memory appName_) internal {
+        emit ApplicationRemoved(appName_);
+        address _appAddress = toAddress(appName_);
+        name(_appAddress, "");
+        removeChild(toAddress(address(this), TOTAL_ADDRESS), _appAddress);
+        removeChild(address(this), _appAddress);
+    }
+
+    function applications(
+        address tokenAddress_
+    ) internal view returns (address[] memory) {
+        return children(tokenAddress_);
+    }
+
+    function addToken(
+        address tokenAddress_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        string[] memory appNames_
+    ) internal {
+        name(tokenAddress_, name_);
+        symbol(tokenAddress_, symbol_);
+        store().decimals[tokenAddress_] = decimals_;
+
+        addChild("Total", tokenAddress_, TOTAL_ADDRESS, true, false);
+        addChild(
+            "Root",
+            toAddress(tokenAddress_, TOTAL_ADDRESS),
+            ROOT_ADDRESS,
+            true,
+            false
+        );
+
+        for (uint256 i = 0; i < appNames_.length; i++) {
+            addChild(
+                appNames_[i],
+                toAddress(tokenAddress_, TOTAL_ADDRESS),
+                toAddress(appNames_[i]),
+                true,
+                true
+            );
+            addChild(
+                appNames_[i],
+                tokenAddress_,
+                toAddress(appNames_[i]),
+                false,
+                true
+            );
+        }
     }
 
     function updateBalances(
@@ -398,7 +481,7 @@ library Lib {
     }
 
     function mint(
-        address groupAddress_,
+        address appAddress_,
         address toParentAddress_,
         address toAddress_,
         uint256 amount_
@@ -408,7 +491,7 @@ library Lib {
 
         transfer(
             toAddress(root(toParentAddress_), TOTAL_ADDRESS),
-            groupAddress_,
+            appAddress_,
             toParentAddress_,
             toAddress_,
             amount_
@@ -425,7 +508,7 @@ library Lib {
     }
 
     function burn(
-        address groupAddress_,
+        address appAddress_,
         address fromParentAddress_,
         address fromAddress_,
         uint256 amount_
@@ -437,7 +520,7 @@ library Lib {
             fromParentAddress_,
             fromAddress_,
             toAddress(root(fromParentAddress_), TOTAL_ADDRESS),
-            groupAddress_,
+            appAddress_,
             amount_
         );
         return true;
@@ -652,13 +735,15 @@ contract Multitoken is Initializable {
         s.name[address(this)] = name_;
         s.symbol[address(this)] = symbol_;
 
-        Lib.addChild("Total", address(this), Lib.TOTAL_ADDRESS, true);
-        Lib.addChild(
-            "Root",
-            Lib.toAddress(address(this), Lib.TOTAL_ADDRESS),
-            Lib.ROOT_ADDRESS,
-            true
-        );
+        Lib.addToken(address(this), name_, symbol_, _decimals, new string[](0));
+
+        // Lib.addChild("Total", address(this), Lib.TOTAL_ADDRESS, true);
+        // Lib.addChild(
+        //     "Root",
+        //     Lib.toAddress(address(this), Lib.TOTAL_ADDRESS),
+        //     Lib.ROOT_ADDRESS,
+        //     true
+        // );
     }
 
     function initializeMultitoken(
