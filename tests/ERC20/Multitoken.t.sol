@@ -222,7 +222,7 @@ contract MultitokenTest is Test {
         mt.name(r1, "1");
         mt.addChild(
             "1",
-            mt.addChild("Total", r1, MTLib.TOTAL_SUPPLY_ADDRESS, true),
+            mt.addChild("Total", r1, MTLib.TOTAL_ADDRESS, true),
             r1,
             true
         );

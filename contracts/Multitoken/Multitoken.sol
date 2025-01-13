@@ -50,8 +50,10 @@ library Lib {
     error MaxDepthExceeded();
 
     uint8 internal constant MAX_DEPTH = 10;
-    address internal constant TOTAL_SUPPLY_ADDRESS =
-        0x234b3144C2ef624a5e5c8B7922d4E9067104A9B9;
+    address internal constant ROOT_ADDRESS =
+        0xFE99DF08Ff3B677df31fFB23cD04828AA70d2de5;
+    address internal constant TOTAL_ADDRESS =
+        0xa763678a2e868D872d408672C9f80B77F4d1d14B;
 
     // Selectors
     bytes4 internal constant INITIALIZE_MULTITOKEN =
@@ -235,7 +237,7 @@ library Lib {
     ) internal view returns (uint256) {
         return
             uint256(
-                -store().balance[toAddress(assetAddress_, TOTAL_SUPPLY_ADDRESS)]
+                -store().balance[toAddress(assetAddress_, TOTAL_ADDRESS)]
             );
     }
 
@@ -405,7 +407,7 @@ library Lib {
             revert InvalidAddress();
 
         transfer(
-            toAddress(root(toParentAddress_), TOTAL_SUPPLY_ADDRESS),
+            toAddress(root(toParentAddress_), TOTAL_ADDRESS),
             groupAddress_,
             toParentAddress_,
             toAddress_,
@@ -434,7 +436,7 @@ library Lib {
         transfer(
             fromParentAddress_,
             fromAddress_,
-            toAddress(root(fromParentAddress_), TOTAL_SUPPLY_ADDRESS),
+            toAddress(root(fromParentAddress_), TOTAL_ADDRESS),
             groupAddress_,
             amount_
         );
@@ -650,11 +652,11 @@ contract Multitoken is Initializable {
         s.name[address(this)] = name_;
         s.symbol[address(this)] = symbol_;
 
-        Lib.addChild("Total", address(this), Lib.TOTAL_SUPPLY_ADDRESS, true);
+        Lib.addChild("Total", address(this), Lib.TOTAL_ADDRESS, true);
         Lib.addChild(
             "Root",
-            Lib.toAddress(address(this), Lib.TOTAL_SUPPLY_ADDRESS),
-            address(this),
+            Lib.toAddress(address(this), Lib.TOTAL_ADDRESS),
+            Lib.ROOT_ADDRESS,
             true
         );
     }
