@@ -22,7 +22,7 @@ library Lib {
     bytes4 internal constant REMOVE_APPLICATION =
         bytes4(keccak256("removeApplication(string,address)"));
     bytes4 internal constant ADD_TOKEN =
-        bytes4(keccak256("addToken(address,string,string,uint8,string[])"));
+        bytes4(keccak256("addToken(address,string,string,uint8)"));
 
     function addressToString(
         address addr_
@@ -170,10 +170,9 @@ contract TestMultitoken is Multitoken {
         address tokenAddress_,
         string memory name_,
         string memory symbol_,
-        uint8 decimals_,
-        string[] memory appNames_
+        uint8 decimals_
     ) public {
-        MTLib.addToken(tokenAddress_, name_, symbol_, decimals_, appNames_);
+        MTLib.addToken(tokenAddress_, name_, symbol_, decimals_);
     }
 
     function mint(address parentAddress_, uint256 amount_) public {
@@ -244,7 +243,10 @@ contract MultitokenTest is Test {
         apps[0] = "Test Application 1";
         apps[1] = "Test Application 2";
         apps[2] = "Test Application 3";
-        mt.addToken(r1, "1", "1", 18, apps);
+        mt.addToken(r1, "1", "1", 18);
+        for (uint256 i = 0; i < 3; i++) {
+            mt.addApplication(apps[i], r1);
+        }
 
         mt.addChild("10", r1, _10);
         mt.addChild("11", r1, _11);

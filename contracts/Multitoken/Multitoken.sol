@@ -360,8 +360,7 @@ library Lib {
         address tokenAddress_,
         string memory name_,
         string memory symbol_,
-        uint8 decimals_,
-        string[] memory appNames_
+        uint8 decimals_
     ) internal {
         name(tokenAddress_, name_);
         symbol(tokenAddress_, symbol_);
@@ -375,23 +374,6 @@ library Lib {
             true,
             false
         );
-
-        for (uint256 i = 0; i < appNames_.length; i++) {
-            addChild(
-                appNames_[i],
-                toAddress(tokenAddress_, TOTAL_ADDRESS),
-                toAddress(appNames_[i]),
-                true,
-                true
-            );
-            addChild(
-                appNames_[i],
-                tokenAddress_,
-                toAddress(appNames_[i]),
-                false,
-                true
-            );
-        }
     }
 
     function updateBalances(
@@ -738,7 +720,7 @@ contract Multitoken is Initializable {
         s.name[address(this)] = name_;
         s.symbol[address(this)] = symbol_;
 
-        Lib.addToken(address(this), name_, symbol_, _decimals, new string[](0));
+        Lib.addToken(address(this), name_, symbol_, _decimals);
 
         // Lib.addChild("Total", address(this), Lib.TOTAL_ADDRESS, true);
         // Lib.addChild(
