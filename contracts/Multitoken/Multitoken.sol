@@ -325,26 +325,29 @@ library Lib {
     }
 
     function addApplication(
-        string memory appName_
+        string memory appName_,
+        address tokenAddress_
     ) internal {
         emit ApplicationAdded(appName_);
         address _appAddress = toAddress(appName_);
         name(_appAddress, appName_);
         addChild(
             appName_,
-            toAddress(address(this), TOTAL_ADDRESS),
+            toAddress(tokenAddress_, TOTAL_ADDRESS),
             _appAddress,
             true
         );
-        addChild(appName_, address(this), _appAddress, false);
+        addChild(appName_, tokenAddress_, _appAddress, false);
     }
 
-    function removeApplication(string memory appName_) internal {
+    function removeApplication(
+        string memory appName_,
+        address tokenAddress_
+    ) internal {
         emit ApplicationRemoved(appName_);
         address _appAddress = toAddress(appName_);
-        name(_appAddress, "");
-        removeChild(toAddress(address(this), TOTAL_ADDRESS), _appAddress);
-        removeChild(address(this), _appAddress);
+        removeChild(toAddress(tokenAddress_, TOTAL_ADDRESS), _appAddress);
+        removeChild(tokenAddress_, _appAddress);
     }
 
     function applications(

@@ -18,7 +18,9 @@ library Lib {
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
     bytes4 internal constant ADD_APPLICATION =
-        bytes4(keccak256("addApplication(string)"));
+        bytes4(keccak256("addApplication(string,address)"));
+    bytes4 internal constant REMOVE_APPLICATION =
+        bytes4(keccak256("removeApplication(string,address)"));
     bytes4 internal constant ADD_TOKEN =
         bytes4(keccak256("addToken(address,string,string,uint8,string[])"));
 
@@ -96,7 +98,7 @@ contract TestMultitoken is Multitoken {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](30);
+        _commands = new bytes4[](31);
         _commands[0] = Lib.INITIALIZE_TEST_TOKEN;
         _commands[1] = MTLib.SET_NAME;
         _commands[2] = MTLib.SET_SYMBOL;
@@ -126,7 +128,8 @@ contract TestMultitoken is Multitoken {
         _commands[26] = Lib.MINT;
         _commands[27] = Lib.BURN;
         _commands[28] = Lib.ADD_APPLICATION;
-        _commands[29] = Lib.ADD_TOKEN;
+        _commands[29] = Lib.REMOVE_APPLICATION;
+        _commands[30] = Lib.ADD_TOKEN;
     }
 
     // Commands
@@ -149,8 +152,18 @@ contract TestMultitoken is Multitoken {
         return MTLib.addChild(name_, parent_, child_);
     }
 
-    function addApplication(string memory appName_) public {
-        MTLib.addApplication(appName_);
+    function addApplication(
+        string memory appName_,
+        address tokenAddress_
+    ) public {
+        MTLib.addApplication(appName_, tokenAddress_);
+    }
+
+    function removeApplication(
+        string memory appName_,
+        address tokenAddress_
+    ) public {
+        MTLib.removeApplication(appName_, tokenAddress_);
     }
 
     function addToken(
@@ -225,9 +238,13 @@ contract MultitokenTest is Test {
             mt.addChild("10", mt.addChild("1", address(router), _1), _10),
             _100
         );
-        mt.addApplication("Test Application");
+        mt.addApplication("Test Application", address(router));
 
-        mt.addToken(r1, "1", "1", 18, new string[](0));
+        string[] memory apps = new string[](3);
+        apps[0] = "Test Application 1";
+        apps[1] = "Test Application 2";
+        apps[2] = "Test Application 3";
+        mt.addToken(r1, "1", "1", 18, apps);
 
         mt.addChild("10", r1, _10);
         mt.addChild("11", r1, _11);
@@ -238,44 +255,6 @@ contract MultitokenTest is Test {
     }
 
     function testMultitokenInit() public {
-        // console.log("root", address(router));
-        // console.log("root->1", MTLib.toAddress(address(router), _1));
-        // console.log(
-        //     "root->1->10",
-        //     MTLib.toAddress(MTLib.toAddress(address(router), _1), _10)
-        // );
-        // console.log(
-        //     "root->1->11",
-        //     MTLib.toAddress(MTLib.toAddress(address(router), _1), _11)
-        // );
-        // console.log(
-        //     "root->1->10->100",
-        //     MTLib.toAddress(
-        //         MTLib.toAddress(MTLib.toAddress(address(router), _1), _10),
-        //         _100
-        //     )
-        // );
-        // console.log(
-        //     "root->1->10->101",
-        //     MTLib.toAddress(
-        //         MTLib.toAddress(MTLib.toAddress(address(router), _1), _10),
-        //         _101
-        //     )
-        // );
-        // console.log(
-        //     "root->1->11->110",
-        //     MTLib.toAddress(
-        //         MTLib.toAddress(MTLib.toAddress(address(router), _1), _11),
-        //         _110
-        //     )
-        // );
-        // console.log(
-        //     "root->1->11->111",
-        //     MTLib.toAddress(
-        //         MTLib.toAddress(MTLib.toAddress(address(router), _1), _11),
-        //         _111
-        //     )
-        // );
         console.log("--------------------");
         Lib.debugTree(mt, address(router));
         console.log("--------------------");
@@ -310,7 +289,7 @@ contract MultitokenTest is Test {
             "Children mismatch (router)"
         );
 
-        assertEq(mt.children(r1).length, 2, "Children mismatch (r1)");
+        assertEq(mt.children(r1).length, 5, "Children mismatch (r1)");
 
         assertEq(mt.children(r10).length, 2, "Children mismatch (r10)");
 
@@ -318,9 +297,9 @@ contract MultitokenTest is Test {
 
         assertEq(mt.childIndex(r1), 0, "Child index mismatch (r1)");
 
-        assertEq(mt.childIndex(r11), 2, "Child index mismatch (r11)");
+        assertEq(mt.childIndex(r11), 5, "Child index mismatch (r11)");
 
-        assertEq(mt.childIndex(r10), 1, "Child index mismatch (r10)");
+        assertEq(mt.childIndex(r10), 4, "Child index mismatch (r10)");
 
         assertEq(mt.childIndex(r100), 1, "Child index mismatch (r100)");
 
@@ -329,6 +308,26 @@ contract MultitokenTest is Test {
         assertEq(mt.childIndex(r110), 1, "Child index mismatch (r110)");
 
         assertEq(mt.childIndex(r111), 2, "Child index mismatch (r111)");
+    }
+
+    function testMultitokenApplication() public {
+        vm.startPrank(alice);
+
+        address _appAddress2 = MTLib.toAddress("Test Application 2");
+        vm.expectRevert(
+            abi.encodeWithSelector(MTLib.ChildNotFound.selector, _appAddress2)
+        );
+        mt.removeApplication("Test Application 2", address(router));
+
+        mt.addApplication("Test Application 2", address(router));
+        address _rawAppAddress = MTLib.toAddress(
+            address(router),
+            MTLib.toAddress("Test Application 2")
+        );
+        assertEq(mt.parent(_rawAppAddress), address(router), "Parent");
+
+        mt.removeApplication("Test Application 2", address(router));
+        assertEq(mt.parent(_rawAppAddress), address(0), "Parent");
     }
 
     // TODO: Implement addChild, removeChild
