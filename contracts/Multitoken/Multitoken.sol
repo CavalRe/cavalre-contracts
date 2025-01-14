@@ -225,23 +225,82 @@ library Lib {
         return store().childIndex[child_];
     }
 
-    function balanceOf(
-        address parentAddress_,
-        address ownerAddress_
+    //==================================================================
+    //                      Hierarchy Navigation
+    //     If the hierarchy design changes, modify these functions.
+    //==================================================================
+    function totalParentAbsoluteAddress(
+        address tokenAddress_
+    ) internal pure returns (address) {
+        return tokenAddress_;
+    }
+
+    function totalAbsoluteAddress(
+        address tokenAddress_
+    ) internal pure returns (address) {
+        return toAddress(tokenAddress_, TOTAL_ADDRESS);
+    }
+
+    function totalAppAbsoluteAddress(
+        address tokenAddress_,
+        string memory appName_
+    ) internal pure returns (address) {
+        return
+            toAddress(totalAbsoluteAddress(tokenAddress_), toAddress(appName_));
+    }
+
+    function appsAbsoluteAddress(
+        address tokenAddress_
+    ) internal pure returns (address) {
+        return tokenAddress_;
+    }
+
+    function appAbsoluteAddress(
+        address tokenAddress_,
+        string memory appName_
+    ) internal pure returns (address) {
+        return toAddress(tokenAddress_, toAddress(appName_));
+    }
+
+    //==================================================================
+    //                        Balance & Supply
+    //==================================================================
+    function balanceOfAbsoluteAddress(
+        address absoluteAddress_
     ) internal view returns (uint256) {
-        address _balanceAddress = toAddress(parentAddress_, ownerAddress_);
-        bool _isCredit = store().isCredit[_balanceAddress];
-        int256 _balance = store().balance[_balanceAddress];
+        bool _isCredit = store().isCredit[absoluteAddress_];
+        int256 _balance = store().balance[absoluteAddress_];
         return _isCredit ? uint256(-_balance) : uint256(_balance);
     }
 
     function totalSupply(
-        address assetAddress_
+        address tokenAddress_
     ) internal view returns (uint256) {
-        return
-            uint256(-store().balance[toAddress(assetAddress_, TOTAL_ADDRESS)]);
+        return balanceOfAbsoluteAddress(totalAbsoluteAddress(tokenAddress_));
     }
 
+    function totalAppSupply(
+        address tokenAddress_,
+        string memory appName_
+    ) internal view returns (uint256) {
+        return
+            balanceOfAbsoluteAddress(
+                totalAppAbsoluteAddress(tokenAddress_, appName_)
+            );
+    }
+
+    function balanceOf(
+        address parentAddress_,
+        address ownerAddress_
+    ) internal view returns (uint256) {
+        return
+            balanceOfAbsoluteAddress(toAddress(parentAddress_, ownerAddress_));
+    }
+
+    //==================================================================
+    //                            Validation
+    //==================================================================
+    // Transfers can only occur within the same tree
     function checkRoots(address a_, address b_) internal view {
         if (root(a_) != root(b_)) revert DifferentRoots(a_, b_);
     }
@@ -250,6 +309,10 @@ library Lib {
     function checkChild(address parent_) internal view {
         if (hasChild(parent_)) revert HasChild(parent_);
     }
+
+    //==================================================================
+    //                         Tree Manipulation
+    //==================================================================
 
     function addChild(
         string memory name_,
@@ -333,11 +396,16 @@ library Lib {
         name(_appAddress, appName_);
         addChild(
             appName_,
-            toAddress(tokenAddress_, TOTAL_ADDRESS),
+            totalAbsoluteAddress(tokenAddress_),
             _appAddress,
             true
         );
-        addChild(appName_, tokenAddress_, _appAddress, false);
+        addChild(
+            appName_,
+            appsAbsoluteAddress(tokenAddress_),
+            _appAddress,
+            false
+        );
     }
 
     function removeApplication(
@@ -346,8 +414,8 @@ library Lib {
     ) internal {
         emit ApplicationRemoved(appName_);
         address _appAddress = toAddress(appName_);
-        removeChild(toAddress(tokenAddress_, TOTAL_ADDRESS), _appAddress);
-        removeChild(tokenAddress_, _appAddress);
+        removeChild(totalAbsoluteAddress(tokenAddress_), _appAddress);
+        removeChild(appsAbsoluteAddress(tokenAddress_), _appAddress);
     }
 
     function applications(
@@ -366,10 +434,10 @@ library Lib {
         symbol(tokenAddress_, symbol_);
         store().decimals[tokenAddress_] = decimals_;
 
-        addChild("Total", tokenAddress_, TOTAL_ADDRESS, true, false);
+        addChild("Total", totalParentAbsoluteAddress(tokenAddress_), TOTAL_ADDRESS, true, false);
         addChild(
             "Root",
-            toAddress(tokenAddress_, TOTAL_ADDRESS),
+            totalAbsoluteAddress(tokenAddress_),
             ROOT_ADDRESS,
             true,
             false
@@ -475,7 +543,7 @@ library Lib {
             revert InvalidAddress();
 
         transfer(
-            toAddress(root(toParentAddress_), TOTAL_ADDRESS),
+            totalAbsoluteAddress(root(toParentAddress_)),
             appAddress_,
             toParentAddress_,
             toAddress_,
@@ -504,7 +572,7 @@ library Lib {
         transfer(
             fromParentAddress_,
             fromAddress_,
-            toAddress(root(fromParentAddress_), TOTAL_ADDRESS),
+            totalAbsoluteAddress(root(fromParentAddress_)),
             appAddress_,
             amount_
         );
@@ -721,14 +789,6 @@ contract Multitoken is Initializable {
         s.symbol[address(this)] = symbol_;
 
         Lib.addToken(address(this), name_, symbol_, _decimals);
-
-        // Lib.addChild("Total", address(this), Lib.TOTAL_ADDRESS, true);
-        // Lib.addChild(
-        //     "Root",
-        //     Lib.toAddress(address(this), Lib.TOTAL_ADDRESS),
-        //     Lib.ROOT_ADDRESS,
-        //     true
-        // );
     }
 
     function initializeMultitoken(
