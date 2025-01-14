@@ -171,6 +171,14 @@ library Lib {
         store().symbol[accountAddress_] = symbol_;
     }
 
+    function decimals(
+        address accountAddress_,
+        uint8 decimals_
+    ) internal {
+        if (accountAddress_ == address(this)) revert InvalidAddress();
+        store().decimals[accountAddress_] = decimals_;
+    }
+
     //==================
     // Metadata Getters
     //==================
