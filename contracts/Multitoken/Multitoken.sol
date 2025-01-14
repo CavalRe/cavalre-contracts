@@ -440,7 +440,7 @@ library Lib {
     ) internal {
         name(tokenAddress_, name_);
         symbol(tokenAddress_, symbol_);
-        store().decimals[tokenAddress_] = decimals_;
+        decimals(tokenAddress_, decimals_);
 
         addChild("Total", totalParentAbsoluteAddress(tokenAddress_), TOTAL_ADDRESS, true, false);
         addChild(
