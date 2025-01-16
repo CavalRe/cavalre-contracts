@@ -287,7 +287,7 @@ library Lib {
     //==================================================================
 
     function addChild(
-        string memory name_,
+        string memory childName_,
         address parent_,
         address child_,
         bool isCredit_,
@@ -297,11 +297,11 @@ library Lib {
             revert InvalidAddress();
         address _child = toAddress(parent_, child_);
         // Must build tree from the top down
-        if (store().children[_child].length > 0) revert HasChild(name_);
+        if (store().children[_child].length > 0) revert HasChild(childName_);
         // Only leaves can hold tokens
-        if (store().balance[_child] != 0) revert HasBalance(name_);
+        if (store().balance[_child] != 0) revert HasBalance(childName_);
 
-        store().name[_child] = name_;
+        store().name[_child] = childName_;
         store().parent[_child] = parent_;
         if (includeChild_) {
             store().children[parent_].push(child_);
@@ -316,20 +316,20 @@ library Lib {
     }
 
     function addChild(
-        string memory name_,
+        string memory childName_,
         address parent_,
         address child_,
         bool isCredit_
     ) internal returns (address) {
-        return addChild(name_, parent_, child_, isCredit_, true);
+        return addChild(childName_, parent_, child_, isCredit_, true);
     }
 
     function addChild(
-        string memory name_,
+        string memory childName_,
         address parent_,
         address child_
     ) internal returns (address) {
-        return addChild(name_, parent_, child_, false, true);
+        return addChild(childName_, parent_, child_, false, true);
     }
 
     function removeChild(
