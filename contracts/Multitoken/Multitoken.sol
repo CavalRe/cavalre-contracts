@@ -279,7 +279,7 @@ library Lib {
 
     // Only leaf accounts can hold and transfer balances
     function checkChild(address parent_) internal view {
-        if (hasChild(parent_)) revert HasChild(parent_);
+        if (hasChild(parent_)) revert HasChild(name(parent_));
     }
 
     //==================================================================
@@ -340,7 +340,7 @@ library Lib {
             revert InvalidAddress();
         address _child = toAddress(parent_, child_);
         if (store().parent[_child] != parent_) revert ChildNotFound(child_);
-        if (hasChild(_child)) revert HasChild(_child);
+        if (hasChild(_child)) revert HasChild(name(_child));
         if (store().balance[_child] != 0) revert HasBalance(_child);
 
         store().name[_child] = "";
@@ -618,12 +618,12 @@ library Lib {
         address spenderAddress_
     ) internal view returns (uint256) {
         address _ownerAddress = toAddress(ownerParentAddress_, ownerAddress_);
-        if (hasChild(_ownerAddress)) revert HasChild(_ownerAddress);
+        if (hasChild(_ownerAddress)) revert HasChild(name(_ownerAddress));
         address _spenderAddress = toAddress(
             spenderParentAddress_,
             spenderAddress_
         );
-        if (hasChild(_spenderAddress)) revert HasChild(_spenderAddress);
+        if (hasChild(_spenderAddress)) revert HasChild(name(_spenderAddress));
         return store().allowances[_ownerAddress][_spenderAddress];
     }
 
