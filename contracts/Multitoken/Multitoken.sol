@@ -16,8 +16,8 @@ struct Store {
 }
 
 library Lib {
-    event ApplicationAdded(string indexed appName);
-    event ApplicationRemoved(string indexed appName);
+    event SourceAdded(string indexed appName);
+    event SourceRemoved(string indexed appName);
     event Approval(
         address indexed owner,
         address indexed spender,
@@ -171,10 +171,7 @@ library Lib {
         store().symbol[accountAddress_] = symbol_;
     }
 
-    function decimals(
-        address accountAddress_,
-        uint8 decimals_
-    ) internal {
+    function decimals(address accountAddress_, uint8 decimals_) internal {
         if (accountAddress_ == address(this)) revert InvalidAddress();
         store().decimals[accountAddress_] = decimals_;
     }
@@ -234,43 +231,6 @@ library Lib {
     }
 
     //==================================================================
-    //                      Hierarchy Navigation
-    //     If the hierarchy design changes, modify these functions.
-    //==================================================================
-    function totalParentAbsoluteAddress(
-        address tokenAddress_
-    ) internal pure returns (address) {
-        return tokenAddress_;
-    }
-
-    function totalAbsoluteAddress(
-        address tokenAddress_
-    ) internal pure returns (address) {
-        return toAddress(tokenAddress_, TOTAL_ADDRESS);
-    }
-
-    function totalAppAbsoluteAddress(
-        address tokenAddress_,
-        string memory appName_
-    ) internal pure returns (address) {
-        return
-            toAddress(totalAbsoluteAddress(tokenAddress_), toAddress(appName_));
-    }
-
-    function appsAbsoluteAddress(
-        address tokenAddress_
-    ) internal pure returns (address) {
-        return tokenAddress_;
-    }
-
-    function appAbsoluteAddress(
-        address tokenAddress_,
-        string memory appName_
-    ) internal pure returns (address) {
-        return toAddress(tokenAddress_, toAddress(appName_));
-    }
-
-    //==================================================================
     //                        Balance & Supply
     //==================================================================
     function balanceOfAbsoluteAddress(
@@ -284,7 +244,8 @@ library Lib {
     function totalSupply(
         address tokenAddress_
     ) internal view returns (uint256) {
-        return balanceOfAbsoluteAddress(totalAbsoluteAddress(tokenAddress_));
+        return
+            balanceOfAbsoluteAddress(toAddress(tokenAddress_, TOTAL_ADDRESS));
     }
 
     function totalAppSupply(
@@ -293,7 +254,10 @@ library Lib {
     ) internal view returns (uint256) {
         return
             balanceOfAbsoluteAddress(
-                totalAppAbsoluteAddress(tokenAddress_, appName_)
+                toAddress(
+                    toAddress(tokenAddress_, TOTAL_ADDRESS),
+                    toAddress(appName_)
+                )
             );
     }
 
@@ -395,38 +359,31 @@ library Lib {
         return _child;
     }
 
-    function addApplication(
-        string memory appName_,
+    function addTokenSource(
+        string memory sourceName_,
         address tokenAddress_
     ) internal {
-        emit ApplicationAdded(appName_);
-        address _appAddress = toAddress(appName_);
-        name(_appAddress, appName_);
+        address _sourceAddress = toAddress(sourceName_);
+        name(_sourceAddress, sourceName_);
         addChild(
-            appName_,
-            totalAbsoluteAddress(tokenAddress_),
-            _appAddress,
+            sourceName_,
+            toAddress(tokenAddress_, TOTAL_ADDRESS),
+            _sourceAddress,
             true
         );
-        addChild(
-            appName_,
-            appsAbsoluteAddress(tokenAddress_),
-            _appAddress,
-            false
-        );
+        emit SourceAdded(sourceName_);
     }
 
-    function removeApplication(
-        string memory appName_,
+    function removeTokenSource(
+        string memory sourceName_,
         address tokenAddress_
     ) internal {
-        emit ApplicationRemoved(appName_);
-        address _appAddress = toAddress(appName_);
-        removeChild(totalAbsoluteAddress(tokenAddress_), _appAddress);
-        removeChild(appsAbsoluteAddress(tokenAddress_), _appAddress);
+        address _sourceAddress = toAddress(sourceName_);
+        removeChild(toAddress(tokenAddress_, TOTAL_ADDRESS), _sourceAddress);
+        emit SourceRemoved(sourceName_);
     }
 
-    function applications(
+    function sources(
         address tokenAddress_
     ) internal view returns (address[] memory) {
         return children(toAddress(tokenAddress_, TOTAL_ADDRESS));
@@ -442,10 +399,10 @@ library Lib {
         symbol(tokenAddress_, symbol_);
         if (tokenAddress_ != address(this)) decimals(tokenAddress_, decimals_);
 
-        addChild("Total", totalParentAbsoluteAddress(tokenAddress_), TOTAL_ADDRESS, true, false);
+        addChild("Total", tokenAddress_, TOTAL_ADDRESS, true, false);
         addChild(
             "Root",
-            totalAbsoluteAddress(tokenAddress_),
+            toAddress(tokenAddress_, TOTAL_ADDRESS),
             ROOT_ADDRESS,
             true,
             false
@@ -551,7 +508,7 @@ library Lib {
             revert InvalidAddress();
 
         transfer(
-            totalAbsoluteAddress(root(toParentAddress_)),
+            toAddress(root(toParentAddress_), TOTAL_ADDRESS),
             appAddress_,
             toParentAddress_,
             toAddress_,
@@ -580,7 +537,7 @@ library Lib {
         transfer(
             fromParentAddress_,
             fromAddress_,
-            totalAbsoluteAddress(root(fromParentAddress_)),
+            toAddress(root(fromParentAddress_), TOTAL_ADDRESS),
             appAddress_,
             amount_
         );

@@ -18,9 +18,9 @@ library Lib {
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
     bytes4 internal constant ADD_APPLICATION =
-        bytes4(keccak256("addApplication(string,address)"));
+        bytes4(keccak256("addTokenSource(string,address)"));
     bytes4 internal constant REMOVE_APPLICATION =
-        bytes4(keccak256("removeApplication(string,address)"));
+        bytes4(keccak256("removeTokenSource(string,address)"));
     bytes4 internal constant ADD_TOKEN =
         bytes4(keccak256("addToken(address,string,string,uint8)"));
 
@@ -152,18 +152,18 @@ contract TestMultitoken is Multitoken {
         return MTLib.addChild(name_, parent_, child_);
     }
 
-    function addApplication(
+    function addTokenSource(
         string memory appName_,
         address tokenAddress_
     ) public {
-        MTLib.addApplication(appName_, tokenAddress_);
+        MTLib.addTokenSource(appName_, tokenAddress_);
     }
 
-    function removeApplication(
+    function removeTokenSource(
         string memory appName_,
         address tokenAddress_
     ) public {
-        MTLib.removeApplication(appName_, tokenAddress_);
+        MTLib.removeTokenSource(appName_, tokenAddress_);
     }
 
     function addToken(
@@ -237,16 +237,9 @@ contract MultitokenTest is Test {
             mt.addChild("10", mt.addChild("1", address(router), _1), _10),
             _100
         );
-        mt.addApplication("Test Application", address(router));
+        mt.addTokenSource("Source", address(router));
 
-        string[] memory apps = new string[](3);
-        apps[0] = "Test Application 1";
-        apps[1] = "Test Application 2";
-        apps[2] = "Test Application 3";
         mt.addToken(r1, "1", "1", 18);
-        for (uint256 i = 0; i < 3; i++) {
-            mt.addApplication(apps[i], r1);
-        }
 
         mt.addChild("10", r1, _10);
         mt.addChild("11", r1, _11);
@@ -285,13 +278,15 @@ contract MultitokenTest is Test {
 
         assertEq(mt.balanceOf(address(mt)), 0, "Balance mismatch");
 
+        assertEq(mt.parent(MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS)), address(router), "Parent mismatch");
+
         assertEq(
             mt.children(address(router)).length,
-            2,
+            1,
             "Children mismatch (router)"
         );
 
-        assertEq(mt.children(r1).length, 5, "Children mismatch (r1)");
+        assertEq(mt.children(r1).length, 2, "Children mismatch (r1)");
 
         assertEq(mt.children(r10).length, 2, "Children mismatch (r10)");
 
@@ -299,9 +294,9 @@ contract MultitokenTest is Test {
 
         assertEq(mt.childIndex(r1), 0, "Child index mismatch (r1)");
 
-        assertEq(mt.childIndex(r11), 5, "Child index mismatch (r11)");
+        assertEq(mt.childIndex(r11), 2, "Child index mismatch (r11)");
 
-        assertEq(mt.childIndex(r10), 4, "Child index mismatch (r10)");
+        assertEq(mt.childIndex(r10), 1, "Child index mismatch (r10)");
 
         assertEq(mt.childIndex(r100), 1, "Child index mismatch (r100)");
 
@@ -312,23 +307,23 @@ contract MultitokenTest is Test {
         assertEq(mt.childIndex(r111), 2, "Child index mismatch (r111)");
     }
 
-    function testMultitokenApplication() public {
+    function testMultitokenTokenSource() public {
         vm.startPrank(alice);
 
         address _appAddress2 = MTLib.toAddress("Test Application 2");
         vm.expectRevert(
             abi.encodeWithSelector(MTLib.ChildNotFound.selector, _appAddress2)
         );
-        mt.removeApplication("Test Application 2", address(router));
+        mt.removeTokenSource("Test Application 2", address(router));
 
-        mt.addApplication("Test Application 2", address(router));
+        mt.addTokenSource("Test Application 2", address(router));
         address _rawAppAddress = MTLib.toAddress(
-            address(router),
+            MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS),
             MTLib.toAddress("Test Application 2")
         );
-        assertEq(mt.parent(_rawAppAddress), address(router), "Parent");
+        assertEq(mt.parent(_rawAppAddress), MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS), "Parent");
 
-        mt.removeApplication("Test Application 2", address(router));
+        mt.removeTokenSource("Test Application 2", address(router));
         assertEq(mt.parent(_rawAppAddress), address(0), "Parent");
     }
 
