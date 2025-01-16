@@ -296,10 +296,9 @@ library Lib {
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
         address _child = toAddress(parent_, child_);
-        if (store().parent[_child] == parent_) revert DuplicateChild(child_);
         // Must build tree from the top down
         if (store().children[_child].length > 0) revert HasChild(_child);
-        // Cannot redirect a balance to a new parent
+        // Only leaves can hold tokens
         if (store().balance[_child] != 0) revert HasBalance(_child);
 
         store().name[_child] = name_;
