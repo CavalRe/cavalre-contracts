@@ -43,8 +43,8 @@ library Lib {
     // Custom errors
     error ApplicationNotFound(string appName);
     error ChildNotFound(address child);
-    error HasBalance(address child);
-    error HasChild(string child);
+    error HasBalance(string childName);
+    error HasChild(string childName);
     error DifferentRoots(address a, address b);
     error DuplicateChild(address child);
     error InvalidAddress();
@@ -297,9 +297,9 @@ library Lib {
             revert InvalidAddress();
         address _child = toAddress(parent_, child_);
         // Must build tree from the top down
-        if (store().children[_child].length > 0) revert HasChild(name(_child));
+        if (store().children[_child].length > 0) revert HasChild(name_);
         // Only leaves can hold tokens
-        if (store().balance[_child] != 0) revert HasBalance(_child);
+        if (store().balance[_child] != 0) revert HasBalance(name_);
 
         store().name[_child] = name_;
         store().parent[_child] = parent_;
@@ -341,7 +341,7 @@ library Lib {
         address _child = toAddress(parent_, child_);
         if (store().parent[_child] != parent_) revert ChildNotFound(child_);
         if (hasChild(_child)) revert HasChild(name(_child));
-        if (store().balance[_child] != 0) revert HasBalance(_child);
+        if (store().balance[_child] != 0) revert HasBalance(store().name[_child]);
 
         store().name[_child] = "";
         uint256 _index = store().childIndex[_child] - 1;
