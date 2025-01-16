@@ -396,7 +396,8 @@ library Lib {
     ) internal {
         name(tokenAddress_, name_);
         symbol(tokenAddress_, symbol_);
-        if (tokenAddress_ != address(this)) decimals(tokenAddress_, decimals_);
+        if (tokenAddress_ == address(this)) revert InvalidAddress();
+        decimals(tokenAddress_, decimals_);
 
         addChild("Total", tokenAddress_, TOTAL_ADDRESS, true, false);
         addChild(
