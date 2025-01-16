@@ -501,7 +501,7 @@ library Lib {
     }
 
     function mint(
-        address appAddress_,
+        address sourceAddress_,
         address toParentAddress_,
         address toAddress_,
         uint256 amount_
@@ -511,7 +511,7 @@ library Lib {
 
         transfer(
             toAddress(root(toParentAddress_), TOTAL_ADDRESS),
-            appAddress_,
+            sourceAddress_,
             toParentAddress_,
             toAddress_,
             amount_
@@ -528,7 +528,7 @@ library Lib {
     }
 
     function burn(
-        address appAddress_,
+        address sourceAddress_,
         address fromParentAddress_,
         address fromAddress_,
         uint256 amount_
@@ -540,7 +540,7 @@ library Lib {
             fromParentAddress_,
             fromAddress_,
             toAddress(root(fromParentAddress_), TOTAL_ADDRESS),
-            appAddress_,
+            sourceAddress_,
             amount_
         );
         return true;
