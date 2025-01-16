@@ -365,7 +365,6 @@ library Lib {
     ) internal {
         address _sourceAddress = toAddress(sourceName_);
         name(_sourceAddress, sourceName_);
-        addChild("Total", tokenAddress_, TOTAL_ADDRESS, true);
         addChild(
             sourceName_,
             toAddress(tokenAddress_, TOTAL_ADDRESS),
