@@ -433,7 +433,7 @@ contract MultitokenTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(
                 MTLib.HasChild.selector,
-                MTLib.toAddress(address(mt), _1)
+                "1"
             )
         );
         mt.transfer(address(mt), address(mt), _1, 100);
@@ -465,7 +465,7 @@ contract MultitokenTest is Test {
 
         mt.mint(r1, 1000);
         // Expect revert if spender has a child
-        vm.expectRevert(abi.encodeWithSelector(MTLib.HasChild.selector, r10));
+        vm.expectRevert(abi.encodeWithSelector(MTLib.HasChild.selector, "10"));
         mt.approve(r1, r1, _10, 100);
     }
 
