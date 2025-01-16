@@ -394,9 +394,10 @@ library Lib {
         string memory symbol_,
         uint8 decimals_
     ) internal {
+        if (tokenAddress_ == address(this)) revert InvalidAddress();
+
         name(tokenAddress_, name_);
         symbol(tokenAddress_, symbol_);
-        if (tokenAddress_ == address(this)) revert InvalidAddress();
         decimals(tokenAddress_, decimals_);
 
         addChild("Total", tokenAddress_, TOTAL_ADDRESS, true, false);
@@ -753,7 +754,17 @@ contract Multitoken is Initializable {
         s.name[address(this)] = name_;
         s.symbol[address(this)] = symbol_;
 
-        Lib.addToken(address(this), name_, symbol_, _decimals);
+        name(address(this), name_);
+        symbol(address(this), symbol_);
+
+        Lib.addChild("Total", address(this), Lib.TOTAL_ADDRESS, true, false);
+        Lib.addChild(
+            "Root",
+            Lib.toAddress(address(this), Lib.TOTAL_ADDRESS),
+            Lib.ROOT_ADDRESS,
+            true,
+            false
+        );
     }
 
     function initializeMultitoken(
