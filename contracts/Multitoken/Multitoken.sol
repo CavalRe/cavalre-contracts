@@ -341,7 +341,8 @@ library Lib {
         address _child = toAddress(parent_, child_);
         if (store().parent[_child] != parent_) revert ChildNotFound(child_);
         if (hasChild(_child)) revert HasChild(name(_child));
-        if (store().balance[_child] != 0) revert HasBalance(store().name[_child]);
+        if (store().balance[_child] != 0)
+            revert HasBalance(store().name[_child]);
 
         store().name[_child] = "";
         uint256 _index = store().childIndex[_child] - 1;
@@ -364,6 +365,7 @@ library Lib {
     ) internal {
         address _sourceAddress = toAddress(sourceName_);
         name(_sourceAddress, sourceName_);
+        addChild("Total", tokenAddress_, TOTAL_ADDRESS, true);
         addChild(
             sourceName_,
             toAddress(tokenAddress_, TOTAL_ADDRESS),
