@@ -294,7 +294,7 @@ library Lib {
         bool includeChild_
     ) internal returns (address) {
         address _child = toAddress(parent_, child_);
-        if (parent(_child) == child_) return _child;
+        if (parent(_child) == parent_) return _child;
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
         // Must build tree from the top down
