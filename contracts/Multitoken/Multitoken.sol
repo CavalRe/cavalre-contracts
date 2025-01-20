@@ -293,9 +293,10 @@ library Lib {
         bool isCredit_,
         bool includeChild_
     ) internal returns (address) {
+        address _child = toAddress(parent_, child_);
+        if (parent(_child) == child_) return _child;
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
-        address _child = toAddress(parent_, child_);
         // Must build tree from the top down
         if (store().children[_child].length > 0) revert HasChild(childName_);
         // Only leaves can hold tokens
@@ -396,6 +397,8 @@ library Lib {
         uint8 decimals_
     ) internal {
         if (tokenAddress_ == address(this)) revert InvalidAddress();
+        address _totalAbsoluteAddress = toAddress(tokenAddress_, TOTAL_ADDRESS);
+        if (parent(_totalAbsoluteAddress) == tokenAddress_) return;
 
         name(tokenAddress_, name_);
         symbol(tokenAddress_, symbol_);
@@ -404,7 +407,7 @@ library Lib {
         addChild("Total", tokenAddress_, TOTAL_ADDRESS, true, false);
         addChild(
             "Root",
-            toAddress(tokenAddress_, TOTAL_ADDRESS),
+            _totalAbsoluteAddress,
             ROOT_ADDRESS,
             true,
             false
