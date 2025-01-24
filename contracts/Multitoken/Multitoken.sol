@@ -337,9 +337,10 @@ library Lib {
         address parent_,
         address child_
     ) internal returns (address) {
+        address _child = toAddress(parent_, child_);
+        if (parent(_child) == address(0)) return _child;
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
-        address _child = toAddress(parent_, child_);
         if (store().parent[_child] != parent_) revert ChildNotFound(child_);
         if (hasChild(_child)) revert HasChild(name(_child));
         if (store().balance[_child] != 0)

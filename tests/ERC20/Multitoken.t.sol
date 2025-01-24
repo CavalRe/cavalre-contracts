@@ -310,11 +310,11 @@ contract MultitokenTest is Test {
     function testMultitokenTokenSource() public {
         vm.startPrank(alice);
 
-        address _appAddress2 = MTLib.toAddress("Test Application 2");
-        vm.expectRevert(
-            abi.encodeWithSelector(MTLib.ChildNotFound.selector, _appAddress2)
-        );
-        mt.removeTokenSource("Test Application 2", address(router));
+        // address _appAddress2 = MTLib.toAddress("Test Application 2");
+        // vm.expectRevert(
+        //     abi.encodeWithSelector(MTLib.ChildNotFound.selector, _appAddress2)
+        // );
+        // mt.removeTokenSource("Test Application 2", address(router));
 
         mt.addTokenSource("Test Application 2", address(router));
         address _rawAppAddress = MTLib.toAddress(
