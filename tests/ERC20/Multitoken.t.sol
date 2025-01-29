@@ -47,7 +47,7 @@ library Lib {
         bool isFirst,
         bool isLast
     ) internal view {
-        string memory label = mt.symbol(root);
+        string memory label = mt.name(root);
         // Print the current node
         console.log(
             "%s%s%s",
