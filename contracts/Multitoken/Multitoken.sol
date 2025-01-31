@@ -758,6 +758,7 @@ contract Multitoken is Initializable {
         Store storage s = Lib.store();
         s.name[address(this)] = name_;
         s.symbol[address(this)] = symbol_;
+        s.decimals[address(this)] = _decimals;
 
         name(address(this), name_);
         symbol(address(this), symbol_);
