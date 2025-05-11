@@ -177,7 +177,6 @@ contract TestMultitoken is Multitoken {
 
     function mint(address parentAddress_, uint256 amount_) public {
         MTLib.mint(
-            MTLib.root(parentAddress_),
             parentAddress_,
             msg.sender,
             amount_
@@ -186,7 +185,6 @@ contract TestMultitoken is Multitoken {
 
     function burn(address parentAddress_, uint256 _amount) public {
         MTLib.burn(
-            MTLib.root(parentAddress_),
             parentAddress_,
             msg.sender,
             _amount
@@ -335,14 +333,14 @@ contract MultitokenTest is Test {
     function testMultitokenMint() public {
         vm.startPrank(alice);
 
-        // console.log("Initial mint address(this): Alice");
+        console.log("Initial mint address(this): Alice");
         mt.mint(address(mt), 1000);
 
         assertEq(mt.balanceOf(address(mt)), 0, "balanceOf(address(this))");
         assertEq(mt.balanceOf(alice), 1000, "balanceOf(alice)");
         assertEq(mt.totalSupply(), 1000, "totalSupply");
 
-        // console.log("Mint token 1: Alice");
+        console.log("Mint token 1: Alice");
         mt.mint(_1, 1000);
         assertEq(mt.balanceOf(_1, alice), 1000, "balanceOf(_1, alice)");
         assertEq(mt.totalSupply(_1), 1000, "totalSupply(_1)");

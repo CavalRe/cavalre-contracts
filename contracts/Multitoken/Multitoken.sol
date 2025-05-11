@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import {Initializable} from "@cavalre/contracts/Initializable/Initializable.sol";
 
+import {console} from "forge-std/src/Test.sol";
+
 struct Store {
     mapping(address child => address) parent;
     mapping(address child => uint32) childIndex;
@@ -11,7 +13,7 @@ struct Store {
     mapping(address => string) symbol;
     mapping(address => uint8) decimals;
     mapping(address => bool) isCredit;
-    mapping(address => int256) balance;
+    mapping(address => uint256) balance;
     mapping(address owner => mapping(address spender => uint256)) allowances;
 }
 
@@ -236,9 +238,7 @@ library Lib {
     function balanceOfAbsoluteAddress(
         address absoluteAddress_
     ) internal view returns (uint256) {
-        bool _isCredit = store().isCredit[absoluteAddress_];
-        int256 _balance = store().balance[absoluteAddress_];
-        return _isCredit ? uint256(-_balance) : uint256(_balance);
+        return store().balance[absoluteAddress_];
     }
 
     function totalSupply(
@@ -246,19 +246,6 @@ library Lib {
     ) internal view returns (uint256) {
         return
             balanceOfAbsoluteAddress(toAddress(tokenAddress_, TOTAL_ADDRESS));
-    }
-
-    function totalAppSupply(
-        address tokenAddress_,
-        string memory appName_
-    ) internal view returns (uint256) {
-        return
-            balanceOfAbsoluteAddress(
-                toAddress(
-                    toAddress(tokenAddress_, TOTAL_ADDRESS),
-                    toAddress(appName_)
-                )
-            );
     }
 
     function balanceOf(
@@ -406,20 +393,19 @@ library Lib {
         decimals(tokenAddress_, decimals_);
 
         addChild("Total", tokenAddress_, TOTAL_ADDRESS, true, false);
-        addChild(
-            "Root",
-            _totalAbsoluteAddress,
-            ROOT_ADDRESS,
-            true,
-            false
-        );
+        addChild("Root", _totalAbsoluteAddress, ROOT_ADDRESS, true, false);
     }
 
-    function updateBalances(
+    //==================================================================
+    //                         Transfers
+    //==================================================================
+
+    function debit(
         address parent_,
         address current_,
-        int256 delta_
+        uint256 amount_
     ) internal returns (address _root) {
+        console.log("debit");
         if (parent_ == address(0) || current_ == address(0))
             revert InvalidAddress();
         checkChild(current_);
@@ -432,7 +418,50 @@ library Lib {
                 // Root found
                 return current_;
             }
-            s.balance[current_] += delta_;
+            if (s.isCredit[current_]) {
+                require(
+                    s.balance[current_] >= amount_,
+                    "ERC20WithSubaccounts: Insufficient balance"
+                );
+                s.balance[current_] -= amount_;
+            } else {
+                s.balance[current_] += amount_;
+            }
+            current_ = parent_;
+            parent_ = s.parent[parent_];
+            _depth++;
+        }
+        revert MaxDepthExceeded();
+    }
+
+    function credit(
+        address parent_,
+        address current_,
+        uint256 amount_
+    ) internal returns (address _root) {
+        console.log("credit");
+        if (parent_ == address(0) || current_ == address(0))
+            revert InvalidAddress();
+        checkChild(current_);
+
+        Store storage s = store();
+        uint8 _depth;
+        while (_depth < MAX_DEPTH) {
+            // Do not update the balance of the root
+            if (parent_ == address(0)) {
+                // Root found
+                return current_;
+            }
+            console.log("isCredit", s.isCredit[current_]);
+            if (s.isCredit[current_]) {
+                s.balance[current_] += amount_;
+            } else {
+                require(
+                    s.balance[current_] >= amount_,
+                    "ERC20WithSubaccounts: Insufficient balance"
+                );
+                s.balance[current_] -= amount_;
+            }
             current_ = parent_;
             parent_ = s.parent[parent_];
             _depth++;
@@ -447,13 +476,13 @@ library Lib {
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
+        console.log("transfer");
         checkRoots(fromParentAddress_, toParentAddress_);
         address _fromAddress = toAddress(fromParentAddress_, fromAddress_);
         address _toAddress = toAddress(toParentAddress_, toAddress_);
 
-        int256 _amount = int256(amount_);
-        updateBalances(fromParentAddress_, _fromAddress, -_amount);
-        updateBalances(toParentAddress_, _toAddress, _amount);
+        credit(fromParentAddress_, _fromAddress, amount_);
+        debit(toParentAddress_, _toAddress, amount_);
 
         return true;
     }
@@ -467,10 +496,6 @@ library Lib {
         address _fromAddress = toAddress(fromParentAddress_, msg.sender);
         address _toAddress = toAddress(toParentAddress_, toAddress_);
 
-        require(
-            store().balance[_fromAddress] >= int256(amount_),
-            "ERC20WithSubaccounts: Insufficient balance"
-        );
         emit InternalTransfer(_fromAddress, _toAddress, amount_);
         return
             transfer(
@@ -487,12 +512,6 @@ library Lib {
         address recipientAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        address _fromAddress = toAddress(address(this), msg.sender);
-
-        require(
-            store().balance[_fromAddress] >= int256(amount_),
-            "ERC20WithSubaccounts: Insufficient balance"
-        );
         emit Transfer(msg.sender, recipientAddress_, amount_);
         return
             transfer(
@@ -510,6 +529,7 @@ library Lib {
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
+        console.log("mint");
         if (toParentAddress_ == address(0) || toAddress_ == address(0))
             revert InvalidAddress();
 
