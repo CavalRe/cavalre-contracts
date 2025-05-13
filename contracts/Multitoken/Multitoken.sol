@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Module} from "@cavalre/contracts/router/Module.sol";
-
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Initializable} from "@cavalre/contracts/Initializable/Initializable.sol";
 
 struct Store {
     mapping(address child => address) parent;
@@ -727,7 +725,7 @@ library Lib {
     }
 }
 
-contract Multitoken is Initializable, Module {
+contract Multitoken is Initializable {
     constructor(uint8 decimals_) {
         _decimals = decimals_;
     }
