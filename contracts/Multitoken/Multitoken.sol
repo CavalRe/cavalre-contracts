@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.24;
 
-import {Initializable} from "@cavalre/contracts/Initializable/Initializable.sol";
+import {Module} from "@cavalre/contracts/router/Module.sol";
 
-import {console} from "forge-std/src/Test.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 struct Store {
     mapping(address child => address) parent;
@@ -405,7 +405,6 @@ library Lib {
         address current_,
         uint256 amount_
     ) internal returns (address _root) {
-        console.log("debit");
         if (parent_ == address(0) || current_ == address(0))
             revert InvalidAddress();
         checkChild(current_);
@@ -439,7 +438,6 @@ library Lib {
         address current_,
         uint256 amount_
     ) internal returns (address _root) {
-        console.log("credit");
         if (parent_ == address(0) || current_ == address(0))
             revert InvalidAddress();
         checkChild(current_);
@@ -452,7 +450,6 @@ library Lib {
                 // Root found
                 return current_;
             }
-            console.log("isCredit", s.isCredit[current_]);
             if (s.isCredit[current_]) {
                 s.balance[current_] += amount_;
             } else {
@@ -476,7 +473,6 @@ library Lib {
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        console.log("transfer");
         checkRoots(fromParentAddress_, toParentAddress_);
         address _fromAddress = toAddress(fromParentAddress_, fromAddress_);
         address _toAddress = toAddress(toParentAddress_, toAddress_);
@@ -529,7 +525,6 @@ library Lib {
         address toAddress_,
         uint256 amount_
     ) internal returns (bool) {
-        console.log("mint");
         if (toParentAddress_ == address(0) || toAddress_ == address(0))
             revert InvalidAddress();
 
@@ -577,6 +572,10 @@ library Lib {
     ) internal returns (bool) {
         return burn(ROOT_ADDRESS, fromParentAddress_, fromAddress_, amount_);
     }
+
+    //==================================================================
+    //                         Approvals
+    //==================================================================
 
     function approve(
         address ownerParentAddress_,
@@ -728,11 +727,28 @@ library Lib {
     }
 }
 
-contract Multitoken is Initializable {
-    uint8 internal immutable _decimals;
-
+contract Multitoken is Initializable, Module {
     constructor(uint8 decimals_) {
         _decimals = decimals_;
+    }
+
+    uint8 internal immutable _decimals;
+
+    bytes32 private constant INITIALIZABLE_STORAGE =
+        keccak256(
+            abi.encode(
+                uint256(keccak256("cavalre.storage.Multitoken.Initializable")) -
+                    1
+            )
+        ) & ~bytes32(uint256(0xff));
+
+    function _initializableStorageSlot()
+        internal
+        pure
+        override
+        returns (bytes32)
+    {
+        return INITIALIZABLE_STORAGE;
     }
 
     function commands()

@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import {Router} from "../../contracts/router/Router.sol";
 import {Multitoken, Lib as MTLib, Store} from "../../contracts/Multitoken/Multitoken.sol";
 import {Module, ModuleLib as MLib} from "../../contracts/router/Module.sol";
-import {Initializable} from "../../contracts/Initializable/Initializable.sol";
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test, console} from "forge-std/src/Test.sol";
@@ -176,19 +175,11 @@ contract TestMultitoken is Multitoken {
     }
 
     function mint(address parentAddress_, uint256 amount_) public {
-        MTLib.mint(
-            parentAddress_,
-            msg.sender,
-            amount_
-        );
+        MTLib.mint(parentAddress_, msg.sender, amount_);
     }
 
     function burn(address parentAddress_, uint256 _amount) public {
-        MTLib.burn(
-            parentAddress_,
-            msg.sender,
-            _amount
-        );
+        MTLib.burn(parentAddress_, msg.sender, _amount);
     }
 
     receive() external payable {}
@@ -247,6 +238,8 @@ contract MultitokenTest is Test {
         mt.addChild("111", r11, _111);
     }
 
+    error InvalidInitialization();
+
     function testMultitokenInit() public {
         console.log("--------------------");
         Lib.debugTree(mt, address(router));
@@ -256,12 +249,7 @@ contract MultitokenTest is Test {
 
         vm.startPrank(alice);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Initializable.InvalidInitialization.selector,
-                router.module(Lib.INITIALIZE_TEST_TOKEN)
-            )
-        );
+        vm.expectRevert(InvalidInitialization.selector);
         mt.initializeTestMultitoken("Clone", "CLONE");
 
         assertEq(mt.name(), "Test Multitoken");
@@ -276,7 +264,11 @@ contract MultitokenTest is Test {
 
         assertEq(mt.balanceOf(address(mt)), 0, "Balance mismatch");
 
-        assertEq(mt.parent(MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS)), address(router), "Parent mismatch");
+        assertEq(
+            mt.parent(MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS)),
+            address(router),
+            "Parent mismatch"
+        );
 
         assertEq(
             mt.children(address(router)).length,
@@ -319,7 +311,11 @@ contract MultitokenTest is Test {
             MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS),
             MTLib.toAddress("Test Application 2")
         );
-        assertEq(mt.parent(_rawAppAddress), MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS), "Parent");
+        assertEq(
+            mt.parent(_rawAppAddress),
+            MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS),
+            "Parent"
+        );
 
         mt.removeTokenSource("Test Application 2", address(router));
         assertEq(mt.parent(_rawAppAddress), address(0), "Parent");
@@ -428,12 +424,7 @@ contract MultitokenTest is Test {
         mt.transfer(address(mt), _1, _10, 100);
 
         // Expect revert if sender has children
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                MTLib.HasChild.selector,
-                "1"
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(MTLib.HasChild.selector, "1"));
         mt.transfer(address(mt), address(mt), _1, 100);
 
         mt.mint(_1, 1000);
