@@ -41,11 +41,26 @@ library ERC20Lib {
 }
 
 contract ERC20 is Module, ERC20Upgradeable {
+    uint8 private immutable _decimals;
 
-    uint8 immutable private _decimals;
+    bytes32 private constant INITIALIZABLE_STORAGE =
+        keccak256(
+            abi.encode(
+                uint256(keccak256("cavalre.storage.ERC20.Initializable")) - 1
+            )
+        ) & ~bytes32(uint256(0xff));
 
     constructor(uint8 decimals_) {
         _decimals = decimals_;
+    }
+
+    function _initializableStorageSlot()
+        internal
+        pure
+        override
+        returns (bytes32)
+    {
+        return INITIALIZABLE_STORAGE;
     }
 
     function commands()
