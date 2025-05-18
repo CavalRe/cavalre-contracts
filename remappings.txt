@@ -1,5 +1,5 @@
 @cavalre/contracts/=contracts/
 @openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
-@openzeppelin/contracts-upgradeable/=node_modules/openzeppelin-solidity/contracts/
+@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/
 forge-std/=node_modules/forge-std/
 solady/=node_modules/solady/

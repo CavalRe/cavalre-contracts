@@ -5,7 +5,7 @@ import {Module} from "@cavalre/contracts/router/Module.sol";
 
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-library ERC20Lib {
+library Lib {
     // Selectors
     bytes4 internal constant INITIALIZE_ERC20 =
         bytes4(keccak256("initializeERC20(string,string)"));
@@ -71,16 +71,16 @@ contract ERC20 is Module, ERC20Upgradeable {
         returns (bytes4[] memory _commands)
     {
         _commands = new bytes4[](10);
-        _commands[0] = ERC20Lib.INITIALIZE_ERC20;
-        _commands[1] = ERC20Lib.NAME;
-        _commands[2] = ERC20Lib.SYMBOL;
-        _commands[3] = ERC20Lib.DECIMALS;
-        _commands[4] = ERC20Lib.TOTAL_SUPPLY;
-        _commands[5] = ERC20Lib.BALANCE_OF;
-        _commands[6] = ERC20Lib.TRANSFER;
-        _commands[7] = ERC20Lib.ALLOWANCE;
-        _commands[8] = ERC20Lib.APPROVE;
-        _commands[9] = ERC20Lib.TRANSFER_FROM;
+        _commands[0] = Lib.INITIALIZE_ERC20;
+        _commands[1] = Lib.NAME;
+        _commands[2] = Lib.SYMBOL;
+        _commands[3] = Lib.DECIMALS;
+        _commands[4] = Lib.TOTAL_SUPPLY;
+        _commands[5] = Lib.BALANCE_OF;
+        _commands[6] = Lib.TRANSFER;
+        _commands[7] = Lib.ALLOWANCE;
+        _commands[8] = Lib.APPROVE;
+        _commands[9] = Lib.TRANSFER_FROM;
     }
 
     function decimals() public view override returns (uint8) {

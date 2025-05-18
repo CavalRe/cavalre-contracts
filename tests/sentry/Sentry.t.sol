@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {Router} from "../../contracts/router/Router.sol";
-import {Module, ModuleLib as ML} from "../../contracts/router/Module.sol";
-import {Sentry, SentryLib as SL} from "../../contracts/sentry/Sentry.sol";
+import {Module, Lib as ML} from "../../contracts/router/Module.sol";
+import {Sentry, Lib as SL} from "../../contracts/sentry/Sentry.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract SentryTest is Test {

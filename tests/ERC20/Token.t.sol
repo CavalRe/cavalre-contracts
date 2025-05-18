@@ -2,13 +2,13 @@
 pragma solidity ^0.8.0;
 
 import {Router} from "../../contracts/router/Router.sol";
-import {ERC20, ERC20Lib} from "../../contracts/ERC20/ERC20.sol";
-import {ModuleLib} from "../../contracts/router/Module.sol";
+import {ERC20, Lib as ERC20Lib} from "../../contracts/ERC20/ERC20.sol";
+import {Lib as ModuleLib} from "../../contracts/router/Module.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-library TestTokenLib {
+library Lib {
     // Selectors
     bytes4 internal constant INITIALIZE_TOKEN =
         bytes4(keccak256("initializeTestToken(string,string)"));
@@ -31,7 +31,7 @@ contract TestToken is ERC20 {
         returns (bytes4[] memory _commands)
     {
         _commands = new bytes4[](12);
-        _commands[0] = TestTokenLib.INITIALIZE_TOKEN;
+        _commands[0] = Lib.INITIALIZE_TOKEN;
         _commands[1] = ERC20Lib.NAME;
         _commands[2] = ERC20Lib.SYMBOL;
         _commands[3] = ERC20Lib.DECIMALS;
@@ -41,8 +41,8 @@ contract TestToken is ERC20 {
         _commands[7] = ERC20Lib.ALLOWANCE;
         _commands[7] = ERC20Lib.APPROVE;
         _commands[9] = ERC20Lib.TRANSFER_FROM;
-        _commands[10] = TestTokenLib.MINT;
-        _commands[11] = TestTokenLib.BURN;
+        _commands[10] = Lib.MINT;
+        _commands[11] = Lib.BURN;
     }
 
     // Commands

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Module, ModuleLib as ML, Store as MS} from "@cavalre/contracts/router/Module.sol";
+import {Module, Lib as ML, Store as MS} from "@cavalre/contracts/router/Module.sol";
 import {console} from "forge-std/src/console.sol";
 
 struct Store {
     mapping(address => address) pendingOwners;
 }
 
-library SentryLib {
+library Lib {
     // Stores
     bytes32 internal constant STORE_POSITION =
         keccak256("@cavalre.sentry.store");
@@ -55,11 +55,11 @@ contract Sentry is Module {
         returns (bytes4[] memory _commands)
     {
         _commands = new bytes4[](5);
-        _commands[0] = SentryLib.TRANSFER_OWNERSHIP;
-        _commands[1] = SentryLib.ACCEPT_OWNERSHIP;
-        _commands[2] = SentryLib.RENOUNCE_OWNERSHIP;
-        _commands[3] = SentryLib.CONFIRM_RENOUNCE_OWNERSHIP;
-        _commands[4] = SentryLib.PENDING_OWNER;
+        _commands[0] = Lib.TRANSFER_OWNERSHIP;
+        _commands[1] = Lib.ACCEPT_OWNERSHIP;
+        _commands[2] = Lib.RENOUNCE_OWNERSHIP;
+        _commands[3] = Lib.CONFIRM_RENOUNCE_OWNERSHIP;
+        _commands[4] = Lib.PENDING_OWNER;
     }
 
     function transferOwnership(address _module, address _newOwner) external {
@@ -67,7 +67,7 @@ contract Sentry is Module {
         if (_newOwner == address(0)) {
             revert OwnableInvalidOwner(_newOwner);
         }
-        Store storage s = SentryLib.store();
+        Store storage s = Lib.store();
         s.pendingOwners[_module] = _newOwner;
 
         emit OwnershipTransferStarted(ms.owners[_module], _newOwner);
@@ -75,7 +75,7 @@ contract Sentry is Module {
 
     function acceptOwnership(address _module) external {
         MS storage ms = ML.store();
-        Store storage s = SentryLib.store();
+        Store storage s = Lib.store();
         address sender = msg.sender;
         if (s.pendingOwners[_module] != sender) {
             revert Module.OwnableUnauthorizedAccount(sender);
@@ -89,7 +89,7 @@ contract Sentry is Module {
 
     function renouceOwnership(address _module) external {
         MS storage ms = enforceIsOwner();
-        Store storage s = SentryLib.store();
+        Store storage s = Lib.store();
         address sender = msg.sender;
         if (ms.owners[_module] != sender) {
             revert Module.OwnableUnauthorizedAccount(sender);
@@ -102,7 +102,7 @@ contract Sentry is Module {
 
     function confirmRenounceOwnership(address _module) external {
         MS storage ms = enforceIsOwner();
-        Store storage s = SentryLib.store();
+        Store storage s = Lib.store();
         address oldOwner = ms.owners[_module];
         ms.owners[_module] = address(0);
         s.pendingOwners[_module] = address(0);
@@ -111,6 +111,6 @@ contract Sentry is Module {
     }
 
     function pendingOwner(address _module) external view returns (address) {
-        return SentryLib.store().pendingOwners[_module];
+        return Lib.store().pendingOwners[_module];
     }
 }

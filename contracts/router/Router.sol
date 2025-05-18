@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Module, ModuleLib as ML, Store as MS} from "./Module.sol";
+import {Module, Lib as ML, Store as MS} from "./Module.sol";
 
 struct Store {
     mapping(bytes4 => address) modules;
 }
 
-library RouterLib {
+library Lib {
     bytes32 private constant STORE_POSITION =
         keccak256(
             abi.encode(uint256(keccak256("cavalre.storage.Router")) - 1)
@@ -44,7 +44,7 @@ contract Router is Module {
     }
 
     fallback() external payable {
-        address module_ = RouterLib.store().modules[msg.sig];
+        address module_ = Lib.store().modules[msg.sig];
         if (module_ == address(0)) revert CommandNotFound(msg.sig);
 
         assembly {
@@ -75,7 +75,7 @@ contract Router is Module {
         enforceIsOwner();
         bytes4[] memory _commands = getCommands(_module);
         if (_commands.length == 0) revert ModuleNotFound(_module);
-        Store storage s = RouterLib.store();
+        Store storage s = Lib.store();
         for (uint256 i = 0; i < _commands.length; i++) {
             if (s.modules[_commands[i]] != address(0))
                 revert CommandAlreadySet(_commands[i], _module);
@@ -90,7 +90,7 @@ contract Router is Module {
         enforceIsOwner();
         bytes4[] memory _commands = getCommands(_module);
         if (_commands.length == 0) revert ModuleNotFound(_module);
-        Store storage s = RouterLib.store();
+        Store storage s = Lib.store();
         for (uint256 i = 0; i < _commands.length; i++) {
             s.modules[_commands[i]] = address(0);
             emit CommandSet(_commands[i], address(0));
@@ -104,6 +104,6 @@ contract Router is Module {
     }
 
     function module(bytes4 _selector) public view returns (address) {
-        return RouterLib.store().modules[_selector];
+        return Lib.store().modules[_selector];
     }
 }

@@ -5,7 +5,7 @@ struct Store {
     mapping(address => address) owners;
 }
 
-library ModuleLib {
+library Lib {
     bytes32 private constant STORE_POSITION =
         keccak256(
             abi.encode(uint256(keccak256("cavalre.storage.Module")) - 1)
@@ -31,7 +31,7 @@ abstract contract Module {
     function commands() public pure virtual returns (bytes4[] memory _commands);
 
     function enforceIsOwner() internal view returns (Store storage s) {
-        s = ModuleLib.store();
+        s = Lib.store();
         if (s.owners[__self] != msg.sender) {
             revert OwnableUnauthorizedAccount(msg.sender);
         }

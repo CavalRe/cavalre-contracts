@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {Router} from "../../contracts/router/Router.sol";
-import {ERC20, ERC20Lib} from "../../contracts/ERC20/ERC20.sol";
-import {Module, ModuleLib as ML} from "../../contracts/router/Module.sol";
+import {ERC20, Lib as ERC20Lib} from "../../contracts/ERC20/ERC20.sol";
+import {Module, Lib as ML} from "../../contracts/router/Module.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test} from "forge-std/src/Test.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";

@@ -2,12 +2,12 @@
 pragma solidity ^0.8.20;
 
 import {Module} from "@cavalre/contracts/router/Module.sol";
-import {ERC20Lib} from "@cavalre/contracts/ERC20/ERC20.sol";
+import {Lib as ERC20Lib} from "@cavalre/contracts/ERC20/ERC20.sol";
 
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-library ERC4626Lib {
+library Lib {
     // Selectors
     bytes4 internal constant INITIALIZE_ERC4626 =
         bytes4(keccak256("initializeERC4626(IERC20,string,string)"));
@@ -51,10 +51,26 @@ library ERC4626Lib {
 }
 
 contract ERC4626 is Module, ERC4626Upgradeable {
-    uint8 immutable private _decimals;
+    uint8 private immutable _decimals;
+
+    bytes32 private constant INITIALIZABLE_STORAGE =
+        keccak256(
+            abi.encode(
+                uint256(keccak256("cavalre.storage.ERC4626.Initializable")) - 1
+            )
+        ) & ~bytes32(uint256(0xff));
 
     constructor(uint8 decimals_) {
         _decimals = decimals_;
+    }
+
+    function _initializableStorageSlot()
+        internal
+        pure
+        override
+        returns (bytes32)
+    {
+        return INITIALIZABLE_STORAGE;
     }
 
     function commands()
@@ -65,7 +81,7 @@ contract ERC4626 is Module, ERC4626Upgradeable {
         returns (bytes4[] memory _commands)
     {
         _commands = new bytes4[](26);
-        _commands[0] = ERC4626Lib.INITIALIZE_ERC4626;
+        _commands[0] = Lib.INITIALIZE_ERC4626;
         _commands[1] = ERC20Lib.NAME;
         _commands[2] = ERC20Lib.SYMBOL;
         _commands[3] = ERC20Lib.DECIMALS;
@@ -75,23 +91,22 @@ contract ERC4626 is Module, ERC4626Upgradeable {
         _commands[7] = ERC20Lib.ALLOWANCE;
         _commands[8] = ERC20Lib.APPROVE;
         _commands[9] = ERC20Lib.TRANSFER_FROM;
-        _commands[10] = ERC4626Lib.ASSET;
-        _commands[11] = ERC4626Lib.TOTAL_ASSETS;
-        _commands[12] = ERC4626Lib.CONVERT_TO_SHARES;
-        _commands[13] = ERC4626Lib.CONVERT_TO_ASSETS;
-        _commands[14] = ERC4626Lib.MAX_DEPOSIT;
-        _commands[15] = ERC4626Lib.PREVIEW_DEPOSIT;
-        _commands[16] = ERC4626Lib.DEPOSIT;
-        _commands[17] = ERC4626Lib.MAX_MINT;
-        _commands[18] = ERC4626Lib.PREVIEW_MINT;
-        _commands[19] = ERC4626Lib.MINT;
-        _commands[20] = ERC4626Lib.MAX_WITHDRAW;
-        _commands[21] = ERC4626Lib.PREVIEW_WITHDRAW;
-        _commands[22] = ERC4626Lib.WITHDRAW;
-        _commands[23] = ERC4626Lib.MAX_REDEEM;
-        _commands[24] = ERC4626Lib.PREVIEW_REDEEM;
-        _commands[25] = ERC4626Lib.REDEEM;
-
+        _commands[10] = Lib.ASSET;
+        _commands[11] = Lib.TOTAL_ASSETS;
+        _commands[12] = Lib.CONVERT_TO_SHARES;
+        _commands[13] = Lib.CONVERT_TO_ASSETS;
+        _commands[14] = Lib.MAX_DEPOSIT;
+        _commands[15] = Lib.PREVIEW_DEPOSIT;
+        _commands[16] = Lib.DEPOSIT;
+        _commands[17] = Lib.MAX_MINT;
+        _commands[18] = Lib.PREVIEW_MINT;
+        _commands[19] = Lib.MINT;
+        _commands[20] = Lib.MAX_WITHDRAW;
+        _commands[21] = Lib.PREVIEW_WITHDRAW;
+        _commands[22] = Lib.WITHDRAW;
+        _commands[23] = Lib.MAX_REDEEM;
+        _commands[24] = Lib.PREVIEW_REDEEM;
+        _commands[25] = Lib.REDEEM;
     }
 
     function decimals() public view override returns (uint8) {

@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Router} from "../../contracts/router/Router.sol";
 import {Multitoken, Lib as MTLib, Store} from "../../contracts/Multitoken/Multitoken.sol";
-import {Module, ModuleLib as MLib} from "../../contracts/router/Module.sol";
+import {Module, Lib as MLib} from "../../contracts/router/Module.sol";
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test, console} from "forge-std/src/Test.sol";
