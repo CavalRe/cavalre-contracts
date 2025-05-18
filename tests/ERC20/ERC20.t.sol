@@ -6,7 +6,6 @@ import {ERC20, Lib as ERC20Lib} from "../../contracts/ERC20/ERC20.sol";
 import {Module, Lib as ML} from "../../contracts/router/Module.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test} from "forge-std/src/Test.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract ERC20Test is Test {
     Router router;
@@ -15,6 +14,10 @@ contract ERC20Test is Test {
     address alice = address(1);
     address bob = address(2);
     address charlie = address(3);
+
+    error InvalidInitialization();
+    
+    error NotInitializing();
 
     function setUp() public {
         vm.startPrank(alice);
@@ -29,7 +32,7 @@ contract ERC20Test is Test {
 
         erc20.initializeERC20("Clone", "CLONE");
 
-        vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
+        vm.expectRevert(abi.encodeWithSelector(InvalidInitialization.selector));
         erc20.initializeERC20("Clone", "CLONE");
 
         assertEq(erc20.name(), "Clone");

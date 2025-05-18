@@ -6,7 +6,6 @@ import {ERC20, Lib as ERC20Lib} from "../../contracts/ERC20/ERC20.sol";
 import {Lib as ModuleLib} from "../../contracts/router/Module.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 library Lib {
     // Selectors
@@ -87,6 +86,10 @@ contract TestTokenTest is Test {
     address bob = address(2);
     address carol = address(3);
 
+    error InvalidInitialization();
+    
+    error NotInitializing();
+
     function setUp() public {
         vm.startPrank(alice);
         token = new TestToken(18);
@@ -101,7 +104,7 @@ contract TestTokenTest is Test {
     function testTestTokenInitialize() public {
         vm.startPrank(alice);
 
-        vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
+        vm.expectRevert(abi.encodeWithSelector(InvalidInitialization.selector));
         token.initializeTestToken("TestToken", "TOKEN");
 
         assertEq(token.name(), "TestToken");
