@@ -272,11 +272,11 @@ contract MultitokenTest is Test {
 
         assertEq(
             mt.children(address(router)).length,
-            1,
+            2,
             "Children mismatch (router)"
         );
 
-        assertEq(mt.children(r1).length, 2, "Children mismatch (r1)");
+        assertEq(mt.children(r1).length, 3, "Children mismatch (r1)");
 
         assertEq(mt.children(r10).length, 2, "Children mismatch (r10)");
 
@@ -284,9 +284,9 @@ contract MultitokenTest is Test {
 
         assertEq(mt.childIndex(r1), 0, "Child index mismatch (r1)");
 
-        assertEq(mt.childIndex(r11), 2, "Child index mismatch (r11)");
+        assertEq(mt.childIndex(r11), 3, "Child index mismatch (r11)");
 
-        assertEq(mt.childIndex(r10), 1, "Child index mismatch (r10)");
+        assertEq(mt.childIndex(r10), 2, "Child index mismatch (r10)");
 
         assertEq(mt.childIndex(r100), 1, "Child index mismatch (r100)");
 

@@ -275,8 +275,7 @@ library Lib {
         string memory childName_,
         address parent_,
         address child_,
-        bool isCredit_,
-        bool includeChild_
+        bool isCredit_
     ) internal returns (address) {
         address _child = toAddress(parent_, child_);
         if (parent(_child) == parent_) return _child;
@@ -289,12 +288,10 @@ library Lib {
 
         store().name[_child] = childName_;
         store().parent[_child] = parent_;
-        if (includeChild_) {
-            store().children[parent_].push(child_);
-            store().childIndex[_child] = uint32(
-                store().children[parent_].length
-            );
-        }
+        store().children[parent_].push(child_);
+        store().childIndex[_child] = uint32(
+            store().children[parent_].length
+        );
         store().isCredit[_child] = isCredit_;
         address _root = root(_child);
         emit ChildAdded(_root, parent_, child_);
@@ -304,18 +301,9 @@ library Lib {
     function addChild(
         string memory childName_,
         address parent_,
-        address child_,
-        bool isCredit_
-    ) internal returns (address) {
-        return addChild(childName_, parent_, child_, isCredit_, true);
-    }
-
-    function addChild(
-        string memory childName_,
-        address parent_,
         address child_
     ) internal returns (address) {
-        return addChild(childName_, parent_, child_, false, true);
+        return addChild(childName_, parent_, child_, false);
     }
 
     function removeChild(
@@ -390,8 +378,8 @@ library Lib {
         symbol(tokenAddress_, symbol_);
         decimals(tokenAddress_, decimals_);
 
-        addChild("Total", tokenAddress_, TOTAL_ADDRESS, true, false);
-        addChild("Root", _totalAbsoluteAddress, ROOT_ADDRESS, true, false);
+        addChild("Total", tokenAddress_, TOTAL_ADDRESS, true);
+        addChild("Root", _totalAbsoluteAddress, ROOT_ADDRESS, true);
     }
 
     //==================================================================
@@ -797,13 +785,12 @@ contract Multitoken is Initializable {
         name(address(this), name_);
         symbol(address(this), symbol_);
 
-        Lib.addChild("Total", address(this), Lib.TOTAL_ADDRESS, true, false);
+        Lib.addChild("Total", address(this), Lib.TOTAL_ADDRESS, true);
         Lib.addChild(
             "Root",
             Lib.toAddress(address(this), Lib.TOTAL_ADDRESS),
             Lib.ROOT_ADDRESS,
-            true,
-            false
+            true
         );
     }
 
