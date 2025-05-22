@@ -714,7 +714,7 @@ library Lib {
     }
 }
 
-contract Multitoken is Initializable, Module {
+contract Multitoken is Module, Initializable {
     constructor(uint8 decimals_) {
         _decimals = decimals_;
     }
