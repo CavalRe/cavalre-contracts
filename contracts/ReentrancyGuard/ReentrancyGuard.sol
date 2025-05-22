@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Module} from "@cavalre/contracts/router/Module.sol";
-
-import {ReentrancyGuardTransient as OZReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 /**
  * @dev Shadow version of OpenZeppelin's ReentrancyGuardTransient to support module-specific storage slots.
@@ -16,7 +14,7 @@ import {ReentrancyGuardTransient as OZReentrancyGuard} from "@openzeppelin/contr
  *
  * @notice Must be used instead of OpenZeppelin's ReentrancyGuardTransient directly in module contracts.
  */
-abstract contract ReentrancyGuard is Module, OZReentrancyGuard {
+abstract contract ReentrancyGuard is ReentrancyGuardTransient {
     function _reentrancyGuardStorageSlot()
         internal
         pure

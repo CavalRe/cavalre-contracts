@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Module} from "@cavalre/contracts/router/Module.sol";
-
 import {Initializable as OZInitializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
@@ -16,7 +14,7 @@ import {Initializable as OZInitializable} from "@openzeppelin/contracts-upgradea
  *
  * @notice Must be used instead of OpenZeppelin's Initializable directly in module contracts.
  */
-abstract contract Initializable is Module, OZInitializable {
+abstract contract Initializable is OZInitializable {
     function _initializableStorageSlot() internal pure virtual override returns (bytes32) {
         // Must be overridden per-module to ensure unique slot
         revert("Initializable: must override _initializableStorageSlot()");
