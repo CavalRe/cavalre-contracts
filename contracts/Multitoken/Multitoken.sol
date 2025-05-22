@@ -371,7 +371,6 @@ library Lib {
         string memory symbol_,
         uint8 decimals_
     ) internal {
-        if (tokenAddress_ == address(this)) revert InvalidAddress();
         address _totalAbsoluteAddress = toAddress(tokenAddress_, TOTAL_ADDRESS);
         if (parent(_totalAbsoluteAddress) == tokenAddress_) return;
 
