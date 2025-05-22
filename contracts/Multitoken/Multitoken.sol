@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Module} from "@cavalre/contracts/router/Module.sol";
 import {Initializable} from "@cavalre/contracts/Initializable/Initializable.sol";
 
 struct Store {
@@ -713,7 +714,7 @@ library Lib {
     }
 }
 
-contract Multitoken is Initializable {
+contract Multitoken is Initializable, Module {
     constructor(uint8 decimals_) {
         _decimals = decimals_;
     }
