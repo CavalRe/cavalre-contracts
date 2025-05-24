@@ -234,7 +234,7 @@ library Lib {
     //==================================================================
     //                        Balance & Supply
     //==================================================================
-    function balanceOfAbsoluteAddress(
+    function balanceOf(
         address absoluteAddress_
     ) internal view returns (uint256) {
         return store().balance[absoluteAddress_];
@@ -243,16 +243,18 @@ library Lib {
     function totalSupply(
         address tokenAddress_
     ) internal view returns (uint256) {
-        return
-            balanceOfAbsoluteAddress(toAddress(tokenAddress_, TOTAL_ADDRESS));
+        return balanceOf(toAddress(tokenAddress_, TOTAL_ADDRESS));
     }
 
     function balanceOf(
         address parentAddress_,
         address ownerAddress_
     ) internal view returns (uint256) {
-        return
-            balanceOfAbsoluteAddress(toAddress(parentAddress_, ownerAddress_));
+        return balanceOf(toAddress(parentAddress_, ownerAddress_));
+    }
+
+    function hasBalance(address absoluteAddress_) internal view returns (bool) {
+        return store().balance[absoluteAddress_] > 0;
     }
 
     //==================================================================
@@ -278,21 +280,20 @@ library Lib {
         address child_,
         bool isCredit_
     ) internal returns (address) {
-        address _child = toAddress(parent_, child_);
-        if (parent(_child) == parent_) return _child;
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
+        // Only leaves can hold balances
+        if (hasBalance(parent_)) revert HasBalance(name(parent_));
         // Must build tree from the top down
-        if (store().children[_child].length > 0) revert HasChild(childName_);
-        // Only leaves can hold tokens
-        if (store().balance[_child] != 0) revert HasBalance(childName_);
+        if (hasChild(child_)) revert HasChild(childName_);
+        if (hasBalance(child_)) revert HasBalance(childName_);
+        address _child = toAddress(parent_, child_);
+        if (parent(_child) == parent_) return _child;
 
         store().name[_child] = childName_;
         store().parent[_child] = parent_;
         store().children[parent_].push(child_);
-        store().childIndex[_child] = uint32(
-            store().children[parent_].length
-        );
+        store().childIndex[_child] = uint32(store().children[parent_].length);
         store().isCredit[_child] = isCredit_;
         address _root = root(_child);
         emit ChildAdded(_root, parent_, child_);
@@ -311,23 +312,25 @@ library Lib {
         address parent_,
         address child_
     ) internal returns (address) {
-        address _child = toAddress(parent_, child_);
-        if (parent(_child) == address(0)) return _child;
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
-        if (store().parent[_child] != parent_) revert ChildNotFound(child_);
+        address _child = toAddress(parent_, child_);
+        if (parent(_child) != parent_) revert ChildNotFound(child_);
+        // Must remove children from the bottom up
         if (hasChild(_child)) revert HasChild(name(_child));
-        if (store().balance[_child] != 0)
-            revert HasBalance(store().name[_child]);
+        // Cannot remove a child that has a balance
+        if (hasBalance(_child)) revert HasBalance(store().name[_child]);
 
         store().name[_child] = "";
         uint256 _index = store().childIndex[_child] - 1;
         address _lastChild = store().children[parent_][
             store().children[parent_].length - 1
         ];
+
+        // Move last child to removed position
         store().children[parent_][_index] = _lastChild;
         store().children[parent_].pop();
-        store().childIndex[_lastChild] = uint32(_index + 1);
+        store().childIndex[toAddress(parent_, _lastChild)] = uint32(_index + 1);
 
         store().parent[_child] = address(0);
         store().childIndex[_child] = 0;

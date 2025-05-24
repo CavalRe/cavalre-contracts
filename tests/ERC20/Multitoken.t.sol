@@ -14,6 +14,8 @@ library Lib {
         bytes4(keccak256("initializeTestMultitoken(string,string)"));
     bytes4 internal constant ADD_CHILD =
         bytes4(keccak256("addChild(string,address,address)"));
+    bytes4 internal constant REMOVE_CHILD =
+        bytes4(keccak256("removeChild(address,address)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
     bytes4 internal constant ADD_APPLICATION =
@@ -97,7 +99,7 @@ contract TestMultitoken is Multitoken {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](31);
+        _commands = new bytes4[](32);
         _commands[0] = Lib.INITIALIZE_TEST_TOKEN;
         _commands[1] = MTLib.SET_NAME;
         _commands[2] = MTLib.SET_SYMBOL;
@@ -124,11 +126,12 @@ contract TestMultitoken is Multitoken {
         _commands[23] = MTLib.TRANSFER_FROM;
         _commands[24] = MTLib.BASE_TRANSFER_FROM;
         _commands[25] = Lib.ADD_CHILD;
-        _commands[26] = Lib.MINT;
-        _commands[27] = Lib.BURN;
-        _commands[28] = Lib.ADD_APPLICATION;
-        _commands[29] = Lib.REMOVE_APPLICATION;
-        _commands[30] = Lib.ADD_TOKEN;
+        _commands[26] = Lib.REMOVE_CHILD;
+        _commands[27] = Lib.MINT;
+        _commands[28] = Lib.BURN;
+        _commands[29] = Lib.ADD_APPLICATION;
+        _commands[30] = Lib.REMOVE_APPLICATION;
+        _commands[31] = Lib.ADD_TOKEN;
     }
 
     // Commands
@@ -149,6 +152,13 @@ contract TestMultitoken is Multitoken {
         address child_
     ) public returns (address) {
         return MTLib.addChild(name_, parent_, child_);
+    }
+
+    function removeChild(
+        address parent_,
+        address child_
+    ) public returns (address) {
+        return MTLib.removeChild(parent_, child_);
     }
 
     function addTokenSource(
@@ -321,10 +331,303 @@ contract MultitokenTest is Test {
         assertEq(mt.parent(_rawAppAddress), address(0), "Parent");
     }
 
-    // TODO: Implement addChild, removeChild
-    function testAddChild() public {}
+    function testAddChild() public {
+        vm.startPrank(alice);
 
-    function testRemoveChild() public {}
+        bool isVerbose = false;
+
+        if (isVerbose) console.log("Test 1: Adding a new valid child");
+        address newChild = MTLib.toAddress("newChild");
+        address added = mt.addChild("newChild", r1, newChild);
+        assertEq(added, MTLib.toAddress(r1, newChild), "addChild address");
+        assertEq(mt.parent(added), r1, "Parent should be r1");
+        assertEq(
+            mt.childIndex(added),
+            mt.children(r1).length,
+            "Child index should match children length"
+        );
+        assertTrue(mt.hasChild(r1), "r1 should have children");
+
+        if (isVerbose)
+            console.log("Test 2: Adding a child that already exists");
+        setUp();
+        mt.addChild("newChild", r1, newChild);
+
+        if (isVerbose)
+            console.log("Test 3: Adding a child whose parent is itself");
+        setUp();
+        address selfChild = MTLib.toAddress("selfChild");
+        vm.expectRevert(MTLib.InvalidAddress.selector);
+        mt.addChild("selfChild", selfChild, selfChild);
+
+        if (isVerbose)
+            console.log("Test 4: Adding a child whose parent is address(0)");
+        setUp();
+        address zeroParentChild = MTLib.toAddress("zeroParentChild");
+        vm.expectRevert(MTLib.InvalidAddress.selector);
+        mt.addChild("zeroParentChild", address(0), zeroParentChild);
+
+        if (isVerbose)
+            console.log("Test 5: Adding a child whose address is address(0)");
+        setUp();
+        vm.expectRevert(MTLib.InvalidAddress.selector);
+        mt.addChild("zeroChild", r1, address(0));
+
+        if (isVerbose)
+            console.log("Test 6: Adding a child that already has children");
+        setUp();
+        // First add a parent and its child
+        address parentWithChild = MTLib.toAddress("parentWithChild");
+        mt.name(parentWithChild, "parentWithChild");
+        address childOfParent = MTLib.toAddress("childOfParent");
+        mt.addChild("childOfParent", parentWithChild, childOfParent);
+        vm.expectRevert(
+            abi.encodeWithSelector(MTLib.HasChild.selector, "parentWithChild")
+        );
+        mt.addChild("parentWithChild", r1, parentWithChild);
+
+        if (isVerbose)
+            console.log("Test 7: Adding a child whose parent holds a balance");
+        setUp();
+        address parentWithBalance = mt.addChild(
+            "parentWithBalance",
+            r1,
+            MTLib.toAddress("parentWithBalance")
+        );
+        mt.mint(parentWithBalance, 1000);
+        address childOfParentWithBalance = MTLib.toAddress(
+            "childOfParentWithBalance"
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MTLib.HasBalance.selector,
+                "parentWithBalance"
+            )
+        );
+        mt.addChild(
+            "childOfParentWithBalance",
+            parentWithBalance,
+            childOfParentWithBalance
+        );
+
+        if (isVerbose)
+            console.log("Test 8: Adding a child that holds a balance");
+        setUp();
+        // First add a child
+        address childWithBalance = MTLib.toAddress("childWithBalance");
+        mt.addChild("childWithBalance", r1, childWithBalance);
+        // Mint tokens to the child
+        mt.mint(MTLib.toAddress(r1, childWithBalance), 500);
+        // Try to add another child to the child with balance
+        address grandChild = MTLib.toAddress("grandChild");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MTLib.HasBalance.selector,
+                "childWithBalance"
+            )
+        );
+        mt.addChild(
+            "grandChild",
+            MTLib.toAddress(r1, childWithBalance),
+            grandChild
+        );
+    }
+
+    function testRemoveChild() public {
+        vm.startPrank(alice);
+
+        bool isVerbose = false;
+
+        // First run the tree visualization tests
+        if (isVerbose) {
+            console.log("--------------------");
+            Lib.debugTree(mt, address(router));
+            console.log("--------------------");
+            Lib.debugTree(mt, r1);
+            console.log("--------------------");
+
+            mt.removeChild(r11, _111);
+            Lib.debugTree(mt, r1);
+            console.log("--------------------");
+
+            mt.removeChild(r11, _110);
+            Lib.debugTree(mt, r1);
+            console.log("--------------------");
+
+            mt.removeChild(r10, _101);
+            Lib.debugTree(mt, r1);
+            console.log("--------------------");
+            mt.removeChild(r10, _100);
+            Lib.debugTree(mt, r1);
+            console.log("--------------------");
+            mt.removeChild(r1, _11);
+            Lib.debugTree(mt, r1);
+            console.log("--------------------");
+            mt.removeChild(r1, _10);
+            Lib.debugTree(mt, r1);
+            console.log("--------------------");
+
+            setUp();
+            Lib.debugTree(mt, r1);
+            console.log("--------------------");
+        }
+
+        // Now run the validation tests
+        if (isVerbose) console.log("Test 1: Remove a valid child (leaf node)");
+        address leafChild = MTLib.toAddress("leafChild");
+        mt.addChild("leafChild", r1, leafChild);
+        mt.removeChild(r1, leafChild);
+        assertEq(
+            mt.parent(MTLib.toAddress(r1, leafChild)),
+            address(0),
+            "Parent should be reset"
+        );
+        assertEq(
+            mt.childIndex(MTLib.toAddress(r1, leafChild)),
+            0,
+            "Child index should be reset"
+        );
+        assertEq(
+            mt.name(MTLib.toAddress(r1, leafChild)),
+            "",
+            "Name should be cleared"
+        );
+        assertFalse(
+            mt.hasChild(MTLib.toAddress(r1, leafChild)),
+            "Should not have children"
+        );
+
+        if (isVerbose) console.log("Test 2: Remove a child that doesn't exist");
+        address nonExistentChild = MTLib.toAddress("nonExistentChild");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MTLib.ChildNotFound.selector,
+                nonExistentChild
+            )
+        );
+        mt.removeChild(r1, nonExistentChild);
+
+        if (isVerbose) console.log("Test 3: Remove a child that has children");
+        address parentWithChild = mt.addChild(
+            "parentWithChild",
+            r1,
+            MTLib.toAddress("parentWithChild")
+        );
+        address childOfParent = MTLib.toAddress("childOfParent");
+        mt.addChild("childOfParent", parentWithChild, childOfParent);
+        vm.expectRevert(
+            abi.encodeWithSelector(MTLib.HasChild.selector, "parentWithChild")
+        );
+        mt.removeChild(r1, MTLib.toAddress("parentWithChild"));
+
+        if (isVerbose) console.log("Test 4: Remove a child that has a balance");
+        address childWithBalance = MTLib.toAddress("childWithBalance");
+        mt.addChild("childWithBalance", r1, childWithBalance);
+        mt.mint(MTLib.toAddress(r1, childWithBalance), 1000);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MTLib.HasBalance.selector,
+                "childWithBalance"
+            )
+        );
+        mt.removeChild(r1, childWithBalance);
+
+        if (isVerbose)
+            console.log("Test 5: Remove a child with invalid addresses");
+        address validChild = MTLib.toAddress("validChild");
+        mt.addChild("validChild", r1, validChild);
+
+        // Try to remove with address(0) as parent
+        vm.expectRevert(MTLib.InvalidAddress.selector);
+        mt.removeChild(address(0), validChild);
+
+        // Try to remove with address(0) as child
+        vm.expectRevert(MTLib.InvalidAddress.selector);
+        mt.removeChild(r1, address(0));
+
+        // Try to remove with same address for parent and child
+        vm.expectRevert(MTLib.InvalidAddress.selector);
+        mt.removeChild(validChild, validChild);
+
+        if (isVerbose) {
+            console.log(
+                "Test 6: Remove a child that's not a child of the specified parent"
+            );
+        }
+        address childOfR1 = MTLib.toAddress("childOfR1");
+        address childOfR10 = MTLib.toAddress("childOfR10");
+        mt.addChild("childOfR1", r1, childOfR1);
+        mt.addChild("childOfR10", r10, childOfR10);
+
+        // Try to remove childOfR10 using r1 as parent
+        vm.expectRevert(
+            abi.encodeWithSelector(MTLib.ChildNotFound.selector, childOfR10)
+        );
+        mt.removeChild(r1, childOfR10);
+
+        if (isVerbose) {
+            console.log(
+                "Test 7: Remove a child and verify parent's children array is updated correctly"
+            );
+        }
+        setUp();
+        address child1 = MTLib.toAddress("child1");
+        address child2 = MTLib.toAddress("child2");
+        address child3 = MTLib.toAddress("child3");
+        mt.addChild("child1", r1, child1);
+        mt.addChild("child2", r1, child2);
+        mt.addChild("child3", r1, child3);
+
+        uint256 childCount = mt.children(r1).length;
+
+        if (isVerbose) {
+            Lib.debugTree(mt, r1);
+            console.log("--------------------");
+        }
+
+        // Remove child2 (middle child)
+        mt.removeChild(r1, child2);
+
+        // Verify children array is updated correctly
+        address[] memory children = mt.children(r1);
+        assertEq(
+            children.length,
+            childCount - 1,
+            "Incorrect number of children after removal"
+        );
+        assertEq(
+            children[childCount - 3],
+            child1,
+            "First child should be child1"
+        );
+        assertEq(
+            children[childCount - 2],
+            child3,
+            "Second child should be child3"
+        );
+
+        // Verify child indices are updated
+        assertEq(
+            mt.childIndex(MTLib.toAddress(r1, child1)),
+            childCount - 2,
+            "child1 index incorrect"
+        );
+        if (isVerbose) {
+            for (uint256 i = 0; i < children.length; i++) {
+                console.log(
+                    "Child",
+                    mt.name(MTLib.toAddress(r1, children[i])),
+                    children[i],
+                    mt.childIndex(MTLib.toAddress(r1, children[i]))
+                );
+            }
+        }
+        assertEq(
+            mt.childIndex(MTLib.toAddress(r1, child3)),
+            childCount - 1,
+            "child3 index incorrect"
+        );
+    }
 
     function testMultitokenMint() public {
         vm.startPrank(alice);
