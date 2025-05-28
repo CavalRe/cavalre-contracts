@@ -282,13 +282,14 @@ library Lib {
     ) internal returns (address) {
         if (parent_ == child_ || parent_ == address(0) || child_ == address(0))
             revert InvalidAddress();
+        // Return if child already exists
+        address _child = toAddress(parent_, child_);
+        if (parent(_child) == parent_) return _child;
         // Only leaves can hold balances
         if (hasBalance(parent_)) revert HasBalance(name(parent_));
         // Must build tree from the top down
         if (hasChild(child_)) revert HasChild(childName_);
         if (hasBalance(child_)) revert HasBalance(childName_);
-        address _child = toAddress(parent_, child_);
-        if (parent(_child) == parent_) return _child;
 
         store().name[_child] = childName_;
         store().parent[_child] = parent_;
