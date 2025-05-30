@@ -49,6 +49,15 @@ library Lib {
     error DifferentRoots(address a, address b);
     error DuplicateChild(address child);
     error InvalidAddress();
+    error InvalidChild(
+        string childName,
+        bool isCredit
+    );
+    error InvalidToken(
+        string name,
+        string symbol,
+        uint8 decimals
+    );
     error InvalidParent();
     error InsufficientBalance();
     error MaxDepthExceeded();
@@ -284,12 +293,20 @@ library Lib {
             revert InvalidAddress();
         // Return if child already exists
         address _child = toAddress(parent_, child_);
-        if (parent(_child) == parent_) return _child;
+        if (parent(_child) == parent_) {
+            if (keccak256(abi.encodePacked(name(_child))) ==
+                keccak256(abi.encodePacked(childName_)) &&
+                store().isCredit[_child] == isCredit_) {
+                // No changes needed
+                return _child;
+            }
+            revert InvalidChild(childName_, isCredit_);
+        }
         // Only leaves can hold balances
         if (hasBalance(parent_)) revert HasBalance(name(parent_));
-        // Must build tree from the top down
-        if (hasChild(child_)) revert HasChild(childName_);
-        if (hasBalance(child_)) revert HasBalance(childName_);
+        // // Must build tree from the top down
+        // if (hasChild(child_)) revert HasChild(childName_);
+        // if (hasBalance(child_)) revert HasBalance(childName_);
 
         store().name[_child] = childName_;
         store().parent[_child] = parent_;
@@ -376,7 +393,25 @@ library Lib {
         uint8 decimals_
     ) internal {
         address _totalAbsoluteAddress = toAddress(tokenAddress_, TOTAL_ADDRESS);
-        if (parent(_totalAbsoluteAddress) == tokenAddress_) return;
+        if (parent(_totalAbsoluteAddress) == tokenAddress_) {
+            // Token already exists
+            if (
+                keccak256(abi.encodePacked(name_)) ==
+                keccak256(abi.encodePacked(name(tokenAddress_))) &&
+                keccak256(abi.encodePacked(symbol_)) ==
+                keccak256(abi.encodePacked(symbol(tokenAddress_))) &&
+                decimals(tokenAddress_) == decimals_
+            ) {
+                // No changes needed
+                return;
+            } else {
+                revert InvalidToken(
+                    name_,
+                    symbol_,
+                    decimals_
+                );
+            }
+        }
 
         name(tokenAddress_, name_);
         symbol(tokenAddress_, symbol_);
