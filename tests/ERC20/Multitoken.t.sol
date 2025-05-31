@@ -12,15 +12,15 @@ library Lib {
     // Selectors
     bytes4 internal constant INITIALIZE_TEST_TOKEN =
         bytes4(keccak256("initializeTestMultitoken(string,string)"));
-    bytes4 internal constant ADD_CHILD =
-        bytes4(keccak256("addChild(string,address,address)"));
-    bytes4 internal constant REMOVE_CHILD =
-        bytes4(keccak256("removeChild(address,address)"));
+    bytes4 internal constant ADD_SUBACCOUNT =
+        bytes4(keccak256("addSubAccount(string,address,address)"));
+    bytes4 internal constant REMOVE_SUBACCOUNT =
+        bytes4(keccak256("removeSubAccount(address,address)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
-    bytes4 internal constant ADD_APPLICATION =
+    bytes4 internal constant ADD_TOKEN_SOURCE =
         bytes4(keccak256("addTokenSource(string,address)"));
-    bytes4 internal constant REMOVE_APPLICATION =
+    bytes4 internal constant REMOVE_TOKEN_SOURCE =
         bytes4(keccak256("removeTokenSource(string,address)"));
     bytes4 internal constant ADD_TOKEN =
         bytes4(keccak256("addToken(address,string,string,uint8)"));
@@ -57,25 +57,25 @@ library Lib {
             label
         );
 
-        // Update the prefix for child nodes
-        string memory childPrefix = string(
+        // Update the prefix for subAccount nodes
+        string memory subAccountPrefix = string(
             abi.encodePacked(
                 prefix,
                 isFirst ? "" : isLast ? "   " : unicode"│  "
             )
         );
 
-        // Recursively log children
-        address[] memory children = mt.children(root);
-        uint256 childCount = children.length;
-        // console.log("Child count", childCount);
-        for (uint256 i = 0; i < childCount; i++) {
+        // Recursively log subAccounts
+        address[] memory subAccounts = mt.subAccounts(root);
+        uint256 subAccountCount = subAccounts.length;
+        // console.log("SubAccount count", subAccountCount);
+        for (uint256 i = 0; i < subAccountCount; i++) {
             logTree(
                 mt,
-                MTLib.toAddress(root, children[i]),
-                childPrefix,
+                MTLib.toAddress(root, subAccounts[i]),
+                subAccountPrefix,
                 false,
-                i == childCount - 1 // Check if this is the last child
+                i == subAccountCount - 1 // Check if this is the last subAccount
             );
         }
     }
@@ -107,10 +107,10 @@ contract TestMultitoken is Multitoken {
         _commands[4] = MTLib.GET_NAME;
         _commands[5] = MTLib.GET_SYMBOL;
         _commands[6] = MTLib.GET_DECIMALS;
-        _commands[7] = MTLib.GET_PARENT;
-        _commands[8] = MTLib.GET_CHILDREN;
-        _commands[9] = MTLib.GET_HAS_CHILD;
-        _commands[10] = MTLib.GET_CHILD_INDEX;
+        _commands[7] = MTLib.GET_PARENTACCOUNT;
+        _commands[8] = MTLib.GET_SUBACCOUNTS;
+        _commands[9] = MTLib.GET_HAS_SUBACCOUNT;
+        _commands[10] = MTLib.GET_SUBACCOUNT_INDEX;
         _commands[11] = MTLib.GET_BASE_NAME;
         _commands[12] = MTLib.GET_BASE_SYMBOL;
         _commands[13] = MTLib.GET_BASE_DECIMALS;
@@ -125,12 +125,12 @@ contract TestMultitoken is Multitoken {
         _commands[22] = MTLib.ALLOWANCE;
         _commands[23] = MTLib.TRANSFER_FROM;
         _commands[24] = MTLib.BASE_TRANSFER_FROM;
-        _commands[25] = Lib.ADD_CHILD;
-        _commands[26] = Lib.REMOVE_CHILD;
+        _commands[25] = Lib.ADD_SUBACCOUNT;
+        _commands[26] = Lib.REMOVE_SUBACCOUNT;
         _commands[27] = Lib.MINT;
         _commands[28] = Lib.BURN;
-        _commands[29] = Lib.ADD_APPLICATION;
-        _commands[30] = Lib.REMOVE_APPLICATION;
+        _commands[29] = Lib.ADD_TOKEN_SOURCE;
+        _commands[30] = Lib.REMOVE_TOKEN_SOURCE;
         _commands[31] = Lib.ADD_TOKEN;
     }
 
@@ -141,24 +141,21 @@ contract TestMultitoken is Multitoken {
     ) public initializer {
         enforceIsOwner();
         initializeMultitoken_unchained(name_, symbol_);
-        // Store storage s = MTLib.store();
-        // s.name[address(this)] = name_;
-        // s.symbol[address(this)] = symbol_;
     }
 
-    function addChild(
+    function addSubAccount(
         string memory name_,
-        address parent_,
-        address child_
+        address parentAccount_,
+        address subAccount_
     ) public returns (address) {
-        return MTLib.addChild(name_, parent_, child_);
+        return MTLib.addSubAccount(name_, parentAccount_, subAccount_);
     }
 
-    function removeChild(
-        address parent_,
-        address child_
+    function removeSubAccount(
+        address parentAccount_,
+        address subAccount_
     ) public returns (address) {
-        return MTLib.removeChild(parent_, child_);
+        return MTLib.removeSubAccount(parentAccount_, subAccount_);
     }
 
     function addTokenSource(
@@ -184,12 +181,12 @@ contract TestMultitoken is Multitoken {
         MTLib.addToken(tokenAddress_, name_, symbol_, decimals_);
     }
 
-    function mint(address parentAddress_, uint256 amount_) public {
-        MTLib.mint(parentAddress_, msg.sender, amount_);
+    function mint(address parentAccountAddress_, uint256 amount_) public {
+        MTLib.mint(parentAccountAddress_, msg.sender, amount_);
     }
 
-    function burn(address parentAddress_, uint256 _amount) public {
-        MTLib.burn(parentAddress_, msg.sender, _amount);
+    function burn(address parentAccountAddress_, uint256 _amount) public {
+        MTLib.burn(parentAccountAddress_, msg.sender, _amount);
     }
 
     receive() external payable {}
@@ -223,29 +220,40 @@ contract MultitokenTest is Test {
     address r111 = MTLib.toAddress(r11, _111);
 
     function setUp() public {
+        bool isVerbose = false;
+
         vm.startPrank(alice);
         mt = new TestMultitoken(18, 10);
         router = new Router(alice);
         router.addModule(address(mt));
         mt = TestMultitoken(payable(router));
 
+        if (isVerbose) console.log("Initializing Multitoken");
         mt.initializeTestMultitoken("Test Multitoken", "MULTI");
 
-        mt.addChild(
+        if (isVerbose) console.log("Adding subAccounts");
+        mt.addSubAccount(
             "100",
-            mt.addChild("10", mt.addChild("1", address(router), _1), _10),
+            mt.addSubAccount(
+                "10",
+                mt.addSubAccount("1", address(router), _1),
+                _10
+            ),
             _100
         );
+        if (isVerbose) console.log("Adding token sources");
         mt.addTokenSource("Source", address(router));
 
+        if (isVerbose) console.log("Adding tokens");
         mt.addToken(r1, "1", "1", 18);
 
-        mt.addChild("10", r1, _10);
-        mt.addChild("11", r1, _11);
-        mt.addChild("100", r10, _100);
-        mt.addChild("101", r10, _101);
-        mt.addChild("110", r11, _110);
-        mt.addChild("111", r11, _111);
+        if (isVerbose) console.log("Adding subAccounts for 1");
+        mt.addSubAccount("10", r1, _10);
+        mt.addSubAccount("11", r1, _11);
+        mt.addSubAccount("100", r10, _100);
+        mt.addSubAccount("101", r10, _101);
+        mt.addSubAccount("110", r11, _110);
+        mt.addSubAccount("111", r11, _111);
     }
 
     error InvalidInitialization();
@@ -275,36 +283,54 @@ contract MultitokenTest is Test {
         assertEq(mt.balanceOf(address(mt)), 0, "Balance mismatch");
 
         assertEq(
-            mt.parent(MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS)),
+            mt.parentAccount(
+                MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS)
+            ),
             address(router),
             "Parent mismatch"
         );
 
         assertEq(
-            mt.children(address(router)).length,
+            mt.subAccounts(address(router)).length,
             2,
-            "Children mismatch (router)"
+            "Subaccounts mismatch (router)"
         );
 
-        assertEq(mt.children(r1).length, 3, "Children mismatch (r1)");
+        assertEq(mt.subAccounts(r1).length, 3, "Subaccounts mismatch (r1)");
 
-        assertEq(mt.children(r10).length, 2, "Children mismatch (r10)");
+        assertEq(mt.subAccounts(r10).length, 2, "Subaccounts mismatch (r10)");
 
-        assertEq(mt.children(r11).length, 2, "Children mismatch (r11)");
+        assertEq(mt.subAccounts(r11).length, 2, "Subaccounts mismatch (r11)");
 
-        assertEq(mt.childIndex(r1), 0, "Child index mismatch (r1)");
+        assertEq(mt.subAccountIndex(r1), 0, "SubAccount index mismatch (r1)");
 
-        assertEq(mt.childIndex(r11), 3, "Child index mismatch (r11)");
+        assertEq(mt.subAccountIndex(r11), 3, "SubAccount index mismatch (r11)");
 
-        assertEq(mt.childIndex(r10), 2, "Child index mismatch (r10)");
+        assertEq(mt.subAccountIndex(r10), 2, "SubAccount index mismatch (r10)");
 
-        assertEq(mt.childIndex(r100), 1, "Child index mismatch (r100)");
+        assertEq(
+            mt.subAccountIndex(r100),
+            1,
+            "SubAccount index mismatch (r100)"
+        );
 
-        assertEq(mt.childIndex(r101), 2, "Child index mismatch (r101)");
+        assertEq(
+            mt.subAccountIndex(r101),
+            2,
+            "SubAccount index mismatch (r101)"
+        );
 
-        assertEq(mt.childIndex(r110), 1, "Child index mismatch (r110)");
+        assertEq(
+            mt.subAccountIndex(r110),
+            1,
+            "SubAccount index mismatch (r110)"
+        );
 
-        assertEq(mt.childIndex(r111), 2, "Child index mismatch (r111)");
+        assertEq(
+            mt.subAccountIndex(r111),
+            2,
+            "SubAccount index mismatch (r111)"
+        );
     }
 
     function testMultitokenTokenSource() public {
@@ -312,7 +338,7 @@ contract MultitokenTest is Test {
 
         // address _appAddress2 = MTLib.toAddress("Test Application 2");
         // vm.expectRevert(
-        //     abi.encodeWithSelector(MTLib.ChildNotFound.selector, _appAddress2)
+        //     abi.encodeWithSelector(MTLib.SubAccountNotFound.selector, _appAddress2)
         // );
         // mt.removeTokenSource("Test Application 2", address(router));
 
@@ -322,118 +348,130 @@ contract MultitokenTest is Test {
             MTLib.toAddress("Test Application 2")
         );
         assertEq(
-            mt.parent(_rawAppAddress),
+            mt.parentAccount(_rawAppAddress),
             MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS),
             "Parent"
         );
 
         mt.removeTokenSource("Test Application 2", address(router));
-        assertEq(mt.parent(_rawAppAddress), address(0), "Parent");
+        assertEq(mt.parentAccount(_rawAppAddress), address(0), "Parent");
     }
 
-    function testAddChild() public {
+    function testMultitokenAddSubAccount() public {
         vm.startPrank(alice);
 
-        bool isVerbose = false;
+        bool isVerbose = true;
 
-        if (isVerbose) console.log("Test 1: Adding a new valid child");
-        address newChild = MTLib.toAddress("newChild");
-        address added = mt.addChild("newChild", r1, newChild);
-        assertEq(added, MTLib.toAddress(r1, newChild), "addChild address");
-        assertEq(mt.parent(added), r1, "Parent should be r1");
+        if (isVerbose) console.log("Adding a new valid subAccount");
+        address newSubAccount = MTLib.toAddress("newSubAccount");
+        address added = mt.addSubAccount("newSubAccount", r1, newSubAccount);
         assertEq(
-            mt.childIndex(added),
-            mt.children(r1).length,
-            "Child index should match children length"
+            added,
+            MTLib.toAddress(r1, newSubAccount),
+            "addSubAccount address"
         );
-        assertTrue(mt.hasChild(r1), "r1 should have children");
-
-        if (isVerbose)
-            console.log("Test 2: Adding a child that already exists");
-        setUp();
-        mt.addChild("newChild", r1, newChild);
-
-        if (isVerbose)
-            console.log("Test 3: Adding a child whose parent is itself");
-        setUp();
-        address selfChild = MTLib.toAddress("selfChild");
-        vm.expectRevert(MTLib.InvalidAddress.selector);
-        mt.addChild("selfChild", selfChild, selfChild);
-
-        if (isVerbose)
-            console.log("Test 4: Adding a child whose parent is address(0)");
-        setUp();
-        address zeroParentChild = MTLib.toAddress("zeroParentChild");
-        vm.expectRevert(MTLib.InvalidAddress.selector);
-        mt.addChild("zeroParentChild", address(0), zeroParentChild);
-
-        if (isVerbose)
-            console.log("Test 5: Adding a child whose address is address(0)");
-        setUp();
-        vm.expectRevert(MTLib.InvalidAddress.selector);
-        mt.addChild("zeroChild", r1, address(0));
-
-        if (isVerbose)
-            console.log("Test 6: Adding a child that already has children");
-        setUp();
-        // First add a parent and its child
-        address parentWithChild = MTLib.toAddress("parentWithChild");
-        mt.name(parentWithChild, "parentWithChild");
-        address childOfParent = MTLib.toAddress("childOfParent");
-        mt.addChild("childOfParent", parentWithChild, childOfParent);
-        vm.expectRevert(
-            abi.encodeWithSelector(MTLib.HasChild.selector, "parentWithChild")
+        assertEq(mt.parentAccount(added), r1, "Parent should be r1");
+        assertEq(
+            mt.subAccountIndex(added),
+            mt.subAccounts(r1).length,
+            "SubAccount index should match subAccounts length"
         );
-        mt.addChild("parentWithChild", r1, parentWithChild);
+        assertTrue(mt.hasSubAccount(r1), "r1 should have subAccounts");
+
+        if (isVerbose) console.log("Adding a subAccount that already exists");
+        setUp();
+        mt.addSubAccount("newSubAccount", r1, newSubAccount);
 
         if (isVerbose)
-            console.log("Test 7: Adding a child whose parent holds a balance");
+            console.log("Adding a subAccount whose parentAccount is itself");
         setUp();
-        address parentWithBalance = mt.addChild(
-            "parentWithBalance",
+        address selfSubAccount = MTLib.toAddress("selfSubAccount");
+        vm.expectRevert(MTLib.InvalidAddress.selector);
+        mt.addSubAccount("selfSubAccount", selfSubAccount, selfSubAccount);
+
+        if (isVerbose)
+            console.log(
+                "Adding a subAccount whose parentAccount is address(0)"
+            );
+        setUp();
+        address zeroParentSubAccount = MTLib.toAddress("zeroParentSubAccount");
+        vm.expectRevert(MTLib.InvalidAddress.selector);
+        mt.addSubAccount(
+            "zeroParentSubAccount",
+            address(0),
+            zeroParentSubAccount
+        );
+
+        if (isVerbose)
+            console.log("Adding a subAccount whose address is address(0)");
+        setUp();
+        vm.expectRevert(MTLib.InvalidAddress.selector);
+        mt.addSubAccount("zeroSubAccount", r1, address(0));
+
+        // if (isVerbose)
+        //     console.log("Adding a subAccount that already has subAccounts");
+        // setUp();
+        // // First add a parentAccount and its subAccount
+        // address parentAccountWithSubAccount = MTLib.toAddress("parentAccountWithSubAccount");
+        // mt.name(parentAccountWithSubAccount, "parentAccountWithSubAccount");
+        // address subAccountOfParent = MTLib.toAddress("subAccountOfParent");
+        // mt.addSubAccount("subAccountOfParent", parentAccountWithSubAccount, subAccountOfParent);
+        // vm.expectRevert(
+        //     abi.encodeWithSelector(MTLib.HasSubAccount.selector, "parentAccountWithSubAccount")
+        // );
+        // mt.addSubAccount("parentAccountWithSubAccount", r1, parentAccountWithSubAccount);
+
+        if (isVerbose)
+            console.log(
+                "Adding a subAccount whose parentAccount holds a balance"
+            );
+        setUp();
+        address parentAccountWithBalance = mt.addSubAccount(
+            "parentAccountWithBalance",
             r1,
-            MTLib.toAddress("parentWithBalance")
+            MTLib.toAddress("parentAccountWithBalance")
         );
-        mt.mint(parentWithBalance, 1000);
-        address childOfParentWithBalance = MTLib.toAddress(
-            "childOfParentWithBalance"
+        mt.mint(parentAccountWithBalance, 1000);
+        address subAccountOfParentWithBalance = MTLib.toAddress(
+            "subAccountOfParentWithBalance"
         );
         vm.expectRevert(
             abi.encodeWithSelector(
                 MTLib.HasBalance.selector,
-                "parentWithBalance"
+                "parentAccountWithBalance"
             )
         );
-        mt.addChild(
-            "childOfParentWithBalance",
-            parentWithBalance,
-            childOfParentWithBalance
+        mt.addSubAccount(
+            "subAccountOfParentWithBalance",
+            parentAccountWithBalance,
+            subAccountOfParentWithBalance
         );
 
-        if (isVerbose)
-            console.log("Test 8: Adding a child that holds a balance");
+        if (isVerbose) console.log("Adding a subAccount that holds a balance");
         setUp();
-        // First add a child
-        address childWithBalance = MTLib.toAddress("childWithBalance");
-        mt.addChild("childWithBalance", r1, childWithBalance);
-        // Mint tokens to the child
-        mt.mint(MTLib.toAddress(r1, childWithBalance), 500);
-        // Try to add another child to the child with balance
-        address grandChild = MTLib.toAddress("grandChild");
+        // First add a subAccount
+        address subAccountWithBalance = MTLib.toAddress(
+            "subAccountWithBalance"
+        );
+        mt.addSubAccount("subAccountWithBalance", r1, subAccountWithBalance);
+        // Mint tokens to the subAccount
+        mt.mint(MTLib.toAddress(r1, subAccountWithBalance), 500);
+        // Try to add another subAccount to the subAccount with balance
+        address grandSubAccount = MTLib.toAddress("grandSubAccount");
         vm.expectRevert(
             abi.encodeWithSelector(
                 MTLib.HasBalance.selector,
-                "childWithBalance"
+                "subAccountWithBalance"
             )
         );
-        mt.addChild(
-            "grandChild",
-            MTLib.toAddress(r1, childWithBalance),
-            grandChild
+        mt.addSubAccount(
+            "grandSubAccount",
+            MTLib.toAddress(r1, subAccountWithBalance),
+            grandSubAccount
         );
     }
 
-    function testRemoveChild() public {
+    function testMultitokenRemoveSubAccount() public {
         vm.startPrank(alice);
 
         bool isVerbose = false;
@@ -446,24 +484,24 @@ contract MultitokenTest is Test {
             Lib.debugTree(mt, r1);
             console.log("--------------------");
 
-            mt.removeChild(r11, _111);
+            mt.removeSubAccount(r11, _111);
             Lib.debugTree(mt, r1);
             console.log("--------------------");
 
-            mt.removeChild(r11, _110);
+            mt.removeSubAccount(r11, _110);
             Lib.debugTree(mt, r1);
             console.log("--------------------");
 
-            mt.removeChild(r10, _101);
+            mt.removeSubAccount(r10, _101);
             Lib.debugTree(mt, r1);
             console.log("--------------------");
-            mt.removeChild(r10, _100);
+            mt.removeSubAccount(r10, _100);
             Lib.debugTree(mt, r1);
             console.log("--------------------");
-            mt.removeChild(r1, _11);
+            mt.removeSubAccount(r1, _11);
             Lib.debugTree(mt, r1);
             console.log("--------------------");
-            mt.removeChild(r1, _10);
+            mt.removeSubAccount(r1, _10);
             Lib.debugTree(mt, r1);
             console.log("--------------------");
 
@@ -473,159 +511,177 @@ contract MultitokenTest is Test {
         }
 
         // Now run the validation tests
-        if (isVerbose) console.log("Test 1: Remove a valid child (leaf node)");
-        address leafChild = MTLib.toAddress("leafChild");
-        mt.addChild("leafChild", r1, leafChild);
-        mt.removeChild(r1, leafChild);
+        if (isVerbose)
+            console.log("Test 1: Remove a valid subAccount (leaf node)");
+        address leafSubAccount = MTLib.toAddress("leafSubAccount");
+        mt.addSubAccount("leafSubAccount", r1, leafSubAccount);
+        mt.removeSubAccount(r1, leafSubAccount);
         assertEq(
-            mt.parent(MTLib.toAddress(r1, leafChild)),
+            mt.parentAccount(MTLib.toAddress(r1, leafSubAccount)),
             address(0),
             "Parent should be reset"
         );
         assertEq(
-            mt.childIndex(MTLib.toAddress(r1, leafChild)),
+            mt.subAccountIndex(MTLib.toAddress(r1, leafSubAccount)),
             0,
-            "Child index should be reset"
+            "SubAccount index should be reset"
         );
         assertEq(
-            mt.name(MTLib.toAddress(r1, leafChild)),
+            mt.name(MTLib.toAddress(r1, leafSubAccount)),
             "",
             "Name should be cleared"
         );
         assertFalse(
-            mt.hasChild(MTLib.toAddress(r1, leafChild)),
-            "Should not have children"
+            mt.hasSubAccount(MTLib.toAddress(r1, leafSubAccount)),
+            "Should not have subAccounts"
         );
 
-        if (isVerbose) console.log("Test 2: Remove a child that doesn't exist");
-        address nonExistentChild = MTLib.toAddress("nonExistentChild");
+        if (isVerbose)
+            console.log("Test 2: Remove a subAccount that doesn't exist");
+        address nonExistentSubAccount = MTLib.toAddress(
+            "nonExistentSubAccount"
+        );
         vm.expectRevert(
             abi.encodeWithSelector(
-                MTLib.ChildNotFound.selector,
-                nonExistentChild
+                MTLib.SubAccountNotFound.selector,
+                nonExistentSubAccount
             )
         );
-        mt.removeChild(r1, nonExistentChild);
+        mt.removeSubAccount(r1, nonExistentSubAccount);
 
-        if (isVerbose) console.log("Test 3: Remove a child that has children");
-        address parentWithChild = mt.addChild(
-            "parentWithChild",
+        if (isVerbose)
+            console.log("Test 3: Remove a subAccount that has subAccounts");
+        address parentAccountWithSubAccount = mt.addSubAccount(
+            "parentAccountWithSubAccount",
             r1,
-            MTLib.toAddress("parentWithChild")
+            MTLib.toAddress("parentAccountWithSubAccount")
         );
-        address childOfParent = MTLib.toAddress("childOfParent");
-        mt.addChild("childOfParent", parentWithChild, childOfParent);
+        address subAccountOfParent = MTLib.toAddress("subAccountOfParent");
+        mt.addSubAccount(
+            "subAccountOfParent",
+            parentAccountWithSubAccount,
+            subAccountOfParent
+        );
         vm.expectRevert(
-            abi.encodeWithSelector(MTLib.HasChild.selector, "parentWithChild")
+            abi.encodeWithSelector(
+                MTLib.HasSubAccount.selector,
+                "parentAccountWithSubAccount"
+            )
         );
-        mt.removeChild(r1, MTLib.toAddress("parentWithChild"));
+        mt.removeSubAccount(r1, MTLib.toAddress("parentAccountWithSubAccount"));
 
-        if (isVerbose) console.log("Test 4: Remove a child that has a balance");
-        address childWithBalance = MTLib.toAddress("childWithBalance");
-        mt.addChild("childWithBalance", r1, childWithBalance);
-        mt.mint(MTLib.toAddress(r1, childWithBalance), 1000);
+        if (isVerbose)
+            console.log("Test 4: Remove a subAccount that has a balance");
+        address subAccountWithBalance = MTLib.toAddress(
+            "subAccountWithBalance"
+        );
+        mt.addSubAccount("subAccountWithBalance", r1, subAccountWithBalance);
+        mt.mint(MTLib.toAddress(r1, subAccountWithBalance), 1000);
         vm.expectRevert(
             abi.encodeWithSelector(
                 MTLib.HasBalance.selector,
-                "childWithBalance"
+                "subAccountWithBalance"
             )
         );
-        mt.removeChild(r1, childWithBalance);
+        mt.removeSubAccount(r1, subAccountWithBalance);
 
         if (isVerbose)
-            console.log("Test 5: Remove a child with invalid addresses");
-        address validChild = MTLib.toAddress("validChild");
-        mt.addChild("validChild", r1, validChild);
+            console.log("Test 5: Remove a subAccount with invalid addresses");
+        address validSubAccount = MTLib.toAddress("validSubAccount");
+        mt.addSubAccount("validSubAccount", r1, validSubAccount);
 
-        // Try to remove with address(0) as parent
+        // Try to remove with address(0) as parentAccount
         vm.expectRevert(MTLib.InvalidAddress.selector);
-        mt.removeChild(address(0), validChild);
+        mt.removeSubAccount(address(0), validSubAccount);
 
-        // Try to remove with address(0) as child
+        // Try to remove with address(0) as subAccount
         vm.expectRevert(MTLib.InvalidAddress.selector);
-        mt.removeChild(r1, address(0));
+        mt.removeSubAccount(r1, address(0));
 
-        // Try to remove with same address for parent and child
+        // Try to remove with same address for parentAccount and subAccount
         vm.expectRevert(MTLib.InvalidAddress.selector);
-        mt.removeChild(validChild, validChild);
+        mt.removeSubAccount(validSubAccount, validSubAccount);
 
         if (isVerbose) {
             console.log(
-                "Test 6: Remove a child that's not a child of the specified parent"
+                "Test 6: Remove a subAccount that's not a subAccount of the specified parentAccount"
             );
         }
-        address childOfR1 = MTLib.toAddress("childOfR1");
-        address childOfR10 = MTLib.toAddress("childOfR10");
-        mt.addChild("childOfR1", r1, childOfR1);
-        mt.addChild("childOfR10", r10, childOfR10);
+        address subAccountOfR1 = MTLib.toAddress("subAccountOfR1");
+        address subAccountOfR10 = MTLib.toAddress("subAccountOfR10");
+        mt.addSubAccount("subAccountOfR1", r1, subAccountOfR1);
+        mt.addSubAccount("subAccountOfR10", r10, subAccountOfR10);
 
-        // Try to remove childOfR10 using r1 as parent
+        // Try to remove subAccountOfR10 using r1 as parentAccount
         vm.expectRevert(
-            abi.encodeWithSelector(MTLib.ChildNotFound.selector, childOfR10)
+            abi.encodeWithSelector(
+                MTLib.SubAccountNotFound.selector,
+                subAccountOfR10
+            )
         );
-        mt.removeChild(r1, childOfR10);
+        mt.removeSubAccount(r1, subAccountOfR10);
 
         if (isVerbose) {
             console.log(
-                "Test 7: Remove a child and verify parent's children array is updated correctly"
+                "Test 7: Remove a subAccount and verify parentAccount's subAccounts array is updated correctly"
             );
         }
         setUp();
-        address child1 = MTLib.toAddress("child1");
-        address child2 = MTLib.toAddress("child2");
-        address child3 = MTLib.toAddress("child3");
-        mt.addChild("child1", r1, child1);
-        mt.addChild("child2", r1, child2);
-        mt.addChild("child3", r1, child3);
+        address subAccount1 = MTLib.toAddress("subAccount1");
+        address subAccount2 = MTLib.toAddress("subAccount2");
+        address subAccount3 = MTLib.toAddress("subAccount3");
+        mt.addSubAccount("subAccount1", r1, subAccount1);
+        mt.addSubAccount("subAccount2", r1, subAccount2);
+        mt.addSubAccount("subAccount3", r1, subAccount3);
 
-        uint256 childCount = mt.children(r1).length;
+        uint256 subAccountCount = mt.subAccounts(r1).length;
 
         if (isVerbose) {
             Lib.debugTree(mt, r1);
             console.log("--------------------");
         }
 
-        // Remove child2 (middle child)
-        mt.removeChild(r1, child2);
+        // Remove subAccount2 (middle subAccount)
+        mt.removeSubAccount(r1, subAccount2);
 
-        // Verify children array is updated correctly
-        address[] memory children = mt.children(r1);
+        // Verify subAccounts array is updated correctly
+        address[] memory subAccounts = mt.subAccounts(r1);
         assertEq(
-            children.length,
-            childCount - 1,
-            "Incorrect number of children after removal"
+            subAccounts.length,
+            subAccountCount - 1,
+            "Incorrect number of subAccounts after removal"
         );
         assertEq(
-            children[childCount - 3],
-            child1,
-            "First child should be child1"
+            subAccounts[subAccountCount - 3],
+            subAccount1,
+            "First subAccount should be subAccount1"
         );
         assertEq(
-            children[childCount - 2],
-            child3,
-            "Second child should be child3"
+            subAccounts[subAccountCount - 2],
+            subAccount3,
+            "Second subAccount should be subAccount3"
         );
 
-        // Verify child indices are updated
+        // Verify subAccount indices are updated
         assertEq(
-            mt.childIndex(MTLib.toAddress(r1, child1)),
-            childCount - 2,
-            "child1 index incorrect"
+            mt.subAccountIndex(MTLib.toAddress(r1, subAccount1)),
+            subAccountCount - 2,
+            "subAccount1 index incorrect"
         );
         if (isVerbose) {
-            for (uint256 i = 0; i < children.length; i++) {
+            for (uint256 i = 0; i < subAccounts.length; i++) {
                 console.log(
-                    "Child",
-                    mt.name(MTLib.toAddress(r1, children[i])),
-                    children[i],
-                    mt.childIndex(MTLib.toAddress(r1, children[i]))
+                    "SubAccount",
+                    mt.name(MTLib.toAddress(r1, subAccounts[i])),
+                    subAccounts[i],
+                    mt.subAccountIndex(MTLib.toAddress(r1, subAccounts[i]))
                 );
             }
         }
         assertEq(
-            mt.childIndex(MTLib.toAddress(r1, child3)),
-            childCount - 1,
-            "child3 index incorrect"
+            mt.subAccountIndex(MTLib.toAddress(r1, subAccount3)),
+            subAccountCount - 1,
+            "subAccount3 index incorrect"
         );
     }
 
@@ -680,22 +736,22 @@ contract MultitokenTest is Test {
         assertEq(mt.root(r110), r1, "root(_110)");
         assertEq(mt.root(r111), r1, "root(_111)");
 
-        assertEq(mt.parent(r10), r1, "parent(_10)");
-        assertEq(mt.parent(r11), r1, "parent(_11)");
-        assertEq(mt.parent(r100), r10, "parent(_100)");
-        assertEq(mt.parent(r101), r10, "parent(_101)");
-        assertEq(mt.parent(r110), r11, "parent(_110)");
-        assertEq(mt.parent(r111), r11, "parent(_111)");
+        assertEq(mt.parentAccount(r10), r1, "parentAccount(_10)");
+        assertEq(mt.parentAccount(r11), r1, "parentAccount(_11)");
+        assertEq(mt.parentAccount(r100), r10, "parentAccount(_100)");
+        assertEq(mt.parentAccount(r101), r10, "parentAccount(_101)");
+        assertEq(mt.parentAccount(r110), r11, "parentAccount(_110)");
+        assertEq(mt.parentAccount(r111), r11, "parentAccount(_111)");
     }
 
-    function testMultitokenHasChild() public view {
-        assertTrue(mt.hasChild(r1), "hasChild(r1)");
-        assertTrue(mt.hasChild(r10), "hasChild(r10)");
-        assertTrue(mt.hasChild(r11), "hasChild(r11)");
-        assertFalse(mt.hasChild(r100), "hasChild(r100)");
-        assertFalse(mt.hasChild(r101), "hasChild(r101)");
-        assertFalse(mt.hasChild(r110), "hasChild(r110)");
-        assertFalse(mt.hasChild(r111), "hasChild(r111)");
+    function testMultitokenHasSubAccount() public view {
+        assertTrue(mt.hasSubAccount(r1), "hasSubAccount(r1)");
+        assertTrue(mt.hasSubAccount(r10), "hasSubAccount(r10)");
+        assertTrue(mt.hasSubAccount(r11), "hasSubAccount(r11)");
+        assertFalse(mt.hasSubAccount(r100), "hasSubAccount(r100)");
+        assertFalse(mt.hasSubAccount(r101), "hasSubAccount(r101)");
+        assertFalse(mt.hasSubAccount(r110), "hasSubAccount(r110)");
+        assertFalse(mt.hasSubAccount(r111), "hasSubAccount(r111)");
     }
 
     function testMultitokenTransfer() public {
@@ -726,8 +782,10 @@ contract MultitokenTest is Test {
         );
         mt.transfer(address(mt), _1, _10, 100);
 
-        // Expect revert if sender has children
-        vm.expectRevert(abi.encodeWithSelector(MTLib.HasChild.selector, "1"));
+        // Expect revert if sender has subAccounts
+        vm.expectRevert(
+            abi.encodeWithSelector(MTLib.HasSubAccount.selector, "1")
+        );
         mt.transfer(address(mt), address(mt), _1, 100);
 
         mt.mint(_1, 1000);
@@ -756,8 +814,10 @@ contract MultitokenTest is Test {
         assertEq(mt.allowance(alice, alice), 0, "allowance(alice, alice)");
 
         mt.mint(r1, 1000);
-        // Expect revert if spender has a child
-        vm.expectRevert(abi.encodeWithSelector(MTLib.HasChild.selector, "10"));
+        // Expect revert if spender has a subAccount
+        vm.expectRevert(
+            abi.encodeWithSelector(MTLib.HasSubAccount.selector, "10")
+        );
         mt.approve(r1, r1, _10, 100);
     }
 
