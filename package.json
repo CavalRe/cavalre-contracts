@@ -9,14 +9,16 @@
     "contracts/Ledgers/",
     "libraries/",
     "utilities/",
-    "examples/"
+    "examples/",
+    "tests/libraries/FloatStrings/FloatStrings.sol"
   ],
   "exports": {
     "./Module.sol": "./contracts/Module.sol",
     "./Router.sol": "./contracts/Router.sol",
     "./Ledgers/": "./contracts/Ledgers/",
     "./libraries/": "./libraries/",
-    "./utilities/": "./utilities/"
+    "./utilities/": "./utilities/",
+    "./tests/libraries/FloatStrings/FloatStrings.sol": "./tests/libraries/FloatStrings/FloatStrings.sol"
   },
   "repository": {
     "type": "git",
