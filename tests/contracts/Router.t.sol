@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Module} from "../../contracts/router/Module.sol";
-import {Router} from "../../contracts/router/Router.sol";
+import {Module} from "../../contracts/Module.sol";
+import {Router} from "../../contracts/Router.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Test, console} from "forge-std/src/Test.sol";
 

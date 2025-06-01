@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Module} from "@cavalre/contracts/router/Module.sol";
-import {Initializable} from "@cavalre/contracts/Initializable/Initializable.sol";
+import {Module} from "../Module.sol";
+import {Initializable} from "../../utilities/Initializable/Initializable.sol";
 
 struct Store {
     mapping(address => bool) isAccountGroup;

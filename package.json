@@ -1,47 +1,47 @@
 {
   "name": "@cavalre/contracts",
   "version": "0.1.0",
-  "description": "",
-  "homepage": "",
-  "bugs": "",
+  "description": "Modular smart contracts for CavalRe",
   "license": "MIT",
-  "author": "CavalRe",
-  "exports": {
-    "./ERC20/": "./contracts/ERC20/",
-    "./ERC4626/": "./contracts/ERC4626/",
-    "./Initializable/": "./contracts/Initializable/",
-    "./Multitoken/": "./contracts/Mulitoken/",
-    "./libraries/": "./contracts/libraries/",
-    "./ReentrancyGuard/": "./contracts/ReentrancyGuard/",
-    "./router/": "./contracts/router/",
-    "./sentry/": "./contracts/sentry/",
-    "./tests/ERC20/": "./tests/ERC20/",
-    "./tests/Multitoken/": "./tests/Multitoken/",
-    "./tests/Router/": "./tests/Router/"
-  },
   "files": [
-    "contracts/ERC20/",
-    "contracts/ERC4626/",
-    "contracts/Initializable/",
-    "contracts/Multitoken/",
-    "contracts/libraries/",
-    "contracts/ReentrancyGuard/",
-    "contracts/router/",
-    "contracts/sentry/",
-    "tests/ERC20/",
-    "tests/Multitoken/",
-    "tests/Router/Router.t.sol"
+    "contracts/Module.sol",
+    "contracts/Router.sol",
+    "contracts/Ledgers/",
+    "libraries/",
+    "utilities/",
+    "examples/"
   ],
+  "exports": {
+    "./Module.sol": "./contracts/Module.sol",
+    "./Router.sol": "./contracts/Router.sol",
+    "./Ledgers/": "./contracts/Ledgers/",
+    "./libraries/": "./libraries/",
+    "./utilities/": "./utilities/"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/CavalRe/cavalre-contracts.git"
+    "url": "git+https://github.com/CavalRe/cavalre-contracts.git"
   },
+  "keywords": [
+    "solidity",
+    "modular",
+    "router",
+    "contracts",
+    "cavalre"
+  ],
+  "author": "Eric Forgy",
+  "bugs": {
+    "url": "https://github.com/CavalRe/cavalre-contracts/issues"
+  },
+  "homepage": "https://github.com/CavalRe/cavalre-contracts#readme",
   "devDependencies": {
     "forge-std": "github:foundry-rs/forge-std"
   },
   "dependencies": {
     "@openzeppelin/contracts-upgradeable": "^5.3.0",
-    "openzeppelin-solidity": "github:CavalRe/openzeppelin-contracts",
     "solady": "^0.1.18"
+  },
+  "overrides": {
+    "@openzeppelin/contracts": "github:CavalRe/openzeppelin-contracts"
   }
 }
