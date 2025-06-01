@@ -10,7 +10,8 @@
     "libraries/",
     "utilities/",
     "examples/",
-    "tests/libraries/FloatStrings/FloatStrings.sol"
+    "tests/libraries/FloatStrings/FloatStrings.sol",
+    "tests/contracts/Ledgers/Ledgers.t.sol"
   ],
   "exports": {
     "./Module.sol": "./contracts/Module.sol",
@@ -18,7 +19,8 @@
     "./Ledgers/": "./contracts/Ledgers/",
     "./libraries/": "./libraries/",
     "./utilities/": "./utilities/",
-    "./tests/libraries/FloatStrings/FloatStrings.sol": "./tests/libraries/FloatStrings/FloatStrings.sol"
+    "./tests/libraries/FloatStrings/FloatStrings.sol": "./tests/libraries/FloatStrings/FloatStrings.sol",
+    "./tests/contracts/Ledgers/Ledgers.t.sol": "./tests/contracts/Ledgers/Ledgers.t.sol"
   },
   "repository": {
     "type": "git",
