@@ -325,8 +325,6 @@ library Lib {
             }
             revert InvalidSubAccount(subAccountName_, isCredit_);
         }
-        // Only leaves can hold balances
-        if (hasBalance(parentAccount_)) revert HasBalance(name(parentAccount_));
         // Must build tree from the top down
         if (hasSubAccount(_subAccount)) revert HasSubAccount(subAccountName_);
         if (hasBalance(_subAccount)) revert HasBalance(subAccountName_);
