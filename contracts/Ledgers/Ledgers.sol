@@ -43,16 +43,17 @@ library Lib {
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     // Custom errors
-    error SubAccountNotFound(address subAccount);
-    error HasBalance(string subAccountName);
-    error HasSubAccount(string subAccountName);
     error DifferentRoots(address a, address b);
     error DuplicateSubAccount(address subAccount);
+    error HasBalance(string subAccountName);
+    error HasSubAccount(string subAccountName);
+    error InsufficientBalance();
     error InvalidAddress();
     error InvalidSubAccount(string subAccountName, bool isCredit);
     error InvalidToken(string name, string symbol, uint8 decimals);
-    error InsufficientBalance();
     error MaxDepthExceeded();
+    error NotCredit(address sourceAddress);
+    error SubAccountNotFound(address subAccount);
 
     uint8 internal constant MAX_DEPTH = 10;
     address internal constant ROOT_ADDRESS =
@@ -390,41 +391,7 @@ library Lib {
         return _subAccount;
     }
 
-    function addTokenSource(
-        string memory sourceName_,
-        address tokenAddress_
-    ) internal {
-        address _sourceAddress = toAddress(sourceName_);
-        store().name[_sourceAddress] = sourceName_;
-        name(_sourceAddress, sourceName_);
-        addSubAccount(
-            sourceName_,
-            toAddress(tokenAddress_, TOTAL_ADDRESS),
-            _sourceAddress,
-            true
-        );
-        emit SourceAdded(sourceName_);
-    }
-
-    function removeTokenSource(
-        string memory sourceName_,
-        address tokenAddress_
-    ) internal {
-        address _sourceAddress = toAddress(sourceName_);
-        removeSubAccount(
-            toAddress(tokenAddress_, TOTAL_ADDRESS),
-            _sourceAddress
-        );
-        emit SourceRemoved(sourceName_);
-    }
-
-    function sources(
-        address tokenAddress_
-    ) internal view returns (address[] memory) {
-        return subAccounts(toAddress(tokenAddress_, TOTAL_ADDRESS));
-    }
-
-    function addToken(
+    function addLedger(
         address tokenAddress_,
         string memory name_,
         string memory symbol_,
@@ -591,9 +558,12 @@ library Lib {
     ) internal returns (bool) {
         if (toParentAddress_ == address(0) || toAddress_ == address(0))
             revert InvalidAddress();
+        
+        address _totalAddress = toAddress(root(toParentAddress_), TOTAL_ADDRESS);
+        if (!store().isCredit[toAddress(_totalAddress, sourceAddress_)]) revert NotCredit(sourceAddress_);
 
         transfer(
-            toAddress(root(toParentAddress_), TOTAL_ADDRESS),
+            _totalAddress,
             sourceAddress_,
             toParentAddress_,
             toAddress_,
@@ -858,7 +828,7 @@ contract Multitoken is Module, Initializable {
     ) public onlyInitializing {
         enforceIsOwner();
 
-        Lib.addToken(address(this), name_, symbol_, _decimals);
+        Lib.addLedger(address(this), name_, symbol_, _decimals);
     }
 
     function initializeMultitoken(

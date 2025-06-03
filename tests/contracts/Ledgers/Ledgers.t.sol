@@ -18,12 +18,8 @@ library Lib {
         bytes4(keccak256("removeSubAccount(address,address)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
-    bytes4 internal constant ADD_TOKEN_SOURCE =
-        bytes4(keccak256("addTokenSource(string,address)"));
-    bytes4 internal constant REMOVE_TOKEN_SOURCE =
-        bytes4(keccak256("removeTokenSource(string,address)"));
-    bytes4 internal constant ADD_TOKEN =
-        bytes4(keccak256("addToken(address,string,string,uint8)"));
+    bytes4 internal constant ADD_LEDGER =
+        bytes4(keccak256("addLedger(address,string,string,uint8)"));
 
     function addressToString(
         address addr_
@@ -99,7 +95,7 @@ contract TestMultitoken is Multitoken {
         override
         returns (bytes4[] memory _commands)
     {
-        _commands = new bytes4[](32);
+        _commands = new bytes4[](30);
         _commands[0] = Lib.INITIALIZE_TEST_TOKEN;
         _commands[1] = MTLib.SET_NAME;
         _commands[2] = MTLib.SET_SYMBOL;
@@ -129,9 +125,7 @@ contract TestMultitoken is Multitoken {
         _commands[26] = Lib.REMOVE_SUBACCOUNT;
         _commands[27] = Lib.MINT;
         _commands[28] = Lib.BURN;
-        _commands[29] = Lib.ADD_TOKEN_SOURCE;
-        _commands[30] = Lib.REMOVE_TOKEN_SOURCE;
-        _commands[31] = Lib.ADD_TOKEN;
+        _commands[29] = Lib.ADD_LEDGER;
     }
 
     // Commands
@@ -158,27 +152,13 @@ contract TestMultitoken is Multitoken {
         return MTLib.removeSubAccount(parentAccount_, subAccount_);
     }
 
-    function addTokenSource(
-        string memory appName_,
-        address tokenAddress_
-    ) public {
-        MTLib.addTokenSource(appName_, tokenAddress_);
-    }
-
-    function removeTokenSource(
-        string memory appName_,
-        address tokenAddress_
-    ) public {
-        MTLib.removeTokenSource(appName_, tokenAddress_);
-    }
-
-    function addToken(
+    function addLedger(
         address tokenAddress_,
         string memory name_,
         string memory symbol_,
         uint8 decimals_
     ) public {
-        MTLib.addToken(tokenAddress_, name_, symbol_, decimals_);
+        MTLib.addLedger(tokenAddress_, name_, symbol_, decimals_);
     }
 
     function mint(address parentAccountAddress_, uint256 amount_) public {
@@ -241,11 +221,9 @@ contract MultitokenTest is Test {
             ),
             _100
         );
-        if (isVerbose) console.log("Adding token sources");
-        mt.addTokenSource("Source", address(router));
 
         if (isVerbose) console.log("Adding tokens");
-        mt.addToken(r1, "1", "1", 18);
+        mt.addLedger(r1, "1", "1", 18);
 
         if (isVerbose) console.log("Adding subAccounts for 1");
         mt.addSubAccount("10", r1, _10);
@@ -331,30 +309,6 @@ contract MultitokenTest is Test {
             2,
             "SubAccount index mismatch (r111)"
         );
-    }
-
-    function testMultitokenTokenSource() public {
-        vm.startPrank(alice);
-
-        // address _appAddress2 = MTLib.toAddress("Test Application 2");
-        // vm.expectRevert(
-        //     abi.encodeWithSelector(MTLib.SubAccountNotFound.selector, _appAddress2)
-        // );
-        // mt.removeTokenSource("Test Application 2", address(router));
-
-        mt.addTokenSource("Test Application 2", address(router));
-        address _rawAppAddress = MTLib.toAddress(
-            MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS),
-            MTLib.toAddress("Test Application 2")
-        );
-        assertEq(
-            mt.parentAccount(_rawAppAddress),
-            MTLib.toAddress(address(router), MTLib.TOTAL_ADDRESS),
-            "Parent"
-        );
-
-        mt.removeTokenSource("Test Application 2", address(router));
-        assertEq(mt.parentAccount(_rawAppAddress), address(0), "Parent");
     }
 
     function testMultitokenAddSubAccount() public {
