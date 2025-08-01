@@ -1,6 +1,6 @@
 # CavalRe Contracts
 
-This repository contains the core smart contracts powering [CavalRe](https://cavalre.xyz), a modular, accounting-driven architecture for onchain capital markets. Contracts are organized into clearly separated modules, libraries, utilities, and illustrative examples.
+This repository contains the core smart contracts powering [CavalRe](https://caval.re), a modular, accounting-driven architecture for onchain capital markets. Contracts are organized into clearly separated modules, libraries, utilities, and illustrative examples.
 
 ## Repository Structure
 
@@ -33,10 +33,10 @@ cavalre-contracts/
 
 ## Core Concepts
 
-* **Module.sol**: Abstract base contract that all modules inherit, defining the shared interface and access to storage.
-* **Router.sol**: The immutable entrypoint that delegates calls to upgradeable modules via `delegatecall`.
-* **Ledgers.sol**: A hierarchical double-entry accounting system where all token balances live under structured subaccounts.
-* **FloatLib.sol**: A custom fixed-point math library for precision arithmetic with dynamic scaling.
+- **Module.sol**: Abstract base contract that all modules inherit, defining the shared interface and access to storage.
+- **Router.sol**: The immutable entrypoint that delegates calls to upgradeable modules via `delegatecall`.
+- **Ledgers.sol**: A hierarchical double-entry accounting system where all token balances live under structured subaccounts.
+- **FloatLib.sol**: A custom fixed-point math library for precision arithmetic with dynamic scaling.
 
 ## Installation
 
@@ -63,9 +63,9 @@ import "@cavalre/contracts/Ledgers/Ledgers.sol";
 
 CavalRe's smart contracts are built with the following principles:
 
-* **Accounting-first architecture** — balances are structured and provable
-* **Modular and upgradeable** — contracts are composed through the Router and can be swapped as independent modules
-* **Auditable separation of concerns** — no monolithic contracts, everything is isolated and testable
+- **Accounting-first architecture** — balances are structured and provable
+- **Modular and upgradeable** — contracts are composed through the Router and can be swapped as independent modules
+- **Auditable separation of concerns** — no monolithic contracts, everything is isolated and testable
 
 ## OpenZeppelin Fork Notice
 
