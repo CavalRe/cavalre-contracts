@@ -5,10 +5,10 @@ import {Module} from "../Module.sol";
 import {Initializable} from "../../utilities/Initializable/Initializable.sol";
 
 struct Store {
-    mapping(address => bool) isAccountGroup;
-    mapping(address subAccount => address) parentAccount;
-    mapping(address subAccount => uint32) subAccountIndex;
-    mapping(address parentAccount => address[]) subAccounts;
+    mapping(address => bool) isGroup;
+    mapping(address sub => address) parent;
+    mapping(address sub => uint32) subIndex;
+    mapping(address parent => address[]) subs;
     mapping(address => string) name;
     mapping(address => string) symbol;
     mapping(address => uint8) decimals;
@@ -18,107 +18,80 @@ struct Store {
 }
 
 library Lib {
-    event SourceAdded(string indexed appName);
-    event SourceRemoved(string indexed appName);
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
-    event InternalApproval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
-    event InternalTransfer(
-        address indexed from,
-        address indexed to,
-        uint256 value
-    );
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Credit(address indexed parent, address indexed ledger, uint256 value);
+    event Debit(address indexed parent, address indexed ledger, uint256 value);
+    event InternalApproval(address indexed owner, address indexed spender, uint256 value);
+    event LedgerAdded(address indexed tokenAddress, string name, string symbol, uint8 decimals);
     event SubAccountAdded(
         address indexed root,
-        address indexed parentAccount,
-        address indexed subAccount
+        address indexed parent,
+        address indexed sub,
+        string rootName,
+        string parentName,
+        string subName
+    );
+    event SubAccountRemoved(
+        address indexed root,
+        address indexed parent,
+        address indexed sub,
+        string rootName,
+        string parentName,
+        string subName
     );
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     // Custom errors
     error DifferentRoots(address a, address b);
-    error DuplicateSubAccount(address subAccount);
-    error HasBalance(string subAccountName);
-    error HasSubAccount(string subAccountName);
+    error DuplicateSubAccount(address sub);
+    error HasBalance(string subName);
+    error HasSubAccount(string subName);
     error InsufficientBalance();
-    error InvalidAddress();
-    error InvalidSubAccount(string subAccountName, bool isCredit);
+    error InvalidAddress(address absoluteAddress);
+    error InvalidDecimals(uint8 decimals);
+    error InvalidAccountGroup(address groupAddress);
+    error InvalidLedgerAccount(address ledgerAddress);
+    error InvalidSubAccount(string subName);
+    error InvalidString(string symbol);
     error InvalidToken(string name, string symbol, uint8 decimals);
     error MaxDepthExceeded();
-    error NotCredit(address sourceAddress);
-    error SubAccountNotFound(address subAccount);
+    error NotCredit(string name);
+    error SubAccountNotFound(string subName);
+    error ZeroAddress();
 
     uint8 internal constant MAX_DEPTH = 10;
-    address internal constant ROOT_ADDRESS =
-        0xFE99DF08Ff3B677df31fFB23cD04828AA70d2de5;
-    address internal constant TOTAL_ADDRESS =
-        0xa763678a2e868D872d408672C9f80B77F4d1d14B;
 
     // Selectors
-    bytes4 internal constant INITIALIZE_MULTITOKEN =
-        bytes4(keccak256("initializeMultitoken(string,string)"));
-    bytes4 internal constant SET_NAME =
-        bytes4(keccak256("name(address,string)"));
-    bytes4 internal constant SET_SYMBOL =
-        bytes4(keccak256("symbol(address,string)"));
-    bytes4 internal constant GET_ROOT = bytes4(keccak256("root(address)"));
-    bytes4 internal constant ADD_SUBACCOUNT =
-        bytes4(keccak256("addSubAccount(address,address)"));
-    bytes4 internal constant GET_NAME = bytes4(keccak256("name(address)"));
-    bytes4 internal constant GET_SYMBOL = bytes4(keccak256("symbol(address)"));
-    bytes4 internal constant GET_DECIMALS =
-        bytes4(keccak256("decimals(address)"));
-    bytes4 internal constant GET_PARENTACCOUNT =
-        bytes4(keccak256("parentAccount(address)"));
-    bytes4 internal constant GET_SUBACCOUNTS =
-        bytes4(keccak256("subAccounts(address)"));
-    bytes4 internal constant GET_HAS_SUBACCOUNT =
-        bytes4(keccak256("hasSubAccount(address)"));
-    bytes4 internal constant GET_SUBACCOUNT_INDEX =
-        bytes4(keccak256("subAccountIndex(address)"));
-    bytes4 internal constant GET_BASE_NAME = bytes4(keccak256("name()"));
-    bytes4 internal constant GET_BASE_SYMBOL = bytes4(keccak256("symbol()"));
-    bytes4 internal constant GET_BASE_DECIMALS =
-        bytes4(keccak256("decimals()"));
-    bytes4 internal constant BALANCE_OF =
-        bytes4(keccak256("balanceOf(address,address)"));
-    bytes4 internal constant BASE_BALANCE_OF =
-        bytes4(keccak256("balanceOf(address)"));
-    bytes4 internal constant TOTAL_SUPPLY =
-        bytes4(keccak256("totalSupply(address)"));
-    bytes4 internal constant BASE_TOTAL_SUPPLY =
-        bytes4(keccak256("totalSupply()"));
-    bytes4 internal constant TRANSFER =
-        bytes4(keccak256("transfer(address,address,address,uint256)"));
-    bytes4 internal constant BASE_TRANSFER =
-        bytes4(keccak256("transfer(address,uint256)"));
-    bytes4 internal constant APPROVE =
-        bytes4(keccak256("approve(address,address,address,uint256)"));
-    bytes4 internal constant BASE_APPROVE =
-        bytes4(keccak256("approve(address,uint256)"));
-    bytes4 internal constant ALLOWANCE =
-        bytes4(keccak256("allowance(address,address)"));
+    bytes4 internal constant INITIALIZE_LEDGERS = bytes4(keccak256("initializeLedgers(string,string)"));
+    bytes4 internal constant NAME = bytes4(keccak256("name(address)"));
+    bytes4 internal constant SYMBOL = bytes4(keccak256("symbol(address)"));
+    bytes4 internal constant DECIMALS = bytes4(keccak256("decimals(address)"));
+    bytes4 internal constant ROOT = bytes4(keccak256("root(address)"));
+    bytes4 internal constant PARENT = bytes4(keccak256("parent(address)"));
+    bytes4 internal constant SUBACCOUNTS = bytes4(keccak256("subAccounts(address)"));
+    bytes4 internal constant HAS_SUBACCOUNT = bytes4(keccak256("hasSubAccount(address)"));
+    bytes4 internal constant SUBACCOUNT_INDEX = bytes4(keccak256("subAccountIndex(address)"));
+    bytes4 internal constant BASE_NAME = bytes4(keccak256("name()"));
+    bytes4 internal constant BASE_SYMBOL = bytes4(keccak256("symbol()"));
+    bytes4 internal constant BASE_DECIMALS = bytes4(keccak256("decimals()"));
+    bytes4 internal constant GROUP_BALANCE_OF = bytes4(keccak256("balanceOf(address,string)"));
+    bytes4 internal constant BALANCE_OF = bytes4(keccak256("balanceOf(address,address)"));
+    bytes4 internal constant BASE_BALANCE_OF = bytes4(keccak256("balanceOf(address)"));
+    bytes4 internal constant TOTAL_SUPPLY = bytes4(keccak256("totalSupply(address)"));
+    bytes4 internal constant BASE_TOTAL_SUPPLY = bytes4(keccak256("totalSupply()"));
+    bytes4 internal constant TRANSFER = bytes4(keccak256("transfer(address,address,address,uint256)"));
+    bytes4 internal constant BASE_TRANSFER = bytes4(keccak256("transfer(address,uint256)"));
+    bytes4 internal constant APPROVE = bytes4(keccak256("approve(address,address,address,uint256)"));
+    bytes4 internal constant BASE_APPROVE = bytes4(keccak256("approve(address,uint256)"));
+    bytes4 internal constant ALLOWANCE = bytes4(keccak256("allowance(address,address)"));
+    bytes4 internal constant BASE_ALLOWANCE = bytes4(keccak256("allowance(address)"));
     bytes4 internal constant TRANSFER_FROM =
-        bytes4(
-            keccak256(
-                "transferFrom(address,address,address,address,address,uint256)"
-            )
-        );
-    bytes4 internal constant BASE_TRANSFER_FROM =
-        bytes4(keccak256("transferFrom(address,address,uint256)"));
+        bytes4(keccak256("transferFrom(address,address,address,address,address,uint256)"));
+    bytes4 internal constant BASE_TRANSFER_FROM = bytes4(keccak256("transferFrom(address,address,uint256)"));
 
     // Stores
     bytes32 private constant STORE_POSITION =
-        keccak256(
-            abi.encode(uint256(keccak256("cavalre.storage.Multitoken")) - 1)
-        ) & ~bytes32(uint256(0xff));
+        keccak256(abi.encode(uint256(keccak256("cavalre.storage.Ledgers")) - 1)) & ~bytes32(uint256(0xff));
 
     function store() internal pure returns (Store storage s) {
         bytes32 position = STORE_POSITION;
@@ -127,482 +100,326 @@ library Lib {
         }
     }
 
-    function toAddress(string memory name_) internal pure returns (address) {
+    //==================================================================
+    //                            Validation
+    //==================================================================
+    function checkZeroAddress(address addr_) internal pure {
+        if (addr_ == address(0)) revert ZeroAddress();
+    }
+
+    function isGroup(address addr_) internal view returns (bool) {
+        return store().isGroup[addr_];
+    }
+
+    function isCredit(address addr_) internal view returns (bool) {
+        return store().isCredit[addr_];
+    }
+
+    function isValidString(string memory str_) internal pure returns (bool) {
+        uint256 length = bytes(str_).length;
+        return length > 0 && length <= 64;
+    }
+
+    function checkString(string memory str_) internal pure {
+        if (!isValidString(str_)) revert InvalidString(str_);
+    }
+
+    function checkAccountGroup(address addr_) internal view {
+        if (!isGroup(addr_)) revert InvalidAccountGroup(addr_);
+    }
+
+    function toNamedAddress(string memory name_) internal pure returns (address) {
+        checkString(name_);
         return address(uint160(uint256(keccak256(abi.encodePacked(name_)))));
     }
 
-    function toAddress(
-        address parentAccount_,
-        address subAccount_
-    ) internal pure returns (address) {
-        return
-            address(
-                uint160(
-                    uint256(
-                        keccak256(abi.encodePacked(parentAccount_, subAccount_))
-                    )
-                )
-            );
+    function toLedgerAddress(address parent_, address ledger_) internal pure returns (address) {
+        checkZeroAddress(parent_);
+        checkZeroAddress(ledger_);
+        return address(uint160(uint256(keccak256(abi.encodePacked(parent_, ledger_)))));
     }
 
-    function toAddress(
-        address parentAccount_,
-        string memory name_
-    ) internal pure returns (address) {
-        return
-            address(
-                uint160(
-                    uint256(keccak256(abi.encodePacked(parentAccount_, name_)))
-                )
-            );
+    function toGroupAddress(address parent_, string memory name_) internal pure returns (address) {
+        checkZeroAddress(parent_);
+        checkString(name_);
+        return address(uint160(uint256(keccak256(abi.encodePacked(parent_, name_)))));
+    }
+
+    // Transfers can only occur within the same tree
+    function checkRoots(address a_, address b_) internal view {
+        if (root(a_) != root(b_)) revert DifferentRoots(a_, b_);
     }
 
     //==================
     // Metadata Setters
     //==================
-    function name(address absoluteAddress_, string memory name_) internal {
-        store().name[absoluteAddress_] = name_;
+    function name(address addr_, string memory name_) internal {
+        checkString(name_);
+        store().name[addr_] = name_;
     }
 
-    function symbol(address absoluteAddress_, string memory symbol_) internal {
-        store().symbol[absoluteAddress_] = symbol_;
+    function symbol(address addr_, string memory symbol_) internal {
+        checkString(symbol_);
+        store().symbol[addr_] = symbol_;
     }
 
-    function decimals(address absoluteAddress_, uint8 decimals_) internal {
-        if (absoluteAddress_ == address(this)) revert InvalidAddress();
-        store().decimals[absoluteAddress_] = decimals_;
+    function decimals(address addr_, uint8 decimals_) internal {
+        if (decimals_ == 0) revert InvalidDecimals(decimals_);
+        store().decimals[addr_] = decimals_;
     }
 
     //==================
     // Metadata Getters
     //==================
-    function name(
-        address absoluteAddress_
-    ) internal view returns (string memory) {
-        return store().name[absoluteAddress_];
+    function name(address addr_) internal view returns (string memory) {
+        return store().name[addr_];
     }
 
-    function symbol(
-        address absoluteAddress_
-    ) internal view returns (string memory) {
-        return store().symbol[root(absoluteAddress_)];
+    function symbol(address addr_) internal view returns (string memory) {
+        return store().symbol[root(addr_)];
     }
 
-    function decimals(address absoluteAddress_) internal view returns (uint8) {
-        return store().decimals[root(absoluteAddress_)];
+    function decimals(address addr_) internal view returns (uint8) {
+        return store().decimals[root(addr_)];
     }
 
-    function root(address currentAccount_) internal view returns (address) {
-        if (currentAccount_ == address(0)) revert InvalidAddress();
+    function root(address addr_) internal view returns (address) {
+        checkAccountGroup(addr_);
 
         Store storage s = store();
         uint256 _depth;
         address _parentAccount;
         while (_depth < MAX_DEPTH) {
             _depth++;
-            _parentAccount = s.parentAccount[currentAccount_];
+            _parentAccount = s.parent[addr_];
             if (_parentAccount == address(0)) {
                 // Root found
-                return currentAccount_;
+                return addr_;
             }
-            currentAccount_ = _parentAccount;
+            addr_ = _parentAccount;
         }
         revert MaxDepthExceeded();
     }
 
-    function parentAccount(
-        address subAccount_
-    ) internal view returns (address) {
-        return store().parentAccount[subAccount_];
+    function parent(address addr_) internal view returns (address) {
+        return store().parent[addr_];
     }
 
-    function subAccounts(
-        address parentAccount_
-    ) internal view returns (address[] memory) {
-        return store().subAccounts[parentAccount_];
+    function subAccounts(address parent_) internal view returns (address[] memory) {
+        return store().subs[parent_];
     }
 
-    function hasSubAccount(
-        address parentAccount_
-    ) internal view returns (bool) {
-        return store().subAccounts[parentAccount_].length > 0;
+    function hasSubAccount(address parent_) internal view returns (bool) {
+        return store().subs[parent_].length > 0;
     }
 
-    function subAccountIndex(
-        address subAccount_
-    ) internal view returns (uint32) {
-        return store().subAccountIndex[subAccount_];
+    function subAccountIndex(address addr_) internal view returns (uint32) {
+        return store().subIndex[addr_];
     }
 
     //==================================================================
     //                        Balance & Supply
     //==================================================================
-    function balanceOf(
-        address absoluteAddress_
-    ) internal view returns (uint256) {
-        return store().balance[absoluteAddress_];
+    function balanceOf(address addr_) internal view returns (uint256) {
+        return store().balance[addr_];
     }
 
-    function balanceOf(
-        address parentAddress_,
-        address ownerAddress_
-    ) internal view returns (uint256) {
-        return balanceOf(toAddress(parentAddress_, ownerAddress_));
-    }
-
-    function totalSupply(
-        address tokenAddress_
-    ) internal view returns (uint256) {
-        return balanceOf(toAddress(tokenAddress_, TOTAL_ADDRESS));
-    }
-
-    function hasBalance(address absoluteAddress_) internal view returns (bool) {
-        return store().balance[absoluteAddress_] > 0;
-    }
-
-    //==================================================================
-    //                            Validation
-    //==================================================================
-    // Transfers can only occur within the same tree
-    function checkRoots(address a_, address b_) internal view {
-        if (root(a_) != root(b_)) revert DifferentRoots(a_, b_);
-    }
-
-    // Only leaf accounts can hold and transfer balances
-    function checkSubAccount(address parentAccount_) internal view {
-        if (hasSubAccount(parentAccount_))
-            revert HasSubAccount(name(parentAccount_));
-    }
-
-    function isAccountGroup(
-        address absoluteAddress_
-    ) internal view returns (bool) {
-        return store().isAccountGroup[absoluteAddress_];
-    }
-
-    function isAccountGroup(
-        address absoluteAddress_,
-        bool isAccountGroup_
-    ) internal {
-        store().isAccountGroup[absoluteAddress_] = isAccountGroup_;
-    }
-
-    function isLeaf(
-        address parentAccount_,
-        address subAccount_
-    ) internal view returns (bool) {
-        return
-            parentAccount(toAddress(parentAccount_, subAccount_)) ==
-            address(0) &&
-            isAccountGroup(parentAccount_);
+    function hasBalance(address addr_) internal view returns (bool) {
+        return store().balance[addr_] > 0;
     }
 
     //==================================================================
     //                         Tree Manipulation
     //==================================================================
 
-    function addSubAccount(
-        string memory subAccountName_,
-        address parentAccount_,
-        address subAccount_,
-        bool isCredit_
-    ) internal returns (address) {
-        if (
-            parentAccount_ == subAccount_ ||
-            parentAccount_ == address(0) ||
-            subAccount_ == address(0)
-        ) revert InvalidAddress();
-        address _subAccount = toAddress(parentAccount_, subAccount_);
-        // Return if subAccount already exists with same name and account type
-        if (parentAccount(_subAccount) == parentAccount_) {
-            if (
-                keccak256(abi.encodePacked(name(_subAccount))) ==
-                keccak256(abi.encodePacked(subAccountName_)) &&
-                store().isCredit[_subAccount] == isCredit_
-            ) {
-                // No changes needed
-                return _subAccount;
+    function addSubAccount(address parent_, string memory name_, bool isCredit_) internal returns (address _sub) {
+        if (!isGroup(parent_)) revert InvalidAccountGroup(parent_);
+        if (!isValidString(name_)) revert InvalidSubAccount(name_);
+
+        _sub = toGroupAddress(parent_, name_);
+
+        bool _isExistingParent = parent(_sub) == parent_;
+        bool _isExistingName = keccak256(bytes(name(_sub))) == keccak256(bytes(name_));
+        if (_isExistingParent && _isExistingName) {
+            if (isCredit(_sub) == isCredit_) {
+                // SubAccount already exists with the same name and credit status
+                return _sub;
+            } else {
+                // SubAccount already exists with the same name but different credit status
+                revert InvalidSubAccount(name_);
             }
-            revert InvalidSubAccount(subAccountName_, isCredit_);
         }
-        // Must build tree from the top down
-        if (hasSubAccount(_subAccount)) revert HasSubAccount(subAccountName_);
-        if (hasBalance(_subAccount)) revert HasBalance(subAccountName_);
 
-        store().isAccountGroup[subAccount_] = true;
-        store().name[_subAccount] = subAccountName_;
-        store().parentAccount[_subAccount] = parentAccount_;
-        store().subAccounts[parentAccount_].push(subAccount_);
-        store().subAccountIndex[_subAccount] = uint32(
-            store().subAccounts[parentAccount_].length
-        );
-        store().isCredit[_subAccount] = isCredit_;
-        address _root = root(_subAccount);
-        emit SubAccountAdded(_root, parentAccount_, subAccount_);
-        return _subAccount;
+        Store storage s = store();
+        s.isGroup[_sub] = true;
+        s.name[_sub] = name_;
+        s.parent[_sub] = parent_;
+        s.subs[parent_].push(_sub);
+        s.subIndex[_sub] = uint32(s.subs[parent_].length);
+        s.isCredit[_sub] = isCredit_;
+        address _root = root(parent_);
+        emit SubAccountAdded(_root, parent_, _sub, name(_root), name(parent_), name_);
     }
 
-    function addSubAccount(
-        string memory subAccountName_,
-        address parentAccount_,
-        address subAccount_
-    ) internal returns (address) {
-        return
-            addSubAccount(subAccountName_, parentAccount_, subAccount_, false);
+    function removeSubAccount(address parent_, string memory name_) internal returns (address) {
+        address _sub = toGroupAddress(parent_, name_);
+        if (!isGroup(parent_)) revert InvalidAccountGroup(parent_);
+        if (!isGroup(_sub)) revert InvalidAccountGroup(_sub);
+
+        // Must exist and belong to this parent
+        if (parent(_sub) != parent_) {
+            revert SubAccountNotFound(name_);
+        }
+
+        if (hasSubAccount(_sub)) revert HasSubAccount(name_);
+        if (hasBalance(_sub)) revert HasBalance(name_);
+
+        Store storage s = store();
+
+        uint256 _index = s.subIndex[_sub]; // 1-based
+        uint256 _lastIndex = s.subs[parent_].length; // 1-based
+        address _lastChild = s.subs[parent_][_lastIndex - 1];
+
+        if (_index != _lastIndex) {
+            s.subs[parent_][_index - 1] = _lastChild;
+            s.subIndex[_lastChild] = uint32(_index);
+        }
+        s.subs[parent_].pop();
+
+        s.subIndex[_sub] = 0;
+        s.parent[_sub] = address(0);
+        s.isGroup[_sub] = false;
+        s.isCredit[_sub] = false;
+        s.name[_sub] = "";
+
+        address _root = root(parent_);
+        emit SubAccountRemoved(_root, parent_, _sub, name(_root), name(parent_), name_);
+
+        return _sub;
     }
 
-    function removeSubAccount(
-        address parentAccount_,
-        address subAccount_
-    ) internal returns (address) {
-        if (
-            parentAccount_ == subAccount_ ||
-            parentAccount_ == address(0) ||
-            subAccount_ == address(0)
-        ) revert InvalidAddress();
-        address _subAccount = toAddress(parentAccount_, subAccount_);
-        if (parentAccount(_subAccount) != parentAccount_)
-            revert SubAccountNotFound(subAccount_);
-        // Must remove subAccounts from the bottom up
-        if (hasSubAccount(_subAccount)) revert HasSubAccount(name(_subAccount));
-        // Cannot remove a subAccount that has a balance
-        if (hasBalance(_subAccount))
-            revert HasBalance(store().name[_subAccount]);
+    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_) internal {
+        if (!isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
+            revert InvalidToken(name_, symbol_, decimals_);
+        }
 
-        store().isAccountGroup[_subAccount] = false;
-        store().name[_subAccount] = "";
-        uint256 _index = store().subAccountIndex[_subAccount] - 1;
-        address _lastSubAccount = store().subAccounts[parentAccount_][
-            store().subAccounts[parentAccount_].length - 1
-        ];
-
-        // Move last subAccount to removed position
-        store().subAccounts[parentAccount_][_index] = _lastSubAccount;
-        store().subAccounts[parentAccount_].pop();
-        store().subAccountIndex[
-            toAddress(parentAccount_, _lastSubAccount)
-        ] = uint32(_index + 1);
-
-        store().parentAccount[_subAccount] = address(0);
-        store().subAccountIndex[_subAccount] = 0;
-        store().isCredit[_subAccount] = false;
-        return _subAccount;
-    }
-
-    function addLedger(
-        address tokenAddress_,
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_
-    ) internal {
-        address _totalAbsoluteAddress = toAddress(tokenAddress_, TOTAL_ADDRESS);
-        if (parentAccount(_totalAbsoluteAddress) == tokenAddress_) {
+        Store storage s = store();
+        if (s.isGroup[token_] && s.parent[token_] == address(0)) {
             // Token already exists
-            if (
-                keccak256(abi.encodePacked(name_)) ==
-                keccak256(abi.encodePacked(name(tokenAddress_))) &&
-                keccak256(abi.encodePacked(symbol_)) ==
-                keccak256(abi.encodePacked(symbol(tokenAddress_))) &&
-                decimals(tokenAddress_) == decimals_
-            ) {
+            bool sameName = keccak256(bytes(name_)) == keccak256(bytes(name(token_)));
+            bool sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(token_)));
+            bool sameDec = decimals(token_) == decimals_;
+            if (sameName && sameSymbol && sameDec) {
                 // No changes needed
                 return;
-            } else {
-                revert InvalidToken(name_, symbol_, decimals_);
             }
+            revert InvalidToken(name_, symbol_, decimals_);
         }
+        s.isGroup[token_] = true;
+        s.name[token_] = name_;
+        s.symbol[token_] = symbol_;
+        s.decimals[token_] = decimals_;
 
-        store().isAccountGroup[tokenAddress_] = true;
-        store().name[tokenAddress_] = name_;
-        store().symbol[tokenAddress_] = symbol_;
-        store().decimals[tokenAddress_] = decimals_;
+        address _total = addSubAccount(token_, "Total", true);
+        address _defaultSource = toLedgerAddress(_total, toNamedAddress("Default Source"));
+        s.name[_defaultSource] = "Default Source";
+        s.isCredit[_defaultSource] = true;
 
-        store().isCredit[
-            toAddress(
-                addSubAccount("Total", tokenAddress_, TOTAL_ADDRESS, true),
-                ROOT_ADDRESS
-            )
-        ] = true;
+        emit LedgerAdded(token_, name_, symbol_, decimals_);
     }
 
     //==================================================================
     //                         Transfers
     //==================================================================
 
-    function debit(
-        address parentAccount_,
-        address currentAccount_,
-        uint256 amount_
-    ) internal returns (address _root) {
-        if (parentAccount_ == address(0) || currentAccount_ == address(0))
-            revert InvalidAddress();
-        checkSubAccount(currentAccount_);
+    function debit(address parent_, address ledger_, uint256 amount_, bool emitEvent_)
+        internal
+        returns (address _currentAccount)
+    {
+        checkAccountGroup(parent_);
+        _currentAccount = toLedgerAddress(parent_, ledger_);
 
         Store storage s = store();
         uint8 _depth;
         while (_depth < MAX_DEPTH) {
             // Do not update the balance of the root
-            if (parentAccount_ == address(0)) {
+            if (parent_ == address(0)) {
                 // Root found
-                return currentAccount_;
+                return _currentAccount;
             }
-            if (s.isCredit[currentAccount_]) {
-                require(
-                    s.balance[currentAccount_] >= amount_,
-                    "ERC20WithSubaccounts: Insufficient balance"
-                );
-                s.balance[currentAccount_] -= amount_;
+            if (s.isCredit[_currentAccount]) {
+                require(s.balance[_currentAccount] >= amount_, "Ledgers: Insufficient balance");
+                s.balance[_currentAccount] -= amount_;
             } else {
-                s.balance[currentAccount_] += amount_;
+                s.balance[_currentAccount] += amount_;
             }
-            currentAccount_ = parentAccount_;
-            parentAccount_ = s.parentAccount[parentAccount_];
+            _currentAccount = parent_;
+            parent_ = s.parent[parent_];
             _depth++;
         }
+        if (emitEvent_) emit Debit(parent_, ledger_, amount_);
         revert MaxDepthExceeded();
     }
 
-    function credit(
-        address parentAccount_,
-        address currentAccount_,
-        uint256 amount_
-    ) internal returns (address _root) {
-        if (parentAccount_ == address(0) || currentAccount_ == address(0))
-            revert InvalidAddress();
-        checkSubAccount(currentAccount_);
+    function credit(address parent_, address ledger_, uint256 amount_, bool emitEvent_)
+        internal
+        returns (address _currentAccount)
+    {
+        checkAccountGroup(parent_);
+        _currentAccount = toLedgerAddress(parent_, ledger_);
 
         Store storage s = store();
         uint8 _depth;
         while (_depth < MAX_DEPTH) {
             // Do not update the balance of the root
-            if (parentAccount_ == address(0)) {
+            if (parent_ == address(0)) {
                 // Root found
-                return currentAccount_;
+                return _currentAccount;
             }
-            if (s.isCredit[currentAccount_]) {
-                s.balance[currentAccount_] += amount_;
+            if (s.isCredit[_currentAccount]) {
+                s.balance[_currentAccount] += amount_;
             } else {
-                require(
-                    s.balance[currentAccount_] >= amount_,
-                    "ERC20WithSubaccounts: Insufficient balance"
-                );
-                s.balance[currentAccount_] -= amount_;
+                require(s.balance[_currentAccount] >= amount_, "Ledgers: Insufficient balance");
+                s.balance[_currentAccount] -= amount_;
             }
-            currentAccount_ = parentAccount_;
-            parentAccount_ = s.parentAccount[parentAccount_];
+            _currentAccount = parent_;
+            parent_ = s.parent[parent_];
             _depth++;
         }
+        if (emitEvent_) emit Credit(parent_, ledger_, amount_);
         revert MaxDepthExceeded();
     }
 
     function transfer(
-        address fromParentAddress_,
-        address fromAddress_,
-        address toParentAddress_,
-        address toAddress_,
-        uint256 amount_
+        address fromParent_,
+        address from_,
+        address toParent_,
+        address to_,
+        uint256 amount_,
+        bool emitEvent_
     ) internal returns (bool) {
-        checkRoots(fromParentAddress_, toParentAddress_);
-        address _fromAddress = toAddress(fromParentAddress_, fromAddress_);
-        address _toAddress = toAddress(toParentAddress_, toAddress_);
-
-        credit(fromParentAddress_, _fromAddress, amount_);
-        debit(toParentAddress_, _toAddress, amount_);
-
+        address creditRoot = credit(fromParent_, from_, amount_, emitEvent_);
+        address debitRoot = debit(toParent_, to_, amount_, emitEvent_);
+        if (creditRoot != debitRoot) revert DifferentRoots(creditRoot, debitRoot);
         return true;
     }
 
-    function transfer(
-        address fromParentAddress_,
-        address toParentAddress_,
-        address toAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        address _fromAddress = toAddress(fromParentAddress_, msg.sender);
-        address _toAddress = toAddress(toParentAddress_, toAddress_);
+    function mint(address source_, address toParent_, address to_, uint256 amount_) internal returns (bool) {
+        address _sourceParent = toGroupAddress(root(toParent_), "Total");
+        address _source = toLedgerAddress(_sourceParent, source_);
+        if (!isCredit(_source)) revert NotCredit(name(source_));
 
-        emit InternalTransfer(_fromAddress, _toAddress, amount_);
-        return
-            transfer(
-                fromParentAddress_,
-                msg.sender,
-                toParentAddress_,
-                toAddress_,
-                amount_
-            );
-    }
-
-    // ERC20 Transfer
-    function transfer(
-        address recipientAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        emit Transfer(msg.sender, recipientAddress_, amount_);
-        return
-            transfer(
-                address(this),
-                msg.sender,
-                address(this),
-                recipientAddress_,
-                amount_
-            );
-    }
-
-    function mint(
-        address sourceAddress_,
-        address toParentAddress_,
-        address toAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        if (toParentAddress_ == address(0) || toAddress_ == address(0))
-            revert InvalidAddress();
-        
-        address _totalAddress = toAddress(root(toParentAddress_), TOTAL_ADDRESS);
-        if (!store().isCredit[toAddress(_totalAddress, sourceAddress_)]) revert NotCredit(sourceAddress_);
-
-        transfer(
-            _totalAddress,
-            sourceAddress_,
-            toParentAddress_,
-            toAddress_,
-            amount_
-        );
+        transfer(_sourceParent, source_, toParent_, to_, amount_, true);
         return true;
     }
 
-    function mint(
-        address toParentAddress_,
-        address toAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        return mint(ROOT_ADDRESS, toParentAddress_, toAddress_, amount_);
-    }
+    function burn(address source_, address fromParent_, address from_, uint256 amount_) internal returns (bool) {
+        address _sourceParent = toGroupAddress(root(fromParent_), "Total");
+        address _source = toLedgerAddress(_sourceParent, source_);
+        if (!isCredit(_source)) revert NotCredit(name(source_));
 
-    function burn(
-        address sourceAddress_,
-        address fromParentAddress_,
-        address fromAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        if (fromParentAddress_ == address(0) || fromAddress_ == address(0))
-            revert InvalidAddress();
-
-        transfer(
-            fromParentAddress_,
-            fromAddress_,
-            toAddress(root(fromParentAddress_), TOTAL_ADDRESS),
-            sourceAddress_,
-            amount_
-        );
+        transfer(fromParent_, from_, _sourceParent, _source, amount_, true);
         return true;
-    }
-
-    function burn(
-        address fromParentAddress_,
-        address fromAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        return burn(ROOT_ADDRESS, fromParentAddress_, fromAddress_, amount_);
     }
 
     //==================================================================
@@ -610,158 +427,60 @@ library Lib {
     //==================================================================
 
     function approve(
-        address ownerParentAddress_,
-        address ownerAddress_,
-        address spenderParentAddress_,
-        address spenderAddress_,
-        uint256 amount_
+        address ownerParent_,
+        address owner_,
+        address spenderParent_,
+        address spender_,
+        uint256 amount_,
+        bool emitEvent_
     ) internal returns (bool) {
-        address _ownerAddress = toAddress(ownerParentAddress_, ownerAddress_);
-        checkSubAccount(_ownerAddress);
-        address _spenderAddress = toAddress(
-            spenderParentAddress_,
-            spenderAddress_
-        );
-        checkSubAccount(_spenderAddress);
+        checkAccountGroup(ownerParent_);
+        checkAccountGroup(spenderParent_);
+        address _owner = toLedgerAddress(ownerParent_, owner_);
+        address _spender = toLedgerAddress(spenderParent_, spender_);
 
-        store().allowances[_ownerAddress][_spenderAddress] = amount_;
-
+        store().allowances[_owner][_spender] = amount_;
+        if (emitEvent_) emit InternalApproval(_owner, _spender, amount_);
         return true;
     }
 
-    function approve(
-        address ownerParentAddress_,
-        address spenderParentAddress_,
-        address spenderAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        address _ownerAddress = toAddress(ownerParentAddress_, msg.sender);
-        address _spenderAddress = toAddress(
-            spenderParentAddress_,
-            spenderAddress_
-        );
-        emit InternalApproval(_ownerAddress, _spenderAddress, amount_);
-        return
-            approve(
-                ownerParentAddress_,
-                msg.sender,
-                spenderParentAddress_,
-                spenderAddress_,
-                amount_
-            );
-    }
-
-    // ERC20 Approve
-    function approve(
-        address spenderAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        emit Approval(msg.sender, spenderAddress_, amount_);
-        return
-            approve(
-                address(this),
-                msg.sender,
-                address(this),
-                spenderAddress_,
-                amount_
-            );
-    }
-
-    function allowance(
-        address ownerParentAddress_,
-        address ownerAddress_,
-        address spenderParentAddress_,
-        address spenderAddress_
-    ) internal view returns (uint256) {
-        address _ownerAddress = toAddress(ownerParentAddress_, ownerAddress_);
-        if (hasSubAccount(_ownerAddress))
+    function allowance(address ownerParent_, address owner_, address spenderParent_, address spender_)
+        internal
+        view
+        returns (uint256)
+    {
+        address _ownerAddress = toLedgerAddress(ownerParent_, owner_);
+        if (hasSubAccount(_ownerAddress)) {
             revert HasSubAccount(name(_ownerAddress));
-        address _spenderAddress = toAddress(
-            spenderParentAddress_,
-            spenderAddress_
-        );
-        if (hasSubAccount(_spenderAddress))
+        }
+        address _spenderAddress = toLedgerAddress(spenderParent_, spender_);
+        if (hasSubAccount(_spenderAddress)) {
             revert HasSubAccount(name(_spenderAddress));
+        }
         return store().allowances[_ownerAddress][_spenderAddress];
     }
 
-    // Transfer From
     function transferFrom(
-        address ownerParentAddress_,
-        address ownerAddress_,
-        address spenderParentAddress_,
-        address spenderAddress_,
-        address recipientParentAddress_,
-        address recipientAddress_,
-        uint256 amount_
+        address fromParent_,
+        address from_,
+        address spenderParent_,
+        address spender_,
+        address toParent_,
+        address to_,
+        uint256 amount_,
+        bool emitEvent_
     ) internal returns (bool) {
         Store storage s = store();
 
-        address _ownerAddress = toAddress(ownerParentAddress_, ownerAddress_);
-        address _spenderAddress = toAddress(
-            spenderParentAddress_,
-            spenderAddress_
-        );
+        address _ownerAddress = toLedgerAddress(fromParent_, from_);
+        address _spenderAddress = toLedgerAddress(spenderParent_, spender_);
         s.allowances[_ownerAddress][_spenderAddress] -= amount_;
 
-        return
-            transfer(
-                ownerParentAddress_,
-                ownerAddress_,
-                recipientParentAddress_,
-                recipientAddress_,
-                amount_
-            );
-    }
-
-    function transferFrom(
-        address ownerParentAddress_,
-        address ownerAddress_,
-        address spenderParentAddress_,
-        address recipientParentAddress_,
-        address recipientAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        address _ownerAddress = toAddress(ownerParentAddress_, ownerAddress_);
-        address _recipientAddress = toAddress(
-            recipientParentAddress_,
-            recipientAddress_
-        );
-
-        emit InternalTransfer(_ownerAddress, _recipientAddress, amount_);
-        return
-            transferFrom(
-                ownerParentAddress_,
-                ownerAddress_,
-                spenderParentAddress_,
-                msg.sender,
-                recipientParentAddress_,
-                recipientAddress_,
-                amount_
-            );
-    }
-
-    // ERC20 Transfer From
-    function transferFrom(
-        address ownerAddress_,
-        address recipientAddress_,
-        uint256 amount_
-    ) internal returns (bool) {
-        emit Transfer(ownerAddress_, recipientAddress_, amount_);
-        return
-            transferFrom(
-                address(this),
-                ownerAddress_,
-                address(this),
-                msg.sender,
-                address(this),
-                recipientAddress_,
-                amount_
-            );
+        return transfer(fromParent_, from_, toParent_, to_, amount_, emitEvent_);
     }
 }
 
-contract Multitoken is Module, Initializable {
+contract Ledgers is Module, Initializable {
     constructor(uint8 decimals_) {
         _decimals = decimals_;
     }
@@ -769,130 +488,90 @@ contract Multitoken is Module, Initializable {
     uint8 internal immutable _decimals;
 
     bytes32 private constant INITIALIZABLE_STORAGE =
-        keccak256(
-            abi.encode(
-                uint256(keccak256("cavalre.storage.Multitoken.Initializable")) -
-                    1
-            )
-        ) & ~bytes32(uint256(0xff));
+        keccak256(abi.encode(uint256(keccak256("cavalre.storage.Ledgers.Initializable")) - 1)) & ~bytes32(uint256(0xff));
 
-    function _initializableStorageSlot()
-        internal
-        pure
-        override
-        returns (bytes32)
-    {
+    function _initializableStorageSlot() internal pure override returns (bytes32) {
         return INITIALIZABLE_STORAGE;
     }
 
-    function commands()
-        public
-        pure
-        virtual
-        override
-        returns (bytes4[] memory _commands)
-    {
+    function commands() public pure virtual override returns (bytes4[] memory _commands) {
+        uint256 n;
         _commands = new bytes4[](25);
-        _commands[0] = Lib.INITIALIZE_MULTITOKEN;
-        _commands[1] = Lib.SET_NAME;
-        _commands[2] = Lib.SET_SYMBOL;
-        _commands[3] = Lib.GET_ROOT;
-        _commands[4] = Lib.GET_NAME;
-        _commands[5] = Lib.GET_SYMBOL;
-        _commands[6] = Lib.GET_DECIMALS;
-        _commands[7] = Lib.GET_PARENTACCOUNT;
-        _commands[8] = Lib.GET_SUBACCOUNTS;
-        _commands[9] = Lib.GET_HAS_SUBACCOUNT;
-        _commands[10] = Lib.GET_SUBACCOUNT_INDEX;
-        _commands[11] = Lib.GET_BASE_NAME;
-        _commands[12] = Lib.GET_BASE_SYMBOL;
-        _commands[13] = Lib.GET_BASE_DECIMALS;
-        _commands[14] = Lib.BALANCE_OF;
-        _commands[15] = Lib.BASE_BALANCE_OF;
-        _commands[16] = Lib.TOTAL_SUPPLY;
-        _commands[17] = Lib.BASE_TOTAL_SUPPLY;
-        _commands[18] = Lib.TRANSFER;
-        _commands[19] = Lib.BASE_TRANSFER;
-        _commands[20] = Lib.APPROVE;
-        _commands[21] = Lib.BASE_APPROVE;
-        _commands[22] = Lib.ALLOWANCE;
-        _commands[23] = Lib.TRANSFER_FROM;
-        _commands[24] = Lib.BASE_TRANSFER_FROM;
+        _commands[n++] = Lib.INITIALIZE_LEDGERS;
+        _commands[n++] = Lib.NAME;
+        _commands[n++] = Lib.SYMBOL;
+        _commands[n++] = Lib.DECIMALS;
+        _commands[n++] = Lib.ROOT;
+        _commands[n++] = Lib.PARENT;
+        _commands[n++] = Lib.SUBACCOUNTS;
+        _commands[n++] = Lib.HAS_SUBACCOUNT;
+        _commands[n++] = Lib.SUBACCOUNT_INDEX;
+        _commands[n++] = Lib.BASE_NAME;
+        _commands[n++] = Lib.BASE_SYMBOL;
+        _commands[n++] = Lib.BASE_DECIMALS;
+        _commands[n++] = Lib.GROUP_BALANCE_OF;
+        _commands[n++] = Lib.BALANCE_OF;
+        _commands[n++] = Lib.BASE_BALANCE_OF;
+        _commands[n++] = Lib.TOTAL_SUPPLY;
+        _commands[n++] = Lib.BASE_TOTAL_SUPPLY;
+        _commands[n++] = Lib.TRANSFER;
+        _commands[n++] = Lib.BASE_TRANSFER;
+        _commands[n++] = Lib.APPROVE;
+        _commands[n++] = Lib.BASE_APPROVE;
+        _commands[n++] = Lib.ALLOWANCE;
+        _commands[n++] = Lib.BASE_ALLOWANCE;
+        _commands[n++] = Lib.TRANSFER_FROM;
+        _commands[n++] = Lib.BASE_TRANSFER_FROM;
     }
 
-    function initializeMultitoken_unchained(
-        string memory name_,
-        string memory symbol_
-    ) public onlyInitializing {
+    function initializeLedgers_unchained(string memory name_, string memory symbol_) public onlyInitializing {
         enforceIsOwner();
 
         Lib.addLedger(address(this), name_, symbol_, _decimals);
     }
 
-    function initializeMultitoken(
-        string memory name_,
-        string memory symbol_
-    ) public initializer {
-        initializeMultitoken_unchained(name_, symbol_);
+    function initializeLedgers(string memory name_, string memory symbol_) public initializer {
+        initializeLedgers_unchained(name_, symbol_);
     }
 
-    //==================
-    // Metadata Setters
-    //==================
-    function name(address absoluteAddress_, string memory name_) public {
-        enforceIsOwner();
-        Lib.name(absoluteAddress_, name_);
+    //==========
+    // Metadata
+    //==========
+    function name(address addr_) public view returns (string memory) {
+        return Lib.name(addr_);
     }
 
-    function symbol(address absoluteAddress_, string memory symbol_) public {
-        enforceIsOwner();
-        Lib.symbol(absoluteAddress_, symbol_);
+    function symbol(address addr_) public view returns (string memory) {
+        return Lib.symbol(addr_);
     }
 
-    //==================
-    // Metadata Getters
-    //==================
-    function name(
-        address absoluteAddress_
-    ) public view returns (string memory) {
-        return Lib.name(absoluteAddress_);
+    function decimals(address addr_) public view returns (uint8) {
+        return Lib.decimals(addr_);
     }
 
-    function symbol(
-        address absoluteAddress_
-    ) public view returns (string memory) {
-        return Lib.symbol(absoluteAddress_);
+    function root(address addr_) public view returns (address) {
+        return Lib.root(addr_);
     }
 
-    function decimals(address absoluteAddress_) public view returns (uint8) {
-        return Lib.decimals(absoluteAddress_);
+    function parent(address addr_) public view returns (address) {
+        return Lib.parent(addr_);
     }
 
-    function root(address absoluteAddress_) public view returns (address) {
-        return Lib.root(absoluteAddress_);
+    function subAccounts(address parent_) public view returns (address[] memory) {
+        return Lib.subAccounts(parent_);
     }
 
-    function parentAccount(address subAccount_) public view returns (address) {
-        return Lib.parentAccount(subAccount_);
+    function hasSubAccount(address parent_) public view returns (bool) {
+        return Lib.hasSubAccount(parent_);
     }
 
-    function subAccounts(
-        address parentAccount_
-    ) public view returns (address[] memory) {
-        return Lib.subAccounts(parentAccount_);
+    function subAccountIndex(address addr_) public view returns (uint32) {
+        return Lib.subAccountIndex(addr_);
     }
 
-    function hasSubAccount(address parentAccount_) public view returns (bool) {
-        return Lib.hasSubAccount(parentAccount_);
-    }
-
-    function subAccountIndex(address subAccount_) public view returns (uint32) {
-        return Lib.subAccountIndex(subAccount_);
-    }
-
-    //========================
-    // ERC20 Metadata Getters
-    //========================
+    //================
+    // ERC20 Metadata
+    //================
     function name() public view returns (string memory) {
         return Lib.name(address(this));
     }
@@ -909,129 +588,79 @@ contract Multitoken is Module, Initializable {
     // Balances & Transfers
     //======================
 
-    // Get the balance of an account
-    function balanceOf(
-        address parentAddress_,
-        address ownerAddress_
-    ) public view returns (uint256) {
-        return Lib.balanceOf(parentAddress_, ownerAddress_);
+    // Subaccount balances
+    function balanceOf(address parent_, string memory subName_) public view returns (uint256) {
+        return Lib.balanceOf(Lib.toGroupAddress(parent_, subName_));
     }
 
-    // Get the balance of an account for ERC20 compatibility
-    function balanceOf(address ownerAddress_) public view returns (uint256) {
-        return Lib.balanceOf(address(this), ownerAddress_);
+    // Ledger account balances
+    function balanceOf(address parent_, address owner_) public view returns (uint256) {
+        return Lib.balanceOf(Lib.toLedgerAddress(parent_, owner_));
     }
 
-    function totalSupply(address assetAddress_) public view returns (uint256) {
-        return Lib.totalSupply(assetAddress_);
+    // ERC20 compatibility
+    function balanceOf(address owner_) public view returns (uint256) {
+        return Lib.balanceOf(Lib.toLedgerAddress(address(this), owner_));
     }
 
-    // Get the total supply of a token for ERC20 compatibility
+    function totalSupply(address token_) public view returns (uint256) {
+        return Lib.balanceOf(Lib.toGroupAddress(token_, "Total"));
+    }
+
+    // ERC20 compatibility
     function totalSupply() public view returns (uint256) {
-        return Lib.totalSupply(address(this));
+        return Lib.balanceOf(Lib.toGroupAddress(address(this), "Total"));
     }
 
-    function transfer(
-        address fromParentAddress_,
-        address toParentAddress_,
-        address toAddress_,
-        uint256 amount_
-    ) public returns (bool) {
-        return
-            Lib.transfer(
-                fromParentAddress_,
-                toParentAddress_,
-                toAddress_,
-                amount_
-            );
+    function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) public returns (bool) {
+        return Lib.transfer(fromParent_, msg.sender, toParent_, to_, amount_, true);
     }
 
-    // ERC20 Transfer
-    function transfer(
-        address recipientAddress_,
-        uint256 amount_
-    ) public returns (bool) {
-        return Lib.transfer(recipientAddress_, amount_);
+    // ERC20 compatibility
+    function transfer(address to_, uint256 amount_) public returns (bool) {
+        emit Lib.Transfer(msg.sender, to_, amount_);
+        return Lib.transfer(address(this), msg.sender, address(this), to_, amount_, false);
     }
 
-    // Approve a spender for a subAccount
-    function approve(
-        address ownerParentAddress_,
-        address spenderParentAddress_,
-        address spenderAddress_,
-        uint256 amount_
-    ) public returns (bool) {
-        return
-            Lib.approve(
-                ownerParentAddress_,
-                spenderParentAddress_,
-                spenderAddress_,
-                amount_
-            );
+    function approve(address ownerParent_, address spenderParent_, address spender_, uint256 amount_)
+        public
+        returns (bool)
+    {
+        return Lib.approve(ownerParent_, msg.sender, spenderParent_, spender_, amount_, true);
     }
 
-    // ERC20 Approve
-    function approve(
-        address spenderAddress_,
-        uint256 amount_
-    ) public returns (bool) {
-        return Lib.approve(spenderAddress_, amount_);
+    // ERC20 compatibility
+    function approve(address spender_, uint256 amount_) public returns (bool) {
+        emit Lib.Approval(msg.sender, spender_, amount_);
+        return Lib.approve(address(this), msg.sender, address(this), spender_, amount_, false);
     }
 
-    function allowance(
-        address ownerParentAddress_,
-        address ownerAddress_,
-        address spenderParentAddress_,
-        address spenderAddress_
-    ) public view returns (uint256) {
-        return
-            Lib.allowance(
-                ownerParentAddress_,
-                ownerAddress_,
-                spenderParentAddress_,
-                spenderAddress_
-            );
+    function allowance(address ownerParent_, address owner_, address spenderParent_, address spender_)
+        public
+        view
+        returns (uint256)
+    {
+        return Lib.allowance(ownerParent_, owner_, spenderParent_, spender_);
     }
 
-    // ERC20 Allowance Query
-    function allowance(
-        address ownerAddress_,
-        address spenderAddress_
-    ) public view returns (uint256) {
-        return
-            Lib.allowance(
-                address(this),
-                ownerAddress_,
-                address(this),
-                spenderAddress_
-            );
+    // ERC20 compatibility
+    function allowance(address owner_, address spender_) public view returns (uint256) {
+        return Lib.allowance(address(this), owner_, address(this), spender_);
     }
 
     function transferFrom(
-        address ownerParentAddress_,
-        address ownerAddress_,
-        address spenderParentAddress_,
-        address recipientParentAddress_,
-        address recipientAddress_,
+        address fromParent_,
+        address from_,
+        address spenderParent_,
+        address toParent_,
+        address to_,
         uint256 amount_
     ) public returns (bool) {
-        return
-            Lib.transferFrom(
-                ownerParentAddress_,
-                ownerAddress_,
-                spenderParentAddress_,
-                recipientParentAddress_,
-                recipientAddress_,
-                amount_
-            );
+        return Lib.transferFrom(fromParent_, from_, spenderParent_, msg.sender, toParent_, to_, amount_, true);
     }
 
-    // ERC20 Transfer From
-    function transferFrom(
-        address ownerAddress_,
-        address recipientAddress_,
-        uint256 amount_
-    ) public returns (bool) {
-        return Lib.transferFrom(ownerAddress_, recipientAddress_, amount_);
+    // ERC20 compatibility
+    function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
+        return Lib.transferFrom(address(this), from_, address(this), msg.sender, address(this), to_, amount_, false);
     }
 }
