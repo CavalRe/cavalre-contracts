@@ -122,11 +122,11 @@ contract TestLedgers is Ledgers {
     }
 
     function mint(address parent_, uint256 amount_) public {
-        LLib.mint(LLib.toNamedAddress("Default Source"), parent_, msg.sender, amount_);
+        LLib.mint(parent_, msg.sender, amount_);
     }
 
     function burn(address parent_, uint256 _amount) public {
-        LLib.burn(LLib.toNamedAddress("Default Source"), parent_, msg.sender, _amount);
+        LLib.burn(parent_, msg.sender, _amount);
     }
 
     receive() external payable {}
@@ -217,11 +217,9 @@ contract LedgersTest is Test {
 
         assertEq(ledgers.balanceOf(address(ledgers)), 0, "Balance mismatch");
 
-        assertEq(ledgers.parent(LLib.toGroupAddress(address(router), "Total")), address(router), "Parent mismatch");
+        assertEq(ledgers.subAccounts(address(router)).length, 1, "Subaccounts mismatch (router)");
 
-        assertEq(ledgers.subAccounts(address(router)).length, 2, "Subaccounts mismatch (router)");
-
-        assertEq(ledgers.subAccounts(r1).length, 3, "Subaccounts mismatch (r1)");
+        assertEq(ledgers.subAccounts(r1).length, 2, "Subaccounts mismatch (r1)");
 
         assertEq(ledgers.subAccounts(r10).length, 2, "Subaccounts mismatch (r10)");
 
@@ -229,9 +227,9 @@ contract LedgersTest is Test {
 
         assertEq(ledgers.subAccountIndex(r1), 0, "SubAccount index mismatch (r1)");
 
-        assertEq(ledgers.subAccountIndex(r11), 3, "SubAccount index mismatch (r11)");
+        assertEq(ledgers.subAccountIndex(r11), 2, "SubAccount index mismatch (r11)");
 
-        assertEq(ledgers.subAccountIndex(r10), 2, "SubAccount index mismatch (r10)");
+        assertEq(ledgers.subAccountIndex(r10), 1, "SubAccount index mismatch (r10)");
 
         assertEq(ledgers.subAccountIndex(r100), 1, "SubAccount index mismatch (r100)");
 
@@ -431,7 +429,7 @@ contract LedgersTest is Test {
     }
 
     function testLedgersMint() public {
-        bool isVerbose = false;
+        bool isVerbose = true;
 
         if (isVerbose) {
             console.log("--------------------");

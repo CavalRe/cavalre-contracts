@@ -60,6 +60,8 @@ library Lib {
     error ZeroAddress();
 
     uint8 internal constant MAX_DEPTH = 10;
+    // toNamedAddress("Supply")
+    address internal constant SUPPLY_ADDRESS = 0x486d9E1EFfBE2991Ba97401Be079767f9879e1Dd;
 
     // Selectors
     bytes4 internal constant INITIALIZE_LEDGERS = bytes4(keccak256("initializeLedgers(string,string)"));
@@ -320,10 +322,9 @@ library Lib {
         s.symbol[token_] = symbol_;
         s.decimals[token_] = decimals_;
 
-        address _total = addSubAccount(token_, "Total", true);
-        address _defaultSource = toLedgerAddress(_total, toNamedAddress("Default Source"));
-        s.name[_defaultSource] = "Default Source";
-        s.isCredit[_defaultSource] = true;
+        address _supply = toLedgerAddress(token_, SUPPLY_ADDRESS);
+        s.name[_supply] = "Supply";
+        s.isCredit[_supply] = true;
 
         emit LedgerAdded(token_, name_, symbol_, decimals_);
     }
@@ -404,21 +405,15 @@ library Lib {
         return true;
     }
 
-    function mint(address source_, address toParent_, address to_, uint256 amount_) internal returns (bool) {
-        address _sourceParent = toGroupAddress(root(toParent_), "Total");
-        address _source = toLedgerAddress(_sourceParent, source_);
-        if (!isCredit(_source)) revert NotCredit(name(source_));
-
-        transfer(_sourceParent, source_, toParent_, to_, amount_, true);
+    function mint(address toParent_, address to_, uint256 amount_) internal returns (bool) {
+        address _token = root(toParent_);
+        transfer(_token, Lib.SUPPLY_ADDRESS, toParent_, to_, amount_, true);
         return true;
     }
 
-    function burn(address source_, address fromParent_, address from_, uint256 amount_) internal returns (bool) {
-        address _sourceParent = toGroupAddress(root(fromParent_), "Total");
-        address _source = toLedgerAddress(_sourceParent, source_);
-        if (!isCredit(_source)) revert NotCredit(name(source_));
-
-        transfer(fromParent_, from_, _sourceParent, _source, amount_, true);
+    function burn(address fromParent_, address from_, uint256 amount_) internal returns (bool) {
+        address _token = root(fromParent_);
+        transfer(fromParent_, from_, _token, Lib.SUPPLY_ADDRESS, amount_, true);
         return true;
     }
 
@@ -604,12 +599,12 @@ contract Ledgers is Module, Initializable {
     }
 
     function totalSupply(address token_) public view returns (uint256) {
-        return Lib.balanceOf(Lib.toGroupAddress(token_, "Total"));
+        return Lib.balanceOf(Lib.toLedgerAddress(token_, Lib.SUPPLY_ADDRESS));
     }
 
     // ERC20 compatibility
     function totalSupply() public view returns (uint256) {
-        return Lib.balanceOf(Lib.toGroupAddress(address(this), "Total"));
+        return Lib.balanceOf(Lib.toLedgerAddress(address(this), Lib.SUPPLY_ADDRESS));
     }
 
     function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) public returns (bool) {
