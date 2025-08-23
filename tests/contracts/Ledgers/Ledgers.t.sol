@@ -10,8 +10,8 @@ import {Test, console} from "forge-std/src/Test.sol";
 
 library Lib {
     // Selectors
-    bytes4 internal constant INITIALIZE_TEST_LEDGERS = bytes4(keccak256("initializeTestLedgers(string,string)"));
-    bytes4 internal constant ADD_SUBACCOUNT = bytes4(keccak256("addSubAccount(address,string,bool)"));
+    bytes4 internal constant INITIALIZE_TEST_LEDGERS = bytes4(keccak256("initializeTestLedgers()"));
+    bytes4 internal constant ADD_SUBACCOUNT = bytes4(keccak256("addSubAccount(address,string,bool,bool)"));
     bytes4 internal constant REMOVE_SUBACCOUNT = bytes4(keccak256("removeSubAccount(address,string)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(address,uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(address,uint256)"));
@@ -33,8 +33,14 @@ library Lib {
 
     function logTree(Ledgers ledgers, address root, string memory prefix, bool isFirst, bool isLast) internal view {
         string memory label = ledgers.name(root);
+        bool isGroup = ledgers.isGroup(root);
         // Print the current node
-        console.log("%s%s%s", prefix, isFirst ? "" : isLast ? unicode"└─ " : unicode"├─ ", label);
+        console.log(
+            "%s%s%s",
+            prefix,
+            isFirst ? "" : isLast ? isGroup ? unicode"└─ " : unicode"└● " : isGroup ? unicode"├─ " : unicode"├● ",
+            label
+        );
 
         // Update the prefix for subAccount nodes
         string memory subAccountPrefix = string(abi.encodePacked(prefix, isFirst ? "" : isLast ? "   " : unicode"│  "));
@@ -70,7 +76,7 @@ contract TestLedgers is Ledgers {
 
     function commands() public pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](30);
+        _commands = new bytes4[](31);
         _commands[n++] = Lib.INITIALIZE_TEST_LEDGERS;
         _commands[n++] = Lib.ADD_SUBACCOUNT;
         _commands[n++] = Lib.REMOVE_SUBACCOUNT;
@@ -82,6 +88,7 @@ contract TestLedgers is Ledgers {
         _commands[n++] = LLib.DECIMALS;
         _commands[n++] = LLib.ROOT;
         _commands[n++] = LLib.PARENT;
+        _commands[n++] = LLib.IS_GROUP;
         _commands[n++] = LLib.SUBACCOUNTS;
         _commands[n++] = LLib.HAS_SUBACCOUNT;
         _commands[n++] = LLib.SUBACCOUNT_INDEX;
@@ -104,13 +111,16 @@ contract TestLedgers is Ledgers {
     }
 
     // Commands
-    function initializeTestLedgers(string memory name_, string memory symbol_) public initializer {
+    function initializeTestLedgers() public initializer {
         enforceIsOwner();
-        initializeLedgers_unchained(name_, symbol_);
+        initializeLedgers_unchained();
     }
 
-    function addSubAccount(address parent_, string memory name_, bool isCredit_) public returns (address) {
-        return LLib.addSubAccount(parent_, name_, isCredit_);
+    function addSubAccount(address parent_, string memory name_, bool isGroup_, bool isCredit_)
+        public
+        returns (address)
+    {
+        return LLib.addSubAccount(parent_, name_, isGroup_, isCredit_);
     }
 
     function removeSubAccount(address parent_, string memory name_) public returns (address) {
@@ -140,6 +150,8 @@ contract LedgersTest is Test {
     address bob = address(2);
     address charlie = address(3);
 
+    address testLedger;
+
     // Root
     address _1 = LLib.toNamedAddress("1");
     // Depth 1
@@ -160,7 +172,7 @@ contract LedgersTest is Test {
     address r111 = LLib.toGroupAddress(r11, "111");
 
     function setUp() public {
-        bool isVerbose = false;
+        bool isVerbose = true;
 
         vm.startPrank(alice);
         ledgers = new TestLedgers(18, 10);
@@ -169,33 +181,41 @@ contract LedgersTest is Test {
         ledgers = TestLedgers(payable(router));
 
         if (isVerbose) console.log("Initializing Ledgers");
-        ledgers.initializeTestLedgers("Test Ledgers", "MULTI");
+        ledgers.initializeTestLedgers();
+        if (isVerbose) console.log("Adding test ledger");
+        testLedger = LLib.toNamedAddress("Test Ledger");
+        ledgers.addLedger(testLedger, "Test Ledger", "TL", 18);
 
         if (isVerbose) console.log("Adding subAccounts");
         ledgers.addSubAccount(
-            ledgers.addSubAccount(ledgers.addSubAccount(address(router), "1", false), "10", false), "100", false
+            ledgers.addSubAccount(ledgers.addSubAccount(testLedger, "1", true, false), "10", true, false),
+            "100",
+            true,
+            false
         );
 
         if (isVerbose) console.log("Adding token 1");
         ledgers.addLedger(r1, "1", "1", 18);
 
         if (isVerbose) console.log("Adding subAccounts for token 1");
-        ledgers.addSubAccount(r1, "10", false);
-        ledgers.addSubAccount(r1, "11", false);
-        ledgers.addSubAccount(r10, "100", false);
-        ledgers.addSubAccount(r10, "101", false);
-        ledgers.addSubAccount(r11, "110", false);
-        ledgers.addSubAccount(r11, "111", false);
+        ledgers.addSubAccount(r1, "10", true, false);
+        ledgers.addSubAccount(r1, "11", true, false);
+        ledgers.addSubAccount(r10, "100", true, false);
+        ledgers.addSubAccount(r10, "101", true, false);
+        ledgers.addSubAccount(r11, "110", true, false);
+        ledgers.addSubAccount(r11, "111", true, false);
     }
 
     error InvalidInitialization();
 
     function testLedgersInit() public {
-        bool isVerbose = false;
+        bool isVerbose = true;
 
         if (isVerbose) console.log("Display Account Hierarchy");
         if (isVerbose) console.log("--------------------");
         if (isVerbose) Lib.debugTree(ledgers, address(router));
+        if (isVerbose) console.log("--------------------");
+        if (isVerbose) Lib.debugTree(ledgers, testLedger);
         if (isVerbose) console.log("--------------------");
         if (isVerbose) Lib.debugTree(ledgers, r1);
         if (isVerbose) console.log("--------------------");
@@ -203,11 +223,11 @@ contract LedgersTest is Test {
         vm.startPrank(alice);
 
         vm.expectRevert(InvalidInitialization.selector);
-        ledgers.initializeTestLedgers("Clone", "CLONE");
+        ledgers.initializeTestLedgers();
 
-        assertEq(ledgers.name(), "Test Ledgers");
+        assertEq(ledgers.name(), "Scale");
 
-        assertEq(ledgers.symbol(), "MULTI");
+        assertEq(ledgers.symbol(), unicode"𝑆");
 
         assertEq(ledgers.decimals(), 18, "Decimals mismatch");
 
@@ -217,7 +237,7 @@ contract LedgersTest is Test {
 
         assertEq(ledgers.balanceOf(address(ledgers)), 0, "Balance mismatch");
 
-        assertEq(ledgers.subAccounts(address(router)).length, 1, "Subaccounts mismatch (router)");
+        assertEq(ledgers.subAccounts(testLedger).length, 1, "Subaccounts mismatch (router)");
 
         assertEq(ledgers.subAccounts(r1).length, 2, "Subaccounts mismatch (r1)");
 
@@ -241,7 +261,7 @@ contract LedgersTest is Test {
     }
 
     function testLedgersAddSubAccount() public {
-        bool isVerbose = false;
+        bool isVerbose = true;
 
         if (isVerbose) {
             console.log("--------------------");
@@ -254,7 +274,7 @@ contract LedgersTest is Test {
         vm.startPrank(alice);
 
         if (isVerbose) console.log("Adding a new valid subAccount");
-        address added = ledgers.addSubAccount(r1, "newSubAccount", false);
+        address added = ledgers.addSubAccount(r1, "newSubAccount", true, false);
         assertEq(added, LLib.toGroupAddress(r1, "newSubAccount"), "addSubAccount address");
         assertEq(ledgers.parent(added), r1, "Parent should be r1");
         assertEq(
@@ -266,21 +286,21 @@ contract LedgersTest is Test {
 
         if (isVerbose) console.log("Adding a subAccount that already exists");
         setUp();
-        ledgers.addSubAccount(r1, "newSubAccount", false);
+        ledgers.addSubAccount(r1, "newSubAccount", true, false);
 
         if (isVerbose) {
             console.log("Adding a subAccount whose parent is address(0)");
         }
         setUp();
         vm.expectRevert(abi.encodeWithSelector(LLib.InvalidAccountGroup.selector, address(0)));
-        ledgers.addSubAccount(address(0), "zeroParentSubAccount", false);
+        ledgers.addSubAccount(address(0), "zeroParentSubAccount", true, false);
 
         if (isVerbose) {
             console.log('Adding a subAccount whose name is ""');
         }
         setUp();
-        vm.expectRevert(abi.encodeWithSelector(LLib.InvalidSubAccount.selector, ""));
-        ledgers.addSubAccount(r1, "", false);
+        vm.expectRevert(abi.encodeWithSelector(LLib.InvalidSubAccount.selector, "", true, false));
+        ledgers.addSubAccount(r1, "", true, false);
     }
 
     function testLedgersRemoveSubAccount() public {
@@ -335,7 +355,7 @@ contract LedgersTest is Test {
         if (isVerbose) {
             console.log("Test 1: Remove a valid subAccount (leaf node)");
         }
-        ledgers.addSubAccount(r1, "leafSubAccount", false);
+        ledgers.addSubAccount(r1, "leafSubAccount", true, false);
         ledgers.removeSubAccount(r1, "leafSubAccount");
         assertEq(ledgers.parent(LLib.toGroupAddress(r1, "leafSubAccount")), address(0), "Parent should be reset");
         assertEq(
@@ -354,8 +374,8 @@ contract LedgersTest is Test {
         if (isVerbose) {
             console.log("Test 3: Remove a subAccount that has subAccounts");
         }
-        address parentWithSubAccount = ledgers.addSubAccount(r1, "parentWithSubAccount", false);
-        ledgers.addSubAccount(parentWithSubAccount, "subAccountOfParent", false);
+        address parentWithSubAccount = ledgers.addSubAccount(r1, "parentWithSubAccount", true, false);
+        ledgers.addSubAccount(parentWithSubAccount, "subAccountOfParent", true, false);
         vm.expectRevert(abi.encodeWithSelector(LLib.HasSubAccount.selector, "parentWithSubAccount"));
         ledgers.removeSubAccount(r1, "parentWithSubAccount");
 
@@ -369,7 +389,7 @@ contract LedgersTest is Test {
         if (isVerbose) {
             console.log("Test 5: Remove a subAccount with invalid addresses");
         }
-        address validSubAccount = ledgers.addSubAccount(r1, "validSubAccount", false);
+        address validSubAccount = ledgers.addSubAccount(r1, "validSubAccount", true, false);
 
         // Try to remove with address(0) as parent
         vm.expectRevert(LLib.ZeroAddress.selector);
@@ -387,9 +407,9 @@ contract LedgersTest is Test {
             console.log("Test 6: Remove a subAccount and verify parent's subAccounts array is updated correctly");
         }
         setUp();
-        address subAccount1 = ledgers.addSubAccount(r1, "subAccount1", false);
-        ledgers.addSubAccount(r1, "subAccount2", false);
-        address subAccount3 = ledgers.addSubAccount(r1, "subAccount3", false);
+        address subAccount1 = ledgers.addSubAccount(r1, "subAccount1", true, false);
+        ledgers.addSubAccount(r1, "subAccount2", true, false);
+        address subAccount3 = ledgers.addSubAccount(r1, "subAccount3", true, false);
 
         uint256 subAccountCount = ledgers.subAccounts(r1).length;
 
@@ -429,7 +449,7 @@ contract LedgersTest is Test {
     }
 
     function testLedgersMint() public {
-        bool isVerbose = true;
+        bool isVerbose = false;
 
         if (isVerbose) {
             console.log("--------------------");
@@ -534,7 +554,7 @@ contract LedgersTest is Test {
     }
 
     function testLedgersApprove() public {
-        bool isVerbose = true;
+        bool isVerbose = false;
 
         vm.startPrank(alice);
 

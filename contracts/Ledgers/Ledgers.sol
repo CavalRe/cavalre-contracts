@@ -23,22 +23,8 @@ library Lib {
     event Debit(address indexed parent, address indexed ledger, uint256 value);
     event InternalApproval(address indexed owner, address indexed spender, uint256 value);
     event LedgerAdded(address indexed tokenAddress, string name, string symbol, uint8 decimals);
-    event SubAccountAdded(
-        address indexed root,
-        address indexed parent,
-        address indexed sub,
-        string rootName,
-        string parentName,
-        string subName
-    );
-    event SubAccountRemoved(
-        address indexed root,
-        address indexed parent,
-        address indexed sub,
-        string rootName,
-        string parentName,
-        string subName
-    );
+    event SubAccountAdded(address indexed root, address indexed parent, string subName, bool isGroup, bool isCredit);
+    event SubAccountRemoved(address indexed root, address indexed parent, string subName);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     // Custom errors
@@ -51,7 +37,7 @@ library Lib {
     error InvalidDecimals(uint8 decimals);
     error InvalidAccountGroup(address groupAddress);
     error InvalidLedgerAccount(address ledgerAddress);
-    error InvalidSubAccount(string subName);
+    error InvalidSubAccount(string subName, bool isGroup, bool isCredit);
     error InvalidString(string symbol);
     error InvalidToken(string name, string symbol, uint8 decimals);
     error MaxDepthExceeded();
@@ -64,12 +50,13 @@ library Lib {
     address internal constant SUPPLY_ADDRESS = 0x486d9E1EFfBE2991Ba97401Be079767f9879e1Dd;
 
     // Selectors
-    bytes4 internal constant INITIALIZE_LEDGERS = bytes4(keccak256("initializeLedgers(string,string)"));
+    bytes4 internal constant INITIALIZE_LEDGERS = bytes4(keccak256("initializeLedgers()"));
     bytes4 internal constant NAME = bytes4(keccak256("name(address)"));
     bytes4 internal constant SYMBOL = bytes4(keccak256("symbol(address)"));
     bytes4 internal constant DECIMALS = bytes4(keccak256("decimals(address)"));
     bytes4 internal constant ROOT = bytes4(keccak256("root(address)"));
     bytes4 internal constant PARENT = bytes4(keccak256("parent(address)"));
+    bytes4 internal constant IS_GROUP = bytes4(keccak256("isGroup(address)"));
     bytes4 internal constant SUBACCOUNTS = bytes4(keccak256("subAccounts(address)"));
     bytes4 internal constant HAS_SUBACCOUNT = bytes4(keccak256("hasSubAccount(address)"));
     bytes4 internal constant SUBACCOUNT_INDEX = bytes4(keccak256("subAccountIndex(address)"));
@@ -234,33 +221,36 @@ library Lib {
     //                         Tree Manipulation
     //==================================================================
 
-    function addSubAccount(address parent_, string memory name_, bool isCredit_) internal returns (address _sub) {
+    function addSubAccount(address parent_, string memory name_, bool isGroup_, bool isCredit_)
+        internal
+        returns (address _sub)
+    {
         if (!isGroup(parent_)) revert InvalidAccountGroup(parent_);
-        if (!isValidString(name_)) revert InvalidSubAccount(name_);
+        if (!isValidString(name_)) revert InvalidSubAccount(name_, isGroup_, isCredit_);
 
         _sub = toGroupAddress(parent_, name_);
 
         bool _isExistingParent = parent(_sub) == parent_;
         bool _isExistingName = keccak256(bytes(name(_sub))) == keccak256(bytes(name_));
         if (_isExistingParent && _isExistingName) {
-            if (isCredit(_sub) == isCredit_) {
+            if ((isCredit(_sub) == isCredit_) && (isGroup(_sub) == isGroup_)) {
                 // SubAccount already exists with the same name and credit status
                 return _sub;
             } else {
                 // SubAccount already exists with the same name but different credit status
-                revert InvalidSubAccount(name_);
+                revert InvalidSubAccount(name_, isGroup_, isCredit_);
             }
         }
 
         Store storage s = store();
-        s.isGroup[_sub] = true;
+        s.isGroup[_sub] = isGroup_;
         s.name[_sub] = name_;
         s.parent[_sub] = parent_;
         s.subs[parent_].push(_sub);
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
         s.isCredit[_sub] = isCredit_;
         address _root = root(parent_);
-        emit SubAccountAdded(_root, parent_, _sub, name(_root), name(parent_), name_);
+        emit SubAccountAdded(_root, parent_, name_, isGroup_, isCredit_);
     }
 
     function removeSubAccount(address parent_, string memory name_) internal returns (address) {
@@ -281,7 +271,6 @@ library Lib {
         uint256 _index = s.subIndex[_sub]; // 1-based
         uint256 _lastIndex = s.subs[parent_].length; // 1-based
         address _lastChild = s.subs[parent_][_lastIndex - 1];
-
         if (_index != _lastIndex) {
             s.subs[parent_][_index - 1] = _lastChild;
             s.subIndex[_lastChild] = uint32(_index);
@@ -295,7 +284,7 @@ library Lib {
         s.name[_sub] = "";
 
         address _root = root(parent_);
-        emit SubAccountRemoved(_root, parent_, _sub, name(_root), name(parent_), name_);
+        emit SubAccountRemoved(_root, parent_, name_);
 
         return _sub;
     }
@@ -325,6 +314,10 @@ library Lib {
         address _supply = toLedgerAddress(token_, SUPPLY_ADDRESS);
         s.name[_supply] = "Supply";
         s.isCredit[_supply] = true;
+
+        if (token_ != address(this)) {
+            addSubAccount(address(this), name_, false, false);
+        }
 
         emit LedgerAdded(token_, name_, symbol_, decimals_);
     }
@@ -491,13 +484,14 @@ contract Ledgers is Module, Initializable {
 
     function commands() public pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](25);
+        _commands = new bytes4[](26);
         _commands[n++] = Lib.INITIALIZE_LEDGERS;
         _commands[n++] = Lib.NAME;
         _commands[n++] = Lib.SYMBOL;
         _commands[n++] = Lib.DECIMALS;
         _commands[n++] = Lib.ROOT;
         _commands[n++] = Lib.PARENT;
+        _commands[n++] = Lib.IS_GROUP;
         _commands[n++] = Lib.SUBACCOUNTS;
         _commands[n++] = Lib.HAS_SUBACCOUNT;
         _commands[n++] = Lib.SUBACCOUNT_INDEX;
@@ -519,14 +513,14 @@ contract Ledgers is Module, Initializable {
         _commands[n++] = Lib.BASE_TRANSFER_FROM;
     }
 
-    function initializeLedgers_unchained(string memory name_, string memory symbol_) public onlyInitializing {
+    function initializeLedgers_unchained() public onlyInitializing {
         enforceIsOwner();
 
-        Lib.addLedger(address(this), name_, symbol_, _decimals);
+        Lib.addLedger(address(this), "Scale", unicode"𝑆", 18);
     }
 
-    function initializeLedgers(string memory name_, string memory symbol_) public initializer {
-        initializeLedgers_unchained(name_, symbol_);
+    function initializeLedgers() public initializer {
+        initializeLedgers_unchained();
     }
 
     //==========
@@ -550,6 +544,10 @@ contract Ledgers is Module, Initializable {
 
     function parent(address addr_) public view returns (address) {
         return Lib.parent(addr_);
+    }
+
+    function isGroup(address addr_) public view returns (bool) {
+        return Lib.isGroup(addr_);
     }
 
     function subAccounts(address parent_) public view returns (address[] memory) {
