@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.24;
 
-import {FloatLib, Float} from "../../../libraries/FloatLib/FloatLib.sol";
-import {FloatStrings} from "../FloatStrings/FloatStrings.sol";
+import {FloatLib, Float} from "../../src/libraries/FloatLib/FloatLib.sol";
+import {FloatStrings} from "./FloatStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract FloatTest is Test {
@@ -63,10 +63,7 @@ contract FloatTest is Test {
     int256 internal mantissaTWO_unnormalized;
     int256 internal exponentTWO_unnormalized;
 
-    function assertEq(
-        Float memory x,
-        Float memory y
-    ) internal {
+    function assertEq(Float memory x, Float memory y) internal {
         x = FloatLib.normalize(x);
         y = FloatLib.normalize(y);
         assertEq(x.mantissa, y.mantissa, "mantissa");
@@ -178,16 +175,10 @@ contract FloatTest is Test {
         emit log_named_string("1.2", float.toString());
         // emit log_named_uint("1.2.mantissa", float.mantissa);
         // emit log_named_int("1.2.exponent", float.exponent);
-        emit log_named_string(
-            "Integer part of 1.2",
-            intergerPartFloat.toString()
-        );
+        emit log_named_string("Integer part of 1.2", intergerPartFloat.toString());
         // emit log_named_uint("Integer part of 1.2.mantissa", intergerPartFloat.mantissa);
         // emit log_named_int("Integer part of 1.2.exponent", intergerPartFloat.exponent);
-        emit log_named_string(
-            "Fraction part of 1.2",
-            fractionPartFloat.toString()
-        );
+        emit log_named_string("Fraction part of 1.2", fractionPartFloat.toString());
         // emit log_named_uint("Fraction part of 1.2.mantissa", fractionPartFloat.mantissa);
         // emit log_named_int("Fraction part of 1.2.exponent", fractionPartFloat.exponent);
 
@@ -207,14 +198,8 @@ contract FloatTest is Test {
         emit log_named_string("1.15 x 10^-6", Float(115, -8).toString());
 
         emit log("Round number");
-        emit log_named_string(
-            "1.23456789 x 10^-6",
-            Float(123456789, -14).round(5).toString()
-        );
-        emit log_named_string(
-            "-1.23456789 x 10^-6",
-            Float(-123456789, -14).round(5).toString()
-        );
+        emit log_named_string("1.23456789 x 10^-6", Float(123456789, -14).round(5).toString());
+        emit log_named_string("-1.23456789 x 10^-6", Float(-123456789, -14).round(5).toString());
 
         Float memory bigNumber = FloatLib.normalize(115, 63);
         emit log("Write big number");
@@ -341,16 +326,8 @@ contract FloatTest is Test {
             FloatLib.SIGNIFICANT_DIGITS,
             "mantissa (from unnormalized)"
         );
-        assertEq(
-            ONE.mantissa.msb(),
-            FloatLib.SIGNIFICANT_DIGITS,
-            "mantissa (from normalized)"
-        );
-        assertEq(
-            ONE.exponent,
-            FloatLib.normalize(ONE_unnormalized).exponent,
-            "exponent"
-        );
+        assertEq(ONE.mantissa.msb(), FloatLib.SIGNIFICANT_DIGITS, "mantissa (from normalized)");
+        assertEq(ONE.exponent, FloatLib.normalize(ONE_unnormalized).exponent, "exponent");
     }
 
     function testAlign() public {
@@ -381,15 +358,7 @@ contract FloatTest is Test {
                 c = a.plus(b);
                 assertTrue(
                     c.isEQ(Float(5 * (ifloat + jfloat), -1)),
-                    string(
-                        abi.encodePacked(
-                            a.toString(),
-                            "+",
-                            b.toString(),
-                            "=",
-                            c.toString()
-                        )
-                    )
+                    string(abi.encodePacked(a.toString(), "+", b.toString(), "=", c.toString()))
                 );
             }
         }
@@ -410,15 +379,7 @@ contract FloatTest is Test {
                 c = a.minus(b);
                 assertTrue(
                     c.isEQ(Float(5 * (ifloat - jfloat), -1)),
-                    string(
-                        abi.encodePacked(
-                            a.toString(),
-                            "-",
-                            b.toString(),
-                            "=",
-                            c.toString()
-                        )
-                    )
+                    string(abi.encodePacked(a.toString(), "-", b.toString(), "=", c.toString()))
                 );
             }
         }
@@ -439,15 +400,7 @@ contract FloatTest is Test {
                 c = a.times(b);
                 assertTrue(
                     c.isEQ(Float(25 * (ifloat * jfloat), -2)),
-                    string(
-                        abi.encodePacked(
-                            a.toString(),
-                            "*",
-                            b.toString(),
-                            "=",
-                            c.toString()
-                        )
-                    )
+                    string(abi.encodePacked(a.toString(), "*", b.toString(), "=", c.toString()))
                 );
             }
         }
@@ -470,8 +423,7 @@ contract FloatTest is Test {
                 }
                 c = a.divide(b).times(b);
                 assertTrue(
-                    c.round(10).isEQ(Float(5 * ifloat, -1)),
-                    string(abi.encodePacked(a.toString(), "=", c.toString()))
+                    c.round(10).isEQ(Float(5 * ifloat, -1)), string(abi.encodePacked(a.toString(), "=", c.toString()))
                 );
             }
         }
@@ -487,36 +439,15 @@ contract FloatTest is Test {
         // emit log_named_string("exp(1e3)", FloatLib.exp(int256(1e21)).toString());
         // emit log_named_string("exp(1e4)", FloatLib.exp(int256(1e22)).toString());
         // emit log_named_string("exp(1e5)", FloatLib.exp(int256(1e23)).toString());
-        emit log_named_string(
-            "exp(1e6)",
-            FloatLib.exp(int256(1e24)).toString()
-        );
+        emit log_named_string("exp(1e6)", FloatLib.exp(int256(1e24)).toString());
         emit log_named_string("exp(1e-18)", FloatLib.exp(int256(1)).toString());
-        emit log_named_string(
-            "exp(1e-17)",
-            FloatLib.exp(int256(1e1)).toString()
-        );
-        emit log_named_string(
-            "exp(1e-16)",
-            FloatLib.exp(int256(1e2)).toString()
-        );
-        emit log_named_string(
-            "exp(1e-15)",
-            FloatLib.exp(int256(1e3)).toString()
-        );
-        emit log_named_string(
-            "exp(1e-5)",
-            FloatLib.exp(int256(1e13)).toString()
-        );
-        emit log_named_string(
-            "exp(-1e6)",
-            FloatLib.exp(int256(-1e24)).toString()
-        );
+        emit log_named_string("exp(1e-17)", FloatLib.exp(int256(1e1)).toString());
+        emit log_named_string("exp(1e-16)", FloatLib.exp(int256(1e2)).toString());
+        emit log_named_string("exp(1e-15)", FloatLib.exp(int256(1e3)).toString());
+        emit log_named_string("exp(1e-5)", FloatLib.exp(int256(1e13)).toString());
+        emit log_named_string("exp(-1e6)", FloatLib.exp(int256(-1e24)).toString());
 
-        emit log_named_string(
-            "exp(log(4e18)/2)",
-            FloatLib.exp(FloatLib.log(Float(4,0))/2).toString()
-        );
+        emit log_named_string("exp(log(4e18)/2)", FloatLib.exp(FloatLib.log(Float(4, 0)) / 2).toString());
         // emit log_named_int("exp(1e6)", FloatLib.exp(int256(1e24)).mantissa);
         // emit log_named_int("exp(-1e6)", FloatLib.exp(int256(-1e24)).mantissa);
         // emit log_named_string("exp(1e7)", FloatLib.exp(int256(1e25)).toString());
@@ -527,7 +458,7 @@ contract FloatTest is Test {
     }
 
     function testCubic() public {
-        Float memory x = FloatLib.cubicsolve(Float(-5,0), Float(1, 0), Float(-5,0));
+        Float memory x = FloatLib.cubicsolve(Float(-5, 0), Float(1, 0), Float(-5, 0));
         emit log_named_string("x", x.toString());
     }
 

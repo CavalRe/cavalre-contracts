@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Router} from "../../../contracts/Router.sol";
-import {Module, Lib as ML} from "../../../contracts/Module.sol";
+import {Router} from "../../../src/modules/Router.sol";
+import {Module, Lib as ML} from "../../../src/modules/Module.sol";
 import {Sentry, Lib as SL} from "../../../examples/Sentry/Sentry.sol";
 import {Test} from "forge-std/src/Test.sol";
 
@@ -35,30 +35,12 @@ contract SentryTest is Test {
     }
 
     function testSentryInit() public {
+        assertEq(router.owner(address(router)), alice, "SentryTest: Owner not set");
+        assertEq(router.module(SL.TRANSFER_OWNERSHIP), sentryAddress, "SentryTest: TransferOwnership not set");
+        assertEq(router.module(SL.ACCEPT_OWNERSHIP), sentryAddress, "SentryTest: AcceptOwnership not set");
+        assertEq(router.module(SL.RENOUNCE_OWNERSHIP), sentryAddress, "SentryTest: RenounceOwnership not set");
         assertEq(
-            router.owner(address(router)),
-            alice,
-            "SentryTest: Owner not set"
-        );
-        assertEq(
-            router.module(SL.TRANSFER_OWNERSHIP),
-            sentryAddress,
-            "SentryTest: TransferOwnership not set"
-        );
-        assertEq(
-            router.module(SL.ACCEPT_OWNERSHIP),
-            sentryAddress,
-            "SentryTest: AcceptOwnership not set"
-        );
-        assertEq(
-            router.module(SL.RENOUNCE_OWNERSHIP),
-            sentryAddress,
-            "SentryTest: RenounceOwnership not set"
-        );
-        assertEq(
-            router.module(SL.CONFIRM_RENOUNCE_OWNERSHIP),
-            sentryAddress,
-            "SentryTest: ConfirmRenounceOwnership not set"
+            router.module(SL.CONFIRM_RENOUNCE_OWNERSHIP), sentryAddress, "SentryTest: ConfirmRenounceOwnership not set"
         );
     }
 
@@ -68,9 +50,7 @@ contract SentryTest is Test {
 
     function testSentryWrongOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(
-            abi.encodeWithSelector(Module.OwnableUnauthorizedAccount.selector, bob)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Module.OwnableUnauthorizedAccount.selector, bob));
         router.addModule(sentryAddress);
     }
 

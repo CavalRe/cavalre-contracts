@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Module} from "../Module.sol";
-import {Initializable} from "../../utilities/Initializable/Initializable.sol";
+import {Initializable} from "../../utilities/Initializable.sol";
 
 struct Store {
     mapping(address => bool) isGroup;

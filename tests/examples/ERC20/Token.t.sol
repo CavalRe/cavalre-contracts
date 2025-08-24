@@ -1,34 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Router} from "../../../contracts/Router.sol";
+import {Router} from "../../../src/modules/Router.sol";
 import {ERC20, Lib as ERC20Lib} from "../../../examples/ERC20/ERC20.sol";
-import {Lib as ModuleLib} from "../../../contracts/Module.sol";
+import {Lib as ModuleLib} from "../../../src/modules/Module.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
 
 library Lib {
     // Selectors
-    bytes4 internal constant INITIALIZE_TOKEN =
-        bytes4(keccak256("initializeTestToken(string,string)"));
+    bytes4 internal constant INITIALIZE_TOKEN = bytes4(keccak256("initializeTestToken(string,string)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(uint256)"));
     bytes4 internal constant BURN = bytes4(keccak256("burn(uint256)"));
 }
 
 contract TestToken is ERC20 {
-
     event Deposit(address indexed dst, uint256 wad);
     event Withdrawal(address indexed src, uint256 wad);
 
     constructor(uint8 _decimals) ERC20(_decimals) {}
 
-    function commands()
-        public
-        pure
-        virtual
-        override
-        returns (bytes4[] memory _commands)
-    {
+    function commands() public pure virtual override returns (bytes4[] memory _commands) {
         _commands = new bytes4[](12);
         _commands[0] = Lib.INITIALIZE_TOKEN;
         _commands[1] = ERC20Lib.NAME;
@@ -45,10 +37,7 @@ contract TestToken is ERC20 {
     }
 
     // Commands
-    function initializeTestToken(
-        string memory _name,
-        string memory _symbol
-    ) public initializer {
+    function initializeTestToken(string memory _name, string memory _symbol) public initializer {
         __ERC20_init(_name, _symbol);
     }
 
@@ -72,7 +61,7 @@ contract TestToken is ERC20 {
     function withdraw(uint256 wad) public {
         require(balanceOf(_msgSender()) >= wad);
         burn(wad);
-        (bool success, ) = payable(_msgSender()).call{value: wad}("");
+        (bool success,) = payable(_msgSender()).call{value: wad}("");
         require(success, "Transfer failed");
         emit Withdrawal(_msgSender(), wad);
     }
@@ -87,7 +76,7 @@ contract TestTokenTest is Test {
     address carol = address(3);
 
     error InvalidInitialization();
-    
+
     error NotInitializing();
 
     function setUp() public {
