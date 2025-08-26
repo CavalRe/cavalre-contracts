@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.24;
 
-import {FloatLib, Float} from "../../src/libraries/FloatLib/FloatLib.sol";
+import {FloatLib, Float} from "@lib/FloatLib.sol";
 import {FloatStrings} from "./FloatStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
 

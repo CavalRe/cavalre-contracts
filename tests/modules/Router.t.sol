@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Module} from "../../src/modules/Module.sol";
-import {Router} from "../../src/modules/Router.sol";
+import {Module} from "@modules/Module.sol";
+import {Router} from "@modules/Router.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Test, console} from "forge-std/src/Test.sol";
 
@@ -49,7 +49,7 @@ contract RouterTest is Test, ContextUpgradeable {
         router.addModule(address(foo));
     }
 
-    function testRouterInit() public {
+    function testRouterInit() public view {
         assertEq(router.owner(address(router)), bob, "RouterTest: Owner not set");
 
         assertEq(router.module(TestModuleLib.FOO), address(foo), "RouterTest: foo() not set");

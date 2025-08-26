@@ -4,25 +4,11 @@
   "description": "Modular smart contracts for CavalRe",
   "license": "MIT",
   "files": [
-    "contracts/Module.sol",
-    "contracts/Router.sol",
-    "contracts/Ledgers/",
-    "libraries/",
-    "utilities/",
-    "examples/",
-    "tests/libraries/FloatStrings/FloatStrings.sol",
-    "tests/contracts/Ledgers/Ledgers.t.sol",
-    "tests/examples/ERC20/Token.t.sol"
+    "libraries",
+    "modules",
+    "tests",
+    "utilities"
   ],
-  "exports": {
-    "./Module.sol": "./contracts/Module.sol",
-    "./Router.sol": "./contracts/Router.sol",
-    "./Ledgers/": "./contracts/Ledgers/",
-    "./libraries/": "./libraries/",
-    "./utilities/": "./utilities/",
-    "./tests/libraries/FloatStrings/FloatStrings.sol": "./tests/libraries/FloatStrings/FloatStrings.sol",
-    "./tests/contracts/Ledgers/Ledgers.t.sol": "./tests/contracts/Ledgers/Ledgers.t.sol"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CavalRe/cavalre-contracts.git"

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {FloatLib, Float} from "../../src/libraries/FloatLib/FloatLib.sol";
+import {FloatLib, Float} from "@lib/FloatLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 library FloatStrings {
