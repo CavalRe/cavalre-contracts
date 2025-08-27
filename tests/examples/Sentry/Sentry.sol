@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Module} from "@modules/Module.sol";
-import {ModuleLib as ML} from "@lib/ModuleLib.sol";
+import {Module} from "@cavalre/contracts/modules/Module.sol";
+import {ModuleLib as ML} from "@cavalre/contracts/libraries/ModuleLib.sol";
 import {console} from "forge-std/src/console.sol";
 
 struct Store {

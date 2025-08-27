@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Module} from "@modules/Module.sol";
-import {Initializable} from "@utils/Initializable.sol";
-import {LedgersLib as Lib} from "@lib/LedgersLib.sol";
+import {Module} from "@cavalre/contracts/modules/Module.sol";
+import {Initializable} from "@cavalre/contracts/utilities/Initializable.sol";
+import {LedgersLib as Lib} from "@cavalre/contracts/libraries/LedgersLib.sol";
 
 contract Ledgers is Module, Initializable {
     constructor(uint8 decimals_) {

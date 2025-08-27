@@ -1,8 +1,8 @@
-@examples/=tests/examples
-@lib/=libraries/
-@modules/=modules/
-@utils/=utilities/
-@tests/=tests/
+@cavalre/contracts/tests/examples/=tests/examples/
+@cavalre/contracts/libraries/=libraries/
+@cavalre/contracts/modules/=modules/
+@cavalre/contracts/utilities/=utilities/
+@cavalre/contracts/tests/=tests/
 @openzeppelin/contracts/=node_modules/@openzeppelin/contracts/contracts/
 @openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/
 forge-std/=node_modules/forge-std/
