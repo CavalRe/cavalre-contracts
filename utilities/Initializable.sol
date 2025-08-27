@@ -20,4 +20,3 @@ abstract contract Initializable is OZInitializable {
         revert("Initializable: must override _initializableStorageSlot()");
     }
 }
-

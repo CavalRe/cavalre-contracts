@@ -15,13 +15,7 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
  * @notice Must be used instead of OpenZeppelin's ReentrancyGuardTransient directly in module contracts.
  */
 abstract contract ReentrancyGuard is ReentrancyGuardTransient {
-    function _reentrancyGuardStorageSlot()
-        internal
-        pure
-        virtual
-        override
-        returns (bytes32)
-    {
+    function _reentrancyGuardStorageSlot() internal pure virtual override returns (bytes32) {
         // Must be overridden per-module to ensure unique slot
         revert("ReentrancyGuard: must override _reentrancyGuardStorageSlot()");
     }

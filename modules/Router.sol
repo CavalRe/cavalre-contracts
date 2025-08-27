@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Module} from "./Module.sol";
-import {ModuleLib as ML} from "../libraries/ModuleLib.sol";
+import {Module, Lib as ML} from "./Module.sol";
 import {RouterLib as Lib} from "../libraries/RouterLib.sol";
 
 contract Router is Module {

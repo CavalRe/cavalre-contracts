@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Router} from "@cavalre/contracts/modules/Router.sol";
-import {Module} from "@cavalre/contracts/modules/Module.sol";
-import {ModuleLib as ML} from "@cavalre/contracts/libraries/ModuleLib.sol";
-import {Sentry, Lib as SL} from "@cavalre/contracts/tests/examples/Sentry/Sentry.sol";
+import {Router} from "../../../modules/Router.sol";
+import {Module, Lib as ML} from "../../../modules/Module.sol";
+import {Sentry, Lib as SL} from "./Sentry.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract SentryTest is Test {
@@ -35,7 +34,7 @@ contract SentryTest is Test {
         sentry = Sentry(payable(router));
     }
 
-    function testSentryInit() public {
+    function testSentryInit() public view {
         assertEq(router.owner(address(router)), alice, "SentryTest: Owner not set");
         assertEq(router.module(SL.TRANSFER_OWNERSHIP), sentryAddress, "SentryTest: TransferOwnership not set");
         assertEq(router.module(SL.ACCEPT_OWNERSHIP), sentryAddress, "SentryTest: AcceptOwnership not set");
@@ -45,7 +44,7 @@ contract SentryTest is Test {
         );
     }
 
-    function testSentryOwner() public {
+    function testSentryOwner() public view {
         assertEq(router.owner(sentryAddress), alice);
     }
 

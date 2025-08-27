@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Module} from "@cavalre/contracts/modules/Module.sol";
-import {Router} from "@cavalre/contracts/modules/Router.sol";
-import {Ledgers} from "@cavalre/contracts/modules/Ledgers.sol";
-
-import {ModuleLib as MLib} from "@cavalre/contracts/libraries/ModuleLib.sol";
-import {LedgersLib as LLib} from "@cavalre/contracts/libraries/LedgersLib.sol";
+import {Module, Lib as MLib} from "../../modules/Module.sol";
+import {Router} from "../../modules/Router.sol";
+import {Ledgers, Lib as LLib} from "../../modules/Ledgers.sol";
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test, console} from "forge-std/src/Test.sol";
