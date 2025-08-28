@@ -1,6 +1,79 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {ILedgers} from "../interfaces/ILedgers.sol";
+
+contract ERC20Wrapper {
+    address private immutable _ledgers;
+    string private _name;
+    string private _symbol;
+    uint8 public immutable _decimals;
+
+    constructor(address ledgers_, string memory name_, string memory symbol_, uint8 decimals_) {
+        _ledgers = ledgers_;
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = decimals_;
+    }
+
+    function name() public view returns (string memory) {
+        return ILedgers(_ledgers).name(address(this));
+    }
+
+    function symbol() public view returns (string memory) {
+        return ILedgers(_ledgers).symbol(address(this));
+    }
+
+    function decimals() public view returns (uint8) {
+        return ILedgers(_ledgers).decimals(address(this));
+    }
+
+    function totalSupply() public view returns (uint256) {
+        return ILedgers(_ledgers).totalSupply(address(this));
+    }
+
+    function balanceOf(address account_) public view returns (uint256) {
+        return ILedgers(_ledgers).balanceOf(address(this), account_);
+    }
+
+    function allowance(address owner_, address spender_) public view returns (uint256) {
+        return ILedgers(_ledgers).allowance(address(this), owner_, address(this), spender_);
+    }
+
+    function approve(address spender_, uint256 amount_) public returns (bool) {
+        bool ok = ILedgers(_ledgers).approveWrapper(address(this), msg.sender, spender_, amount_);
+        if (ok) emit Approval(msg.sender, spender_, amount_);
+        return ok;
+    }
+
+    function transfer(address to_, uint256 amount_) public returns (bool) {
+        bool ok = ILedgers(_ledgers).transferWrapper(address(this), msg.sender, to_, amount_);
+        if (ok) emit Transfer(msg.sender, to_, amount_);
+        return ok;
+    }
+
+    function mint(address to_, uint256 amount_) public returns (bool) {
+        bool ok = ILedgers(_ledgers).mintWrapper(address(this), to_, amount_);
+        if (ok) emit Transfer(address(0), to_, amount_);
+        return ok;
+    }
+
+    function burn(address from_, uint256 amount_) public returns (bool) {
+        bool ok = ILedgers(_ledgers).burnWrapper(address(this), from_, amount_);
+        if (ok) emit Transfer(from_, address(0), amount_);
+        return ok;
+    }
+
+    function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
+        bool ok = ILedgers(_ledgers).transferFromWrapper(address(this), msg.sender, from_, to_, amount_);
+        if (ok) emit Transfer(from_, to_, amount_);
+        return ok;
+    }
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
 library LedgersLib {
     struct Store {
         mapping(address => bool) isGroup;
@@ -25,71 +98,15 @@ library LedgersLib {
         }
     }
 
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-    event Credit(address indexed parent, address indexed ledger, uint256 value);
-    event Debit(address indexed parent, address indexed ledger, uint256 value);
-    event InternalApproval(address indexed owner, address indexed spender, uint256 value);
-    event LedgerAdded(address indexed tokenAddress, string name, string symbol, uint8 decimals);
-    event SubAccountAdded(address indexed root, address indexed parent, string subName, bool isGroup, bool isCredit);
-    event SubAccountRemoved(address indexed root, address indexed parent, string subName);
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    // Custom errors
-    error DifferentRoots(address a, address b);
-    error DuplicateSubAccount(address sub);
-    error HasBalance(string subName);
-    error HasSubAccount(string subName);
-    error InsufficientBalance();
-    error InvalidAddress(address absoluteAddress);
-    error InvalidDecimals(uint8 decimals);
-    error InvalidAccountGroup(address groupAddress);
-    error InvalidLedgerAccount(address ledgerAddress);
-    error InvalidSubAccount(string subName, bool isGroup, bool isCredit);
-    error InvalidString(string symbol);
-    error InvalidToken(string name, string symbol, uint8 decimals);
-    error MaxDepthExceeded();
-    error NotCredit(string name);
-    error SubAccountNotFound(string subName);
-    error ZeroAddress();
-
     uint8 internal constant MAX_DEPTH = 10;
     // toNamedAddress("Supply")
     address internal constant SUPPLY_ADDRESS = 0x486d9E1EFfBE2991Ba97401Be079767f9879e1Dd;
-
-    // Selectors
-    bytes4 internal constant INITIALIZE_LEDGERS = bytes4(keccak256("initializeLedgers()"));
-    bytes4 internal constant NAME = bytes4(keccak256("name(address)"));
-    bytes4 internal constant SYMBOL = bytes4(keccak256("symbol(address)"));
-    bytes4 internal constant DECIMALS = bytes4(keccak256("decimals(address)"));
-    bytes4 internal constant ROOT = bytes4(keccak256("root(address)"));
-    bytes4 internal constant PARENT = bytes4(keccak256("parent(address)"));
-    bytes4 internal constant IS_GROUP = bytes4(keccak256("isGroup(address)"));
-    bytes4 internal constant SUBACCOUNTS = bytes4(keccak256("subAccounts(address)"));
-    bytes4 internal constant HAS_SUBACCOUNT = bytes4(keccak256("hasSubAccount(address)"));
-    bytes4 internal constant SUBACCOUNT_INDEX = bytes4(keccak256("subAccountIndex(address)"));
-    bytes4 internal constant BASE_NAME = bytes4(keccak256("name()"));
-    bytes4 internal constant BASE_SYMBOL = bytes4(keccak256("symbol()"));
-    bytes4 internal constant BASE_DECIMALS = bytes4(keccak256("decimals()"));
-    bytes4 internal constant GROUP_BALANCE_OF = bytes4(keccak256("balanceOf(address,string)"));
-    bytes4 internal constant BALANCE_OF = bytes4(keccak256("balanceOf(address,address)"));
-    bytes4 internal constant BASE_BALANCE_OF = bytes4(keccak256("balanceOf(address)"));
-    bytes4 internal constant TOTAL_SUPPLY = bytes4(keccak256("totalSupply(address)"));
-    bytes4 internal constant BASE_TOTAL_SUPPLY = bytes4(keccak256("totalSupply()"));
-    bytes4 internal constant TRANSFER = bytes4(keccak256("transfer(address,address,address,uint256)"));
-    bytes4 internal constant BASE_TRANSFER = bytes4(keccak256("transfer(address,uint256)"));
-    bytes4 internal constant APPROVE = bytes4(keccak256("approve(address,address,address,uint256)"));
-    bytes4 internal constant BASE_APPROVE = bytes4(keccak256("approve(address,uint256)"));
-    bytes4 internal constant ALLOWANCE = bytes4(keccak256("allowance(address,address)"));
-    bytes4 internal constant BASE_ALLOWANCE = bytes4(keccak256("allowance(address)"));
-    bytes4 internal constant TRANSFER_FROM =
-        bytes4(keccak256("transferFrom(address,address,address,address,address,uint256)"));
-    bytes4 internal constant BASE_TRANSFER_FROM = bytes4(keccak256("transferFrom(address,address,uint256)"));
 
     //==================================================================
     //                            Validation
     //==================================================================
     function checkZeroAddress(address addr_) internal pure {
-        if (addr_ == address(0)) revert ZeroAddress();
+        if (addr_ == address(0)) revert ILedgers.ZeroAddress();
     }
 
     function isGroup(address addr_) internal view returns (bool) {
@@ -106,11 +123,11 @@ library LedgersLib {
     }
 
     function checkString(string memory str_) internal pure {
-        if (!isValidString(str_)) revert InvalidString(str_);
+        if (!isValidString(str_)) revert ILedgers.InvalidString(str_);
     }
 
     function checkAccountGroup(address addr_) internal view {
-        if (!isGroup(addr_)) revert InvalidAccountGroup(addr_);
+        if (!isGroup(addr_)) revert ILedgers.InvalidAccountGroup(addr_);
     }
 
     function toNamedAddress(string memory name_) internal pure returns (address) {
@@ -132,7 +149,8 @@ library LedgersLib {
 
     // Transfers can only occur within the same tree
     function checkRoots(address a_, address b_) internal view {
-        if (root(a_) != root(b_)) revert DifferentRoots(a_, b_);
+        if (a_ == b_) return;
+        if (root(a_) != root(b_)) revert ILedgers.DifferentRoots(a_, b_);
     }
 
     //==================
@@ -149,7 +167,7 @@ library LedgersLib {
     }
 
     function decimals(address addr_, uint8 decimals_) internal {
-        if (decimals_ == 0) revert InvalidDecimals(decimals_);
+        if (decimals_ == 0) revert ILedgers.InvalidDecimals(decimals_);
         store().decimals[addr_] = decimals_;
     }
 
@@ -183,19 +201,19 @@ library LedgersLib {
             }
             addr_ = _parentAccount;
         }
-        revert MaxDepthExceeded();
+        revert ILedgers.MaxDepthExceeded();
     }
 
     function parent(address addr_) internal view returns (address) {
         return store().parent[addr_];
     }
 
-    function subAccounts(address parent_) internal view returns (address[] memory) {
-        return store().subs[parent_];
+    function subAccounts(address addr_) internal view returns (address[] memory) {
+        return store().subs[addr_];
     }
 
-    function hasSubAccount(address parent_) internal view returns (bool) {
-        return store().subs[parent_].length > 0;
+    function hasSubAccount(address addr_) internal view returns (bool) {
+        return store().subs[addr_].length > 0;
     }
 
     function subAccountIndex(address addr_) internal view returns (uint32) {
@@ -221,8 +239,8 @@ library LedgersLib {
         internal
         returns (address _sub)
     {
-        if (!isGroup(parent_)) revert InvalidAccountGroup(parent_);
-        if (!isValidString(name_)) revert InvalidSubAccount(name_, isGroup_, isCredit_);
+        if (!isGroup(parent_)) revert ILedgers.InvalidAccountGroup(parent_);
+        if (!isValidString(name_)) revert ILedgers.InvalidSubAccount(name_, isGroup_, isCredit_);
 
         _sub = toGroupAddress(parent_, name_);
 
@@ -234,7 +252,7 @@ library LedgersLib {
                 return _sub;
             } else {
                 // SubAccount already exists with the same name but different credit status
-                revert InvalidSubAccount(name_, isGroup_, isCredit_);
+                revert ILedgers.InvalidSubAccount(name_, isGroup_, isCredit_);
             }
         }
 
@@ -246,21 +264,21 @@ library LedgersLib {
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
         s.isCredit[_sub] = isCredit_;
         address _root = root(parent_);
-        emit SubAccountAdded(_root, parent_, name_, isGroup_, isCredit_);
+        emit ILedgers.SubAccountAdded(_root, parent_, name_, isGroup_, isCredit_);
     }
 
     function removeSubAccount(address parent_, string memory name_) internal returns (address) {
         address _sub = toGroupAddress(parent_, name_);
-        if (!isGroup(parent_)) revert InvalidAccountGroup(parent_);
-        if (!isGroup(_sub)) revert InvalidAccountGroup(_sub);
+        if (!isGroup(parent_)) revert ILedgers.InvalidAccountGroup(parent_);
+        if (!isGroup(_sub)) revert ILedgers.InvalidAccountGroup(_sub);
 
         // Must exist and belong to this parent
         if (parent(_sub) != parent_) {
-            revert SubAccountNotFound(name_);
+            revert ILedgers.SubAccountNotFound(name_);
         }
 
-        if (hasSubAccount(_sub)) revert HasSubAccount(name_);
-        if (hasBalance(_sub)) revert HasBalance(name_);
+        if (hasSubAccount(_sub)) revert ILedgers.HasSubAccount(name_);
+        if (hasBalance(_sub)) revert ILedgers.HasBalance(name_);
 
         Store storage s = store();
 
@@ -280,14 +298,14 @@ library LedgersLib {
         s.name[_sub] = "";
 
         address _root = root(parent_);
-        emit SubAccountRemoved(_root, parent_, name_);
+        emit ILedgers.SubAccountRemoved(_root, parent_, name_);
 
         return _sub;
     }
 
     function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_) internal {
         if (!isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
-            revert InvalidToken(name_, symbol_, decimals_);
+            revert ILedgers.InvalidToken(name_, symbol_, decimals_);
         }
 
         Store storage s = store();
@@ -300,7 +318,7 @@ library LedgersLib {
                 // No changes needed
                 return;
             }
-            revert InvalidToken(name_, symbol_, decimals_);
+            revert ILedgers.InvalidToken(name_, symbol_, decimals_);
         }
         s.isGroup[token_] = true;
         s.name[token_] = name_;
@@ -315,19 +333,25 @@ library LedgersLib {
             addSubAccount(address(this), name_, false, false);
         }
 
-        emit LedgerAdded(token_, name_, symbol_, decimals_);
+        emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
+    }
+
+    function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
+        address token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
+        addLedger(token, name_, symbol_, decimals_);
+        return token;
     }
 
     //==================================================================
     //                         Transfers
     //==================================================================
 
-    function debit(address parent_, address ledger_, uint256 amount_, bool emitEvent_)
+    function debit(address parent_, address addr_, uint256 amount_, bool emitEvent_)
         internal
         returns (address _currentAccount)
     {
         checkAccountGroup(parent_);
-        _currentAccount = toLedgerAddress(parent_, ledger_);
+        _currentAccount = toLedgerAddress(parent_, addr_);
 
         Store storage s = store();
         uint8 _depth;
@@ -347,16 +371,16 @@ library LedgersLib {
             parent_ = s.parent[parent_];
             _depth++;
         }
-        if (emitEvent_) emit Debit(parent_, ledger_, amount_);
-        revert MaxDepthExceeded();
+        if (emitEvent_) emit ILedgers.Debit(parent_, addr_, amount_);
+        revert ILedgers.MaxDepthExceeded();
     }
 
-    function credit(address parent_, address ledger_, uint256 amount_, bool emitEvent_)
+    function credit(address parent_, address addr_, uint256 amount_, bool emitEvent_)
         internal
         returns (address _currentAccount)
     {
         checkAccountGroup(parent_);
-        _currentAccount = toLedgerAddress(parent_, ledger_);
+        _currentAccount = toLedgerAddress(parent_, addr_);
 
         Store storage s = store();
         uint8 _depth;
@@ -376,8 +400,8 @@ library LedgersLib {
             parent_ = s.parent[parent_];
             _depth++;
         }
-        if (emitEvent_) emit Credit(parent_, ledger_, amount_);
-        revert MaxDepthExceeded();
+        if (emitEvent_) emit ILedgers.Credit(parent_, addr_, amount_);
+        revert ILedgers.MaxDepthExceeded();
     }
 
     function transfer(
@@ -390,7 +414,7 @@ library LedgersLib {
     ) internal returns (bool) {
         address creditRoot = credit(fromParent_, from_, amount_, emitEvent_);
         address debitRoot = debit(toParent_, to_, amount_, emitEvent_);
-        if (creditRoot != debitRoot) revert DifferentRoots(creditRoot, debitRoot);
+        if (creditRoot != debitRoot) revert ILedgers.DifferentRoots(creditRoot, debitRoot);
         return true;
     }
 
@@ -406,10 +430,6 @@ library LedgersLib {
         return true;
     }
 
-    //==================================================================
-    //                         Approvals
-    //==================================================================
-
     function approve(
         address ownerParent_,
         address owner_,
@@ -418,13 +438,12 @@ library LedgersLib {
         uint256 amount_,
         bool emitEvent_
     ) internal returns (bool) {
-        checkAccountGroup(ownerParent_);
-        checkAccountGroup(spenderParent_);
+        checkRoots(ownerParent_, spenderParent_);
         address _owner = toLedgerAddress(ownerParent_, owner_);
         address _spender = toLedgerAddress(spenderParent_, spender_);
 
         store().allowances[_owner][_spender] = amount_;
-        if (emitEvent_) emit InternalApproval(_owner, _spender, amount_);
+        if (emitEvent_) emit ILedgers.InternalApproval(_owner, _spender, amount_);
         return true;
     }
 
@@ -435,11 +454,11 @@ library LedgersLib {
     {
         address _ownerAddress = toLedgerAddress(ownerParent_, owner_);
         if (hasSubAccount(_ownerAddress)) {
-            revert HasSubAccount(name(_ownerAddress));
+            revert ILedgers.HasSubAccount(name(_ownerAddress));
         }
         address _spenderAddress = toLedgerAddress(spenderParent_, spender_);
         if (hasSubAccount(_spenderAddress)) {
-            revert HasSubAccount(name(_spenderAddress));
+            revert ILedgers.HasSubAccount(name(_spenderAddress));
         }
         return store().allowances[_ownerAddress][_spenderAddress];
     }
@@ -454,6 +473,8 @@ library LedgersLib {
         uint256 amount_,
         bool emitEvent_
     ) internal returns (bool) {
+        checkRoots(fromParent_, spenderParent_);
+        checkRoots(spenderParent_, toParent_);
         Store storage s = store();
 
         address _ownerAddress = toLedgerAddress(fromParent_, from_);

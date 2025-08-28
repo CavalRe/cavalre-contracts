@@ -10,9 +10,10 @@ abstract contract Module {
     error OwnableUnauthorizedAccount(address account);
     error NotDelegated();
     error IsDelegated();
+    error InvalidCommandsLength(uint256 n);
 
     // Commands
-    function commands() public pure virtual returns (bytes4[] memory _commands);
+    function commands() external pure virtual returns (bytes4[] memory _commands);
 
     function enforceIsOwner() internal view returns (Lib.Store storage s) {
         s = Lib.store();
