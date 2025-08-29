@@ -7,6 +7,126 @@ import {LedgersLib as Lib} from "../libraries/LedgersLib.sol";
 
 import {ILedgers} from "../interfaces/ILedgers.sol";
 
+contract ERC20Wrapper {
+    // -------------------------------------------------------------------------
+    // Storage
+    // -------------------------------------------------------------------------
+
+    address private immutable _ledgers;
+    string private _name; // kept for constructor parity; getters read from Ledgers
+    string private _symbol; // kept for constructor parity; getters read from Ledgers
+    uint8 public immutable _decimals;
+
+    // -------------------------------------------------------------------------
+    // Events (ERC-20 standard)
+    // -------------------------------------------------------------------------
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    // -------------------------------------------------------------------------
+    // Init
+    // -------------------------------------------------------------------------
+
+    constructor(address ledgers_, string memory name_, string memory symbol_, uint8 decimals_) {
+        _ledgers = ledgers_;
+        _name = name_;
+        _symbol = symbol_;
+        _decimals = decimals_;
+    }
+
+    // -------------------------------------------------------------------------
+    // Metadata (delegated to Ledgers)
+    // -------------------------------------------------------------------------
+
+    function name() public view returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view returns (string memory) {
+        return _symbol;
+    }
+
+    function decimals() public view returns (uint8) {
+        return _decimals;
+    }
+
+    // -------------------------------------------------------------------------
+    // Supply / Balances (delegated to Ledgers)
+    // -------------------------------------------------------------------------
+
+    function totalSupply() public view returns (uint256) {
+        return ILedgers(_ledgers).totalSupply(address(this));
+    }
+
+    function balanceOf(address account_) public view returns (uint256) {
+        return ILedgers(_ledgers).balanceOf(address(this), account_);
+    }
+
+    // -------------------------------------------------------------------------
+    // Allowance (delegated to Ledgers)
+    // -------------------------------------------------------------------------
+
+    function allowance(address owner_, address spender_) public view returns (uint256) {
+        return ILedgers(_ledgers).allowance(address(this), owner_, address(this), spender_);
+    }
+
+    function approve(address spender_, uint256 amount_) public returns (bool) {
+        emit Approval(msg.sender, spender_, amount_);
+        return ILedgers(_ledgers).approveWrapper(address(this), msg.sender, spender_, amount_);
+    }
+
+    /// @notice Atomically increases `spender` allowance for `msg.sender`.
+    function increaseAllowance(address spender_, uint256 addedValue_) public returns (bool _ok) {
+        uint256 _amount;
+        (_ok, _amount) = ILedgers(_ledgers).increaseAllowanceWrapper(address(this), msg.sender, spender_, addedValue_);
+        emit Approval(msg.sender, spender_, _amount);
+    }
+
+    /// @notice Atomically decreases `spender` allowance for `msg.sender`.
+    function decreaseAllowance(address spender_, uint256 subtractedValue_) public returns (bool _ok) {
+        uint256 _amount;
+        (_ok, _amount) =
+            ILedgers(_ledgers).decreaseAllowanceWrapper(address(this), msg.sender, spender_, subtractedValue_);
+        emit Approval(msg.sender, spender_, _amount);
+    }
+
+    /// @notice Sets allowance safely even if a non-zero allowance already exists.
+    /// If both current and desired are non-zero, sets to 0 first, then to `amount_`.
+    function forceApprove(address spender_, uint256 amount_) public returns (bool) {
+        emit Approval(msg.sender, spender_, amount_);
+        return ILedgers(_ledgers).forceApproveWrapper(address(this), msg.sender, spender_, amount_);
+    }
+
+    // -------------------------------------------------------------------------
+    // Transfers (delegated to Ledgers)
+    // -------------------------------------------------------------------------
+
+    function transfer(address to_, uint256 amount_) public returns (bool) {
+        emit Transfer(msg.sender, to_, amount_);
+        return ILedgers(_ledgers).transferWrapper(address(this), msg.sender, to_, amount_);
+    }
+
+    function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
+        emit Transfer(from_, to_, amount_);
+        return ILedgers(_ledgers).transferFromWrapper(address(this), from_, msg.sender, to_, amount_);
+    }
+
+    // -------------------------------------------------------------------------
+    // Mint / Burn (delegated to Ledgers; emits zero-address Transfer per ERC-20)
+    // -------------------------------------------------------------------------
+
+    function mint(address to_, uint256 amount_) public returns (bool) {
+        emit Transfer(address(0), to_, amount_);
+        return ILedgers(_ledgers).mintWrapper(address(this), to_, amount_);
+    }
+
+    function burn(address from_, uint256 amount_) public returns (bool) {
+        emit Transfer(from_, address(0), amount_);
+        return ILedgers(_ledgers).burnWrapper(address(this), from_, amount_);
+    }
+}
+
 contract Ledgers is Module, Initializable, ILedgers {
     constructor(uint8 decimals_) {
         _decimals = decimals_;
@@ -23,7 +143,7 @@ contract Ledgers is Module, Initializable, ILedgers {
 
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](20);
+        _commands = new bytes4[](23);
         _commands[n++] = bytes4(keccak256("initializeLedgers()"));
         _commands[n++] = bytes4(keccak256("name(address)"));
         _commands[n++] = bytes4(keccak256("symbol(address)"));
@@ -42,6 +162,9 @@ contract Ledgers is Module, Initializable, ILedgers {
         _commands[n++] = bytes4(keccak256("allowance(address,address,address,address)"));
         _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("approveWrapper(address,address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("increaseAllowanceWrapper(address,address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("decreaseAllowanceWrapper(address,address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("forceApproveWrapper(address,address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("transferWrapper(address,address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("transferFromWrapper(address,address,address,address,address,uint256)"));
 
@@ -56,6 +179,14 @@ contract Ledgers is Module, Initializable, ILedgers {
 
     function initializeLedgers() external initializer {
         initializeLedgers_unchained();
+    }
+
+    function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
+        enforceIsOwner();
+
+        address token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
+        Lib.addLedger(token, name_, symbol_, decimals_);
+        return token;
     }
 
     //==========
@@ -126,6 +257,27 @@ contract Ledgers is Module, Initializable, ILedgers {
         return Lib.approve(ownerParent_, msg.sender, spenderParent_, spender_, amount_, true);
     }
 
+    function increaseAllowance(address ownerParent_, address spenderParent_, address spender_, uint256 addedValue_)
+        external
+        returns (bool _ok)
+    {
+        (_ok,) = Lib.increaseAllowance(ownerParent_, msg.sender, spenderParent_, spender_, addedValue_, true);
+    }
+
+    function decreaseAllowance(address ownerParent_, address spenderParent_, address spender_, uint256 subtractedValue_)
+        external
+        returns (bool _ok)
+    {
+        (_ok,) = Lib.decreaseAllowance(ownerParent_, msg.sender, spenderParent_, spender_, subtractedValue_, true);
+    }
+
+    function forceApprove(address ownerParent_, address spenderParent_, address spender_, uint256 amount_)
+        external
+        returns (bool)
+    {
+        return Lib.forceApprove(ownerParent_, msg.sender, spenderParent_, spender_, amount_, true);
+    }
+
     function allowance(address ownerParent_, address owner_, address spenderParent_, address spender_)
         external
         view
@@ -186,15 +338,39 @@ contract Ledgers is Module, Initializable, ILedgers {
     //     return Lib.transferFrom(address(this), from_, address(this), msg.sender, address(this), to_, amount_, false);
     // }
 
-    //===============
-    // ERC20 Wrapper
-    //===============
+    //=======================
+    // ERC20 Wrapper Helpers
+    //=======================
     function approveWrapper(address token_, address owner_, address spender_, uint256 amount_)
         external
         returns (bool)
     {
         if (msg.sender != token_) revert ILedgers.Unauthorized(msg.sender);
         return Lib.approve(token_, owner_, token_, spender_, amount_, false);
+    }
+
+    function increaseAllowanceWrapper(address token_, address owner_, address spender_, uint256 addedValue_)
+        external
+        returns (bool, uint256)
+    {
+        if (msg.sender != token_) revert ILedgers.Unauthorized(msg.sender);
+        return Lib.increaseAllowance(token_, owner_, token_, spender_, addedValue_, false);
+    }
+
+    function decreaseAllowanceWrapper(address token_, address owner_, address spender_, uint256 subtractedValue_)
+        external
+        returns (bool, uint256)
+    {
+        if (msg.sender != token_) revert ILedgers.Unauthorized(msg.sender);
+        return Lib.decreaseAllowance(token_, owner_, token_, spender_, subtractedValue_, false);
+    }
+
+    function forceApproveWrapper(address token_, address owner_, address spender_, uint256 amount_)
+        external
+        returns (bool)
+    {
+        if (msg.sender != token_) revert ILedgers.Unauthorized(msg.sender);
+        return Lib.forceApprove(token_, owner_, token_, spender_, amount_, false);
     }
 
     function transferWrapper(address token_, address from_, address to_, uint256 amount_) external returns (bool) {

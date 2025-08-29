@@ -3,76 +3,7 @@ pragma solidity ^0.8.24;
 
 import {ILedgers} from "../interfaces/ILedgers.sol";
 
-contract ERC20Wrapper {
-    address private immutable _ledgers;
-    string private _name;
-    string private _symbol;
-    uint8 public immutable _decimals;
-
-    constructor(address ledgers_, string memory name_, string memory symbol_, uint8 decimals_) {
-        _ledgers = ledgers_;
-        _name = name_;
-        _symbol = symbol_;
-        _decimals = decimals_;
-    }
-
-    function name() public view returns (string memory) {
-        return ILedgers(_ledgers).name(address(this));
-    }
-
-    function symbol() public view returns (string memory) {
-        return ILedgers(_ledgers).symbol(address(this));
-    }
-
-    function decimals() public view returns (uint8) {
-        return ILedgers(_ledgers).decimals(address(this));
-    }
-
-    function totalSupply() public view returns (uint256) {
-        return ILedgers(_ledgers).totalSupply(address(this));
-    }
-
-    function balanceOf(address account_) public view returns (uint256) {
-        return ILedgers(_ledgers).balanceOf(address(this), account_);
-    }
-
-    function allowance(address owner_, address spender_) public view returns (uint256) {
-        return ILedgers(_ledgers).allowance(address(this), owner_, address(this), spender_);
-    }
-
-    function approve(address spender_, uint256 amount_) public returns (bool) {
-        bool ok = ILedgers(_ledgers).approveWrapper(address(this), msg.sender, spender_, amount_);
-        if (ok) emit Approval(msg.sender, spender_, amount_);
-        return ok;
-    }
-
-    function transfer(address to_, uint256 amount_) public returns (bool) {
-        bool ok = ILedgers(_ledgers).transferWrapper(address(this), msg.sender, to_, amount_);
-        if (ok) emit Transfer(msg.sender, to_, amount_);
-        return ok;
-    }
-
-    function mint(address to_, uint256 amount_) public returns (bool) {
-        bool ok = ILedgers(_ledgers).mintWrapper(address(this), to_, amount_);
-        if (ok) emit Transfer(address(0), to_, amount_);
-        return ok;
-    }
-
-    function burn(address from_, uint256 amount_) public returns (bool) {
-        bool ok = ILedgers(_ledgers).burnWrapper(address(this), from_, amount_);
-        if (ok) emit Transfer(from_, address(0), amount_);
-        return ok;
-    }
-
-    function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
-        bool ok = ILedgers(_ledgers).transferFromWrapper(address(this), msg.sender, from_, to_, amount_);
-        if (ok) emit Transfer(from_, to_, amount_);
-        return ok;
-    }
-
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-}
+import {console} from "forge-std/src/console.sol";
 
 library LedgersLib {
     struct Store {
@@ -336,71 +267,68 @@ library LedgersLib {
         emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
     }
 
-    function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
-        address token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-        addLedger(token, name_, symbol_, decimals_);
-        return token;
-    }
-
     //==================================================================
     //                         Transfers
     //==================================================================
 
-    function debit(address parent_, address addr_, uint256 amount_, bool emitEvent_)
-        internal
-        returns (address _currentAccount)
-    {
+    function debit(address parent_, address addr_, uint256 amount_, bool emitEvent_) internal returns (address _root) {
         checkAccountGroup(parent_);
-        _currentAccount = toLedgerAddress(parent_, addr_);
+        _root = toLedgerAddress(parent_, addr_);
 
         Store storage s = store();
         uint8 _depth;
+        address _parent = parent_;
         while (_depth < MAX_DEPTH) {
             // Do not update the balance of the root
-            if (parent_ == address(0)) {
+            if (_parent == address(0)) {
                 // Root found
-                return _currentAccount;
+                // Emits once after a successful full walk.
+                // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
+                if (emitEvent_) emit ILedgers.Debit(_root, parent_, addr_, amount_);
+                return _root;
             }
-            if (s.isCredit[_currentAccount]) {
-                require(s.balance[_currentAccount] >= amount_, "Ledgers: Insufficient balance");
-                s.balance[_currentAccount] -= amount_;
+            if (s.isCredit[_root]) {
+                if (s.balance[_root] < amount_) revert ILedgers.InsufficientBalance(_root, parent_, addr_, amount_);
+                s.balance[_root] -= amount_;
             } else {
-                s.balance[_currentAccount] += amount_;
+                s.balance[_root] += amount_;
             }
-            _currentAccount = parent_;
-            parent_ = s.parent[parent_];
+            _root = _parent;
+            _parent = s.parent[_parent];
             _depth++;
         }
-        if (emitEvent_) emit ILedgers.Debit(parent_, addr_, amount_);
         revert ILedgers.MaxDepthExceeded();
     }
 
     function credit(address parent_, address addr_, uint256 amount_, bool emitEvent_)
         internal
-        returns (address _currentAccount)
+        returns (address _root)
     {
         checkAccountGroup(parent_);
-        _currentAccount = toLedgerAddress(parent_, addr_);
+        _root = toLedgerAddress(parent_, addr_);
 
         Store storage s = store();
         uint8 _depth;
+        address _parent = parent_;
         while (_depth < MAX_DEPTH) {
             // Do not update the balance of the root
-            if (parent_ == address(0)) {
+            if (_parent == address(0)) {
                 // Root found
-                return _currentAccount;
+                // Emits once after a successful full walk.
+                // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
+                if (emitEvent_) emit ILedgers.Credit(_root, parent_, addr_, amount_);
+                return _root;
             }
-            if (s.isCredit[_currentAccount]) {
-                s.balance[_currentAccount] += amount_;
+            if (s.isCredit[_root]) {
+                s.balance[_root] += amount_;
             } else {
-                require(s.balance[_currentAccount] >= amount_, "Ledgers: Insufficient balance");
-                s.balance[_currentAccount] -= amount_;
+                if (s.balance[_root] < amount_) revert ILedgers.InsufficientBalance(_root, parent_, addr_, amount_);
+                s.balance[_root] -= amount_;
             }
-            _currentAccount = parent_;
-            parent_ = s.parent[parent_];
+            _root = _parent;
+            _parent = s.parent[_parent];
             _depth++;
         }
-        if (emitEvent_) emit ILedgers.Credit(parent_, addr_, amount_);
         revert ILedgers.MaxDepthExceeded();
     }
 
@@ -445,6 +373,58 @@ library LedgersLib {
         store().allowances[_owner][_spender] = amount_;
         if (emitEvent_) emit ILedgers.InternalApproval(_owner, _spender, amount_);
         return true;
+    }
+
+    /// @notice Increase allowance for (ownerParent_/owner_) → (spenderParent_/spender_) by `added_`.
+    function increaseAllowance(
+        address ownerParent_,
+        address owner_,
+        address spenderParent_,
+        address spender_,
+        uint256 added_,
+        bool emitEvent_
+    ) internal returns (bool, uint256) {
+        uint256 current = allowance(ownerParent_, owner_, spenderParent_, spender_);
+        uint256 newAmount = current + added_; // ^0.8 handles overflow
+        return (approve(ownerParent_, owner_, spenderParent_, spender_, newAmount, emitEvent_), newAmount);
+    }
+
+    /// @notice Decrease allowance for (ownerParent_/owner_) → (spenderParent_/spender_) by `subtracted_`.
+    /// @dev Reverts on underflow (no clamping).
+    function decreaseAllowance(
+        address ownerParent_,
+        address owner_,
+        address spenderParent_,
+        address spender_,
+        uint256 subtracted_,
+        bool emitEvent_
+    ) internal returns (bool, uint256) {
+        uint256 current = allowance(ownerParent_, owner_, spenderParent_, spender_);
+        if (subtracted_ > current) {
+            revert ILedgers.InsufficientAllowance(ownerParent_, owner_, spenderParent_, spender_, current, subtracted_);
+        }
+        uint256 newAmount = current - subtracted_;
+        return (approve(ownerParent_, owner_, spenderParent_, spender_, newAmount, emitEvent_), newAmount);
+    }
+
+    /// @notice Forcefully set allowance for (ownerParent_/owner_) → (spenderParent_/spender_) to `amount_`.
+    /// If both current and target are non-zero, sets to 0 first, then to `amount_` (ERC-20 safety pattern).
+    function forceApprove(
+        address ownerParent_,
+        address owner_,
+        address spenderParent_,
+        address spender_,
+        uint256 amount_,
+        bool emitEvent_
+    ) internal returns (bool) {
+        uint256 current = allowance(ownerParent_, owner_, spenderParent_, spender_);
+
+        if (current != 0 && amount_ != 0) {
+            // zero first to avoid non-zero→non-zero race
+            approve(ownerParent_, owner_, spenderParent_, spender_, 0, false);
+        }
+
+        return approve(ownerParent_, owner_, spenderParent_, spender_, amount_, emitEvent_);
     }
 
     function allowance(address ownerParent_, address owner_, address spenderParent_, address spender_)
