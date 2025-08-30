@@ -44,6 +44,10 @@ library LedgersLib {
         return store().isGroup[addr_];
     }
 
+    function checkGroup(address addr_) internal view {
+        if (!isGroup(addr_)) revert ILedgers.InvalidAccountGroup(addr_);
+    }
+
     function isCredit(address addr_) internal view returns (bool) {
         return store().isCredit[addr_];
     }
@@ -79,9 +83,12 @@ library LedgersLib {
     }
 
     // Transfers can only occur within the same tree
-    function checkRoots(address a_, address b_) internal view {
-        if (a_ == b_) return;
-        if (root(a_) != root(b_)) revert ILedgers.DifferentRoots(a_, b_);
+    function checkRoots(address a_, address b_) internal view returns (address) {
+        address rootA = root(a_);
+        if (a_ == b_) return rootA;
+        address rootB = root(b_);
+        if (rootA != rootB) revert ILedgers.DifferentRoots(a_, b_);
+        return rootA;
     }
 
     //==================
@@ -348,45 +355,33 @@ library LedgersLib {
 
     function mint(address toParent_, address to_, uint256 amount_) internal returns (bool) {
         address _token = root(toParent_);
-        transfer(_token, SUPPLY_ADDRESS, toParent_, to_, amount_, true);
-        return true;
+        return transfer(_token, SUPPLY_ADDRESS, toParent_, to_, amount_, true);
     }
 
     function burn(address fromParent_, address from_, uint256 amount_) internal returns (bool) {
         address _token = root(fromParent_);
-        transfer(fromParent_, from_, _token, SUPPLY_ADDRESS, amount_, true);
-        return true;
+        return transfer(fromParent_, from_, _token, SUPPLY_ADDRESS, amount_, true);
     }
 
-    function approve(
-        address ownerParent_,
-        address owner_,
-        address spenderParent_,
-        address spender_,
-        uint256 amount_,
-        bool emitEvent_
-    ) internal returns (bool) {
-        checkRoots(ownerParent_, spenderParent_);
+    function approve(address ownerParent_, address owner_, address spender_, uint256 amount_, bool emitEvent_)
+        internal
+        returns (bool)
+    {
         address _owner = toLedgerAddress(ownerParent_, owner_);
-        address _spender = toLedgerAddress(spenderParent_, spender_);
 
-        store().allowances[_owner][_spender] = amount_;
-        if (emitEvent_) emit ILedgers.InternalApproval(_owner, _spender, amount_);
+        store().allowances[_owner][spender_] = amount_;
+        if (emitEvent_) emit ILedgers.InternalApproval(ownerParent_, owner_, spender_, amount_);
         return true;
     }
 
     /// @notice Increase allowance for (ownerParent_/owner_) → (spenderParent_/spender_) by `added_`.
-    function increaseAllowance(
-        address ownerParent_,
-        address owner_,
-        address spenderParent_,
-        address spender_,
-        uint256 added_,
-        bool emitEvent_
-    ) internal returns (bool, uint256) {
-        uint256 current = allowance(ownerParent_, owner_, spenderParent_, spender_);
+    function increaseAllowance(address ownerParent_, address owner_, address spender_, uint256 added_, bool emitEvent_)
+        internal
+        returns (bool, uint256)
+    {
+        uint256 current = allowance(ownerParent_, owner_, spender_);
         uint256 newAmount = current + added_; // ^0.8 handles overflow
-        return (approve(ownerParent_, owner_, spenderParent_, spender_, newAmount, emitEvent_), newAmount);
+        return (approve(ownerParent_, owner_, spender_, newAmount, emitEvent_), newAmount);
     }
 
     /// @notice Decrease allowance for (ownerParent_/owner_) → (spenderParent_/spender_) by `subtracted_`.
@@ -394,72 +389,53 @@ library LedgersLib {
     function decreaseAllowance(
         address ownerParent_,
         address owner_,
-        address spenderParent_,
         address spender_,
         uint256 subtracted_,
         bool emitEvent_
     ) internal returns (bool, uint256) {
-        uint256 current = allowance(ownerParent_, owner_, spenderParent_, spender_);
+        uint256 current = allowance(ownerParent_, owner_, spender_);
         if (subtracted_ > current) {
-            revert ILedgers.InsufficientAllowance(ownerParent_, owner_, spenderParent_, spender_, current, subtracted_);
+            revert ILedgers.InsufficientAllowance(ownerParent_, owner_, spender_, current, subtracted_);
         }
         uint256 newAmount = current - subtracted_;
-        return (approve(ownerParent_, owner_, spenderParent_, spender_, newAmount, emitEvent_), newAmount);
+        return (approve(ownerParent_, owner_, spender_, newAmount, emitEvent_), newAmount);
     }
 
     /// @notice Forcefully set allowance for (ownerParent_/owner_) → (spenderParent_/spender_) to `amount_`.
     /// If both current and target are non-zero, sets to 0 first, then to `amount_` (ERC-20 safety pattern).
-    function forceApprove(
-        address ownerParent_,
-        address owner_,
-        address spenderParent_,
-        address spender_,
-        uint256 amount_,
-        bool emitEvent_
-    ) internal returns (bool) {
-        uint256 current = allowance(ownerParent_, owner_, spenderParent_, spender_);
+    function forceApprove(address ownerParent_, address owner_, address spender_, uint256 amount_, bool emitEvent_)
+        internal
+        returns (bool)
+    {
+        uint256 current = allowance(ownerParent_, owner_, spender_);
 
         if (current != 0 && amount_ != 0) {
             // zero first to avoid non-zero→non-zero race
-            approve(ownerParent_, owner_, spenderParent_, spender_, 0, false);
+            approve(ownerParent_, owner_, spender_, 0, false);
         }
 
-        return approve(ownerParent_, owner_, spenderParent_, spender_, amount_, emitEvent_);
+        return approve(ownerParent_, owner_, spender_, amount_, emitEvent_);
     }
 
-    function allowance(address ownerParent_, address owner_, address spenderParent_, address spender_)
-        internal
-        view
-        returns (uint256)
-    {
+    function allowance(address ownerParent_, address owner_, address spender_) internal view returns (uint256) {
         address _ownerAddress = toLedgerAddress(ownerParent_, owner_);
-        if (hasSubAccount(_ownerAddress)) {
-            revert ILedgers.HasSubAccount(name(_ownerAddress));
-        }
-        address _spenderAddress = toLedgerAddress(spenderParent_, spender_);
-        if (hasSubAccount(_spenderAddress)) {
-            revert ILedgers.HasSubAccount(name(_spenderAddress));
-        }
-        return store().allowances[_ownerAddress][_spenderAddress];
+        return store().allowances[_ownerAddress][spender_];
     }
 
     function transferFrom(
+        address spender_,
         address fromParent_,
         address from_,
-        address spenderParent_,
-        address spender_,
         address toParent_,
         address to_,
         uint256 amount_,
         bool emitEvent_
     ) internal returns (bool) {
-        checkRoots(fromParent_, spenderParent_);
-        checkRoots(spenderParent_, toParent_);
+        checkRoots(fromParent_, toParent_);
         Store storage s = store();
 
         address _ownerAddress = toLedgerAddress(fromParent_, from_);
-        address _spenderAddress = toLedgerAddress(spenderParent_, spender_);
-        s.allowances[_ownerAddress][_spenderAddress] -= amount_;
+        s.allowances[_ownerAddress][spender_] -= amount_;
 
         return transfer(fromParent_, from_, toParent_, to_, amount_, emitEvent_);
     }

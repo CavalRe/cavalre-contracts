@@ -63,7 +63,7 @@ contract FloatTest is Test {
     int256 internal mantissaTWO_unnormalized;
     int256 internal exponentTWO_unnormalized;
 
-    function assertEq(Float memory x, Float memory y) internal {
+    function assertEq(Float memory x, Float memory y) internal pure {
         x = FloatLib.normalize(x);
         y = FloatLib.normalize(y);
         assertEq(x.mantissa, y.mantissa, "mantissa");
@@ -320,7 +320,7 @@ contract FloatTest is Test {
     //     assertEq(FloatLib.msb(30), 5, "30");
     // }
 
-    function testNormalize() public {
+    function testNormalize() public view {
         assertEq(
             FloatLib.normalize(ONE_unnormalized).mantissa.msb(),
             FloatLib.SIGNIFICANT_DIGITS,

@@ -44,17 +44,18 @@ library Tree {
 // Test module that exposes LedgersLib via external funcs for Router delegatecall
 // ─────────────────────────────────────────────────────────────────────────────
 contract TestLedgers is Ledgers {
-    constructor(uint8 decimals_, uint8 /*maxDepth_*/ ) Ledgers(decimals_) {}
+    constructor(uint8 decimals_) Ledgers(decimals_) {}
 
     // Keep command registry so Router can “register” the module (if you use it)
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](28);
+        _commands = new bytes4[](32);
         _commands[n++] = bytes4(keccak256("initializeTestLedgers()"));
+        _commands[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
         _commands[n++] = bytes4(keccak256("addSubAccount(address,string,bool,bool)"));
         _commands[n++] = bytes4(keccak256("removeSubAccount(address,string)"));
-        _commands[n++] = bytes4(keccak256("mint(address,uint256)"));
-        _commands[n++] = bytes4(keccak256("burn(address,uint256)"));
+        _commands[n++] = bytes4(keccak256("mint(address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("addLedger(address,string,string,uint8)"));
         _commands[n++] = bytes4(keccak256("name(address)"));
         _commands[n++] = bytes4(keccak256("symbol(address)"));
@@ -68,16 +69,19 @@ contract TestLedgers is Ledgers {
         _commands[n++] = bytes4(keccak256("balanceOf(address,string)"));
         _commands[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _commands[n++] = bytes4(keccak256("totalSupply(address)"));
+        _commands[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256,bool)"));
         _commands[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("approve(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("allowance(address,address,address,address)"));
-        _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("approveWrapper(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("increaseAllowanceWrapper(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("decreaseAllowanceWrapper(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("forceApproveWrapper(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("transferWrapper(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("transferFromWrapper(address,address,address,address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("approve(address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("increaseAllowance(address,address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("increaseAllowance(address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("decreaseAllowance(address,address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("decreaseAllowance(address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("forceApprove(address,address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("forceApprove(address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("allowance(address,address,address)"));
+        _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,uint256)"));
+        _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,address,uint256,bool)"));
         if (n != _commands.length) revert InvalidCommandsLength(n);
     }
 
@@ -102,63 +106,13 @@ contract TestLedgers is Ledgers {
         LLib.addLedger(token_, name_, symbol_, decimals_);
     }
 
-    function mint(address parent_, uint256 amount_) external {
-        LLib.mint(parent_, msg.sender, amount_);
+    function mint(address toParent_, address to_, uint256 amount_) external {
+        LLib.mint(toParent_, to_, amount_);
     }
 
-    function burn(address parent_, uint256 amount_) external {
-        LLib.burn(parent_, msg.sender, amount_);
+    function burn(address fromParent_, address from_, uint256 amount_) external {
+        LLib.burn(fromParent_, from_, amount_);
     }
-
-    // // Routed ops for tests
-    // function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external returns (bool) {
-    //     return LLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_, true);
-    // }
-
-    // function approve(address ownerParent_, address spenderParent_, address spender_, uint256 amount_)
-    //     external
-    //     returns (bool)
-    // {
-    //     return LLib.approve(ownerParent_, msg.sender, spenderParent_, spender_, amount_, true);
-    // }
-
-    // function allowance(address ownerParent_, address owner_, address spenderParent_, address spender_)
-    //     external
-    //     view
-    //     returns (uint256)
-    // {
-    //     return LLib.allowance(ownerParent_, owner_, spenderParent_, spender_);
-    // }
-
-    // function transferFrom(
-    //     address fromParent_,
-    //     address from_,
-    //     address spenderParent_,
-    //     address toParent_,
-    //     address to_,
-    //     uint256 amount_
-    // ) external returns (bool) {
-    //     return LLib.transferFrom(fromParent_, from_, spenderParent_, msg.sender, toParent_, to_, amount_, true);
-    // }
-
-    // // ERC20 wrapper-like surface (same-token parents)
-    // function approveWrapper(address token_, address owner_, address spender_, uint256 amount_)
-    //     external
-    //     returns (bool)
-    // {
-    //     return LLib.approve(token_, owner_, token_, spender_, amount_, true);
-    // }
-
-    // function transferWrapper(address token_, address from_, address to_, uint256 amount_) external returns (bool) {
-    //     return LLib.transfer(token_, from_, token_, to_, amount_, true);
-    // }
-
-    // function transferFromWrapper(address token_, address from_, address spender_, address to_, uint256 amount_)
-    //     external
-    //     returns (bool)
-    // {
-    //     return LLib.transferFrom(token_, from_, token_, spender_, token_, to_, amount_, true);
-    // }
 
     receive() external payable {}
 }
@@ -198,7 +152,7 @@ contract LedgersTest is Test {
 
     function setUp() public {
         vm.startPrank(alice);
-        ledgers = new TestLedgers(18, 10);
+        ledgers = new TestLedgers(18);
         router = new Router(alice);
         router.addModule(address(ledgers));
         ledgers = TestLedgers(payable(router));
@@ -288,15 +242,21 @@ contract LedgersTest is Test {
     // RemoveSubAccount
     // ─────────────────────────────────────────────────────────────────────────
     function testLedgersRemoveSubAccountHappyPath() public {
-        vm.startPrank(alice);
-        address leaf = ledgers.addSubAccount(r1, "leafSub", true, false);
-        ledgers.removeSubAccount(r1, "leafSub");
+        bool isVerbose = false;
 
-        address leafAddr = LLib.toGroupAddress(r1, "leafSub");
-        assertEq(ledgers.parent(leafAddr), address(0), "parent reset");
-        assertEq(ledgers.subAccountIndex(leafAddr), 0, "index reset");
-        assertEq(ledgers.name(leafAddr), "", "name cleared");
-        assertFalse(ledgers.hasSubAccount(leafAddr), "no children");
+        vm.startPrank(alice);
+
+        if (isVerbose) console.log("Removing subaccount");
+        ledgers.removeSubAccount(r10, "100");
+
+        if (isVerbose) console.log("Check parent");
+        assertEq(ledgers.parent(_100), address(0), "parent reset");
+        if (isVerbose) console.log("Check index");
+        assertEq(ledgers.subAccountIndex(_100), 0, "index reset");
+        if (isVerbose) console.log("Check name");
+        assertEq(ledgers.name(_100), "", "name cleared");
+        if (isVerbose) console.log("Check hasSubAccount");
+        assertFalse(ledgers.hasSubAccount(_100), "no children");
     }
 
     function testLedgersRemoveSubAccountThatDoesNotExistReverts() public {
@@ -316,7 +276,7 @@ contract LedgersTest is Test {
 
     function testLedgersRemoveSubAccountWithBalanceReverts() public {
         vm.startPrank(alice);
-        ledgers.mint(r100, 1000);
+        ledgers.mint(r100, alice, 1000);
         vm.expectRevert(abi.encodeWithSelector(ILedgers.HasBalance.selector, "100"));
         ledgers.removeSubAccount(r10, "100");
     }
@@ -400,13 +360,13 @@ contract LedgersTest is Test {
         vm.startPrank(alice);
 
         if (isVerbose) console.log("Initial mint address(this): Alice");
-        ledgers.mint(address(ledgers), 1000);
+        ledgers.mint(address(ledgers), alice, 1000);
 
         assertEq(ledgers.balanceOf(address(ledgers), alice), 1000, "balanceOf(alice)");
         assertEq(ledgers.totalSupply(address(ledgers)), 1000, "totalSupply");
 
         if (isVerbose) console.log("Mint token 1: Alice");
-        ledgers.mint(r100, 1000);
+        ledgers.mint(r100, alice, 1000);
         assertEq(ledgers.balanceOf(r100, alice), 1000, "balanceOf(r100, alice)");
         assertEq(ledgers.balanceOf(r10, "100"), 1000, 'balanceOf(r10, "100")');
         assertEq(ledgers.balanceOf(r1, "10"), 1000, 'balanceOf(r1, "10")');
@@ -416,14 +376,14 @@ contract LedgersTest is Test {
     function testLedgersBurn() public {
         vm.startPrank(alice);
 
-        ledgers.mint(address(ledgers), 1000);
-        ledgers.burn(address(ledgers), 700);
+        ledgers.mint(address(ledgers), alice, 1000);
+        ledgers.burn(address(ledgers), alice, 700);
 
         assertEq(ledgers.balanceOf(address(ledgers), alice), 300, "balanceOf(alice)");
         assertEq(ledgers.totalSupply(address(ledgers)), 300, "totalSupply");
 
-        ledgers.mint(r100, 1000);
-        ledgers.burn(r100, 600);
+        ledgers.mint(r100, alice, 1000);
+        ledgers.burn(r100, alice, 600);
 
         assertEq(ledgers.balanceOf(r100, alice), 400, "balanceOf(r100, alice)");
         assertEq(ledgers.balanceOf(r10, "100"), 400, 'balanceOf(r10, "100")');
@@ -440,7 +400,7 @@ contract LedgersTest is Test {
         address routerRoot = address(ledgers);
 
         // Mint → transfer to bob under the same root
-        ledgers.mint(routerRoot, 1000);
+        ledgers.mint(routerRoot, alice, 1000);
         // elm: fromParent = routerRoot, toParent = routerRoot, to = bob
         ledgers.transfer(routerRoot, routerRoot, bob, 700);
 
@@ -455,29 +415,34 @@ contract LedgersTest is Test {
     }
 
     function testLedgersApproveAndAllowance() public {
+        bool isVerbose = false;
+
         vm.startPrank(alice);
 
+        if (isVerbose) console.log("Mint 1000 to alice");
         address routerRoot = address(ledgers);
-        ledgers.mint(routerRoot, 1000);
+        ledgers.mint(routerRoot, alice, 1000);
 
+        if (isVerbose) console.log("Approve bob 100");
         // approve(ownerParent=routerRoot, spenderParent=routerRoot, spender=bob, amount=100)
-        ledgers.approve(routerRoot, routerRoot, bob, 100);
+        ledgers.approve(routerRoot, bob, 100);
 
-        assertEq(ledgers.allowance(routerRoot, alice, routerRoot, bob), 100, "allowance(alice->bob)");
-        assertEq(ledgers.allowance(routerRoot, bob, routerRoot, alice), 0, "allowance(bob->alice)");
-        assertEq(ledgers.allowance(routerRoot, bob, routerRoot, bob), 0, "allowance(bob->bob)");
-        assertEq(ledgers.allowance(routerRoot, alice, routerRoot, alice), 0, "allowance(alice->alice)");
+        if (isVerbose) console.log("Check allowance");
+        assertEq(ledgers.allowance(routerRoot, alice, bob), 100, "allowance(alice->bob)");
+        assertEq(ledgers.allowance(routerRoot, bob, alice), 0, "allowance(bob->alice)");
+        assertEq(ledgers.allowance(routerRoot, bob, bob), 0, "allowance(bob->bob)");
+        assertEq(ledgers.allowance(routerRoot, alice, alice), 0, "allowance(alice->alice)");
     }
 
     function testLedgersTransferFrom() public {
         vm.startPrank(alice);
 
-        ledgers.mint(address(ledgers), 1000);
-        ledgers.approve(address(ledgers), address(ledgers), bob, 100);
+        ledgers.mint(address(ledgers), alice, 1000);
+        ledgers.approve(address(ledgers), bob, 100);
 
         vm.startPrank(bob);
 
-        ledgers.transferFrom(address(ledgers), alice, address(ledgers), address(ledgers), bob, 100);
+        ledgers.transferFrom(address(ledgers), alice, address(ledgers), bob, 100);
 
         assertEq(ledgers.balanceOf(address(ledgers), alice), 900, "balanceOf(alice)");
         assertEq(ledgers.balanceOf(address(ledgers), bob), 100, "balanceOf(bob)");
@@ -485,17 +450,17 @@ contract LedgersTest is Test {
 
         vm.startPrank(alice);
 
-        ledgers.mint(r1, 1000);
-        ledgers.approve(r1, r1, bob, 100);
+        ledgers.mint(r1, alice, 1000);
+        ledgers.approve(r1, bob, 100);
 
         vm.startPrank(bob);
 
-        ledgers.transferFrom(r1, alice, r1, r10, _100, 100);
+        ledgers.transferFrom(r1, alice, r1, r10, 100);
 
-        assertEq(ledgers.balanceOf(r1, alice), 900, "balanceOf(_1, alice)");
-        assertEq(ledgers.balanceOf(r1, bob), 0, "balanceOf(_1, bob)");
-        assertEq(ledgers.balanceOf(r10, _100), 100, "balanceOf(_10, _100)");
-        assertEq(ledgers.totalSupply(_1), 1000, "totalSupply(_1)");
+        assertEq(ledgers.balanceOf(r1, alice), 900, "balanceOf(r1, alice)");
+        assertEq(ledgers.balanceOf(r1, bob), 0, "balanceOf(r1, bob)");
+        assertEq(ledgers.balanceOf(r10, _100), 0, "balanceOf(r10, _100)");
+        assertEq(ledgers.totalSupply(_1), 1000, "totalSupply(r1)");
     }
 }
 
@@ -695,7 +660,7 @@ contract LedgersTest is Test {
 //     error InvalidInitialization();
 
 //     function testLedgersInit() public {
-//         bool isVerbose = true;
+//         bool isVerbose = false;
 
 //         if (isVerbose) console.log("Display Account Hierarchy");
 //         if (isVerbose) console.log("--------------------");
