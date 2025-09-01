@@ -146,7 +146,7 @@ contract Ledgers is Module, Initializable, ILedgers {
 
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](26);
+        _commands = new bytes4[](27);
         _commands[n++] = bytes4(keccak256("initializeLedgers()"));
         _commands[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
         _commands[n++] = bytes4(keccak256("name(address)"));

@@ -25,12 +25,12 @@ contract TestLedgers is Ledgers {
         uint256 n;
         _commands = new bytes4[](32);
         _commands[n++] = bytes4(keccak256("initializeTestLedgers()"));
-        _commands[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
         _commands[n++] = bytes4(keccak256("addSubAccount(address,string,bool,bool)"));
         _commands[n++] = bytes4(keccak256("removeSubAccount(address,string)"));
         _commands[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("addLedger(address,string,string,uint8)"));
+        _commands[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
         _commands[n++] = bytes4(keccak256("name(address)"));
         _commands[n++] = bytes4(keccak256("symbol(address)"));
         _commands[n++] = bytes4(keccak256("decimals(address)"));
