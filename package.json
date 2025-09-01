@@ -4,10 +4,10 @@
   "description": "Modular smart contracts for CavalRe",
   "license": "MIT",
   "files": [
+    "examples",
     "interfaces",
     "libraries",
     "modules",
-    "tests",
     "utilities",
     "remappings.txt"
   ],

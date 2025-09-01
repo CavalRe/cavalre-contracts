@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import {FloatLib, Float} from "../../libraries/FloatLib.sol";
-import {FloatStrings} from "./FloatStrings.sol";
+import {FloatStrings} from "../../libraries/FloatStrings.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract FloatTest is Test {

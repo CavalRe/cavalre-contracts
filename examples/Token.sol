@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Router} from "../../../modules/Router.sol";
+import {Router} from "../modules/Router.sol";
 import {ERC20, Lib as ERC20Lib} from "./ERC20.sol";
-import {Lib as ModuleLib} from "../../../modules/Module.sol";
+import {Lib as ModuleLib} from "../modules/Module.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
 
