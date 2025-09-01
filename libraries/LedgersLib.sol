@@ -150,6 +150,12 @@ library LedgersLib {
         return store().subs[addr_];
     }
 
+    function subAccount(address parent_, uint256 index_) internal view returns (address sub) {
+        address[] storage subs_ = store().subs[parent_];
+        if (index_ >= subs_.length) revert ILedgers.InvalidSubAccountIndex(index_);
+        return subs_[index_];
+    }
+
     function hasSubAccount(address addr_) internal view returns (bool) {
         return store().subs[addr_].length > 0;
     }

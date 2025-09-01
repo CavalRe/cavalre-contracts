@@ -100,6 +100,7 @@ interface ILedgers {
     error InvalidAccountGroup(address groupAddress);
     error InvalidLedgerAccount(address ledgerAddress);
     error InvalidSubAccount(string subName, bool isGroup, bool isCredit);
+    error InvalidSubAccountIndex(uint256 index);
     error InvalidString(string symbol);
     error InvalidToken(string name, string symbol, uint8 decimals);
     error MaxDepthExceeded();
