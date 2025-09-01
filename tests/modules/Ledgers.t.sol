@@ -10,35 +10,9 @@ import {LedgersLib as LLib} from "../../libraries/LedgersLib.sol";
 import {Ledgers} from "../../modules/Ledgers.sol";
 import {Module} from "../../modules/Module.sol";
 import {Router} from "../../modules/Router.sol";
+import {TreeLib} from "../../libraries/TreeLib.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tree helpers
-// ─────────────────────────────────────────────────────────────────────────────
-library Tree {
-    function logTree(Ledgers ledgers, address root, string memory prefix, bool isFirst, bool isLast) internal view {
-        string memory label = ledgers.name(root);
-        bool isGroup = ledgers.isGroup(root);
-        console.log(
-            "%s%s%s",
-            prefix,
-            isFirst ? "" : (isLast ? (isGroup ? unicode"└─ " : unicode"└● ") : (isGroup ? unicode"├─ " : unicode"├● ")),
-            label
-        );
-        string memory subPrefix = string(abi.encodePacked(prefix, isFirst ? "" : (isLast ? "   " : unicode"│  ")));
-
-        address[] memory subs = ledgers.subAccounts(root);
-        for (uint256 i = 0; i < subs.length; i++) {
-            string memory _name = ledgers.name(subs[i]);
-            logTree(ledgers, LLib.toGroupAddress(root, _name), subPrefix, false, i == subs.length - 1);
-        }
-    }
-
-    function debugTree(Ledgers ledgers, address root) internal view {
-        logTree(ledgers, root, "", true, true);
-    }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test module that exposes LedgersLib via external funcs for Router delegatecall
@@ -186,7 +160,7 @@ contract LedgersTest is Test {
     // Structure / initialization
     // ─────────────────────────────────────────────────────────────────────────
     function testLedgersInit() public {
-        // Visual (optional): Tree.debugTree(ledgers, r1);
+        // Visual (optional): TreeLib.debugTree(ledgers, r1);
 
         vm.startPrank(alice);
         vm.expectRevert(InvalidInitialization.selector);
@@ -351,9 +325,9 @@ contract LedgersTest is Test {
 
         if (isVerbose) {
             console.log("--------------------");
-            Tree.debugTree(ledgers, address(router));
+            TreeLib.debugTree(ledgers, address(router));
             console.log("--------------------");
-            Tree.debugTree(ledgers, r1);
+            TreeLib.debugTree(ledgers, r1);
             console.log("--------------------");
         }
 
