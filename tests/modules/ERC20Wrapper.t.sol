@@ -40,6 +40,9 @@ contract ERC20WrapperTest is Test {
         if (isVerbose) console.log("Creating ERC20Wrapper");
         token = ERC20Wrapper(ledgers.createToken("Wrapped Test Token", "WTT", 18));
 
+        if (isVerbose) console.log("Adding new token to ledger");
+        ledgers.addLedger(address(token), "Wrapped Test Token", "WTT", 18);
+
         vm.stopPrank();
     }
 
@@ -51,6 +54,25 @@ contract ERC20WrapperTest is Test {
         assertEq(token.symbol(), "WTT");
         assertEq(token.decimals(), 18);
         assertEq(token.totalSupply(), 0);
+
+        assertEq(ledgers.name(address(token)), "Wrapped Test Token");
+        assertEq(ledgers.symbol(address(token)), "WTT");
+        assertEq(ledgers.decimals(address(token)), 18);
+        assertEq(ledgers.totalSupply(address(token)), 0);
+    }
+
+    function testERC20WrapperCreateToken() public {
+        vm.startPrank(owner);
+
+        address _newToken = ledgers.createToken("New Test Token", "NTT", 18);
+        assertEq(ERC20Wrapper(_newToken).name(), "New Test Token");
+        assertEq(ERC20Wrapper(_newToken).symbol(), "NTT");
+        assertEq(ERC20Wrapper(_newToken).decimals(), 18);
+        assertEq(ERC20Wrapper(_newToken).totalSupply(), 0);
+
+        assertEq(ledgers.name(_newToken), "New Test Token");
+        assertEq(ledgers.symbol(_newToken), "NTT");
+        assertEq(ledgers.decimals(_newToken), 18);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
