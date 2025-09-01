@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {ILedgers} from "../interfaces/ILedgers.sol";
+import {ILedgers, ERC20Wrapper} from "../modules/Ledgers.sol";
 
 import {console} from "forge-std/src/console.sol";
 
@@ -272,6 +272,12 @@ library LedgersLib {
         }
 
         emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
+    }
+
+    function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
+        address token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
+        addLedger(token, name_, symbol_, decimals_);
+        return token;
     }
 
     //==================================================================

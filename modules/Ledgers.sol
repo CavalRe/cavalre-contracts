@@ -191,9 +191,7 @@ contract Ledgers is Module, Initializable, ILedgers {
     function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
         enforceIsOwner();
 
-        address token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-        Lib.addLedger(token, name_, symbol_, decimals_);
-        return token;
+        return Lib.createToken(name_, symbol_, decimals_);
     }
 
     //==========
