@@ -121,7 +121,7 @@ library LedgersLib {
     }
 
     function decimals(address addr_) internal view returns (uint8) {
-        return store().decimals[root(addr_)];
+        return store().decimals[addr_];
     }
 
     function root(address addr_) internal view returns (address) {
