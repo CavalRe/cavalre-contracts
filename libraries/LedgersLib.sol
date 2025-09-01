@@ -117,7 +117,7 @@ library LedgersLib {
     }
 
     function symbol(address addr_) internal view returns (string memory) {
-        return store().symbol[root(addr_)];
+        return store().symbol[addr_];
     }
 
     function decimals(address addr_) internal view returns (uint8) {
