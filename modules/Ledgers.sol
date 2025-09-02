@@ -157,7 +157,7 @@ contract Ledgers is Module, Initializable, ILedgers {
         _commands[n++] = bytes4(keccak256("isGroup(address)"));
         _commands[n++] = bytes4(keccak256("subAccounts(address)"));
         _commands[n++] = bytes4(keccak256("hasSubAccount(address)"));
-        _commands[n++] = bytes4(keccak256("subAccountIndex(address)"));
+        _commands[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
         _commands[n++] = bytes4(keccak256("balanceOf(address,string)"));
         _commands[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _commands[n++] = bytes4(keccak256("totalSupply(address)"));
@@ -229,8 +229,8 @@ contract Ledgers is Module, Initializable, ILedgers {
         return Lib.hasSubAccount(parent_);
     }
 
-    function subAccountIndex(address addr_) external view returns (uint32) {
-        return Lib.subAccountIndex(addr_);
+    function subAccountIndex(address parent_, address addr_) external view returns (uint32) {
+        return Lib.subAccountIndex(parent_, addr_);
     }
 
     //======================

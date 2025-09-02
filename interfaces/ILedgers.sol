@@ -23,7 +23,7 @@ interface ILedgers {
     function isGroup(address addr) external view returns (bool);
     function subAccounts(address parent) external view returns (address[] memory);
     function hasSubAccount(address parent) external view returns (bool);
-    function subAccountIndex(address addr) external view returns (uint32);
+    function subAccountIndex(address parent, address addr) external view returns (uint32);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Balances
@@ -91,21 +91,23 @@ interface ILedgers {
     // ─────────────────────────────────────────────────────────────────────────────
     error DifferentRoots(address a, address b);
     error DuplicateSubAccount(address sub);
-    error HasBalance(string subName);
-    error HasSubAccount(string subName);
+    error HasBalance(address addr);
+    error HasSubAccount(address addr);
     error InsufficientAllowance(address ownerParent, address owner, address spender, uint256 current, uint256 amount);
     error InsufficientBalance(address token, address parent, address account, uint256 amount);
     error InvalidAddress(address absoluteAddress);
     error InvalidDecimals(uint8 decimals);
     error InvalidAccountGroup(address groupAddress);
     error InvalidLedgerAccount(address ledgerAddress);
-    error InvalidSubAccount(string subName, bool isGroup, bool isCredit);
+    error InvalidSubAccount(address addr, bool isCredit);
+    error InvalidSubAccountGroup(string subName, bool isCredit);
     error InvalidSubAccountIndex(uint256 index);
     error InvalidString(string symbol);
     error InvalidToken(string name, string symbol, uint8 decimals);
     error MaxDepthExceeded();
     error NotCredit(string name);
-    error SubAccountNotFound(string subName);
+    error SubAccountNotFound(address addr);
+    error SubAccountGroupNotFound(string subName);
     error Unauthorized(address user);
     error ZeroAddress();
 
@@ -121,8 +123,10 @@ interface ILedgers {
     event Debit(address indexed token, address indexed parent, address indexed account, uint256 value);
     event InternalApproval(address indexed ownerParent, address indexed owner, address indexed spender, uint256 value);
     event LedgerAdded(address indexed tokenAddress, string name, string symbol, uint8 decimals);
-    event SubAccountAdded(address indexed root, address indexed parent, string subName, bool isGroup, bool isCredit);
-    event SubAccountRemoved(address indexed root, address indexed parent, string subName);
+    event SubAccountAdded(address indexed root, address indexed parent, address addr, bool isCredit);
+    event SubAccountGroupAdded(address indexed root, address indexed parent, string subName, bool isCredit);
+    event SubAccountRemoved(address indexed root, address indexed parent, address addr);
+    event SubAccountGroupRemoved(address indexed root, address indexed parent, string subName);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Standard ERC-20 events (emitted through library/wrapper)

@@ -23,10 +23,12 @@ contract TestLedgers is Ledgers {
     // Keep command registry so Router can “register” the module (if you use it)
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](32);
+        _commands = new bytes4[](34);
         _commands[n++] = bytes4(keccak256("initializeTestLedgers()"));
-        _commands[n++] = bytes4(keccak256("addSubAccount(address,string,bool,bool)"));
-        _commands[n++] = bytes4(keccak256("removeSubAccount(address,string)"));
+        _commands[n++] = bytes4(keccak256("addSubAccount(address,address,bool)"));
+        _commands[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
+        _commands[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
+        _commands[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _commands[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("addLedger(address,string,string,uint8)"));
@@ -39,7 +41,7 @@ contract TestLedgers is Ledgers {
         _commands[n++] = bytes4(keccak256("isGroup(address)"));
         _commands[n++] = bytes4(keccak256("subAccounts(address)"));
         _commands[n++] = bytes4(keccak256("hasSubAccount(address)"));
-        _commands[n++] = bytes4(keccak256("subAccountIndex(address)"));
+        _commands[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
         _commands[n++] = bytes4(keccak256("balanceOf(address,string)"));
         _commands[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _commands[n++] = bytes4(keccak256("totalSupply(address)"));
@@ -64,16 +66,20 @@ contract TestLedgers is Ledgers {
         initializeLedgers_unchained();
     }
 
-    // Library passthroughs (emitEvent_ = true)
-    function addSubAccount(address parent_, string memory name_, bool isGroup_, bool isCredit_)
-        external
-        returns (address)
-    {
-        return LLib.addSubAccount(parent_, name_, isGroup_, isCredit_);
+    function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) external returns (address) {
+        return LLib.addSubAccountGroup(parent_, name_, isCredit_);
     }
 
-    function removeSubAccount(address parent_, string memory name_) external returns (address) {
-        return LLib.removeSubAccount(parent_, name_);
+    function addSubAccount(address parent_, address addr_, bool isCredit_) external returns (address) {
+        return LLib.addSubAccount(parent_, addr_, isCredit_);
+    }
+
+    function removeSubAccountGroup(address parent_, string memory name_) external returns (address) {
+        return LLib.removeSubAccountGroup(parent_, name_);
+    }
+
+    function removeSubAccount(address parent_, address addr_) external returns (address) {
+        return LLib.removeSubAccount(parent_, addr_);
     }
 
     function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_) external {
@@ -136,21 +142,18 @@ contract LedgersTest is Test {
         // Add a standalone ledger tree for misc checks
         testLedger = LLib.toNamedAddress("Test Ledger");
         ledgers.addLedger(testLedger, "Test Ledger", "TL", 18);
-        ledgers.addSubAccount(
-            ledgers.addSubAccount(ledgers.addSubAccount(testLedger, "1", true, false), "10", true, false),
-            "100",
-            true,
-            false
+        ledgers.addSubAccountGroup(
+            ledgers.addSubAccountGroup(ledgers.addSubAccountGroup(testLedger, "1", false), "10", false), "100", false
         );
 
         // Add token r1 and its sub-groups
         ledgers.addLedger(r1, "1", "1", 18);
-        ledgers.addSubAccount(r1, "10", true, false);
-        ledgers.addSubAccount(r1, "11", true, false);
-        ledgers.addSubAccount(r10, "100", true, false);
-        ledgers.addSubAccount(r10, "101", true, false);
-        ledgers.addSubAccount(r11, "110", true, false);
-        ledgers.addSubAccount(r11, "111", true, false);
+        ledgers.addSubAccountGroup(r1, "10", false);
+        ledgers.addSubAccountGroup(r1, "11", false);
+        ledgers.addSubAccountGroup(r10, "100", false);
+        ledgers.addSubAccountGroup(r10, "101", false);
+        ledgers.addSubAccountGroup(r11, "110", false);
+        ledgers.addSubAccountGroup(r11, "111", false);
     }
 
     // Matches your old “InvalidInitialization” guard
@@ -172,44 +175,47 @@ contract LedgersTest is Test {
         assertEq(ledgers.subAccounts(r10).length, 2, "Subaccounts (r10)");
         assertEq(ledgers.subAccounts(r11).length, 2, "Subaccounts (r11)");
 
-        assertEq(ledgers.subAccountIndex(r1), 0, "idx(r1)");
-        assertEq(ledgers.subAccountIndex(r10), 1, "idx(r10)");
-        assertEq(ledgers.subAccountIndex(r11), 2, "idx(r11)");
-        assertEq(ledgers.subAccountIndex(r100), 1, "idx(r100)");
-        assertEq(ledgers.subAccountIndex(r101), 2, "idx(r101)");
-        assertEq(ledgers.subAccountIndex(r110), 1, "idx(r110)");
-        assertEq(ledgers.subAccountIndex(r111), 2, "idx(r111)");
+        assertEq(ledgers.subAccountIndex(r1, _10), 1, "idx(r10)");
+        assertEq(ledgers.subAccountIndex(r1, _11), 2, "idx(r11)");
+        assertEq(ledgers.subAccountIndex(r10, _100), 1, "idx(r100)");
+        assertEq(ledgers.subAccountIndex(r10, _101), 2, "idx(r101)");
+        assertEq(ledgers.subAccountIndex(r11, _110), 1, "idx(r110)");
+        assertEq(ledgers.subAccountIndex(r11, _111), 2, "idx(r111)");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // AddSubAccount
     // ─────────────────────────────────────────────────────────────────────────
-    function testLedgersAddSubAccount() public {
+    function testLedgersAddSubAccountGroup() public {
         vm.startPrank(alice);
 
         // Add a fresh sub under r1
-        address added = ledgers.addSubAccount(r1, "newSubAccount", true, false);
+        address added = ledgers.addSubAccountGroup(r1, "newSubAccount", false);
         assertEq(added, LLib.toGroupAddress(r1, "newSubAccount"), "address mismatch");
         assertEq(ledgers.parent(added), r1, "parent mismatch");
-        assertEq(ledgers.subAccountIndex(added), ledgers.subAccounts(r1).length, "index should equal #subs");
+        assertEq(
+            ledgers.subAccountIndex(r1, LLib.toNamedAddress("newSubAccount")),
+            ledgers.subAccounts(r1).length,
+            "index should equal #subs"
+        );
         assertTrue(ledgers.hasSubAccount(r1), "r1 should have subs");
 
         // Re-adding the same name with same flags should idempotently return same addr or revert by your rules.
         // Your lib currently treats “same name + same flags” as OK (returns existing). Verify:
-        address idempotent = ledgers.addSubAccount(r1, "newSubAccount", true, false);
+        address idempotent = ledgers.addSubAccountGroup(r1, "newSubAccount", false);
         assertEq(idempotent, added, "expected same sub account address");
     }
 
     function testLedgersAddSubAccountZeroParentReverts() public {
         vm.startPrank(alice);
         vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAccountGroup.selector, address(0)));
-        ledgers.addSubAccount(address(0), "zeroParent", true, false);
+        ledgers.addSubAccountGroup(address(0), "zeroParent", false);
     }
 
     function testLedgersAddSubAccountEmptyNameReverts() public {
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidSubAccount.selector, "", true, false));
-        ledgers.addSubAccount(r1, "", true, false);
+        vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidString.selector, ""));
+        ledgers.addSubAccountGroup(r1, "", false);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -221,12 +227,12 @@ contract LedgersTest is Test {
         vm.startPrank(alice);
 
         if (isVerbose) console.log("Removing subaccount");
-        ledgers.removeSubAccount(r10, "100");
+        ledgers.removeSubAccountGroup(r10, "100");
 
         if (isVerbose) console.log("Check parent");
         assertEq(ledgers.parent(_100), address(0), "parent reset");
         if (isVerbose) console.log("Check index");
-        assertEq(ledgers.subAccountIndex(_100), 0, "index reset");
+        assertEq(ledgers.subAccountIndex(r10, _100), 0, "index reset");
         if (isVerbose) console.log("Check name");
         assertEq(ledgers.name(_100), "", "name cleared");
         if (isVerbose) console.log("Check hasSubAccount");
@@ -237,55 +243,59 @@ contract LedgersTest is Test {
         vm.startPrank(alice);
         address nonExistent = LLib.toGroupAddress(r1, "nope");
         vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAccountGroup.selector, nonExistent));
-        ledgers.removeSubAccount(r1, "nope");
+        ledgers.removeSubAccountGroup(r1, "nope");
     }
 
     function testLedgersRemoveSubAccountWithChildrenReverts() public {
         vm.startPrank(alice);
-        address parentWithChild = ledgers.addSubAccount(r1, "parentWithChild", true, false);
-        ledgers.addSubAccount(parentWithChild, "sub", true, false);
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.HasSubAccount.selector, "parentWithChild"));
-        ledgers.removeSubAccount(r1, "parentWithChild");
+        address parentWithChild = ledgers.addSubAccountGroup(r1, "parentWithChild", false);
+        ledgers.addSubAccountGroup(parentWithChild, "sub", false);
+        vm.expectRevert(abi.encodeWithSelector(ILedgers.HasSubAccount.selector, parentWithChild));
+        ledgers.removeSubAccountGroup(r1, "parentWithChild");
     }
 
     function testLedgersRemoveSubAccountWithBalanceReverts() public {
         vm.startPrank(alice);
         ledgers.mint(r100, alice, 1000);
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.HasBalance.selector, "100"));
-        ledgers.removeSubAccount(r10, "100");
+
+        vm.expectRevert(abi.encodeWithSelector(ILedgers.HasBalance.selector, r100));
+        ledgers.removeSubAccountGroup(r10, "100");
     }
 
     function testLedgersRemoveSubAccountInvalidAddresses() public {
         vm.startPrank(alice);
-        address valid = ledgers.addSubAccount(r1, "validSub", true, false);
+        address _valid = ledgers.addSubAccountGroup(r1, "validSub", false);
 
         // Zero parent
         vm.expectRevert(ILedgers.ZeroAddress.selector);
-        ledgers.removeSubAccount(address(0), "validSub");
+        ledgers.removeSubAccountGroup(address(0), "validSub");
 
         // Parent == child group (nonsense) => InvalidAccountGroup on computed subAddress
         vm.expectRevert(
-            abi.encodeWithSelector(ILedgers.InvalidAccountGroup.selector, LLib.toGroupAddress(valid, "validSub"))
+            abi.encodeWithSelector(ILedgers.InvalidAccountGroup.selector, LLib.toGroupAddress(_valid, "validSub"))
         );
-        ledgers.removeSubAccount(valid, "validSub");
+        ledgers.removeSubAccountGroup(_valid, "validSub");
     }
 
     function testLedgersRemoveUpdatesSiblingIndices() public {
         vm.startPrank(alice);
-        address s1 = ledgers.addSubAccount(r1, "s1", true, false);
-        ledgers.addSubAccount(r1, "s2", true, false);
-        address s3 = ledgers.addSubAccount(r1, "s3", true, false);
+        address _s1 = LLib.toNamedAddress("s1");
+        address _s3 = LLib.toNamedAddress("s3");
+
+        ledgers.addSubAccountGroup(r1, "s1", false);
+        ledgers.addSubAccountGroup(r1, "s2", false);
+        ledgers.addSubAccountGroup(r1, "s3", false);
 
         uint256 before = ledgers.subAccounts(r1).length;
-        ledgers.removeSubAccount(r1, "s2");
+        ledgers.removeSubAccountGroup(r1, "s2");
 
         address[] memory subs = ledgers.subAccounts(r1);
         assertEq(subs.length, before - 1, "length");
-        assertEq(subs[before - 3], s1, "first remains s1");
-        assertEq(subs[before - 2], s3, "second becomes s3");
+        assertEq(subs[before - 3], _s1, "first remains s1");
+        assertEq(subs[before - 2], _s3, "second becomes s3");
 
-        assertEq(ledgers.subAccountIndex(LLib.toGroupAddress(r1, "s1")), before - 2, "s1 idx");
-        assertEq(ledgers.subAccountIndex(LLib.toGroupAddress(r1, "s3")), before - 1, "s3 idx");
+        assertEq(ledgers.subAccountIndex(r1, _s1), before - 2, "s1 idx");
+        assertEq(ledgers.subAccountIndex(r1, _s3), before - 1, "s3 idx");
     }
 
     // ─────────────────────────────────────────────────────────────────────────

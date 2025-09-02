@@ -79,7 +79,7 @@ library LedgersLib {
     function toGroupAddress(address parent_, string memory name_) internal pure returns (address) {
         checkZeroAddress(parent_);
         checkString(name_);
-        return address(uint160(uint256(keccak256(abi.encodePacked(parent_, name_)))));
+        return address(uint160(uint256(keccak256(abi.encodePacked(parent_, toNamedAddress(name_))))));
     }
 
     // Transfers can only occur within the same tree
@@ -150,7 +150,7 @@ library LedgersLib {
         return store().subs[addr_];
     }
 
-    function subAccount(address parent_, uint256 index_) internal view returns (address sub) {
+    function subAccount(address parent_, uint256 index_) internal view returns (address) {
         address[] storage subs_ = store().subs[parent_];
         if (index_ >= subs_.length) revert ILedgers.InvalidSubAccountIndex(index_);
         return subs_[index_];
@@ -160,8 +160,9 @@ library LedgersLib {
         return store().subs[addr_].length > 0;
     }
 
-    function subAccountIndex(address addr_) internal view returns (uint32) {
-        return store().subIndex[addr_];
+    function subAccountIndex(address parent_, address addr_) internal view returns (uint32) {
+        address _addr = toLedgerAddress(parent_, addr_);
+        return store().subIndex[_addr];
     }
 
     //==================================================================
@@ -179,59 +180,83 @@ library LedgersLib {
     //                         Tree Manipulation
     //==================================================================
 
-    function addSubAccount(address parent_, string memory name_, bool isGroup_, bool isCredit_)
-        internal
-        returns (address _sub)
-    {
-        if (!isGroup(parent_)) revert ILedgers.InvalidAccountGroup(parent_);
-        if (!isValidString(name_)) revert ILedgers.InvalidSubAccount(name_, isGroup_, isCredit_);
+    function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) internal returns (address _sub) {
+        checkGroup(parent_);
+        checkString(name_);
 
         _sub = toGroupAddress(parent_, name_);
 
         bool _isExistingParent = parent(_sub) == parent_;
         bool _isExistingName = keccak256(bytes(name(_sub))) == keccak256(bytes(name_));
         if (_isExistingParent && _isExistingName) {
-            if ((isCredit(_sub) == isCredit_) && (isGroup(_sub) == isGroup_)) {
+            if ((isCredit(_sub) == isCredit_) && isGroup(_sub)) {
                 // SubAccount already exists with the same name and credit status
                 return _sub;
             } else {
                 // SubAccount already exists with the same name but different credit status
-                revert ILedgers.InvalidSubAccount(name_, isGroup_, isCredit_);
+                revert ILedgers.InvalidSubAccountGroup(name_, isCredit_);
             }
         }
 
         Store storage s = store();
-        s.isGroup[_sub] = isGroup_;
+        s.isGroup[_sub] = true;
         s.name[_sub] = name_;
         s.parent[_sub] = parent_;
-        s.subs[parent_].push(_sub);
+        s.subs[parent_].push(toNamedAddress(name_));
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
         s.isCredit[_sub] = isCredit_;
         address _root = root(parent_);
-        emit ILedgers.SubAccountAdded(_root, parent_, name_, isGroup_, isCredit_);
+        emit ILedgers.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
-    function removeSubAccount(address parent_, string memory name_) internal returns (address) {
+    function addSubAccount(address parent_, address addr_, bool isCredit_) internal returns (address _sub) {
+        if (!isGroup(parent_)) revert ILedgers.InvalidAccountGroup(parent_);
+
+        _sub = toLedgerAddress(parent_, addr_);
+
+        bool _isExistingParent = parent(_sub) == parent_;
+        if (_isExistingParent) {
+            if ((isCredit(_sub) == isCredit_) && !isGroup(_sub)) {
+                // SubAccount already exists with the same name and credit status
+                return _sub;
+            } else {
+                // SubAccount already exists with the same name but different credit status
+                revert ILedgers.InvalidSubAccount(addr_, isCredit_);
+            }
+        }
+
+        Store storage s = store();
+        s.isGroup[_sub] = false;
+        s.name[_sub] = name(addr_);
+        s.parent[_sub] = parent_;
+        s.subs[parent_].push(addr_);
+        s.subIndex[_sub] = uint32(s.subs[parent_].length);
+        s.isCredit[_sub] = isCredit_;
+        emit ILedgers.SubAccountAdded(root(parent_), parent_, addr_, isCredit_);
+    }
+
+    function removeSubAccountGroup(address parent_, string memory name_) internal returns (address) {
         address _sub = toGroupAddress(parent_, name_);
         if (!isGroup(parent_)) revert ILedgers.InvalidAccountGroup(parent_);
         if (!isGroup(_sub)) revert ILedgers.InvalidAccountGroup(_sub);
 
         // Must exist and belong to this parent
         if (parent(_sub) != parent_) {
-            revert ILedgers.SubAccountNotFound(name_);
+            revert ILedgers.SubAccountGroupNotFound(name_);
         }
 
-        if (hasSubAccount(_sub)) revert ILedgers.HasSubAccount(name_);
-        if (hasBalance(_sub)) revert ILedgers.HasBalance(name_);
+        if (hasSubAccount(_sub)) revert ILedgers.HasSubAccount(_sub);
+        if (hasBalance(_sub)) revert ILedgers.HasBalance(_sub);
 
         Store storage s = store();
 
         uint256 _index = s.subIndex[_sub]; // 1-based
         uint256 _lastIndex = s.subs[parent_].length; // 1-based
         address _lastChild = s.subs[parent_][_lastIndex - 1];
+        address _lastChildAbsolute = toLedgerAddress(parent_, _lastChild);
         if (_index != _lastIndex) {
             s.subs[parent_][_index - 1] = _lastChild;
-            s.subIndex[_lastChild] = uint32(_index);
+            s.subIndex[_lastChildAbsolute] = uint32(_index);
         }
         s.subs[parent_].pop();
 
@@ -242,7 +267,44 @@ library LedgersLib {
         s.name[_sub] = "";
 
         address _root = root(parent_);
-        emit ILedgers.SubAccountRemoved(_root, parent_, name_);
+        emit ILedgers.SubAccountGroupRemoved(_root, parent_, name_);
+
+        return _sub;
+    }
+
+    function removeSubAccount(address parent_, address addr_) internal returns (address) {
+        address _sub = toLedgerAddress(parent_, addr_);
+        if (!isGroup(parent_)) revert ILedgers.InvalidAccountGroup(parent_);
+        if (isGroup(_sub)) revert ILedgers.InvalidLedgerAccount(_sub);
+
+        // Must exist and belong to this parent
+        if (parent(_sub) != parent_) {
+            revert ILedgers.SubAccountNotFound(addr_);
+        }
+
+        if (hasSubAccount(_sub)) revert ILedgers.HasSubAccount(addr_);
+        if (hasBalance(_sub)) revert ILedgers.HasBalance(addr_);
+
+        Store storage s = store();
+
+        uint256 _index = s.subIndex[_sub]; // 1-based
+        uint256 _lastIndex = s.subs[parent_].length; // 1-based
+        address _lastChild = s.subs[parent_][_lastIndex - 1];
+        address _lastChildAbsolute = toLedgerAddress(parent_, _lastChild);
+        if (_index != _lastIndex) {
+            s.subs[parent_][_index - 1] = _lastChild;
+            s.subIndex[_lastChildAbsolute] = uint32(_index);
+        }
+        s.subs[parent_].pop();
+
+        s.subIndex[_sub] = 0;
+        s.parent[_sub] = address(0);
+        s.isGroup[_sub] = false;
+        s.isCredit[_sub] = false;
+        s.name[_sub] = "";
+
+        address _root = root(parent_);
+        emit ILedgers.SubAccountRemoved(_root, parent_, addr_);
 
         return _sub;
     }
@@ -274,7 +336,7 @@ library LedgersLib {
         s.isCredit[_supply] = true;
 
         if (token_ != address(this)) {
-            addSubAccount(address(this), name_, false, false);
+            addSubAccount(address(this), token_, false);
         }
 
         emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
