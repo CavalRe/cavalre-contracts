@@ -14,9 +14,9 @@ contract ERC20Wrapper {
     // Storage
     // -------------------------------------------------------------------------
 
-    address private immutable _ledgers;
-    string private _name; // kept for constructor parity; getters read from Ledgers
-    string private _symbol; // kept for constructor parity; getters read from Ledgers
+    address private immutable _router;
+    string private _name;
+    string private _symbol;
     uint8 public immutable _decimals;
 
     // -------------------------------------------------------------------------
@@ -30,15 +30,20 @@ contract ERC20Wrapper {
     // Init
     // -------------------------------------------------------------------------
 
-    constructor(address ledgers_, string memory name_, string memory symbol_, uint8 decimals_) {
-        _ledgers = ledgers_;
+    constructor(address router_, string memory name_, string memory symbol_, uint8 decimals_) {
+        _router = router_;
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
     }
 
+    modifier routerOnly() {
+        if (msg.sender != _router) revert ILedgers.Unauthorized(msg.sender);
+        _;
+    }
+
     // -------------------------------------------------------------------------
-    // Metadata (delegated to Ledgers)
+    // Metadata
     // -------------------------------------------------------------------------
 
     function name() public view returns (string memory) {
@@ -58,11 +63,11 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     function totalSupply() public view returns (uint256) {
-        return ILedgers(_ledgers).totalSupply(address(this));
+        return ILedgers(_router).totalSupply(address(this));
     }
 
     function balanceOf(address account_) public view returns (uint256) {
-        return ILedgers(_ledgers).balanceOf(address(this), account_);
+        return ILedgers(_router).balanceOf(address(this), account_);
     }
 
     // -------------------------------------------------------------------------
@@ -70,25 +75,25 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     function allowance(address owner_, address spender_) public view returns (uint256) {
-        return ILedgers(_ledgers).allowance(address(this), owner_, spender_);
+        return ILedgers(_router).allowance(address(this), owner_, spender_);
     }
 
     function approve(address spender_, uint256 amount_) public returns (bool) {
         emit Approval(msg.sender, spender_, amount_);
-        return ILedgers(_ledgers).approve(address(this), msg.sender, spender_, amount_);
+        return ILedgers(_router).approve(address(this), msg.sender, spender_, amount_);
     }
 
     /// @notice Atomically increases `spender` allowance for `msg.sender`.
     function increaseAllowance(address spender_, uint256 addedValue_) public returns (bool _ok) {
         uint256 _amount;
-        (_ok, _amount) = ILedgers(_ledgers).increaseAllowance(address(this), msg.sender, spender_, addedValue_);
+        (_ok, _amount) = ILedgers(_router).increaseAllowance(address(this), msg.sender, spender_, addedValue_);
         emit Approval(msg.sender, spender_, _amount);
     }
 
     /// @notice Atomically decreases `spender` allowance for `msg.sender`.
     function decreaseAllowance(address spender_, uint256 subtractedValue_) public returns (bool _ok) {
         uint256 _amount;
-        (_ok, _amount) = ILedgers(_ledgers).decreaseAllowance(address(this), msg.sender, spender_, subtractedValue_);
+        (_ok, _amount) = ILedgers(_router).decreaseAllowance(address(this), msg.sender, spender_, subtractedValue_);
         emit Approval(msg.sender, spender_, _amount);
     }
 
@@ -96,7 +101,7 @@ contract ERC20Wrapper {
     /// If both current and desired are non-zero, sets to 0 first, then to `amount_`.
     function forceApprove(address spender_, uint256 amount_) public returns (bool) {
         emit Approval(msg.sender, spender_, amount_);
-        return ILedgers(_ledgers).forceApprove(address(this), msg.sender, spender_, amount_);
+        return ILedgers(_router).forceApprove(address(this), msg.sender, spender_, amount_);
     }
 
     // -------------------------------------------------------------------------
@@ -105,26 +110,34 @@ contract ERC20Wrapper {
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
         emit Transfer(msg.sender, to_, amount_);
-        return ILedgers(_ledgers).transfer(address(this), msg.sender, address(this), to_, amount_, false);
+        return ILedgers(_router).transfer(address(this), msg.sender, address(this), to_, amount_, false);
     }
 
     function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
         emit Transfer(from_, to_, amount_);
-        return ILedgers(_ledgers).transferFrom(msg.sender, address(this), from_, address(this), to_, amount_, false);
+        return ILedgers(_router).transferFrom(msg.sender, address(this), from_, address(this), to_, amount_, false);
     }
 
     // // -------------------------------------------------------------------------
     // // Mint / Burn (delegated to Ledgers; emits zero-address Transfer per ERC-20)
     // // -------------------------------------------------------------------------
 
+    function mint(address to_, uint256 amount_) public routerOnly {
+        emit Transfer(address(0), to_, amount_);
+    }
+
+    function burn(address from_, uint256 amount_) public routerOnly {
+        emit Transfer(from_, address(0), amount_);
+    }
+
     // function emitTransfer(address from_, address to_, uint256 amount_) public {
-    //     if (msg.sender != _ledgers) revert ILedgers.Unauthorized(msg.sender);
+    //     if (msg.sender != _router) revert ILedgers.Unauthorized(msg.sender);
 
     //     emit Transfer(from_, to_, amount_);
     // }
 
     // function emitApproval(address owner_, address spender_, uint256 amount_) public {
-    //     if (msg.sender != _ledgers) revert ILedgers.Unauthorized(msg.sender);
+    //     if (msg.sender != _router) revert ILedgers.Unauthorized(msg.sender);
 
     //     emit Approval(owner_, spender_, amount_);
     // }

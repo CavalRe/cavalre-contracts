@@ -7,14 +7,14 @@ import {console} from "forge-std/src/console.sol";
 
 library LedgersLib {
     struct Store {
-        mapping(address => bool) isGroup;
-        mapping(address sub => address) parent;
-        mapping(address sub => uint32) subIndex;
-        mapping(address parent => address[]) subs;
         mapping(address => string) name;
         mapping(address => string) symbol;
         mapping(address => uint8) decimals;
-        mapping(address => bool) isCredit;
+        mapping(address => address) root;
+        mapping(address sub => address) parent;
+        mapping(address parent => address[]) subs;
+        mapping(address sub => uint32) subIndex;
+        mapping(address => uint8) flags;
         mapping(address => uint256) balance;
         mapping(address owner => mapping(address spender => uint256)) allowances;
     }
@@ -32,24 +32,38 @@ library LedgersLib {
     uint8 internal constant MAX_DEPTH = 10;
     // toNamedAddress("Supply")
     address internal constant SUPPLY_ADDRESS = 0x486d9E1EFfBE2991Ba97401Be079767f9879e1Dd;
+    uint8 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
+    uint8 constant FLAG_IS_CREDIT = 1 << 1; // 1 = credit account, 0 = debit
 
     //==================================================================
     //                            Validation
     //==================================================================
+
     function checkZeroAddress(address addr_) internal pure {
         if (addr_ == address(0)) revert ILedgers.ZeroAddress();
     }
 
+    function flags(bool isGroup_, bool isCredit_) internal pure returns (uint8 _flags) {
+        if (isGroup_) _flags |= FLAG_IS_GROUP;
+        if (isCredit_) _flags |= FLAG_IS_CREDIT;
+    }
+
+    function flags(address addr_) internal view returns (bool _isGroup, bool _isCredit) {
+        uint8 _flags = store().flags[addr_];
+        _isGroup = (_flags & FLAG_IS_GROUP) != 0;
+        _isCredit = (_flags & FLAG_IS_CREDIT) != 0;
+    }
+
     function isGroup(address addr_) internal view returns (bool) {
-        return store().isGroup[addr_];
+        return (store().flags[addr_] & FLAG_IS_GROUP) != 0;
+    }
+
+    function isCredit(address addr_) internal view returns (bool) {
+        return (store().flags[addr_] & FLAG_IS_CREDIT) != 0;
     }
 
     function checkGroup(address addr_) internal view {
         if (!isGroup(addr_)) revert ILedgers.InvalidAccountGroup(addr_);
-    }
-
-    function isCredit(address addr_) internal view returns (bool) {
-        return store().isCredit[addr_];
     }
 
     function isValidString(string memory str_) internal pure returns (bool) {
@@ -124,22 +138,9 @@ library LedgersLib {
         return store().decimals[addr_];
     }
 
-    function root(address addr_) internal view returns (address) {
-        checkAccountGroup(addr_);
-
-        Store storage s = store();
-        uint256 _depth;
-        address _parentAccount;
-        while (_depth < MAX_DEPTH) {
-            _depth++;
-            _parentAccount = s.parent[addr_];
-            if (_parentAccount == address(0)) {
-                // Root found
-                return addr_;
-            }
-            addr_ = _parentAccount;
-        }
-        revert ILedgers.MaxDepthExceeded();
+    function root(address addr_) internal view returns (address _root) {
+        _root = store().root[addr_];
+        if (_root == address(0)) revert ILedgers.InvalidAccountGroup(addr_);
     }
 
     function parent(address addr_) internal view returns (address) {
@@ -198,14 +199,15 @@ library LedgersLib {
             }
         }
 
+        address _root = root(parent_);
+
         Store storage s = store();
-        s.isGroup[_sub] = true;
         s.name[_sub] = name_;
+        s.root[_sub] = _root;
         s.parent[_sub] = parent_;
         s.subs[parent_].push(toNamedAddress(name_));
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.isCredit[_sub] = isCredit_;
-        address _root = root(parent_);
+        s.flags[_sub] = flags(true, isCredit_);
         emit ILedgers.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
@@ -225,14 +227,16 @@ library LedgersLib {
             }
         }
 
+        address _root = root(parent_);
+
         Store storage s = store();
-        s.isGroup[_sub] = false;
         s.name[_sub] = name(addr_);
+        s.root[_sub] = _root;
         s.parent[_sub] = parent_;
         s.subs[parent_].push(addr_);
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.isCredit[_sub] = isCredit_;
-        emit ILedgers.SubAccountAdded(root(parent_), parent_, addr_, isCredit_);
+        s.flags[_sub] = flags(false, isCredit_);
+        emit ILedgers.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
     function removeSubAccountGroup(address parent_, string memory name_) internal returns (address) {
@@ -260,11 +264,11 @@ library LedgersLib {
         }
         s.subs[parent_].pop();
 
-        s.subIndex[_sub] = 0;
-        s.parent[_sub] = address(0);
-        s.isGroup[_sub] = false;
-        s.isCredit[_sub] = false;
         s.name[_sub] = "";
+        s.root[_sub] = address(0);
+        s.parent[_sub] = address(0);
+        s.subIndex[_sub] = 0;
+        s.flags[_sub] = 0;
 
         address _root = root(parent_);
         emit ILedgers.SubAccountGroupRemoved(_root, parent_, name_);
@@ -297,11 +301,11 @@ library LedgersLib {
         }
         s.subs[parent_].pop();
 
-        s.subIndex[_sub] = 0;
-        s.parent[_sub] = address(0);
-        s.isGroup[_sub] = false;
-        s.isCredit[_sub] = false;
         s.name[_sub] = "";
+        s.root[_sub] = address(0);
+        s.parent[_sub] = address(0);
+        s.subIndex[_sub] = 0;
+        s.flags[_sub] = 0;
 
         address _root = root(parent_);
         emit ILedgers.SubAccountRemoved(_root, parent_, addr_);
@@ -315,7 +319,7 @@ library LedgersLib {
         }
 
         Store storage s = store();
-        if (s.isGroup[token_] && s.parent[token_] == address(0)) {
+        if (isGroup(token_) && s.parent[token_] == address(0)) {
             // Token already exists
             bool sameName = keccak256(bytes(name_)) == keccak256(bytes(name(token_)));
             bool sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(token_)));
@@ -326,14 +330,15 @@ library LedgersLib {
             }
             revert ILedgers.InvalidToken(name_, symbol_, decimals_);
         }
-        s.isGroup[token_] = true;
         s.name[token_] = name_;
         s.symbol[token_] = symbol_;
         s.decimals[token_] = decimals_;
+        s.root[token_] = token_;
+        s.flags[token_] = flags(true, false);
 
         address _supply = toLedgerAddress(token_, SUPPLY_ADDRESS);
         s.name[_supply] = "Supply";
-        s.isCredit[_supply] = true;
+        s.flags[_supply] = flags(false, true);
 
         if (token_ != address(this)) {
             addSubAccount(address(this), token_, false);
@@ -368,7 +373,7 @@ library LedgersLib {
                 if (emitEvent_) emit ILedgers.Debit(_root, parent_, addr_, amount_);
                 return _root;
             }
-            if (s.isCredit[_root]) {
+            if (isCredit(_root)) {
                 if (s.balance[_root] < amount_) revert ILedgers.InsufficientBalance(_root, parent_, addr_, amount_);
                 s.balance[_root] -= amount_;
             } else {
@@ -400,7 +405,7 @@ library LedgersLib {
                 if (emitEvent_) emit ILedgers.Credit(_root, parent_, addr_, amount_);
                 return _root;
             }
-            if (s.isCredit[_root]) {
+            if (isCredit(_root)) {
                 s.balance[_root] += amount_;
             } else {
                 if (s.balance[_root] < amount_) revert ILedgers.InsufficientBalance(_root, parent_, addr_, amount_);
