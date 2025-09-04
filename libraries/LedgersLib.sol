@@ -34,6 +34,7 @@ library LedgersLib {
     address internal constant SUPPLY_ADDRESS = 0x486d9E1EFfBE2991Ba97401Be079767f9879e1Dd;
     uint8 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
     uint8 constant FLAG_IS_CREDIT = 1 << 1; // 1 = credit account, 0 = debit
+    uint8 constant FLAG_IS_MANAGED = 1 << 2; // 1 = managed token, 0 = unmanaged
 
     //==================================================================
     //                            Validation
@@ -43,15 +44,17 @@ library LedgersLib {
         if (addr_ == address(0)) revert ILedgers.ZeroAddress();
     }
 
-    function flags(bool isGroup_, bool isCredit_) internal pure returns (uint8 _flags) {
+    function flags(bool isGroup_, bool isCredit_, bool isManaged_) internal pure returns (uint8 _flags) {
         if (isGroup_) _flags |= FLAG_IS_GROUP;
         if (isCredit_) _flags |= FLAG_IS_CREDIT;
+        if (isManaged_) _flags |= FLAG_IS_MANAGED;
     }
 
-    function flags(address addr_) internal view returns (bool _isGroup, bool _isCredit) {
+    function flags(address addr_) internal view returns (bool _isGroup, bool _isCredit, bool _isManaged) {
         uint8 _flags = store().flags[addr_];
         _isGroup = (_flags & FLAG_IS_GROUP) != 0;
         _isCredit = (_flags & FLAG_IS_CREDIT) != 0;
+        _isManaged = (_flags & FLAG_IS_MANAGED) != 0;
     }
 
     function isGroup(address addr_) internal view returns (bool) {
@@ -60,6 +63,20 @@ library LedgersLib {
 
     function isCredit(address addr_) internal view returns (bool) {
         return (store().flags[addr_] & FLAG_IS_CREDIT) != 0;
+    }
+
+    function isManaged(address addr_) internal view returns (bool) {
+        return (store().flags[addr_] & FLAG_IS_MANAGED) != 0;
+    }
+
+    function setGroup(address addr_, bool isGroup_) internal {
+        uint8 _flags = store().flags[addr_];
+        if (isGroup_) {
+            _flags |= FLAG_IS_GROUP;
+        } else {
+            _flags &= ~FLAG_IS_GROUP;
+        }
+        store().flags[addr_] = _flags;
     }
 
     function checkGroup(address addr_) internal view {
@@ -207,7 +224,7 @@ library LedgersLib {
         s.parent[_sub] = parent_;
         s.subs[parent_].push(toNamedAddress(name_));
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.flags[_sub] = flags(true, isCredit_);
+        s.flags[_sub] = flags(true, isCredit_, true);
         emit ILedgers.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
@@ -235,7 +252,7 @@ library LedgersLib {
         s.parent[_sub] = parent_;
         s.subs[parent_].push(addr_);
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.flags[_sub] = flags(false, isCredit_);
+        s.flags[_sub] = flags(false, isCredit_, true);
         emit ILedgers.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
@@ -313,7 +330,9 @@ library LedgersLib {
         return _sub;
     }
 
-    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_) internal {
+    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_, bool isManaged_)
+        internal
+    {
         if (!isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
             revert ILedgers.InvalidToken(name_, symbol_, decimals_);
         }
@@ -334,11 +353,11 @@ library LedgersLib {
         s.symbol[token_] = symbol_;
         s.decimals[token_] = decimals_;
         s.root[token_] = token_;
-        s.flags[token_] = flags(true, false);
+        s.flags[token_] = flags(true, false, isManaged_);
 
         address _supply = toLedgerAddress(token_, SUPPLY_ADDRESS);
         s.name[_supply] = "Supply";
-        s.flags[_supply] = flags(false, true);
+        s.flags[_supply] = flags(false, true, isManaged_);
 
         if (token_ != address(this)) {
             addSubAccount(address(this), token_, false);
@@ -349,7 +368,7 @@ library LedgersLib {
 
     function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
         address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-        addLedger(_token, name_, symbol_, decimals_);
+        addLedger(_token, name_, symbol_, decimals_, true);
         return _token;
     }
 
@@ -362,6 +381,7 @@ library LedgersLib {
         _root = toLedgerAddress(parent_, addr_);
 
         Store storage s = store();
+        uint256 _balance;
         uint8 _depth;
         address _parent = parent_;
         while (_depth < MAX_DEPTH) {
@@ -371,13 +391,16 @@ library LedgersLib {
                 // Emits once after a successful full walk.
                 // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
                 if (emitEvent_) emit ILedgers.Debit(_root, parent_, addr_, amount_);
+                emit ILedgers.BalanceUpdate(_root, parent_, addr_, _balance);
                 return _root;
             }
             if (isCredit(_root)) {
                 if (s.balance[_root] < amount_) revert ILedgers.InsufficientBalance(_root, parent_, addr_, amount_);
-                s.balance[_root] -= amount_;
+                _balance = s.balance[_root] - amount_;
+                s.balance[_root] = _balance;
             } else {
-                s.balance[_root] += amount_;
+                _balance = s.balance[_root] + amount_;
+                s.balance[_root] = _balance;
             }
             _root = _parent;
             _parent = s.parent[_parent];
@@ -394,6 +417,7 @@ library LedgersLib {
         _root = toLedgerAddress(parent_, addr_);
 
         Store storage s = store();
+        uint256 _balance;
         uint8 _depth;
         address _parent = parent_;
         while (_depth < MAX_DEPTH) {
@@ -403,13 +427,16 @@ library LedgersLib {
                 // Emits once after a successful full walk.
                 // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
                 if (emitEvent_) emit ILedgers.Credit(_root, parent_, addr_, amount_);
+                emit ILedgers.BalanceUpdate(_root, parent_, addr_, _balance);
                 return _root;
             }
             if (isCredit(_root)) {
-                s.balance[_root] += amount_;
+                _balance = s.balance[_root] + amount_;
+                s.balance[_root] = _balance;
             } else {
                 if (s.balance[_root] < amount_) revert ILedgers.InsufficientBalance(_root, parent_, addr_, amount_);
-                s.balance[_root] -= amount_;
+                _balance = s.balance[_root] - amount_;
+                s.balance[_root] = _balance;
             }
             _root = _parent;
             _parent = s.parent[_parent];

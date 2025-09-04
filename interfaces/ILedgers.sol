@@ -119,6 +119,7 @@ interface ILedgers {
     //  - parent : fixed parent group of ledger account
     //  - account: exact ledger account (no children by design)
     // ─────────────────────────────────────────────────────────────────────────────
+    event BalanceUpdate(address indexed token, address indexed parent, address indexed account, uint256 newBalance);
     event Credit(address indexed token, address indexed parent, address indexed account, uint256 value);
     event Debit(address indexed token, address indexed parent, address indexed account, uint256 value);
     event InternalApproval(address indexed ownerParent, address indexed owner, address indexed spender, uint256 value);
