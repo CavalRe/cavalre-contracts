@@ -323,9 +323,7 @@ library LedgersLib {
         return _sub;
     }
 
-    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_, bool isManaged_)
-        internal
-    {
+    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_) internal {
         if (!isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
             revert ILedgers.InvalidToken(name_, symbol_, decimals_);
         }
@@ -361,7 +359,7 @@ library LedgersLib {
 
     function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
         address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-        addLedger(_token, name_, symbol_, decimals_, true);
+        addLedger(_token, name_, symbol_, decimals_);
         return _token;
     }
 

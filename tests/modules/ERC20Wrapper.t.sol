@@ -41,7 +41,7 @@ contract ERC20WrapperTest is Test {
         token = ERC20Wrapper(ledgers.createToken("Wrapped Test Token", "WTT", 18));
 
         if (isVerbose) console.log("Adding new token to ledger");
-        ledgers.addLedger(address(token), "Wrapped Test Token", "WTT", 18, false);
+        ledgers.addLedger(address(token), "Wrapped Test Token", "WTT", 18);
 
         vm.stopPrank();
     }

@@ -194,7 +194,7 @@ contract Ledgers is Module, Initializable, ILedgers {
     function initializeLedgers_unchained() public onlyInitializing {
         enforceIsOwner();
 
-        Lib.addLedger(address(this), "Scale", unicode"𝑆", 18, true);
+        Lib.addLedger(address(this), "Scale", "S", 18);
     }
 
     function initializeLedgers() external initializer {
