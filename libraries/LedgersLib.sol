@@ -34,6 +34,7 @@ library LedgersLib {
     address internal constant SUPPLY_ADDRESS = 0x486d9E1EFfBE2991Ba97401Be079767f9879e1Dd;
     uint8 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
     uint8 constant FLAG_IS_CREDIT = 1 << 1; // 1 = credit account, 0 = debit
+    uint8 constant FLAG_IS_INTERNAL = 1 << 2; // 1 = internal token, 0 = external token
 
     //==================================================================
     //                            Validation
@@ -43,15 +44,17 @@ library LedgersLib {
         if (addr_ == address(0)) revert ILedgers.ZeroAddress();
     }
 
-    function flags(bool isGroup_, bool isCredit_) internal pure returns (uint8 _flags) {
+    function flags(bool isGroup_, bool isCredit_, bool isInternal_) internal pure returns (uint8 _flags) {
         if (isGroup_) _flags |= FLAG_IS_GROUP;
         if (isCredit_) _flags |= FLAG_IS_CREDIT;
+        if (isInternal_) _flags |= FLAG_IS_INTERNAL;
     }
 
-    function flags(address addr_) internal view returns (bool _isGroup, bool _isCredit) {
+    function flags(address addr_) internal view returns (bool _isGroup, bool _isCredit, bool _isInternal) {
         uint8 _flags = store().flags[addr_];
         _isGroup = (_flags & FLAG_IS_GROUP) != 0;
         _isCredit = (_flags & FLAG_IS_CREDIT) != 0;
+        _isInternal = (_flags & FLAG_IS_INTERNAL) != 0;
     }
 
     function isGroup(address addr_) internal view returns (bool) {
@@ -60,6 +63,10 @@ library LedgersLib {
 
     function isCredit(address addr_) internal view returns (bool) {
         return (store().flags[addr_] & FLAG_IS_CREDIT) != 0;
+    }
+
+    function isInternal(address addr_) internal view returns (bool) {
+        return (store().flags[addr_] & FLAG_IS_INTERNAL) != 0;
     }
 
     function setGroup(address addr_, bool isGroup_) internal {
@@ -217,7 +224,7 @@ library LedgersLib {
         s.parent[_sub] = parent_;
         s.subs[parent_].push(toNamedAddress(name_));
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.flags[_sub] = flags(true, isCredit_);
+        s.flags[_sub] = flags(true, isCredit_, true);
         emit ILedgers.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
@@ -245,7 +252,7 @@ library LedgersLib {
         s.parent[_sub] = parent_;
         s.subs[parent_].push(addr_);
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.flags[_sub] = flags(false, isCredit_);
+        s.flags[_sub] = flags(false, isCredit_, true);
         emit ILedgers.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
@@ -323,7 +330,9 @@ library LedgersLib {
         return _sub;
     }
 
-    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_) internal {
+    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_, bool isInternal_)
+        internal
+    {
         if (!isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
             revert ILedgers.InvalidToken(name_, symbol_, decimals_);
         }
@@ -344,11 +353,11 @@ library LedgersLib {
         s.symbol[token_] = symbol_;
         s.decimals[token_] = decimals_;
         s.root[token_] = token_;
-        s.flags[token_] = flags(true, false);
+        s.flags[token_] = flags(true, false, isInternal_);
 
         address _supply = toLedgerAddress(token_, SUPPLY_ADDRESS);
         s.name[_supply] = "Supply";
-        s.flags[_supply] = flags(false, true);
+        s.flags[_supply] = flags(false, true, isInternal_);
 
         if (token_ != address(this)) {
             addSubAccount(address(this), token_, false);
@@ -359,7 +368,7 @@ library LedgersLib {
 
     function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
         address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-        addLedger(_token, name_, symbol_, decimals_);
+        addLedger(_token, name_, symbol_, decimals_, true);
         return _token;
     }
 

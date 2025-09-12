@@ -83,7 +83,7 @@ contract TestLedgers is Ledgers {
     }
 
     function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_) external {
-        LLib.addLedger(token_, name_, symbol_, decimals_);
+        LLib.addLedger(token_, name_, symbol_, decimals_, false);
     }
 
     function mint(address toParent_, address to_, uint256 amount_) external {
