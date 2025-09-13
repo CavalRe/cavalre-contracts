@@ -29,7 +29,7 @@ library TreeLib {
 
         address[] memory subs = ledgers.subAccounts(root);
         for (uint256 i = 0; i < subs.length; i++) {
-            string memory _name = ledgers.name(subs[i]);
+            string memory _name = ledgers.name(Lib.toLedgerAddress(root, subs[i]));
             logTree(ledgers, Lib.toGroupAddress(root, _name), subPrefix, false, i == subs.length - 1);
         }
     }
