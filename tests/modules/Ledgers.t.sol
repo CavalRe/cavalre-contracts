@@ -25,7 +25,7 @@ contract TestLedgers is Ledgers {
         uint256 n;
         _commands = new bytes4[](34);
         _commands[n++] = bytes4(keccak256("initializeTestLedgers()"));
-        _commands[n++] = bytes4(keccak256("addSubAccount(address,address,bool)"));
+        _commands[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _commands[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _commands[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
         _commands[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
@@ -70,8 +70,11 @@ contract TestLedgers is Ledgers {
         return LLib.addSubAccountGroup(parent_, name_, isCredit_);
     }
 
-    function addSubAccount(address parent_, address addr_, bool isCredit_) external returns (address) {
-        return LLib.addSubAccount(parent_, addr_, isCredit_);
+    function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
+        external
+        returns (address)
+    {
+        return LLib.addSubAccount(parent_, addr_, name_, isCredit_);
     }
 
     function removeSubAccountGroup(address parent_, string memory name_) external returns (address) {

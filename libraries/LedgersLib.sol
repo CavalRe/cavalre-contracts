@@ -228,7 +228,10 @@ library LedgersLib {
         emit ILedgers.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
-    function addSubAccount(address parent_, address addr_, bool isCredit_) internal returns (address _sub) {
+    function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
+        internal
+        returns (address _sub)
+    {
         if (!isGroup(parent_)) revert ILedgers.InvalidAccountGroup(parent_);
 
         _sub = toLedgerAddress(parent_, addr_);
@@ -247,7 +250,7 @@ library LedgersLib {
         address _root = root(parent_);
 
         Store storage s = store();
-        s.name[_sub] = name(addr_);
+        s.name[_sub] = name_;
         s.root[_sub] = _root;
         s.parent[_sub] = parent_;
         s.subs[parent_].push(addr_);
@@ -360,7 +363,7 @@ library LedgersLib {
         s.flags[_supply] = flags(false, true, isInternal_);
 
         if (token_ != address(this)) {
-            addSubAccount(address(this), token_, false);
+            addSubAccount(address(this), token_, name_, false);
         }
 
         emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
