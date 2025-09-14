@@ -259,6 +259,48 @@ library LedgersLib {
         emit ILedgers.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
+    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_, bool isInternal_)
+        internal
+    {
+        if (!isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
+            revert ILedgers.InvalidToken(name_, symbol_, decimals_);
+        }
+
+        Store storage s = store();
+        if (isGroup(token_) && s.parent[token_] == address(0)) {
+            // Token already exists
+            bool sameName = keccak256(bytes(name_)) == keccak256(bytes(name(token_)));
+            bool sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(token_)));
+            bool sameDec = decimals(token_) == decimals_;
+            if (sameName && sameSymbol && sameDec) {
+                // No changes needed
+                return;
+            }
+            revert ILedgers.InvalidToken(name_, symbol_, decimals_);
+        }
+        s.name[token_] = name_;
+        s.symbol[token_] = symbol_;
+        s.decimals[token_] = decimals_;
+        s.root[token_] = token_;
+        s.flags[token_] = flags(true, false, isInternal_);
+
+        address _supply = toLedgerAddress(token_, SUPPLY_ADDRESS);
+        s.name[_supply] = "Supply";
+        s.flags[_supply] = flags(false, true, isInternal_);
+
+        if (token_ != address(this)) {
+            addSubAccount(address(this), token_, name_, false);
+        }
+
+        emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
+    }
+
+    function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
+        address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
+        addLedger(_token, name_, symbol_, decimals_, true);
+        return _token;
+    }
+
     function removeSubAccountGroup(address parent_, string memory name_) internal returns (address) {
         address _sub = toGroupAddress(parent_, name_);
         if (!isGroup(parent_)) revert ILedgers.InvalidAccountGroup(parent_);
@@ -331,48 +373,6 @@ library LedgersLib {
         emit ILedgers.SubAccountRemoved(_root, parent_, addr_);
 
         return _sub;
-    }
-
-    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_, bool isInternal_)
-        internal
-    {
-        if (!isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
-            revert ILedgers.InvalidToken(name_, symbol_, decimals_);
-        }
-
-        Store storage s = store();
-        if (isGroup(token_) && s.parent[token_] == address(0)) {
-            // Token already exists
-            bool sameName = keccak256(bytes(name_)) == keccak256(bytes(name(token_)));
-            bool sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(token_)));
-            bool sameDec = decimals(token_) == decimals_;
-            if (sameName && sameSymbol && sameDec) {
-                // No changes needed
-                return;
-            }
-            revert ILedgers.InvalidToken(name_, symbol_, decimals_);
-        }
-        s.name[token_] = name_;
-        s.symbol[token_] = symbol_;
-        s.decimals[token_] = decimals_;
-        s.root[token_] = token_;
-        s.flags[token_] = flags(true, false, isInternal_);
-
-        address _supply = toLedgerAddress(token_, SUPPLY_ADDRESS);
-        s.name[_supply] = "Supply";
-        s.flags[_supply] = flags(false, true, isInternal_);
-
-        if (token_ != address(this)) {
-            addSubAccount(address(this), token_, name_, false);
-        }
-
-        emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
-    }
-
-    function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
-        address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-        addLedger(_token, name_, symbol_, decimals_, true);
-        return _token;
     }
 
     //==================================================================
