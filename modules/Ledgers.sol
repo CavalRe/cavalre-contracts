@@ -159,7 +159,7 @@ contract Ledgers is Module, Initializable, ILedgers {
 
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](27);
+        _commands = new bytes4[](29);
         _commands[n++] = bytes4(keccak256("initializeLedgers()"));
         _commands[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
         _commands[n++] = bytes4(keccak256("name(address)"));
@@ -168,6 +168,8 @@ contract Ledgers is Module, Initializable, ILedgers {
         _commands[n++] = bytes4(keccak256("root(address)"));
         _commands[n++] = bytes4(keccak256("parent(address)"));
         _commands[n++] = bytes4(keccak256("isGroup(address)"));
+        _commands[n++] = bytes4(keccak256("isCredit(address)"));
+        _commands[n++] = bytes4(keccak256("isInternal(address)"));
         _commands[n++] = bytes4(keccak256("subAccounts(address)"));
         _commands[n++] = bytes4(keccak256("hasSubAccount(address)"));
         _commands[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
@@ -232,6 +234,14 @@ contract Ledgers is Module, Initializable, ILedgers {
 
     function isGroup(address addr_) external view returns (bool) {
         return Lib.isGroup(addr_);
+    }
+
+    function isCredit(address addr_) external view returns (bool) {
+        return Lib.isCredit(addr_);
+    }
+
+    function isInternal(address addr_) external view returns (bool) {
+        return Lib.isInternal(addr_);
     }
 
     function subAccounts(address parent_) external view returns (address[] memory) {

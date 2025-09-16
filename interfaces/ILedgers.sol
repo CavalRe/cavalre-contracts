@@ -21,6 +21,8 @@ interface ILedgers {
     function root(address addr) external view returns (address);
     function parent(address addr) external view returns (address);
     function isGroup(address addr) external view returns (bool);
+    function isCredit(address addr) external view returns (bool);
+    function isInternal(address addr) external view returns (bool);
     function subAccounts(address parent) external view returns (address[] memory);
     function hasSubAccount(address parent) external view returns (bool);
     function subAccountIndex(address parent, address addr) external view returns (uint32);

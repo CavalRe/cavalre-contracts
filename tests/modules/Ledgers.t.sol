@@ -23,7 +23,7 @@ contract TestLedgers is Ledgers {
     // Keep command registry so Router can “register” the module (if you use it)
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](34);
+        _commands = new bytes4[](36);
         _commands[n++] = bytes4(keccak256("initializeTestLedgers()"));
         _commands[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _commands[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -39,6 +39,8 @@ contract TestLedgers is Ledgers {
         _commands[n++] = bytes4(keccak256("root(address)"));
         _commands[n++] = bytes4(keccak256("parent(address)"));
         _commands[n++] = bytes4(keccak256("isGroup(address)"));
+        _commands[n++] = bytes4(keccak256("isCredit(address)"));
+        _commands[n++] = bytes4(keccak256("isInternal(address)"));
         _commands[n++] = bytes4(keccak256("subAccounts(address)"));
         _commands[n++] = bytes4(keccak256("hasSubAccount(address)"));
         _commands[n++] = bytes4(keccak256("subAccountIndex(address,address)"));

@@ -17,7 +17,8 @@ import {console} from "forge-std/src/Test.sol";
 // ─────────────────────────────────────────────────────────────────────────────
 library TreeLib {
     function logTree(Ledgers ledgers, address root, string memory prefix, bool isFirst, bool isLast) internal view {
-        string memory label = ledgers.name(root);
+        string memory label =
+            string(abi.encodePacked(ledgers.name(root), " (", ledgers.isCredit(root) ? "C" : "D", ")"));
         bool isGroup = ledgers.isGroup(root);
         console.log(
             "%s%s%s",
