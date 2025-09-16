@@ -6,7 +6,9 @@ interface ILedgers {
     // Initializers
     // ─────────────────────────────────────────────────────────────────────────────
     function initializeLedgers() external;
-    function createToken(string memory name, string memory symbol, uint8 decimals) external returns (address);
+    function createToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
+        external
+        returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Metadata (by arbitrary address)

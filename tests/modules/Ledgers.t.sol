@@ -31,8 +31,8 @@ contract TestLedgers is Ledgers {
         _commands[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _commands[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("burn(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("addLedger(address,string,string,uint8)"));
-        _commands[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
+        _commands[n++] = bytes4(keccak256("addLedger(address,string,string,uint8,bool,bool)"));
+        _commands[n++] = bytes4(keccak256("createToken(string,string,uint8,bool)"));
         _commands[n++] = bytes4(keccak256("name(address)"));
         _commands[n++] = bytes4(keccak256("symbol(address)"));
         _commands[n++] = bytes4(keccak256("decimals(address)"));
@@ -87,8 +87,15 @@ contract TestLedgers is Ledgers {
         return LLib.removeSubAccount(parent_, addr_);
     }
 
-    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_) external {
-        LLib.addLedger(token_, name_, symbol_, decimals_, false);
+    function addLedger(
+        address token_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        bool isCredit_,
+        bool isInternal_
+    ) external {
+        LLib.addLedger(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
     }
 
     function mint(address toParent_, address to_, uint256 amount_) external {
@@ -146,13 +153,13 @@ contract LedgersTest is Test {
 
         // Add a standalone ledger tree for misc checks
         testLedger = LLib.toNamedAddress("Test Ledger");
-        ledgers.addLedger(testLedger, "Test Ledger", "TL", 18);
+        ledgers.addLedger(testLedger, "Test Ledger", "TL", 18, false, true);
         ledgers.addSubAccountGroup(
             ledgers.addSubAccountGroup(ledgers.addSubAccountGroup(testLedger, "1", false), "10", false), "100", false
         );
 
         // Add token r1 and its sub-groups
-        ledgers.addLedger(r1, "1", "1", 18);
+        ledgers.addLedger(r1, "1", "1", 18, false, true);
         ledgers.addSubAccountGroup(r1, "10", false);
         ledgers.addSubAccountGroup(r1, "11", false);
         ledgers.addSubAccountGroup(r10, "100", false);

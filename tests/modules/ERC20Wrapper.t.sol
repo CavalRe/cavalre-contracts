@@ -38,10 +38,10 @@ contract ERC20WrapperTest is Test {
         ledgers.initializeTestLedgers();
 
         if (isVerbose) console.log("Creating ERC20Wrapper");
-        token = ERC20Wrapper(ledgers.createToken("Wrapped Test Token", "WTT", 18));
+        token = ERC20Wrapper(ledgers.createToken("Wrapped Test Token", "WTT", 18, false));
 
         if (isVerbose) console.log("Adding new token to ledger");
-        ledgers.addLedger(address(token), "Wrapped Test Token", "WTT", 18);
+        ledgers.addLedger(address(token), "Wrapped Test Token", "WTT", 18, false, true);
 
         vm.stopPrank();
     }
@@ -64,7 +64,7 @@ contract ERC20WrapperTest is Test {
     function testERC20WrapperCreateToken() public {
         vm.startPrank(owner);
 
-        address _newToken = ledgers.createToken("New Test Token", "NTT", 18);
+        address _newToken = ledgers.createToken("New Test Token", "NTT", 18, false);
         assertEq(ERC20Wrapper(_newToken).name(), "New Test Token");
         assertEq(ERC20Wrapper(_newToken).symbol(), "NTT");
         assertEq(ERC20Wrapper(_newToken).decimals(), 18);

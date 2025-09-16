@@ -161,7 +161,7 @@ contract Ledgers is Module, Initializable, ILedgers {
         uint256 n;
         _commands = new bytes4[](29);
         _commands[n++] = bytes4(keccak256("initializeLedgers()"));
-        _commands[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
+        _commands[n++] = bytes4(keccak256("createToken(string,string,uint8,bool)"));
         _commands[n++] = bytes4(keccak256("name(address)"));
         _commands[n++] = bytes4(keccak256("symbol(address)"));
         _commands[n++] = bytes4(keccak256("decimals(address)"));
@@ -196,17 +196,20 @@ contract Ledgers is Module, Initializable, ILedgers {
     function initializeLedgers_unchained() public onlyInitializing {
         enforceIsOwner();
 
-        Lib.addLedger(address(this), "Scale", "S", 18, true);
+        Lib.addLedger(address(this), "Scale", "S", 18, false, true);
     }
 
     function initializeLedgers() external initializer {
         initializeLedgers_unchained();
     }
 
-    function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
+    function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+        external
+        returns (address)
+    {
         enforceIsOwner();
 
-        return Lib.createToken(name_, symbol_, decimals_);
+        return Lib.createToken(name_, symbol_, decimals_, isCredit_);
     }
 
     //==========

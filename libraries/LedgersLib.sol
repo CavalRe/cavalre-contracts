@@ -259,9 +259,14 @@ library LedgersLib {
         emit ILedgers.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
-    function addLedger(address token_, string memory name_, string memory symbol_, uint8 decimals_, bool isInternal_)
-        internal
-    {
+    function addLedger(
+        address token_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        bool isCredit_,
+        bool isInternal_
+    ) internal {
         if (!isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
             revert ILedgers.InvalidToken(name_, symbol_, decimals_);
         }
@@ -289,15 +294,18 @@ library LedgersLib {
         s.flags[_supply] = flags(false, true, isInternal_);
 
         if (token_ != address(this)) {
-            addSubAccount(address(this), token_, name_, false);
+            addSubAccount(address(this), token_, name_, isCredit_);
         }
 
         emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
     }
 
-    function createToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
+    function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+        external
+        returns (address)
+    {
         address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-        addLedger(_token, name_, symbol_, decimals_, true);
+        addLedger(_token, name_, symbol_, decimals_, isCredit_, true);
         return _token;
     }
 
