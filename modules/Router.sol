@@ -4,6 +4,10 @@ pragma solidity ^0.8.20;
 import {Module, Lib as ML} from "./Module.sol";
 import {RouterLib as Lib} from "../libraries/RouterLib.sol";
 
+interface INativeHandler {
+    function handleNative() external payable;
+}
+
 contract Router is Module {
     // Events
     event CommandSet(bytes4 indexed command, address indexed module);
@@ -40,48 +44,50 @@ contract Router is Module {
         }
     }
 
-    receive() external payable {}
-
-    function getCommands(address _module) public returns (bytes4[] memory) {
-        (bool success, bytes memory data) = _module.call(abi.encodeWithSignature("commands()"));
-        require(success, "Command: _getCommands failed");
-        return abi.decode(data, (bytes4[]));
+    receive() external payable {
+        INativeHandler(address(this)).handleNative{value: msg.value}();
     }
 
-    function addModule(address _module) external {
+    function getCommands(address module_) public returns (bytes4[] memory) {
+        (bool _success, bytes memory _data) = module_.call(abi.encodeWithSignature("commands()"));
+        require(_success, "Command: getCommands failed");
+        return abi.decode(_data, (bytes4[]));
+    }
+
+    function addModule(address module_) external {
         enforceIsOwner();
-        bytes4[] memory _commands = getCommands(_module);
-        if (_commands.length == 0) revert ModuleNotFound(_module);
+        bytes4[] memory _commands = getCommands(module_);
+        if (_commands.length == 0) revert ModuleNotFound(module_);
         Lib.Store storage s = Lib.store();
         for (uint256 i = 0; i < _commands.length; i++) {
             if (s.modules[_commands[i]] != address(0)) {
-                revert CommandAlreadySet(_commands[i], _module);
+                revert CommandAlreadySet(_commands[i], module_);
             }
-            s.modules[_commands[i]] = _module;
-            emit CommandSet(_commands[i], _module);
+            s.modules[_commands[i]] = module_;
+            emit CommandSet(_commands[i], module_);
         }
-        ML.store().owners[_module] = msg.sender;
-        emit ModuleAdded(_module);
+        ML.store().owners[module_] = msg.sender;
+        emit ModuleAdded(module_);
     }
 
-    function removeModule(address _module) external {
+    function removeModule(address module_) external {
         enforceIsOwner();
-        bytes4[] memory _commands = getCommands(_module);
-        if (_commands.length == 0) revert ModuleNotFound(_module);
+        bytes4[] memory _commands = getCommands(module_);
+        if (_commands.length == 0) revert ModuleNotFound(module_);
         Lib.Store storage s = Lib.store();
         for (uint256 i = 0; i < _commands.length; i++) {
             s.modules[_commands[i]] = address(0);
             emit CommandSet(_commands[i], address(0));
         }
-        delete ML.store().owners[_module];
-        emit ModuleRemoved(_module);
+        delete ML.store().owners[module_];
+        emit ModuleRemoved(module_);
     }
 
-    function owner(address _module) public view returns (address) {
-        return ML.store().owners[_module];
+    function owner(address module_) public view returns (address) {
+        return ML.store().owners[module_];
     }
 
-    function module(bytes4 _selector) public view returns (address) {
-        return Lib.store().modules[_selector];
+    function module(bytes4 selector_) public view returns (address) {
+        return Lib.store().modules[selector_];
     }
 }
