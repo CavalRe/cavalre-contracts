@@ -192,13 +192,13 @@ contract LedgersTest is Test {
         ledgers.initializeTestLedgers(); // re-init should revert
 
         // Tree shape sanity
-        assertEq(ledgers.subAccounts(testLedger).length, 1, "Subaccounts (testLedger)");
-        assertEq(ledgers.subAccounts(r1).length, 2, "Subaccounts (r1)");
+        assertEq(ledgers.subAccounts(testLedger).length, 3, "Subaccounts (testLedger)");
+        assertEq(ledgers.subAccounts(r1).length, 4, "Subaccounts (r1)");
         assertEq(ledgers.subAccounts(r10).length, 2, "Subaccounts (r10)");
         assertEq(ledgers.subAccounts(r11).length, 2, "Subaccounts (r11)");
 
-        assertEq(ledgers.subAccountIndex(r1, _10), 1, "idx(r10)");
-        assertEq(ledgers.subAccountIndex(r1, _11), 2, "idx(r11)");
+        assertEq(ledgers.subAccountIndex(r1, _10), 3, "idx(r10)");
+        assertEq(ledgers.subAccountIndex(r1, _11), 4, "idx(r11)");
         assertEq(ledgers.subAccountIndex(r10, _100), 1, "idx(r100)");
         assertEq(ledgers.subAccountIndex(r10, _101), 2, "idx(r101)");
         assertEq(ledgers.subAccountIndex(r11, _110), 1, "idx(r110)");

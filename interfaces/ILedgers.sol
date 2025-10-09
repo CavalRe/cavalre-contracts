@@ -107,7 +107,7 @@ interface ILedgers {
     error InvalidSubAccountGroup(string subName, bool isCredit);
     error InvalidSubAccountIndex(uint256 index);
     error InvalidString(string symbol);
-    error InvalidToken(string name, string symbol, uint8 decimals);
+    error InvalidToken(address token, string name, string symbol, uint8 decimals, bool isCredit, bool isInternal);
     error MaxDepthExceeded();
     error NotCredit(string name);
     error SubAccountNotFound(address addr);

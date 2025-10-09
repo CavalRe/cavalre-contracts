@@ -5,6 +5,12 @@ import {ILedgers, ERC20Wrapper} from "../modules/Ledgers.sol";
 
 import {console} from "forge-std/src/console.sol";
 
+interface IERC20 {
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
+}
+
 library LedgersLib {
     struct Store {
         mapping(address => string) name;
@@ -14,6 +20,7 @@ library LedgersLib {
         mapping(address sub => address) parent;
         mapping(address parent => address[]) subs;
         mapping(address sub => uint32) subIndex;
+        mapping(address => address) wrapper;
         mapping(address => uint8) flags;
         mapping(address => uint256) balance;
         mapping(address owner => mapping(address spender => uint256)) allowances;
@@ -30,8 +37,10 @@ library LedgersLib {
     }
 
     uint8 internal constant MAX_DEPTH = 10;
-    // toNamedAddress("Supply")
-    address internal constant SUPPLY_ADDRESS = 0x486d9E1EFfBE2991Ba97401Be079767f9879e1Dd;
+    // toNamedAddress("Total")
+    address internal constant TOTAL_ADDRESS = 0xa763678a2e868D872d408672C9f80B77F4d1d14B;
+    // toNamedAddress("Reserve")
+    address internal constant RESERVE_ADDRESS = 0x3a9097D216F9D5859bE6b3918F997A8823E92984;
     uint8 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
     uint8 constant FLAG_IS_CREDIT = 1 << 1; // 1 = credit account, 0 = debit
     uint8 constant FLAG_IS_INTERNAL = 1 << 2; // 1 = internal token, 0 = external token
@@ -42,6 +51,10 @@ library LedgersLib {
 
     function checkZeroAddress(address addr_) internal pure {
         if (addr_ == address(0)) revert ILedgers.ZeroAddress();
+    }
+
+    function isZeroAddress(address addr_) internal pure returns (bool) {
+        return addr_ == address(0);
     }
 
     function flags(bool isGroup_, bool isCredit_, bool isInternal_) internal pure returns (uint8 _flags) {
@@ -259,6 +272,67 @@ library LedgersLib {
         emit ILedgers.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
+    // function addExternalToken(address token_) internal returns (address) {
+    //     if (isZeroAddress(token_)) revert ILedgers.InvalidAddress(token_);
+
+    //     string memory _name = IERC20(token_).name();
+    //     string memory _symbol = IERC20(token_).symbol();
+    //     uint8 _decimals = IERC20(token_).decimals();
+
+    //     Store storage s = store();
+    //     // Check if token already exists
+    //     if (s.root[token_] == token_) {
+    //         // Token already exists
+    //         bool _sameName = keccak256(bytes(_name)) == keccak256(bytes(name(token_)));
+    //         bool _sameSymbol = keccak256(bytes(_symbol)) == keccak256(bytes(symbol(token_)));
+    //         bool _sameDec = _decimals == decimals(token_);
+    //         (bool _isGroup, bool _isCredit, bool _isInternal) = flags(token_);
+    //         bool _sameType = _isGroup && !_isCredit && !_isInternal;
+    //         if (_sameName && _sameSymbol && _sameDec && _sameType) {
+    //             // No changes needed
+    //             return token_;
+    //         }
+    //         revert ILedgers.InvalidToken(token_, _name, _symbol, _decimals, _isCredit, _isInternal);
+    //     }
+    //     if (!isInternal_) {
+    //         bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(IERC20(token_).name()));
+    //         bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(IERC20(token_).symbol()));
+    //         bool _sameDec = IERC20(token_).decimals() == decimals_;
+    //         if (!_sameName || !_sameSymbol || !_sameDec) {
+    //             revert ILedgers.InvalidToken(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
+    //         }
+    //         name_ = string(abi.encodePacked(name_, " | CavalRe"));
+    //         symbol_ = string(abi.encodePacked(symbol_, ".cav"));
+    //         token_ = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
+    //     }
+    //     s.name[token_] = name_;
+    //     s.symbol[token_] = symbol_;
+    //     s.decimals[token_] = decimals_;
+    //     s.root[token_] = token_;
+    //     s.flags[token_] = flags(true, false, isInternal_);
+
+    //     // Add a "Total" credit subaccount group
+    //     addSubAccountGroup(token_, "Total", true);
+
+    //     // Add a "Reserve" debit subaccount
+    //     addSubAccount(token_, RESERVE_ADDRESS, "Reserve", false);
+
+    //     // Add a subaccount to Scale for this token
+    //     if (token_ != address(this)) {
+    //         addSubAccount(address(this), token_, name_, isCredit_);
+    //     }
+
+    //     emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
+
+    //     return token_;
+    // }
+
+    /* 
+        Question:
+        For an external token, should Ledgers use the external address or the internal wrapper address?
+        For iternal tokens, Ledgers uses the internal wrapper address.
+        If we use the internal wrapper address for external tokens, then we need a mapping from external -> internal
+    */
     function addLedger(
         address token_,
         string memory name_,
@@ -267,21 +341,38 @@ library LedgersLib {
         bool isCredit_,
         bool isInternal_
     ) internal {
-        if (!isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
-            revert ILedgers.InvalidToken(name_, symbol_, decimals_);
+        if (isZeroAddress(token_) || !isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
+            revert ILedgers.InvalidToken(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
         }
 
         Store storage s = store();
-        if (isGroup(token_) && s.parent[token_] == address(0)) {
+        // Check if token already exists
+        if (token_ != address(0) && s.root[token_] == token_) {
             // Token already exists
-            bool sameName = keccak256(bytes(name_)) == keccak256(bytes(name(token_)));
-            bool sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(token_)));
-            bool sameDec = decimals(token_) == decimals_;
-            if (sameName && sameSymbol && sameDec) {
+            bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(name(token_)));
+            bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(token_)));
+            bool _sameDec = decimals(token_) == decimals_;
+            (bool _isGroup, bool _isCredit, bool _isInternal) = flags(token_);
+            bool _sameType = _isGroup == true && _isCredit == isCredit_ && _isInternal == isInternal_;
+            if (_sameName && _sameSymbol && _sameDec && _sameType) {
                 // No changes needed
                 return;
             }
-            revert ILedgers.InvalidToken(name_, symbol_, decimals_);
+            revert ILedgers.InvalidToken(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
+        }
+        // Handle external tokens
+        if (!isInternal_) {
+            bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(IERC20(token_).name()));
+            bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(IERC20(token_).symbol()));
+            bool _sameDec = IERC20(token_).decimals() == decimals_;
+            if (!_sameName || !_sameSymbol || !_sameDec) {
+                revert ILedgers.InvalidToken(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
+            }
+            name_ = string(abi.encodePacked(name_, " | CavalRe"));
+            symbol_ = string(abi.encodePacked(symbol_, ".cav"));
+            address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
+            s.wrapper[token_] = _token;
+            token_ = _token; // Use the internal wrapper address
         }
         s.name[token_] = name_;
         s.symbol[token_] = symbol_;
@@ -289,10 +380,13 @@ library LedgersLib {
         s.root[token_] = token_;
         s.flags[token_] = flags(true, false, isInternal_);
 
-        address _supply = toLedgerAddress(token_, SUPPLY_ADDRESS);
-        s.name[_supply] = "Supply";
-        s.flags[_supply] = flags(false, true, isInternal_);
+        // Add a "Total" credit subaccount group
+        addSubAccountGroup(token_, "Total", true);
 
+        // Add a "Reserve" debit subaccount
+        addSubAccount(token_, RESERVE_ADDRESS, "Reserve", false);
+
+        // Add a subaccount to Scale for this token
         if (token_ != address(this)) {
             addSubAccount(address(this), token_, name_, isCredit_);
         }
@@ -472,12 +566,12 @@ library LedgersLib {
 
     function mint(address toParent_, address to_, uint256 amount_) internal returns (bool) {
         address _token = root(toParent_);
-        return transfer(_token, SUPPLY_ADDRESS, toParent_, to_, amount_, true);
+        return transfer(_token, TOTAL_ADDRESS, toParent_, to_, amount_, true);
     }
 
     function burn(address fromParent_, address from_, uint256 amount_) internal returns (bool) {
         address _token = root(fromParent_);
-        return transfer(fromParent_, from_, _token, SUPPLY_ADDRESS, amount_, true);
+        return transfer(fromParent_, from_, _token, TOTAL_ADDRESS, amount_, true);
     }
 
     function approve(address ownerParent_, address owner_, address spender_, uint256 amount_, bool emitEvent_)

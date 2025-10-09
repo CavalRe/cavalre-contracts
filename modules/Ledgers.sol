@@ -274,7 +274,7 @@ contract Ledgers is Module, Initializable, ILedgers {
     }
 
     function totalSupply(address token_) external view returns (uint256) {
-        return Lib.balanceOf(Lib.toLedgerAddress(token_, Lib.SUPPLY_ADDRESS));
+        return Lib.balanceOf(Lib.toLedgerAddress(token_, Lib.TOTAL_ADDRESS));
     }
 
     function transfer(
