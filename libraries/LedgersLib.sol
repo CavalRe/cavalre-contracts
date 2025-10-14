@@ -3,13 +3,10 @@ pragma solidity ^0.8.24;
 
 import {ILedgers, ERC20Wrapper} from "../modules/Ledgers.sol";
 
-import {console} from "forge-std/src/console.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-interface IERC20 {
-    function name() external view returns (string memory);
-    function symbol() external view returns (string memory);
-    function decimals() external view returns (uint8);
-}
+import {console} from "forge-std/src/console.sol";
 
 library LedgersLib {
     struct Store {
@@ -196,6 +193,10 @@ library LedgersLib {
         return store().subIndex[_addr];
     }
 
+    function wrapper(address token_) internal view returns (address) {
+        return store().wrapper[token_];
+    }
+
     //==================================================================
     //                        Balance & Supply
     //==================================================================
@@ -362,9 +363,10 @@ library LedgersLib {
         }
         // Handle external tokens
         if (!isInternal_) {
-            bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(IERC20(token_).name()));
-            bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(IERC20(token_).symbol()));
-            bool _sameDec = IERC20(token_).decimals() == decimals_;
+            IERC20Metadata meta = IERC20Metadata(token_);
+            bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(meta.name()));
+            bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(meta.symbol()));
+            bool _sameDec = meta.decimals() == decimals_;
             if (!_sameName || !_sameSymbol || !_sameDec) {
                 revert ILedgers.InvalidToken(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
             }
@@ -548,6 +550,20 @@ library LedgersLib {
             _depth++;
         }
         revert ILedgers.MaxDepthExceeded();
+    }
+
+    function wrap(address token_, uint256 amount_) internal {
+        address _wrapper = store().wrapper[token_];
+        if (_wrapper == address(0)) revert ILedgers.InvalidAddress(token_);
+        SafeERC20.safeTransferFrom(IERC20(token_), msg.sender, address(this), amount_);
+        mint(_wrapper, msg.sender, amount_);
+    }
+
+    function unwrap(address token_, uint256 amount_) internal {
+        address _wrapper = store().wrapper[token_];
+        if (_wrapper == address(0)) revert ILedgers.InvalidAddress(token_);
+        burn(_wrapper, msg.sender, amount_);
+        SafeERC20.safeTransfer(IERC20(token_), msg.sender, amount_);
     }
 
     function transfer(

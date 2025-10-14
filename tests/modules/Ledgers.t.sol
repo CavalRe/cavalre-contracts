@@ -11,6 +11,7 @@ import {Ledgers} from "../../modules/Ledgers.sol";
 import {Module} from "../../modules/Module.sol";
 import {Router} from "../../modules/Router.sol";
 import {TreeLib} from "../../libraries/TreeLib.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
 
@@ -23,7 +24,7 @@ contract TestLedgers is Ledgers {
     // Keep command registry so Router can “register” the module (if you use it)
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](36);
+        _commands = new bytes4[](39);
         _commands[n++] = bytes4(keccak256("initializeTestLedgers()"));
         _commands[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _commands[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -44,6 +45,7 @@ contract TestLedgers is Ledgers {
         _commands[n++] = bytes4(keccak256("subAccounts(address)"));
         _commands[n++] = bytes4(keccak256("hasSubAccount(address)"));
         _commands[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
+        _commands[n++] = bytes4(keccak256("wrapper(address)"));
         _commands[n++] = bytes4(keccak256("balanceOf(address,string)"));
         _commands[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _commands[n++] = bytes4(keccak256("totalSupply(address)"));
@@ -60,6 +62,8 @@ contract TestLedgers is Ledgers {
         _commands[n++] = bytes4(keccak256("allowance(address,address,address)"));
         _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,address,uint256,bool)"));
+        _commands[n++] = bytes4(keccak256("wrap(address,uint256)"));
+        _commands[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         if (n != _commands.length) revert InvalidCommandsLength(n);
     }
 
@@ -106,7 +110,31 @@ contract TestLedgers is Ledgers {
         LLib.burn(fromParent_, from_, amount_);
     }
 
+    function wrap(address token_, uint256 amount_) external {
+        LLib.wrap(token_, amount_);
+    }
+
+    function unwrap(address token_, uint256 amount_) external {
+        LLib.unwrap(token_, amount_);
+    }
+
     receive() external payable {}
+}
+
+contract MockERC20 is ERC20 {
+    uint8 private immutable _mockDecimals;
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
+        _mockDecimals = decimals_;
+    }
+
+    function mint(address to_, uint256 amount_) external {
+        _mint(to_, amount_);
+    }
+
+    function decimals() public view override returns (uint8) {
+        return _mockDecimals;
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -121,6 +149,8 @@ contract LedgersTest is Test {
     address charlie = address(0xCA11);
 
     address testLedger;
+    MockERC20 externalToken;
+    address externalWrapper;
 
     // Root
     address _1 = LLib.toNamedAddress("1");
@@ -166,6 +196,10 @@ contract LedgersTest is Test {
         ledgers.addSubAccountGroup(r10, "101", false);
         ledgers.addSubAccountGroup(r11, "110", false);
         ledgers.addSubAccountGroup(r11, "111", false);
+
+        externalToken = new MockERC20("External Token", "EXT", 18);
+        ledgers.addLedger(address(externalToken), "External Token", "EXT", 18, false, false);
+        externalWrapper = ledgers.wrapper(address(externalToken));
     }
 
     // Matches your old “InvalidInitialization” guard
@@ -395,6 +429,48 @@ contract LedgersTest is Test {
         assertEq(ledgers.balanceOf(r10, "100"), 400, 'balanceOf(r10, "100")');
         assertEq(ledgers.balanceOf(r1, "10"), 400, 'balanceOf(r1, "10")');
         assertEq(ledgers.totalSupply(r1), 400, "totalSupply(r1)");
+    }
+
+    function testLedgersWrap() public {
+        vm.startPrank(alice);
+
+        MockERC20 unlisted = new MockERC20("Unlisted Token", "UNL", 18);
+        uint256 unlistedAmount = 50;
+        unlisted.mint(alice, unlistedAmount);
+        unlisted.approve(address(ledgers), unlistedAmount);
+        vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAddress.selector, address(unlisted)));
+        ledgers.wrap(address(unlisted), unlistedAmount);
+
+        uint256 wrapAmount = 120;
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledgers), wrapAmount);
+        ledgers.wrap(address(externalToken), wrapAmount);
+
+        assertEq(externalToken.balanceOf(address(router)), wrapAmount, "router holds wrapped tokens");
+        assertEq(externalToken.balanceOf(alice), 0, "alice external balance consumed");
+        assertEq(ledgers.balanceOf(externalWrapper, alice), wrapAmount, "ledger balance after wrap");
+        assertEq(ledgers.totalSupply(externalWrapper), wrapAmount, "total supply after wrap");
+
+        vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAddress.selector, address(unlisted)));
+        ledgers.unwrap(address(unlisted), 10);
+
+        uint256 firstUnwrap = 45;
+        ledgers.unwrap(address(externalToken), firstUnwrap);
+        assertEq(
+            externalToken.balanceOf(address(router)), wrapAmount - firstUnwrap, "router balance after partial unwrap"
+        );
+        assertEq(externalToken.balanceOf(alice), firstUnwrap, "alice external balance after partial unwrap");
+        assertEq(
+            ledgers.balanceOf(externalWrapper, alice), wrapAmount - firstUnwrap, "ledger balance after partial unwrap"
+        );
+        assertEq(ledgers.totalSupply(externalWrapper), wrapAmount - firstUnwrap, "total supply after partial unwrap");
+
+        uint256 remaining = wrapAmount - firstUnwrap;
+        ledgers.unwrap(address(externalToken), remaining);
+        assertEq(externalToken.balanceOf(address(router)), 0, "router drained after unwrap");
+        assertEq(externalToken.balanceOf(alice), wrapAmount, "alice restored external balance");
+        assertEq(ledgers.balanceOf(externalWrapper, alice), 0, "ledger balance cleared");
+        assertEq(ledgers.totalSupply(externalWrapper), 0, "total supply cleared");
     }
 
     // ─────────────────────────────────────────────────────────────────────────

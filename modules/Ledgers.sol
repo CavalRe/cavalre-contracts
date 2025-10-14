@@ -259,6 +259,10 @@ contract Ledgers is Module, Initializable, ILedgers {
         return Lib.subAccountIndex(parent_, addr_);
     }
 
+    function wrapper(address token_) external view returns (address) {
+        return Lib.wrapper(token_);
+    }
+
     //======================
     // Balances & Transfers
     //======================
