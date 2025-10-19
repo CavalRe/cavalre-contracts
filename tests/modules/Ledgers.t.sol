@@ -189,7 +189,7 @@ contract LedgersTest is Test {
         );
 
         // Add token r1 and its sub-groups
-        ledgers.addLedger(r1, "1", "1", 18, false, true);
+        ledgers.addLedger(r1, "1", "1", 18, true, true);
         ledgers.addSubAccountGroup(r1, "10", false);
         ledgers.addSubAccountGroup(r1, "11", false);
         ledgers.addSubAccountGroup(r10, "100", false);
@@ -227,12 +227,12 @@ contract LedgersTest is Test {
 
         // Tree shape sanity
         assertEq(ledgers.subAccounts(testLedger).length, 3, "Subaccounts (testLedger)");
-        assertEq(ledgers.subAccounts(r1).length, 4, "Subaccounts (r1)");
+        assertEq(ledgers.subAccounts(r1).length, 3, "Subaccounts (r1)");
         assertEq(ledgers.subAccounts(r10).length, 2, "Subaccounts (r10)");
         assertEq(ledgers.subAccounts(r11).length, 2, "Subaccounts (r11)");
 
-        assertEq(ledgers.subAccountIndex(r1, _10), 3, "idx(r10)");
-        assertEq(ledgers.subAccountIndex(r1, _11), 4, "idx(r11)");
+        assertEq(ledgers.subAccountIndex(r1, _10), 2, "idx(r10)");
+        assertEq(ledgers.subAccountIndex(r1, _11), 3, "idx(r11)");
         assertEq(ledgers.subAccountIndex(r10, _100), 1, "idx(r100)");
         assertEq(ledgers.subAccountIndex(r10, _101), 2, "idx(r101)");
         assertEq(ledgers.subAccountIndex(r11, _110), 1, "idx(r110)");

@@ -380,17 +380,20 @@ library LedgersLib {
         s.symbol[token_] = symbol_;
         s.decimals[token_] = decimals_;
         s.root[token_] = token_;
-        s.flags[token_] = flags(true, false, isInternal_);
+        s.flags[token_] = flags(true, isCredit_, isInternal_);
 
         // Add a "Total" credit subaccount group
         addSubAccountGroup(token_, "Total", true);
 
-        // Add a "Reserve" debit subaccount
-        addSubAccount(token_, RESERVE_ADDRESS, "Reserve", false);
-
-        // Add a subaccount to Scale for this token
+        // Add a Reserve subaccount and subaccount to Scale for this token
         if (token_ != address(this)) {
-            addSubAccount(address(this), token_, name_, isCredit_);
+            if (isCredit_) {
+                addSubAccount(toGroupAddress(token_, "Total"), RESERVE_ADDRESS, "Reserve", isCredit_);
+                addSubAccount(toGroupAddress(address(this), "Total"), token_, name_, isCredit_);
+            } else {
+                addSubAccount(token_, RESERVE_ADDRESS, "Reserve", isCredit_);
+                addSubAccount(address(this), token_, name_, isCredit_);
+            }
         }
 
         emit ILedgers.LedgerAdded(token_, name_, symbol_, decimals_);
