@@ -2,12 +2,12 @@
 pragma solidity ^0.8.0;
 
 import {Router} from "../modules/Router.sol";
-import {ERC20, Lib as ERC20Lib} from "./ERC20.sol";
-import {Lib as ModuleLib} from "../modules/Module.sol";
+import {ERC20, ERC20Lib} from "./ERC20.sol";
+import {ModuleLib} from "../modules/Module.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
 
-library Lib {
+library TokenLib {
     // Selectors
     bytes4 internal constant INITIALIZE_TOKEN = bytes4(keccak256("initializeTestToken(string,string)"));
     bytes4 internal constant MINT = bytes4(keccak256("mint(uint256)"));
@@ -22,7 +22,7 @@ contract TestToken is ERC20 {
 
     function commands() public pure virtual override returns (bytes4[] memory _commands) {
         _commands = new bytes4[](12);
-        _commands[0] = Lib.INITIALIZE_TOKEN;
+        _commands[0] = TokenLib.INITIALIZE_TOKEN;
         _commands[1] = ERC20Lib.NAME;
         _commands[2] = ERC20Lib.SYMBOL;
         _commands[3] = ERC20Lib.DECIMALS;
@@ -32,8 +32,8 @@ contract TestToken is ERC20 {
         _commands[7] = ERC20Lib.ALLOWANCE;
         _commands[7] = ERC20Lib.APPROVE;
         _commands[9] = ERC20Lib.TRANSFER_FROM;
-        _commands[10] = Lib.MINT;
-        _commands[11] = Lib.BURN;
+        _commands[10] = TokenLib.MINT;
+        _commands[11] = TokenLib.BURN;
     }
 
     // Commands

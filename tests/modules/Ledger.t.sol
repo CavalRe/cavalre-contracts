@@ -5,9 +5,9 @@ pragma solidity ^0.8.24;
 // Import split layout (interfaces + lib + module + infra)
 // Adjust paths if your repo layout differs.
 // ─────────────────────────────────────────────────────────────────────────────
-import {ILedgers} from "../../interfaces/ILedgers.sol";
-import {LedgersLib as LLib} from "../../libraries/LedgersLib.sol";
-import {Ledgers} from "../../modules/Ledgers.sol";
+import {ILedger} from "../../interfaces/ILedger.sol";
+import {LedgerLib as LLib} from "../../libraries/LedgerLib.sol";
+import {Ledger} from "../../modules/Ledger.sol";
 import {Module} from "../../modules/Module.sol";
 import {Router} from "../../modules/Router.sol";
 import {TreeLib} from "../../libraries/TreeLib.sol";
@@ -16,16 +16,16 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Test, console} from "forge-std/src/Test.sol";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test module that exposes LedgersLib via external funcs for Router delegatecall
+// Test module that exposes LedgerLib via external funcs for Router delegatecall
 // ─────────────────────────────────────────────────────────────────────────────
-contract TestLedgers is Ledgers {
-    constructor(uint8 decimals_) Ledgers(decimals_) {}
+contract TestLedger is Ledger {
+    constructor(uint8 decimals_) Ledger(decimals_) {}
 
     // Keep command registry so Router can “register” the module (if you use it)
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
         _commands = new bytes4[](39);
-        _commands[n++] = bytes4(keccak256("initializeTestLedgers()"));
+        _commands[n++] = bytes4(keccak256("initializeTestLedger()"));
         _commands[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _commands[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _commands[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
@@ -67,9 +67,9 @@ contract TestLedgers is Ledgers {
         if (n != _commands.length) revert InvalidCommandsLength(n);
     }
 
-    function initializeTestLedgers() external initializer {
+    function initializeTestLedger() external initializer {
         enforceIsOwner();
-        initializeLedgers_unchained();
+        initializeLedger_unchained();
     }
 
     function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) external returns (address) {
@@ -140,9 +140,9 @@ contract MockERC20 is ERC20 {
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
-contract LedgersTest is Test {
+contract LedgerTest is Test {
     Router router;
-    TestLedgers ledgers;
+    TestLedger ledgers;
 
     address alice = address(0xA11CE);
     address bob = address(0xB0B);
@@ -174,12 +174,12 @@ contract LedgersTest is Test {
 
     function setUp() public {
         vm.startPrank(alice);
-        ledgers = new TestLedgers(18);
+        ledgers = new TestLedger(18);
         router = new Router(alice);
         router.addModule(address(ledgers));
-        ledgers = TestLedgers(payable(router));
+        ledgers = TestLedger(payable(router));
 
-        ledgers.initializeTestLedgers();
+        ledgers.initializeTestLedger();
 
         // Add a standalone ledger tree for misc checks
         testLedger = LLib.toNamedAddress("Test Ledger");
@@ -208,7 +208,7 @@ contract LedgersTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Structure / initialization
     // ─────────────────────────────────────────────────────────────────────────
-    function testLedgersInit() public {
+    function testLedgerInit() public {
         bool isVerbose = true;
 
         if (isVerbose) console.log("Display Account Hierarchy");
@@ -223,7 +223,7 @@ contract LedgersTest is Test {
 
         vm.startPrank(alice);
         vm.expectRevert(InvalidInitialization.selector);
-        ledgers.initializeTestLedgers(); // re-init should revert
+        ledgers.initializeTestLedger(); // re-init should revert
 
         // Tree shape sanity
         assertEq(ledgers.subAccounts(testLedger).length, 3, "Subaccounts (testLedger)");
@@ -242,7 +242,7 @@ contract LedgersTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // AddSubAccount
     // ─────────────────────────────────────────────────────────────────────────
-    function testLedgersAddSubAccountGroup() public {
+    function testLedgerAddSubAccountGroup() public {
         vm.startPrank(alice);
 
         // Add a fresh sub under r1
@@ -262,22 +262,22 @@ contract LedgersTest is Test {
         assertEq(idempotent, added, "expected same sub account address");
     }
 
-    function testLedgersAddSubAccountZeroParentReverts() public {
+    function testLedgerAddSubAccountZeroParentReverts() public {
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAccountGroup.selector, address(0)));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, address(0)));
         ledgers.addSubAccountGroup(address(0), "zeroParent", false);
     }
 
-    function testLedgersAddSubAccountEmptyNameReverts() public {
+    function testLedgerAddSubAccountEmptyNameReverts() public {
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidString.selector, ""));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidString.selector, ""));
         ledgers.addSubAccountGroup(r1, "", false);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // RemoveSubAccount
     // ─────────────────────────────────────────────────────────────────────────
-    function testLedgersRemoveSubAccountHappyPath() public {
+    function testLedgerRemoveSubAccountHappyPath() public {
         bool isVerbose = false;
 
         vm.startPrank(alice);
@@ -295,45 +295,45 @@ contract LedgersTest is Test {
         assertFalse(ledgers.hasSubAccount(_100), "no children");
     }
 
-    function testLedgersRemoveSubAccountThatDoesNotExistReverts() public {
+    function testLedgerRemoveSubAccountThatDoesNotExistReverts() public {
         vm.startPrank(alice);
         address nonExistent = LLib.toGroupAddress(r1, "nope");
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAccountGroup.selector, nonExistent));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, nonExistent));
         ledgers.removeSubAccountGroup(r1, "nope");
     }
 
-    function testLedgersRemoveSubAccountWithChildrenReverts() public {
+    function testLedgerRemoveSubAccountWithChildrenReverts() public {
         vm.startPrank(alice);
         address parentWithChild = ledgers.addSubAccountGroup(r1, "parentWithChild", false);
         ledgers.addSubAccountGroup(parentWithChild, "sub", false);
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.HasSubAccount.selector, parentWithChild));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.HasSubAccount.selector, parentWithChild));
         ledgers.removeSubAccountGroup(r1, "parentWithChild");
     }
 
-    function testLedgersRemoveSubAccountWithBalanceReverts() public {
+    function testLedgerRemoveSubAccountWithBalanceReverts() public {
         vm.startPrank(alice);
         ledgers.mint(r100, alice, 1000);
 
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.HasBalance.selector, r100));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.HasBalance.selector, r100));
         ledgers.removeSubAccountGroup(r10, "100");
     }
 
-    function testLedgersRemoveSubAccountInvalidAddresses() public {
+    function testLedgerRemoveSubAccountInvalidAddresses() public {
         vm.startPrank(alice);
         address _valid = ledgers.addSubAccountGroup(r1, "validSub", false);
 
         // Zero parent
-        vm.expectRevert(ILedgers.ZeroAddress.selector);
+        vm.expectRevert(ILedger.ZeroAddress.selector);
         ledgers.removeSubAccountGroup(address(0), "validSub");
 
         // Parent == child group (nonsense) => InvalidAccountGroup on computed subAddress
         vm.expectRevert(
-            abi.encodeWithSelector(ILedgers.InvalidAccountGroup.selector, LLib.toGroupAddress(_valid, "validSub"))
+            abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, LLib.toGroupAddress(_valid, "validSub"))
         );
         ledgers.removeSubAccountGroup(_valid, "validSub");
     }
 
-    function testLedgersRemoveUpdatesSiblingIndices() public {
+    function testLedgerRemoveUpdatesSiblingIndices() public {
         vm.startPrank(alice);
         address _s1 = LLib.toNamedAddress("s1");
         address _s3 = LLib.toNamedAddress("s3");
@@ -357,7 +357,7 @@ contract LedgersTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Parents / roots / hasSubAccount
     // ─────────────────────────────────────────────────────────────────────────
-    function testLedgersParents() public view {
+    function testLedgerParents() public view {
         assertEq(ledgers.root(r10), r1, "root r10");
         assertEq(ledgers.root(r11), r1, "root r11");
         assertEq(ledgers.root(r100), r1, "root r100");
@@ -373,7 +373,7 @@ contract LedgersTest is Test {
         assertEq(ledgers.parent(r111), r11, "parent r111");
     }
 
-    function testLedgersHasSubAccount() public view {
+    function testLedgerHasSubAccount() public view {
         assertTrue(ledgers.hasSubAccount(r1), "r1");
         assertTrue(ledgers.hasSubAccount(r10), "r10");
         assertTrue(ledgers.hasSubAccount(r11), "r11");
@@ -386,7 +386,7 @@ contract LedgersTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Mint / Burn
     // ─────────────────────────────────────────────────────────────────────────
-    function testLedgersMint() public {
+    function testLedgerMint() public {
         bool isVerbose = false;
 
         if (isVerbose) {
@@ -413,7 +413,7 @@ contract LedgersTest is Test {
         assertEq(ledgers.totalSupply(r1), 1000, "totalSupply(r1)");
     }
 
-    function testLedgersBurn() public {
+    function testLedgerBurn() public {
         vm.startPrank(alice);
 
         ledgers.mint(address(ledgers), alice, 1000);
@@ -431,14 +431,14 @@ contract LedgersTest is Test {
         assertEq(ledgers.totalSupply(r1), 400, "totalSupply(r1)");
     }
 
-    function testLedgersWrap() public {
+    function testLedgerWrap() public {
         vm.startPrank(alice);
 
         MockERC20 unlisted = new MockERC20("Unlisted Token", "UNL", 18);
         uint256 unlistedAmount = 50;
         unlisted.mint(alice, unlistedAmount);
         unlisted.approve(address(ledgers), unlistedAmount);
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAddress.selector, address(unlisted)));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, address(unlisted)));
         ledgers.wrap(address(unlisted), unlistedAmount);
 
         uint256 wrapAmount = 120;
@@ -451,7 +451,7 @@ contract LedgersTest is Test {
         assertEq(ledgers.balanceOf(externalWrapper, alice), wrapAmount, "ledger balance after wrap");
         assertEq(ledgers.totalSupply(externalWrapper), wrapAmount, "total supply after wrap");
 
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAddress.selector, address(unlisted)));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, address(unlisted)));
         ledgers.unwrap(address(unlisted), 10);
 
         uint256 firstUnwrap = 45;
@@ -476,7 +476,7 @@ contract LedgersTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Transfers / approvals / allowance / transferFrom (routed)
     // ─────────────────────────────────────────────────────────────────────────
-    function testLedgersTransfer() public {
+    function testLedgerTransfer() public {
         vm.startPrank(alice);
 
         address routerRoot = address(ledgers);
@@ -491,12 +491,12 @@ contract LedgersTest is Test {
         assertEq(ledgers.totalSupply(routerRoot), 1000, "supply");
 
         // Different roots should revert
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.DifferentRoots.selector, routerRoot, r1));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, routerRoot, r1));
         // attempt: fromParent=routerRoot, toParent=r1 (different root)
         ledgers.transfer(routerRoot, r1, bob, 100);
     }
 
-    function testLedgersApproveAndAllowance() public {
+    function testLedgerApproveAndAllowance() public {
         bool isVerbose = false;
 
         vm.startPrank(alice);
@@ -516,7 +516,7 @@ contract LedgersTest is Test {
         assertEq(ledgers.allowance(routerRoot, alice, alice), 0, "allowance(alice->alice)");
     }
 
-    function testLedgersTransferFrom() public {
+    function testLedgerTransferFrom() public {
         vm.startPrank(alice);
 
         ledgers.mint(address(ledgers), alice, 1000);
@@ -547,7 +547,7 @@ contract LedgersTest is Test {
 }
 
 // contract Bah {
-// function testLedgersAddSubAccount() public {
+// function testLedgerAddSubAccount() public {
 //     bool isVerbose = false;
 
 //     if (isVerbose) {
@@ -579,18 +579,18 @@ contract LedgersTest is Test {
 //         console.log("Adding a subAccount whose parent is address(0)");
 //     }
 //     setUp();
-//     vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAccountGroup.selector, address(0)));
+//     vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, address(0)));
 //     ledgers.addSubAccount(address(0), "zeroParentSubAccount", true, false);
 
 //     if (isVerbose) {
 //         console.log('Adding a subAccount whose name is ""');
 //     }
 //     setUp();
-//     vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidSubAccount.selector, "", true, false));
+//     vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidSubAccount.selector, "", true, false));
 //     ledgers.addSubAccount(r1, "", true, false);
 // }
 
-// function testLedgersRemoveSubAccount() public {
+// function testLedgerRemoveSubAccount() public {
 //     bool isVerbose = false;
 
 //     vm.startPrank(alice);
@@ -655,7 +655,7 @@ contract LedgersTest is Test {
 //         console.log("Test 2: Remove a subAccount that doesn't exist");
 //     }
 //     address nonExistentSubAccount = LLib.toGroupAddress(r1, "nonExistentSubAccount");
-//     vm.expectRevert(abi.encodeWithSelector(ILedgers.InvalidAccountGroup.selector, nonExistentSubAccount));
+//     vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, nonExistentSubAccount));
 //     ledgers.removeSubAccount(r1, "nonExistentSubAccount");
 
 //     if (isVerbose) {
@@ -663,14 +663,14 @@ contract LedgersTest is Test {
 //     }
 //     address parentWithSubAccount = ledgers.addSubAccount(r1, "parentWithSubAccount", true, false);
 //     ledgers.addSubAccount(parentWithSubAccount, "subAccountOfParent", true, false);
-//     vm.expectRevert(abi.encodeWithSelector(ILedgers.HasSubAccount.selector, "parentWithSubAccount"));
+//     vm.expectRevert(abi.encodeWithSelector(ILedger.HasSubAccount.selector, "parentWithSubAccount"));
 //     ledgers.removeSubAccount(r1, "parentWithSubAccount");
 
 //     if (isVerbose) {
 //         console.log("Test 4: Remove a subAccount that has a balance");
 //     }
 //     ledgers.mint(r100, 1000);
-//     vm.expectRevert(abi.encodeWithSelector(ILedgers.HasBalance.selector, "100"));
+//     vm.expectRevert(abi.encodeWithSelector(ILedger.HasBalance.selector, "100"));
 //     ledgers.removeSubAccount(r10, "100");
 
 //     if (isVerbose) {
@@ -679,13 +679,13 @@ contract LedgersTest is Test {
 //     address validSubAccount = ledgers.addSubAccount(r1, "validSubAccount", true, false);
 
 //     // Try to remove with address(0) as parent
-//     vm.expectRevert(ILedgers.ZeroAddress.selector);
+//     vm.expectRevert(ILedger.ZeroAddress.selector);
 //     ledgers.removeSubAccount(address(0), "validSubAccount");
 
 //     // Try to remove with same address for parent and subAccount
 //     vm.expectRevert(
 //         abi.encodeWithSelector(
-//             ILedgers.InvalidAccountGroup.selector, LLib.toGroupAddress(validSubAccount, "validSubAccount")
+//             ILedger.InvalidAccountGroup.selector, LLib.toGroupAddress(validSubAccount, "validSubAccount")
 //         )
 //     );
 //     ledgers.removeSubAccount(validSubAccount, "validSubAccount");
@@ -735,7 +735,7 @@ contract LedgersTest is Test {
 //     );
 // }
 
-// function testLedgersMint() public {
+// function testLedgerMint() public {
 //     bool isVerbose = false;
 
 //     if (isVerbose) {
@@ -762,7 +762,7 @@ contract LedgersTest is Test {
 //     assertEq(ledgers.totalSupply(r1), 1000, "totalSupply(r1)");
 // }
 
-// function testLedgersBurn() public {
+// function testLedgerBurn() public {
 //     vm.startPrank(alice);
 
 //     ledgers.mint(address(ledgers), 1000);
@@ -780,7 +780,7 @@ contract LedgersTest is Test {
 //     assertEq(ledgers.totalSupply(r1), 400, "totalSupply(r1)");
 // }
 
-// function testLedgersParents() public view {
+// function testLedgerParents() public view {
 //     assertEq(ledgers.root(r10), r1, "root(_10)");
 //     assertEq(ledgers.root(r11), r1, "root(_11)");
 //     assertEq(ledgers.root(r100), r1, "root(_100)");
@@ -796,7 +796,7 @@ contract LedgersTest is Test {
 //     assertEq(ledgers.parent(r111), r11, "parent(_111)");
 // }
 
-// function testLedgersHasSubAccount() public view {
+// function testLedgerHasSubAccount() public view {
 //     assertTrue(ledgers.hasSubAccount(r1), "hasSubAccount(r1)");
 //     assertTrue(ledgers.hasSubAccount(r10), "hasSubAccount(r10)");
 //     assertTrue(ledgers.hasSubAccount(r11), "hasSubAccount(r11)");
@@ -806,7 +806,7 @@ contract LedgersTest is Test {
 //     assertFalse(ledgers.hasSubAccount(r111), "hasSubAccount(r111)");
 // }
 
-// function testLedgersTransfer() public {
+// function testLedgerTransfer() public {
 //     bool isVerbose = false;
 
 //     if (isVerbose) {
@@ -836,11 +836,11 @@ contract LedgersTest is Test {
 //     assertEq(ledgers.totalSupply(), 1000, "totalSupply()");
 
 //     if (isVerbose) console.log("Expect revert if sender and receiver have different roots");
-//     vm.expectRevert(abi.encodeWithSelector(ILedgers.DifferentRoots.selector, address(ledgers), r1));
+//     vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, address(ledgers), r1));
 //     ledgers.transfer(address(ledgers), _1, _10, 100);
 // }
 
-// function testLedgersApprove() public {
+// function testLedgerApprove() public {
 //     bool isVerbose = false;
 
 //     vm.startPrank(alice);
@@ -855,7 +855,7 @@ contract LedgersTest is Test {
 //     assertEq(ledgers.allowance(alice, alice), 0, "allowance(alice, alice)");
 // }
 
-// function testLedgersTransferFrom() public {
+// function testLedgerTransferFrom() public {
 //     vm.startPrank(alice);
 
 //     ledgers.mint(address(ledgers), 1000);

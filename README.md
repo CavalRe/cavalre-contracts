@@ -9,8 +9,8 @@ cavalre-contracts/
 ├── contracts/              # Core modules
 │   ├── Module.sol          # Abstract base all modules inherit
 │   ├── Router.sol          # Immutable delegatecall dispatcher
-│   └── Ledgers/            # Ledger-based accounting module
-│       ├── Ledgers.sol
+│   └── Ledger/            # Ledger-based accounting module
+│       ├── Ledger.sol
 │       └── README.md
 ├── libraries/              # Pure math and string libraries
 │   ├── FloatLib/
@@ -35,7 +35,7 @@ cavalre-contracts/
 
 - **Module.sol**: Abstract base contract that all modules inherit, defining the shared interface and access to storage.
 - **Router.sol**: The immutable entrypoint that delegates calls to upgradeable modules via `delegatecall`.
-- **Ledgers.sol**: A hierarchical double-entry accounting system where all token balances live under structured subaccounts.
+- **Ledger.sol**: A hierarchical double-entry accounting system where all token balances live under structured subaccounts.
 - **FloatLib.sol**: A custom fixed-point math library for precision arithmetic with dynamic scaling.
 
 ## Installation
@@ -56,7 +56,7 @@ This allows you to import contracts like:
 
 ```solidity
 import "@cavalre/contracts/Module.sol";
-import "@cavalre/contracts/Ledgers/Ledgers.sol";
+import "@cavalre/contracts/Ledger/Ledger.sol";
 ```
 
 ## Philosophy

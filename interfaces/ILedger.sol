@@ -3,11 +3,11 @@ pragma solidity ^0.8.24;
 
 import {Float} from "../libraries/FloatLib.sol";
 
-interface ILedgers {
+interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Initializers
     // ─────────────────────────────────────────────────────────────────────────────
-    function initializeLedgers() external;
+    function initializeLedger() external;
     function createToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
         external
         returns (address);

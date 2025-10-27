@@ -1,6 +1,6 @@
 # Store
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/b96f8602f431eb4f1948c1233246d58b344ea36f/src/modules/Ledgers/Ledgers.sol)
 
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/b96f8602f431eb4f1948c1233246d58b344ea36f/src/modules/Ledger/Ledger.sol)
 
 ```solidity
 struct Store {
@@ -16,4 +16,3 @@ struct Store {
     mapping(address owner => mapping(address spender => uint256)) allowances;
 }
 ```
-

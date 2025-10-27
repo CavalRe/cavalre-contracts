@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {Router} from "../../modules/Router.sol";
-import {Module, Lib as ML} from "../../modules/Module.sol";
-import {Sentry, Lib as SL} from "../../examples/Sentry.sol";
+import {Module, ModuleLib} from "../../modules/Module.sol";
+import {Sentry, SentryLib} from "../../examples/Sentry.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract SentryTest is Test {
@@ -36,11 +36,13 @@ contract SentryTest is Test {
 
     function testSentryInit() public view {
         assertEq(router.owner(address(router)), alice, "SentryTest: Owner not set");
-        assertEq(router.module(SL.TRANSFER_OWNERSHIP), sentryAddress, "SentryTest: TransferOwnership not set");
-        assertEq(router.module(SL.ACCEPT_OWNERSHIP), sentryAddress, "SentryTest: AcceptOwnership not set");
-        assertEq(router.module(SL.RENOUNCE_OWNERSHIP), sentryAddress, "SentryTest: RenounceOwnership not set");
+        assertEq(router.module(SentryLib.TRANSFER_OWNERSHIP), sentryAddress, "SentryTest: TransferOwnership not set");
+        assertEq(router.module(SentryLib.ACCEPT_OWNERSHIP), sentryAddress, "SentryTest: AcceptOwnership not set");
+        assertEq(router.module(SentryLib.RENOUNCE_OWNERSHIP), sentryAddress, "SentryTest: RenounceOwnership not set");
         assertEq(
-            router.module(SL.CONFIRM_RENOUNCE_OWNERSHIP), sentryAddress, "SentryTest: ConfirmRenounceOwnership not set"
+            router.module(SentryLib.CONFIRM_RENOUNCE_OWNERSHIP),
+            sentryAddress,
+            "SentryTest: ConfirmRenounceOwnership not set"
         );
     }
 

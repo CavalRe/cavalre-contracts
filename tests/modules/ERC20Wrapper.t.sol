@@ -4,13 +4,13 @@ pragma solidity ^0.8.24;
 import {Test, console} from "forge-std/src/Test.sol";
 
 import {Router} from "../../modules/Router.sol";
-import {ILedgers, Ledgers, ERC20Wrapper, Lib} from "../../modules/Ledgers.sol";
+import {ILedger, Ledger, ERC20Wrapper, LedgerLib} from "../../modules/Ledger.sol";
 
-import {TestLedgers} from "./Ledgers.t.sol";
+import {TestLedger} from "./Ledger.t.sol";
 
 contract ERC20WrapperTest is Test {
     Router internal router;
-    TestLedgers internal ledgers; // will point to Router after module add
+    TestLedger internal ledgers; // will point to Router after module add
     ERC20Wrapper internal token;
 
     address internal owner = address(0xA11CE);
@@ -24,18 +24,18 @@ contract ERC20WrapperTest is Test {
         if (isVerbose) console.log("setUp");
         vm.startPrank(owner);
 
-        // Deploy Ledgers impl, register in Router, then speak to it at Router address
-        if (isVerbose) console.log("Deploying Ledgers impl");
-        TestLedgers impl = new TestLedgers(18);
+        // Deploy Ledger impl, register in Router, then speak to it at Router address
+        if (isVerbose) console.log("Deploying Ledger impl");
+        TestLedger impl = new TestLedger(18);
         if (isVerbose) console.log("Deploying Router");
         router = new Router(owner);
-        if (isVerbose) console.log("Registering Ledgers impl");
+        if (isVerbose) console.log("Registering Ledger impl");
         router.addModule(address(impl));
-        if (isVerbose) console.log("Instantiating Test Ledgers");
-        ledgers = TestLedgers(payable(address(router)));
+        if (isVerbose) console.log("Instantiating Test Ledger");
+        ledgers = TestLedger(payable(address(router)));
 
-        if (isVerbose) console.log("Initializing Test Ledgers");
-        ledgers.initializeTestLedgers();
+        if (isVerbose) console.log("Initializing Test Ledger");
+        ledgers.initializeTestLedger();
 
         if (isVerbose) console.log("Creating ERC20Wrapper");
         token = ERC20Wrapper(ledgers.createToken("Wrapped Test Token", "WTT", 18, false));
@@ -161,13 +161,13 @@ contract ERC20WrapperTest is Test {
         assertTrue(okDec);
         assertEq(token.allowance(alice, bob), 60);
 
-        // decreaseAllowance underflow should revert with ILedgers.InsufficientAllowance
+        // decreaseAllowance underflow should revert with ILedger.InsufficientAllowance
         vm.expectRevert(
-            abi.encodeWithSelector(ILedgers.InsufficientAllowance.selector, address(token), alice, bob, 60, 61)
+            abi.encodeWithSelector(ILedger.InsufficientAllowance.selector, address(token), alice, bob, 60, 61)
         );
         token.decreaseAllowance(bob, 61);
 
-        // forceApprove non-zero→non-zero (safety pattern inside LedgersLib)
+        // forceApprove non-zero→non-zero (safety pattern inside LedgerLib)
         // current=60, set to 200
         // vm.expectEmit(true, true, true, true);
         // emit ERC20Wrapper.Approval(alice, bob, 200);
@@ -198,30 +198,30 @@ contract ERC20WrapperTest is Test {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Reverts: Direct calls into Ledgers.*Wrapper MUST be from the token
+    // Reverts: Direct calls into Ledger.*Wrapper MUST be from the token
     // ─────────────────────────────────────────────────────────────────────────
-    function testERC20WrapperLedgersWrapperFunctionsUnauthorized() public {
+    function testERC20WrapperLedgerWrapperFunctionsUnauthorized() public {
         bool isVerbose = false;
 
-        // Any external calling Ledgers.*Wrapper (not the token itself) should revert
-        if (isVerbose) console.log("Expect revert: Ledgers.*Wrapper approve called externally");
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.Unauthorized.selector, address(this)));
+        // Any external calling Ledger.*Wrapper (not the token itself) should revert
+        if (isVerbose) console.log("Expect revert: Ledger.*Wrapper approve called externally");
+        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
         ledgers.approve(address(token), alice, bob, 1);
 
-        if (isVerbose) console.log("Expect revert: Ledgers.*Wrapper transfer called externally");
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.Unauthorized.selector, address(this)));
+        if (isVerbose) console.log("Expect revert: Ledger.*Wrapper transfer called externally");
+        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
         ledgers.transfer(address(token), alice, address(token), bob, 1, false);
 
-        // if (isVerbose) console.log("Expect revert: Ledgers.*Wrapper mint called externally");
-        // vm.expectRevert(abi.encodeWithSelector(ILedgers.Unauthorized.selector, address(this)));
+        // if (isVerbose) console.log("Expect revert: Ledger.*Wrapper mint called externally");
+        // vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
         // ledgers.mint(address(token), alice, 1);
 
-        // if (isVerbose) console.log("Expect revert: Ledgers.*Wrapper burn called externally");
-        // vm.expectRevert(abi.encodeWithSelector(ILedgers.Unauthorized.selector, address(this)));
+        // if (isVerbose) console.log("Expect revert: Ledger.*Wrapper burn called externally");
+        // vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
         // ledgers.burn(address(token), alice, 1);
 
-        if (isVerbose) console.log("Expect revert: Ledgers.*Wrapper transferFrom called externally");
-        vm.expectRevert(abi.encodeWithSelector(ILedgers.Unauthorized.selector, address(this)));
+        if (isVerbose) console.log("Expect revert: Ledger.*Wrapper transferFrom called externally");
+        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
         ledgers.transferFrom(bob, address(token), alice, address(token), bob, 1, false);
     }
 

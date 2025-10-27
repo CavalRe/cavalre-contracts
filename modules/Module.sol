@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ModuleLib as Lib} from "../libraries/ModuleLib.sol";
+import {ModuleLib} from "../libraries/ModuleLib.sol";
 
 abstract contract Module {
     address internal immutable __self = address(this);
@@ -15,8 +15,8 @@ abstract contract Module {
     // Commands
     function commands() external pure virtual returns (bytes4[] memory _commands);
 
-    function enforceIsOwner() internal view returns (Lib.Store storage s) {
-        s = Lib.store();
+    function enforceIsOwner() internal view returns (ModuleLib.Store storage s) {
+        s = ModuleLib.store();
         if (s.owners[__self] != msg.sender) {
             revert OwnableUnauthorizedAccount(msg.sender);
         }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Module, Lib as ML} from "./Module.sol";
-import {RouterLib as Lib} from "../libraries/RouterLib.sol";
+import {Module, ModuleLib} from "./Module.sol";
+import {RouterLib} from "../libraries/RouterLib.sol";
 
 interface INativeHandler {
     function handleNative() external payable;
@@ -21,7 +21,7 @@ contract Router is Module {
     error ModuleNotFound(address _module);
 
     constructor(address owner_) {
-        ML.Store storage s = ML.store();
+        ModuleLib.Store storage s = ModuleLib.store();
         s.owners[__self] = owner_;
         emit RouterCreated(__self);
     }
@@ -31,7 +31,7 @@ contract Router is Module {
     }
 
     fallback() external payable {
-        address module_ = Lib.store().modules[msg.sig];
+        address module_ = RouterLib.store().modules[msg.sig];
         if (module_ == address(0)) revert CommandNotFound(msg.sig);
 
         assembly {
@@ -58,7 +58,7 @@ contract Router is Module {
         enforceIsOwner();
         bytes4[] memory _commands = getCommands(module_);
         if (_commands.length == 0) revert ModuleNotFound(module_);
-        Lib.Store storage s = Lib.store();
+        RouterLib.Store storage s = RouterLib.store();
         for (uint256 i = 0; i < _commands.length; i++) {
             if (s.modules[_commands[i]] != address(0)) {
                 revert CommandAlreadySet(_commands[i], module_);
@@ -66,7 +66,7 @@ contract Router is Module {
             s.modules[_commands[i]] = module_;
             emit CommandSet(_commands[i], module_);
         }
-        ML.store().owners[module_] = msg.sender;
+        ModuleLib.store().owners[module_] = msg.sender;
         emit ModuleAdded(module_);
     }
 
@@ -74,20 +74,20 @@ contract Router is Module {
         enforceIsOwner();
         bytes4[] memory _commands = getCommands(module_);
         if (_commands.length == 0) revert ModuleNotFound(module_);
-        Lib.Store storage s = Lib.store();
+        RouterLib.Store storage s = RouterLib.store();
         for (uint256 i = 0; i < _commands.length; i++) {
             s.modules[_commands[i]] = address(0);
             emit CommandSet(_commands[i], address(0));
         }
-        delete ML.store().owners[module_];
+        delete ModuleLib.store().owners[module_];
         emit ModuleRemoved(module_);
     }
 
     function owner(address module_) public view returns (address) {
-        return ML.store().owners[module_];
+        return ModuleLib.store().owners[module_];
     }
 
     function module(bytes4 selector_) public view returns (address) {
-        return Lib.store().modules[selector_];
+        return RouterLib.store().modules[selector_];
     }
 }

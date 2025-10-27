@@ -5,8 +5,8 @@ pragma solidity ^0.8.24;
 // // Import split layout (interfaces + lib + module + infra)
 // // Adjust paths if your repo layout differs.
 // // ─────────────────────────────────────────────────────────────────────────────
-// import {ILedgers} from "../../interfaces/ILedgers.sol";
-import {Ledgers, Lib} from "../modules/Ledgers.sol";
+// import {ILedger} from "../../interfaces/ILedger.sol";
+import {Ledger, LedgerLib} from "../modules/Ledger.sol";
 // import {Module} from "../../modules/Module.sol";
 // import {Router} from "../../modules/Router.sol";
 
@@ -16,7 +16,7 @@ import {console} from "forge-std/src/Test.sol";
 // Tree helpers
 // ─────────────────────────────────────────────────────────────────────────────
 library TreeLib {
-    function logTree(Ledgers ledgers, address root, string memory prefix, bool isFirst, bool isLast) internal view {
+    function logTree(Ledger ledgers, address root, string memory prefix, bool isFirst, bool isLast) internal view {
         string memory label =
             string(abi.encodePacked(ledgers.name(root), " (", ledgers.isCredit(root) ? "C" : "D", ")"));
         bool isGroup = ledgers.isGroup(root);
@@ -30,11 +30,11 @@ library TreeLib {
 
         address[] memory subs = ledgers.subAccounts(root);
         for (uint256 i = 0; i < subs.length; i++) {
-            logTree(ledgers, Lib.toLedgerAddress(root, subs[i]), subPrefix, false, i == subs.length - 1);
+            logTree(ledgers, LedgerLib.toLedgerAddress(root, subs[i]), subPrefix, false, i == subs.length - 1);
         }
     }
 
-    function debugTree(Ledgers ledgers, address root) internal view {
+    function debugTree(Ledger ledgers, address root) internal view {
         logTree(ledgers, root, "", true, true);
     }
 }

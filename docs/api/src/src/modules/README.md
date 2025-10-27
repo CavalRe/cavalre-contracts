@@ -1,7 +1,6 @@
-
-
 # Contents
-- [Ledgers](/src/modules/Ledgers)
+
+- [Ledger](/src/modules/Ledger)
 - [Store](Module.sol/struct.Store.md)
 - [Lib](Module.sol/library.Lib.md)
 - [Module](Module.sol/abstract.Module.md)

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Module} from "../modules/Module.sol";
-import {Lib as ERC20Lib} from "./ERC20.sol";
+import {ERC20Lib} from "./ERC20.sol";
 
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
