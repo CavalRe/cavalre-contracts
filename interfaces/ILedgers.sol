@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Float} from "../libraries/FloatLib.sol";
+
 interface ILedgers {
     // ─────────────────────────────────────────────────────────────────────────────
     // Initializers
@@ -31,17 +33,15 @@ interface ILedgers {
     function wrapper(address token) external view returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Balances
+    // Balances & Valuations
     // ─────────────────────────────────────────────────────────────────────────────
-    // Subaccount balance by group name
     function balanceOf(address parent, string memory subName) external view returns (uint256);
-    // Ledger account balance by parent/owner
     function balanceOf(address parent, address owner) external view returns (uint256);
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Supply
-    // ─────────────────────────────────────────────────────────────────────────────
     function totalSupply(address token) external view returns (uint256);
+    function reserve(address token) external view returns (uint256);
+    function scale(address token) external view returns (uint256);
+    function price(address token) external view returns (Float memory);
+    function totalValue(address token) external view returns (Float memory);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
@@ -115,6 +115,8 @@ interface ILedgers {
     error SubAccountGroupNotFound(string subName);
     error Unauthorized(address user);
     error ZeroAddress();
+    error ZeroReserve(address addr);
+    error ZeroScale(address addr);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Events (Double-entry journal)

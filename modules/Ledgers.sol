@@ -5,7 +5,7 @@ import {Module} from "./Module.sol";
 import {Initializable} from "../utilities/Initializable.sol";
 import {LedgersLib as Lib} from "../libraries/LedgersLib.sol";
 
-import {ILedgers} from "../interfaces/ILedgers.sol";
+import {Float, ILedgers} from "../interfaces/ILedgers.sol";
 
 import {console} from "forge-std/src/console.sol";
 
@@ -264,10 +264,9 @@ contract Ledgers is Module, Initializable, ILedgers {
         return Lib.wrapper(token_);
     }
 
-    //======================
-    // Balances & Transfers
-    //======================
-
+    //=========================
+    // Balances & Valuations
+    //=========================
     // Subaccount balances
     function balanceOf(address parent_, string memory subName_) external view returns (uint256) {
         return Lib.balanceOf(Lib.toGroupAddress(parent_, subName_));
@@ -281,6 +280,26 @@ contract Ledgers is Module, Initializable, ILedgers {
     function totalSupply(address token_) external view returns (uint256) {
         return Lib.balanceOf(Lib.toLedgerAddress(token_, Lib.TOTAL_ADDRESS));
     }
+
+    function reserve(address token_) external view returns (uint256) {
+        return Lib.reserve(token_);
+    }
+
+    function scale(address token_) external view returns (uint256) {
+        return Lib.scale(token_);
+    }
+
+    function price(address token_) external view returns (Float memory) {
+        return Lib.price(token_);
+    }
+
+    function totalValue(address token_) external view returns (Float memory) {
+        return Lib.totalValue(token_);
+    }
+
+    //===========
+    // Transfers
+    //===========
 
     function transfer(
         address fromParent_,

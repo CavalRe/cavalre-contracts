@@ -165,7 +165,7 @@ contract FloatTest is Test {
         return floats;
     }
 
-    function testToString() public {
+    function testFloatToString() public {
         Float memory float;
         Float memory intergerPartFloat;
         Float memory fractionPartFloat;
@@ -240,53 +240,53 @@ contract FloatTest is Test {
         // }
     }
 
-    function testGasBlank() public pure {}
+    function testFloatGasBlank() public pure {}
 
-    function testGasNormalize() public view {
+    function testFloatGasNormalize() public view {
         FloatLib.normalize(ONE_unnormalized);
     }
 
-    function testGasNormalizeNormalized() public view {
+    function testFloatGasNormalizeNormalized() public view {
         FloatLib.normalize(ONE);
     }
 
-    function testGasAlign() public view {
+    function testFloatGasAlign() public view {
         FloatLib.align(ONE, TWO_unnormalized);
     }
 
-    function testGasAdd() public view {
+    function testFloatGasAdd() public view {
         ONE.plus(TWO);
     }
 
-    function testGasSub() public view {
+    function testFloatGasSub() public view {
         TWO.minus(ONE);
     }
 
-    function testGasMul() public view {
+    function testFloatGasMul() public view {
         ONE.times(TWO);
     }
 
-    function testGasDiv() public view {
+    function testFloatGasDiv() public view {
         ONE.divide(TWO);
     }
 
-    // function testGasMulDiv() public view {
+    // function testFloatGasMulDiv() public view {
     //     ONE.mulDiv(TWO, THREE);
     // }
 
-    // function testGasMulDivFull() public view {
+    // function testFloatGasMulDivFull() public view {
     //     ONE.times(TWO).divide(THREE);
     // }
 
-    // function testGasMulDivAdd() public view {
+    // function testFloatGasMulDivAdd() public view {
     //     ONE.mulDivAdd(TWO, THREE);
     // }
 
-    // function testGasMulDivAddFull() public view {
+    // function testFloatGasMulDivAddFull() public view {
     //     ONE.times(THREE).divide(TWO.plus(THREE));
     // }
 
-    // function testMSB() public view {
+    // function testFloatMSB() public view {
     //     assertEq(FloatLib.msb(0), 0, "0");
     //     assertEq(FloatLib.msb(1), 1, "1");
     //     assertEq(FloatLib.msb(2), 2, "2");
@@ -320,7 +320,7 @@ contract FloatTest is Test {
     //     assertEq(FloatLib.msb(30), 5, "30");
     // }
 
-    function testNormalize() public view {
+    function testFloatNormalize() public view {
         assertEq(
             FloatLib.normalize(ONE_unnormalized).mantissa.msb(),
             FloatLib.SIGNIFICANT_DIGITS,
@@ -330,20 +330,20 @@ contract FloatTest is Test {
         assertEq(ONE.exponent, FloatLib.normalize(ONE_unnormalized).exponent, "exponent");
     }
 
-    function testAlign() public {
+    function testFloatAlign() public {
         (a, b) = FloatLib.align(ONE, TWO_unnormalized);
         assertEq(a, ONE);
         assertEq(b, TWO_unnormalized);
         assertEq(a.exponent, b.exponent, "exponent");
     }
 
-    function testONE() public {
+    function testFloatONE() public {
         a = Float(1, 0);
         a = FloatLib.normalize(a);
         assertEq(a.mantissa.msb(), FloatLib.SIGNIFICANT_DIGITS, "msb");
     }
 
-    function testAdd() public {
+    function testFloatAdd() public {
         Float[] memory floats = getFloats();
         uint256 nfloats = floats.length;
         int256 floatMax = int256((nfloats - 1) / 2);
@@ -364,7 +364,7 @@ contract FloatTest is Test {
         }
     }
 
-    function testSubtract() public {
+    function testFloatSubtract() public {
         Float[] memory floats = getFloats();
         uint256 nfloats = floats.length;
         int256 floatMax = int256((nfloats - 1) / 2);
@@ -385,7 +385,7 @@ contract FloatTest is Test {
         }
     }
 
-    function testMultiply() public {
+    function testFloatMultiply() public {
         Float[] memory floats = getFloats();
         uint256 nfloats = floats.length;
         int256 floatMax = int256((nfloats - 1) / 2);
@@ -406,7 +406,7 @@ contract FloatTest is Test {
         }
     }
 
-    function testDivide() public {
+    function testFloatDivide() public {
         Float[] memory floats = getFloats();
         uint256 nfloats = floats.length;
         int256 floatMax = int256((nfloats - 1) / 2);
@@ -429,7 +429,7 @@ contract FloatTest is Test {
         }
     }
 
-    function testExp() public {
+    function testFloatExp() public {
         emit log("testExp");
 
         // emit log_named_string("exp(200)", FloatLib.exp(int256(200e18)).toString());
@@ -457,12 +457,12 @@ contract FloatTest is Test {
         // emit log_named_string("exp(1e11)", FloatLib.exp(int256(1e29)).toString());
     }
 
-    function testCubic() public {
+    function testFloatCubic() public {
         Float memory x = FloatLib.cubicsolve(Float(-5, 0), Float(1, 0), Float(-5, 0));
         emit log_named_string("x", x.toString());
     }
 
-    // function testMulDiv() public {
+    // function testFloatMulDiv() public {
     //     Float[] memory floats = getFloats();
     //     for (uint256 i; i < floats.length; i++) {
     //         for (uint256 j; j < floats.length; j++) {
@@ -480,7 +480,7 @@ contract FloatTest is Test {
     //     }
     // }
 
-    // function testMulDivAdd() public {
+    // function testFloatMulDivAdd() public {
     //     Float[] memory floats = getFloats();
     //     for (uint256 i; i < floats.length; i++) {
     //         for (uint256 j; j < floats.length; j++) {
@@ -498,7 +498,7 @@ contract FloatTest is Test {
     //     }
     // }
 
-    // function testEncode() public {
+    // function testFloatEncode() public {
     //     uint256 x = FloatLib.encode(1, 1);
     //     uint256 m;
     //     uint256 e;
@@ -530,7 +530,7 @@ contract FloatTest is Test {
     //     );
     // }
 
-    // function testSquareRoot() public {
+    // function testFloatSquareRoot() public {
     //     uint256 x = 16e18;
     //     uint256 y = x.sqrt();
     //     assertEq(y, 4e9, "sqrt(16e18) = 4e9");
@@ -542,7 +542,7 @@ contract FloatTest is Test {
     //     );
     // }
 
-    // function testGeometricMeanFuzz(uint256 amount) public {
+    // function testFloatGeometricMeanFuzz(uint256 amount) public {
     //     vm.assume(amount > 0 && amount < 1000000000000000 * ONE);
 
     //     assertEq(pool.geometricMean(0, 0, amount, 0), amount, "delta = 0");
@@ -554,7 +554,7 @@ contract FloatTest is Test {
     //     );
     // }
 
-    // function testGeometricMeanVerbose() public {
+    // function testFloatGeometricMeanVerbose() public {
     //     uint256 lastMean = 12345678 * ONE;
     //     uint256 lastValue = 2 * lastMean;
     //     uint256 newValue = 2 * lastValue;

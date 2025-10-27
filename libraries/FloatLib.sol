@@ -15,39 +15,31 @@ library FloatLib {
     // Errors
     error NoSolution();
 
-    /****************
-     *   Constants   *
-     ****************/
+    //===============
+    //   Constants
+    //===============
     uint256 constant SIGNIFICANT_DIGITS = 18;
     uint256 constant NORMALIZED_MANTISSA_MAX = 10 ** SIGNIFICANT_DIGITS - 1;
     uint256 constant NORMALIZED_MANTISSA_MIN = 10 ** (SIGNIFICANT_DIGITS - 1);
 
     int256 constant _LOG10 = 2302585092994045684;
 
-    /*******************
-     *   Conversions   *
-     ******************/
-
+    //=================
+    //   Conversions
+    //=================
     //-----------
     //   toInt
     //-----------
-
     function toInt(uint256 a) internal pure returns (int256) {
         require(a <= uint256(type(int256).max), "Value out of int256 range");
         return int256(a);
     }
 
-    function toInt(
-        Float memory a,
-        uint256 decimals
-    ) internal pure returns (int256) {
+    function toInt(Float memory a, uint256 decimals) internal pure returns (int256) {
         if (a.exponent + toInt(decimals) >= 0) {
-            return
-                a.mantissa * int256(10 ** toUInt(a.exponent + toInt(decimals)));
+            return a.mantissa * int256(10 ** toUInt(a.exponent + toInt(decimals)));
         } else {
-            return
-                a.mantissa /
-                int256(10 ** toUInt(-(a.exponent + toInt(decimals))));
+            return a.mantissa / int256(10 ** toUInt(-(a.exponent + toInt(decimals))));
         }
     }
 
@@ -58,25 +50,17 @@ library FloatLib {
     //------------
     //   toUInt
     //------------
-
     function toUInt(int256 a) internal pure returns (uint256) {
         require(a >= 0, "Value must be non-negative");
         return uint256(a);
     }
 
-    function toUInt(
-        Float memory a,
-        uint256 decimals
-    ) internal pure returns (uint256) {
+    function toUInt(Float memory a, uint256 decimals) internal pure returns (uint256) {
         require(a.mantissa >= 0, "Value must be non-negative");
         if (a.exponent + toInt(decimals) >= 0) {
-            return
-                uint256(a.mantissa) *
-                10 ** toUInt(a.exponent + toInt(decimals));
+            return uint256(a.mantissa) * 10 ** toUInt(a.exponent + toInt(decimals));
         } else {
-            return
-                uint256(a.mantissa) /
-                10 ** toUInt(-(a.exponent + toInt(decimals)));
+            return uint256(a.mantissa) / 10 ** toUInt(-(a.exponent + toInt(decimals)));
         }
     }
 
@@ -88,10 +72,7 @@ library FloatLib {
     //   toFloat
     //--------------
 
-    function toFloat(
-        int256 a,
-        uint256 decimals
-    ) internal pure returns (Float memory) {
+    function toFloat(int256 a, uint256 decimals) internal pure returns (Float memory) {
         return normalize(a, -toInt(decimals));
     }
 
@@ -99,14 +80,20 @@ library FloatLib {
         return toFloat(a, 18);
     }
 
+    function toFloat(uint256 a, uint256 decimals) internal pure returns (Float memory) {
+        require(a <= uint256(type(int256).max), "Value out of int256 range");
+        return normalize(int256(a), -toInt(decimals));
+    }
+
+    function toFloat(uint256 a) internal pure returns (Float memory) {
+        return toFloat(a, 18);
+    }
+
     //-------------------
     //   toFloatArray
     //-------------------
 
-    function toFloatArray(
-        int256[] memory a,
-        uint256[] memory decimals
-    ) internal pure returns (Float[] memory) {
+    function toFloatArray(int256[] memory a, uint256[] memory decimals) internal pure returns (Float[] memory) {
         Float[] memory result = new Float[](a.length);
         for (uint256 i = 0; i < a.length; i++) {
             result[i] = toFloat(a[i], decimals[i]);
@@ -114,9 +101,7 @@ library FloatLib {
         return result;
     }
 
-    function toFloatArray(
-        int256[] memory a
-    ) internal pure returns (Float[] memory) {
+    function toFloatArray(int256[] memory a) internal pure returns (Float[] memory) {
         Float[] memory result = new Float[](a.length);
         for (uint256 i = 0; i < a.length; i++) {
             result[i] = toFloat(a[i]);
@@ -124,13 +109,12 @@ library FloatLib {
         return result;
     }
 
-    /*******************
-     *   Comparisons   *
-     *******************/
-
-    //-------------
+    //=================
+    //   Comparisons
+    //=================
+    //----------
     //   isEQ
-    //-------------
+    //----------
     function isEQ(Float memory a, Float memory b) internal pure returns (bool) {
         (a, b) = align(a, b);
         return a.mantissa == b.mantissa;
@@ -141,10 +125,7 @@ library FloatLib {
         return a.mantissa > b.mantissa;
     }
 
-    function isGEQ(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (bool) {
+    function isGEQ(Float memory a, Float memory b) internal pure returns (bool) {
         (a, b) = align(a, b);
         return a.mantissa >= b.mantissa;
     }
@@ -154,25 +135,19 @@ library FloatLib {
         return a.mantissa < b.mantissa;
     }
 
-    function isLEQ(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (bool) {
+    function isLEQ(Float memory a, Float memory b) internal pure returns (bool) {
         (a, b) = align(a, b);
         return a.mantissa <= b.mantissa;
     }
 
-    /**********************
-     *   Transformations   *
-     **********************/
-
+    //=====================
+    //   Transformations
+    //=====================
     function abs(Float memory a) internal pure returns (Float memory) {
         return Float(int256(a.mantissa.abs()), a.exponent);
     }
 
-    function integerPart(
-        Float memory number
-    ) internal pure returns (Float memory) {
+    function integerPart(Float memory number) internal pure returns (Float memory) {
         if (number.exponent < 0) {
             int256 temp = number.mantissa;
             for (uint256 i; i < toUInt(-number.exponent); i++) {
@@ -188,51 +163,98 @@ library FloatLib {
     //-----------
     //   Shift
     //-----------
-    /*
-    - shift should be unopinionated. 
-    - If the shift is too large, it will overflow.
-    - If the shift is too small, it will underflow.
-     */
-    function shift(
-        Float memory a,
-        int256 i
-    ) internal pure returns (Float memory) {
-        int256 mantissa = a.mantissa;
+    function shift(Float memory a, int256 i) internal pure returns (Float memory) {
+        if (i == 0 || a.mantissa == 0) return a;
+
+        uint256 k = i > 0 ? uint256(i) : uint256(-i);
+
+        int256 m = a.mantissa;
+        int256 e = a.exponent + i;
+
+        // chunked by powers of 10 to avoid 10**k
         if (i > 0) {
-            mantissa /= int256(10 ** toUInt(i));
-        } else if (i < 0) {
-            mantissa *= int256(10 ** toUInt(-i));
+            while (k >= 16) {
+                m /= 1e16;
+                k -= 16;
+            }
+            if (k >= 8) {
+                m /= 1e8;
+                k -= 8;
+            }
+            if (k >= 4) {
+                m /= 1e4;
+                k -= 4;
+            }
+            if (k >= 2) {
+                m /= 1e2;
+                k -= 2;
+            }
+            if (k >= 1) m /= 10;
+        } else {
+            require(k <= SIGNIFICANT_DIGITS, "shift: |i| too large");
+            while (k >= 16) {
+                m *= 1e16;
+                k -= 16;
+            }
+            if (k >= 8) {
+                m *= 1e8;
+                k -= 8;
+            }
+            if (k >= 4) {
+                m *= 1e4;
+                k -= 4;
+            }
+            if (k >= 2) {
+                m *= 1e2;
+                k -= 2;
+            }
+            if (k >= 1) m *= 10;
         }
-        return Float(mantissa, a.exponent + i);
+
+        return Float(m, e);
     }
 
     //---------------
     //   normalize
     //---------------
+    function normalize(int256 mantissa, int256 exponent) internal pure returns (Float memory) {
+        // Fast path
+        if (mantissa == 0) return Float(0, 0);
 
-    function normalize(
-        int256 mantissa,
-        int256 exponent
-    ) internal pure returns (Float memory) {
-        bool isLarge = mantissa.abs() > NORMALIZED_MANTISSA_MAX;
-        bool isSmall = mantissa.abs() < NORMALIZED_MANTISSA_MIN;
-        if (!isLarge && !isSmall) {
-            return Float(mantissa, exponent);
-        } else if (isLarge) {
-            while (mantissa.abs() > NORMALIZED_MANTISSA_MAX) {
-                mantissa /= 10;
-                exponent++;
+        int256 m = mantissa;
+        int256 e = exponent;
+
+        // Single abs computation (safe for -2^255)
+        uint256 mag = _abs256(m);
+
+        // Scale down by 10s until within bounds
+        if (mag > NORMALIZED_MANTISSA_MAX) {
+            while (mag > NORMALIZED_MANTISSA_MAX) {
+                m /= 10;
+                e += 1;
+                mag /= 10;
             }
-            return Float(mantissa, exponent);
-        } else if (mantissa == 0) {
-            return Float(0, 0);
-        } else {
-            while (mantissa.abs() < NORMALIZED_MANTISSA_MIN) {
-                mantissa *= 10;
-                exponent--;
-            }
-            return Float(mantissa, exponent);
+            return Float(m, e);
         }
+
+        // Scale up by 10s until within bounds
+        if (mag < NORMALIZED_MANTISSA_MIN) {
+            while (mag < NORMALIZED_MANTISSA_MIN) {
+                m *= 10;
+                e -= 1;
+                mag *= 10;
+            }
+            return Float(m, e);
+        }
+
+        return Float(m, e);
+    }
+
+    function _abs256(int256 x) private pure returns (uint256) {
+        if (x >= 0) return uint256(x);
+        unchecked {
+            return uint256(~x) + 1;
+        } // == uint256(-x)
     }
 
     function normalize(Float memory a) internal pure returns (Float memory) {
@@ -242,14 +264,8 @@ library FloatLib {
     //-----------
     //   align
     //-----------
-
-    /*
-    a and b should be normalized before shifting because shifting shifts the mantissa downward
-    */
-    function align(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (Float memory, Float memory) {
+    // a and b should be normalized before shifting because shifting shifts the mantissa downward
+    function align(Float memory a, Float memory b) internal pure returns (Float memory, Float memory) {
         if (a.mantissa == 0 && b.mantissa == 0) {
             return (Float(0, 0), Float(0, 0));
         } else if (a.mantissa == 0) {
@@ -275,17 +291,13 @@ library FloatLib {
         }
     }
 
-    /*****************
-     *   Arithmetic   *
-     *****************/
-
+    //================
+    //   Arithmetic
+    //================
     //----------
     //   plus
     //----------
-    function plus(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (Float memory) {
+    function plus(Float memory a, Float memory b) internal pure returns (Float memory) {
         (a, b) = align(a, b);
         return normalize(a.mantissa + b.mantissa, a.exponent);
     }
@@ -297,10 +309,7 @@ library FloatLib {
         return Float(-a.mantissa, a.exponent);
     }
 
-    function minus(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (Float memory) {
+    function minus(Float memory a, Float memory b) internal pure returns (Float memory) {
         (a, b) = align(a, b);
         return normalize(a.mantissa - b.mantissa, a.exponent);
     }
@@ -308,45 +317,33 @@ library FloatLib {
     //-----------
     //   times
     //-----------
-    function times(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (Float memory) {
+    function times(Float memory a, Float memory b) internal pure returns (Float memory) {
         a = normalize(a);
         b = normalize(b);
 
-        return
-            normalize(
-                (a.mantissa * b.mantissa) / int256(10 ** SIGNIFICANT_DIGITS),
-                toInt(SIGNIFICANT_DIGITS) + a.exponent + b.exponent
-            );
+        return normalize(
+            (a.mantissa * b.mantissa) / int256(10 ** SIGNIFICANT_DIGITS),
+            toInt(SIGNIFICANT_DIGITS) + a.exponent + b.exponent
+        );
     }
 
     //------------
     //   divide
     //------------
-    function divide(
-        Float memory a,
-        Float memory b
-    ) internal pure returns (Float memory) {
+    function divide(Float memory a, Float memory b) internal pure returns (Float memory) {
         a = normalize(a);
         b = normalize(b);
 
-        return
-            normalize(
-                (a.mantissa * int256(10 ** SIGNIFICANT_DIGITS)) / b.mantissa,
-                a.exponent - b.exponent - toInt(SIGNIFICANT_DIGITS)
-            );
+        return normalize(
+            (a.mantissa * int256(10 ** SIGNIFICANT_DIGITS)) / b.mantissa,
+            a.exponent - b.exponent - toInt(SIGNIFICANT_DIGITS)
+        );
     }
 
-    /****************
-    Special functions
-    ****************/
-
-    function round(
-        Float memory a,
-        uint256 digits
-    ) internal pure returns (Float memory) {
+    //=======================
+    //   Special functions
+    //=======================
+    function round(Float memory a, uint256 digits) internal pure returns (Float memory) {
         if (a.mantissa == 0) return Float(0, 0);
         a = normalize(a);
         int256 factor = int256(10 ** (SIGNIFICANT_DIGITS - digits));
@@ -369,9 +366,7 @@ library FloatLib {
         return normalize(aprime.expWad(), k - 18);
     }
 
-    function log(
-        Float memory a
-    )
+    function log(Float memory a)
         internal
         pure
         returns (
@@ -389,37 +384,22 @@ library FloatLib {
         Float w;
     }
 
-    function cubicsolve(
-        Float memory b,
-        Float memory c,
-        Float memory d
-    ) internal pure returns (Float memory x) {
+    function cubicsolve(Float memory b, Float memory c, Float memory d) internal pure returns (Float memory x) {
         Cubic memory cubic;
 
         cubic.p = minus(c, divide(times(b, b), Float(3, 0)));
-        cubic.q = minus(
-            plus(d, divide(times(b, times(b, b)), Float(135, -1))),
-            divide(times(b, c), Float(3e17, -17))
-        );
+        cubic.q = minus(plus(d, divide(times(b, times(b, b)), Float(135, -1))), divide(times(b, c), Float(3e17, -17)));
         cubic.rad = plus(
-            divide(times(cubic.q, cubic.q), Float(4, 0)),
-            divide(times(cubic.p, times(cubic.p, cubic.p)), Float(27, 0))
+            divide(times(cubic.q, cubic.q), Float(4, 0)), divide(times(cubic.p, times(cubic.p, cubic.p)), Float(27, 0))
         );
         if (isLT(cubic.rad, Float(0, 0))) revert NoSolution();
         cubic.u = minus(exp(log(cubic.rad) / 2), divide(cubic.q, Float(2, 0)));
         cubic.w = cubic.u.mantissa > 0 ? exp(log(cubic.u) / 3) : minus(exp(log(minus(cubic.u)) / 3));
 
-        x = minus(
-            minus(cubic.w, divide(cubic.p, times(Float(3, 0), cubic.w))),
-            divide(b, Float(3, 0))
-        );
+        x = minus(minus(cubic.w, divide(cubic.p, times(Float(3, 0), cubic.w))), divide(b, Float(3, 0)));
     }
 
-    function fullMulDiv(
-        Float memory a,
-        Float memory b,
-        Float memory c
-    ) internal pure returns (Float memory) {
+    function fullMulDiv(Float memory a, Float memory b, Float memory c) internal pure returns (Float memory) {
         int256 sign = 1;
         if (a.mantissa < 0) {
             sign *= -1;
@@ -433,16 +413,9 @@ library FloatLib {
         a = normalize(a);
         b = normalize(b);
         c = normalize(c);
-        return
-            normalize(
-                sign *
-                    int256(
-                        a.mantissa.abs().fullMulDiv(
-                            b.mantissa.abs(),
-                            c.mantissa.abs()
-                        )
-                    ),
-                a.exponent + b.exponent - c.exponent
-            );
+        return normalize(
+            sign * int256(a.mantissa.abs().fullMulDiv(b.mantissa.abs(), c.mantissa.abs())),
+            a.exponent + b.exponent - c.exponent
+        );
     }
 }
