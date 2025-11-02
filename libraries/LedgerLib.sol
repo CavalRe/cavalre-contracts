@@ -212,7 +212,7 @@ library LedgerLib {
         return store().balance[addr_] > 0;
     }
 
-    function parent(address addr_, bool isCredit_) private pure returns (address) {
+    function parent(address addr_, bool isCredit_) internal pure returns (address) {
         if (isCredit_) {
             return toGroupAddress(addr_, "Total");
         } else {
@@ -220,12 +220,20 @@ library LedgerLib {
         }
     }
 
+    function reserveAddress(address token_) internal view returns (address) {
+        return toLedgerAddress(parent(token_, isCredit(token_)), RESERVE_ADDRESS);
+    }
+
+    function scaleAddress(address token_) internal view returns (address) {
+        return toLedgerAddress(parent(address(this), isCredit(token_)), token_);
+    }
+
     function reserve(address token_) internal view returns (uint256) {
-        return balanceOf(toLedgerAddress(parent(token_, isCredit(token_)), RESERVE_ADDRESS));
+        return balanceOf(reserveAddress(token_));
     }
 
     function scale(address token_) internal view returns (uint256) {
-        return balanceOf(toLedgerAddress(parent(address(this), isCredit(token_)), token_));
+        return balanceOf(scaleAddress(token_));
     }
 
     function price(address token_) internal view returns (Float memory) {
