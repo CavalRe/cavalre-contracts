@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity 0.8.24;
+pragma solidity 0.8.26;
 
 import {FloatLib, Float} from "../../libraries/FloatLib.sol";
 import {FloatStrings} from "../../libraries/FloatStrings.sol";

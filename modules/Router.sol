@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
 import {Module, ModuleLib} from "./Module.sol";
 import {RouterLib} from "../libraries/RouterLib.sol";

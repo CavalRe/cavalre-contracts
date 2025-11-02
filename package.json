@@ -31,10 +31,7 @@
     "forge-std": "github:foundry-rs/forge-std"
   },
   "dependencies": {
-    "@openzeppelin/contracts-upgradeable": "^5.3.0",
+    "@openzeppelin/contracts-upgradeable": "^5.5.0",
     "solady": "^0.1.18"
-  },
-  "overrides": {
-    "@openzeppelin/contracts": "github:CavalRe/openzeppelin-contracts"
   }
 }

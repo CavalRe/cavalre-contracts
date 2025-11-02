@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.26;
 
 import {Router} from "../modules/Router.sol";
 import {ERC20, ERC20Lib} from "./ERC20.sol";

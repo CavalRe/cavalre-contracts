@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 import {Module} from "./Module.sol";
 import {Initializable} from "../utilities/Initializable.sol";
