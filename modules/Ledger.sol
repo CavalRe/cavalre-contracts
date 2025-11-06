@@ -159,9 +159,10 @@ contract Ledger is Module, Initializable, ILedger {
 
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](30);
+        _commands = new bytes4[](31);
         _commands[n++] = bytes4(keccak256("initializeLedger()"));
-        _commands[n++] = bytes4(keccak256("createToken(string,string,uint8,bool)"));
+        _commands[n++] = bytes4(keccak256("createWrappedToken(address)"));
+        _commands[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
         _commands[n++] = bytes4(keccak256("name(address)"));
         _commands[n++] = bytes4(keccak256("symbol(address)"));
         _commands[n++] = bytes4(keccak256("decimals(address)"));
@@ -197,20 +198,26 @@ contract Ledger is Module, Initializable, ILedger {
     function initializeLedger_unchained() public onlyInitializing {
         enforceIsOwner();
 
-        LedgerLib.addLedger(address(this), "Scale", "S", 18, false, true);
+        LedgerLib.addLedger(address(this), address(0), "Scale", "S", 18, false, true);
     }
 
     function initializeLedger() external initializer {
         initializeLedger_unchained();
     }
 
-    function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+    function createWrappedToken(address token_) external {
+        enforceIsOwner();
+
+        LedgerLib.createWrappedToken(token_);
+    }
+
+    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
         external
         returns (address)
     {
         enforceIsOwner();
 
-        return LedgerLib.createToken(name_, symbol_, decimals_, isCredit_);
+        return LedgerLib.createInternalToken(name_, symbol_, decimals_, isCredit_);
     }
 
     //==========
@@ -234,6 +241,10 @@ contract Ledger is Module, Initializable, ILedger {
 
     function parent(address addr_) external view returns (address) {
         return LedgerLib.parent(addr_);
+    }
+
+    function flags(address addr_) external view returns (uint256) {
+        return LedgerLib.flags(addr_);
     }
 
     function isGroup(address addr_) external view returns (bool) {

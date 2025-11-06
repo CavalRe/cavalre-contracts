@@ -37,11 +37,10 @@ contract ERC20WrapperTest is Test {
         if (isVerbose) console.log("Initializing Test Ledger");
         ledgers.initializeTestLedger();
 
-        if (isVerbose) console.log("Creating ERC20Wrapper");
-        token = ERC20Wrapper(ledgers.createToken("Wrapped Test Token", "WTT", 18, false));
-
         if (isVerbose) console.log("Adding new token to ledger");
-        ledgers.addLedger(address(token), "Wrapped Test Token", "WTT", 18, false, true);
+        token = ERC20Wrapper(ledgers.createInternalToken("Internal Test Token", "ITT", 18, false));
+
+        if (isVerbose) console.log("Token added");
 
         vm.stopPrank();
     }
@@ -50,13 +49,13 @@ contract ERC20WrapperTest is Test {
     // Metadata
     // ─────────────────────────────────────────────────────────────────────────
     function testERC20WrapperMetadata() public view {
-        assertEq(token.name(), "Wrapped Test Token");
-        assertEq(token.symbol(), "WTT");
+        assertEq(token.name(), "Internal Test Token");
+        assertEq(token.symbol(), "ITT");
         assertEq(token.decimals(), 18);
         assertEq(token.totalSupply(), 0);
 
-        assertEq(ledgers.name(address(token)), "Wrapped Test Token");
-        assertEq(ledgers.symbol(address(token)), "WTT");
+        assertEq(ledgers.name(address(token)), "Internal Test Token");
+        assertEq(ledgers.symbol(address(token)), "ITT");
         assertEq(ledgers.decimals(address(token)), 18);
         assertEq(ledgers.totalSupply(address(token)), 0);
     }
@@ -64,7 +63,7 @@ contract ERC20WrapperTest is Test {
     function testERC20WrapperCreateToken() public {
         vm.startPrank(owner);
 
-        address _newToken = ledgers.createToken("New Test Token", "NTT", 18, false);
+        address _newToken = ledgers.createInternalToken("New Test Token", "NTT", 18, false);
         assertEq(ERC20Wrapper(_newToken).name(), "New Test Token");
         assertEq(ERC20Wrapper(_newToken).symbol(), "NTT");
         assertEq(ERC20Wrapper(_newToken).decimals(), 18);

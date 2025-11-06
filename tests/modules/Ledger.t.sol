@@ -24,7 +24,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
-        _commands = new bytes4[](39);
+        _commands = new bytes4[](40);
         _commands[n++] = bytes4(keccak256("initializeTestLedger()"));
         _commands[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _commands[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -33,7 +33,8 @@ contract TestLedger is Ledger {
         _commands[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _commands[n++] = bytes4(keccak256("addLedger(address,string,string,uint8,bool,bool)"));
-        _commands[n++] = bytes4(keccak256("createToken(string,string,uint8,bool)"));
+        _commands[n++] = bytes4(keccak256("createWrappedToken(address)"));
+        _commands[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
         _commands[n++] = bytes4(keccak256("name(address)"));
         _commands[n++] = bytes4(keccak256("symbol(address)"));
         _commands[n++] = bytes4(keccak256("decimals(address)"));
@@ -91,17 +92,6 @@ contract TestLedger is Ledger {
         return LLib.removeSubAccount(parent_, addr_);
     }
 
-    function addLedger(
-        address token_,
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        bool isCredit_,
-        bool isInternal_
-    ) external {
-        LLib.addLedger(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
-    }
-
     function mint(address toParent_, address to_, uint256 amount_) external {
         LLib.mint(toParent_, to_, amount_);
     }
@@ -150,6 +140,7 @@ contract LedgerTest is Test {
 
     address testLedger;
     MockERC20 externalToken;
+    MockERC20 unlistedToken;
     address externalWrapper;
 
     // Root
@@ -163,43 +154,60 @@ contract LedgerTest is Test {
     address _110 = LLib.toNamedAddress("110");
     address _111 = LLib.toNamedAddress("111");
 
-    // Root token and sub-groups
-    address r1 = LLib.toNamedAddress("1");
-    address r10 = LLib.toGroupAddress(r1, "10");
-    address r11 = LLib.toGroupAddress(r1, "11");
-    address r100 = LLib.toGroupAddress(r10, "100");
-    address r101 = LLib.toGroupAddress(r10, "101");
-    address r110 = LLib.toGroupAddress(r11, "110");
-    address r111 = LLib.toGroupAddress(r11, "111");
+    address r1;
+    address r10;
+    address r11;
+    address r100;
+    address r101;
+    address r110;
+    address r111;
 
     function setUp() public {
+        bool isVerbose = false;
+
         vm.startPrank(alice);
+        if (isVerbose) console.log("Deploying TestLedger");
         ledgers = new TestLedger(18);
+        if (isVerbose) console.log("Deploying Router");
         router = new Router(alice);
+        if (isVerbose) console.log("Adding Ledger module to Router");
         router.addModule(address(ledgers));
         ledgers = TestLedger(payable(router));
 
+        if (isVerbose) console.log("Initializing Test Ledger");
         ledgers.initializeTestLedger();
 
         // Add a standalone ledger tree for misc checks
-        testLedger = LLib.toNamedAddress("Test Ledger");
-        ledgers.addLedger(testLedger, "Test Ledger", "TL", 18, false, true);
+        // testLedger = LLib.toNamedAddress("Test Ledger");
+        if (isVerbose) console.log("Creating Test Ledger token");
+        testLedger = ledgers.createInternalToken("Test Ledger", "TL", 18, false);
+        if (isVerbose) console.log("Adding sub-groups to Test Ledger");
         ledgers.addSubAccountGroup(
             ledgers.addSubAccountGroup(ledgers.addSubAccountGroup(testLedger, "1", false), "10", false), "100", false
         );
 
         // Add token r1 and its sub-groups
-        ledgers.addLedger(r1, "1", "1", 18, true, true);
-        ledgers.addSubAccountGroup(r1, "10", false);
-        ledgers.addSubAccountGroup(r1, "11", false);
-        ledgers.addSubAccountGroup(r10, "100", false);
-        ledgers.addSubAccountGroup(r10, "101", false);
-        ledgers.addSubAccountGroup(r11, "110", false);
-        ledgers.addSubAccountGroup(r11, "111", false);
+        if (isVerbose) console.log("Creating root token '1'");
+        r1 = ledgers.createInternalToken("1", "1", 18, true);
+        if (isVerbose) console.log("Adding sub-group '10' to root token '1'");
+        r10 = ledgers.addSubAccountGroup(r1, "10", false);
+        if (isVerbose) console.log("Adding sub-group '11' to root token '1'");
+        r11 = ledgers.addSubAccountGroup(r1, "11", false);
+        if (isVerbose) console.log("Adding sub-groups '100' to '10'");
+        r100 = ledgers.addSubAccountGroup(r10, "100", false);
+        if (isVerbose) console.log("Adding sub-groups '101' to '10'");
+        r101 = ledgers.addSubAccountGroup(r10, "101", false);
+        if (isVerbose) console.log("Adding sub-groups '110' to '11'");
+        r110 = ledgers.addSubAccountGroup(r11, "110", false);
+        if (isVerbose) console.log("Adding sub-groups '111' to '11'");
+        r111 = ledgers.addSubAccountGroup(r11, "111", false);
 
+        if (isVerbose) console.log("Creating external token and its wrapper");
         externalToken = new MockERC20("External Token", "EXT", 18);
-        ledgers.addLedger(address(externalToken), "External Token", "EXT", 18, false, false);
+        ledgers.createWrappedToken(address(externalToken));
         externalWrapper = ledgers.wrapper(address(externalToken));
+
+        unlistedToken = new MockERC20("Unlisted Token", "UNL", 18);
     }
 
     // Matches your old “InvalidInitialization” guard
@@ -432,27 +440,30 @@ contract LedgerTest is Test {
     }
 
     function testLedgerWrap() public {
+        bool isVerbose = true;
+
         vm.startPrank(alice);
 
-        MockERC20 unlisted = new MockERC20("Unlisted Token", "UNL", 18);
         uint256 unlistedAmount = 50;
-        unlisted.mint(alice, unlistedAmount);
-        unlisted.approve(address(ledgers), unlistedAmount);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, address(unlisted)));
-        ledgers.wrap(address(unlisted), unlistedAmount);
+        unlistedToken.mint(alice, unlistedAmount);
+        unlistedToken.approve(address(ledgers), unlistedAmount);
+        if (isVerbose) console.log("Attempt wrap of unlisted token (should revert)");
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, address(unlistedToken)));
+        ledgers.wrap(address(unlistedToken), unlistedAmount);
 
         uint256 wrapAmount = 120;
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledgers), wrapAmount);
+        if (isVerbose) console.log("Wrapping external token");
         ledgers.wrap(address(externalToken), wrapAmount);
 
         assertEq(externalToken.balanceOf(address(router)), wrapAmount, "router holds wrapped tokens");
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance consumed");
-        assertEq(ledgers.balanceOf(externalWrapper, alice), wrapAmount, "ledger balance after wrap");
-        assertEq(ledgers.totalSupply(externalWrapper), wrapAmount, "total supply after wrap");
+        assertEq(ledgers.balanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
+        assertEq(ledgers.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
 
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, address(unlisted)));
-        ledgers.unwrap(address(unlisted), 10);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, address(unlistedToken)));
+        ledgers.unwrap(address(unlistedToken), 10);
 
         uint256 firstUnwrap = 45;
         ledgers.unwrap(address(externalToken), firstUnwrap);
@@ -461,16 +472,20 @@ contract LedgerTest is Test {
         );
         assertEq(externalToken.balanceOf(alice), firstUnwrap, "alice external balance after partial unwrap");
         assertEq(
-            ledgers.balanceOf(externalWrapper, alice), wrapAmount - firstUnwrap, "ledger balance after partial unwrap"
+            ledgers.balanceOf(address(externalToken), alice),
+            wrapAmount - firstUnwrap,
+            "ledger balance after partial unwrap"
         );
-        assertEq(ledgers.totalSupply(externalWrapper), wrapAmount - firstUnwrap, "total supply after partial unwrap");
+        assertEq(
+            ledgers.totalSupply(address(externalToken)), wrapAmount - firstUnwrap, "total supply after partial unwrap"
+        );
 
         uint256 remaining = wrapAmount - firstUnwrap;
         ledgers.unwrap(address(externalToken), remaining);
         assertEq(externalToken.balanceOf(address(router)), 0, "router drained after unwrap");
         assertEq(externalToken.balanceOf(alice), wrapAmount, "alice restored external balance");
-        assertEq(ledgers.balanceOf(externalWrapper, alice), 0, "ledger balance cleared");
-        assertEq(ledgers.totalSupply(externalWrapper), 0, "total supply cleared");
+        assertEq(ledgers.balanceOf(address(externalToken), alice), 0, "ledger balance cleared");
+        assertEq(ledgers.totalSupply(address(externalToken)), 0, "total supply cleared");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -542,7 +557,7 @@ contract LedgerTest is Test {
         assertEq(ledgers.balanceOf(r1, alice), 900, "balanceOf(r1, alice)");
         assertEq(ledgers.balanceOf(r1, bob), 0, "balanceOf(r1, bob)");
         assertEq(ledgers.balanceOf(r10, _100), 0, "balanceOf(r10, _100)");
-        assertEq(ledgers.totalSupply(_1), 1000, "totalSupply(r1)");
+        assertEq(ledgers.totalSupply(r1), 1000, "totalSupply(r1)");
     }
 }
 

@@ -8,7 +8,8 @@ interface ILedger {
     // Initializers
     // ─────────────────────────────────────────────────────────────────────────────
     function initializeLedger() external;
-    function createToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
+    function createWrappedToken(address token) external;
+    function createInternalToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
         external
         returns (address);
 
@@ -24,13 +25,14 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     function root(address addr) external view returns (address);
     function parent(address addr) external view returns (address);
+    function flags(address addr) external view returns (uint256);
+    function wrapper(address token) external view returns (address);
     function isGroup(address addr) external view returns (bool);
     function isCredit(address addr) external view returns (bool);
     function isInternal(address addr) external view returns (bool);
     function subAccounts(address parent) external view returns (address[] memory);
     function hasSubAccount(address parent) external view returns (bool);
     function subAccountIndex(address parent, address addr) external view returns (uint32);
-    function wrapper(address token) external view returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Balances & Valuations
@@ -108,7 +110,7 @@ interface ILedger {
     error InvalidSubAccountGroup(string subName, bool isCredit);
     error InvalidSubAccountIndex(uint256 index);
     error InvalidString(string symbol);
-    error InvalidToken(address token, string name, string symbol, uint8 decimals, bool isCredit, bool isInternal);
+    error InvalidToken(address token, string name, string symbol, uint8 decimals);
     error MaxDepthExceeded();
     error NotCredit(string name);
     error SubAccountNotFound(address addr);

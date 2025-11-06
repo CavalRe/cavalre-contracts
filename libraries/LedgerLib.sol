@@ -21,8 +21,7 @@ library LedgerLib {
         mapping(address sub => address) parent;
         mapping(address parent => address[]) subs;
         mapping(address sub => uint32) subIndex;
-        mapping(address => address) wrapper;
-        mapping(address => uint8) flags;
+        mapping(address => uint256) flags;
         mapping(address => uint256) balance;
         mapping(address owner => mapping(address spender => uint256)) allowances;
     }
@@ -42,10 +41,12 @@ library LedgerLib {
     address internal constant TOTAL_ADDRESS = 0xa763678a2e868D872d408672C9f80B77F4d1d14B;
     // toNamedAddress("Reserve")
     address internal constant RESERVE_ADDRESS = 0x3a9097D216F9D5859bE6b3918F997A8823E92984;
-    uint8 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
-    uint8 constant FLAG_IS_CREDIT = 1 << 1; // 1 = credit account, 0 = debit
-    uint8 constant FLAG_IS_INTERNAL = 1 << 2; // 1 = internal token, 0 = external token
-
+    // toNamedAddress("Defaul Source")
+    address internal constant DEFAULT_SOURCE_ADDRESS = 0xFa37b787d525B289AA879f2D9bEDF3eDDF0FbeDd;
+    uint256 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
+    uint256 constant FLAG_IS_CREDIT = 1 << 1; // 1 = credit account, 0 = debit
+    uint256 constant FLAG_IS_INTERNAL = 1 << 2; // 1 = internal token, 0 = external token
+    uint256 constant PACK_ADDR_SHIFT = 96; // store address in high 160 bits
     //==================================================================
     //                            Validation
     //==================================================================
@@ -58,39 +59,63 @@ library LedgerLib {
         return addr_ == address(0);
     }
 
-    function flags(bool isGroup_, bool isCredit_, bool isInternal_) internal pure returns (uint8 _flags) {
+    function flags(address wrapper_, bool isGroup_, bool isCredit_, bool isInternal_)
+        internal
+        pure
+        returns (uint256 _flags)
+    {
         if (isGroup_) _flags |= FLAG_IS_GROUP;
         if (isCredit_) _flags |= FLAG_IS_CREDIT;
         if (isInternal_) _flags |= FLAG_IS_INTERNAL;
+        _flags |= (uint256(uint160(wrapper_)) << PACK_ADDR_SHIFT);
     }
 
-    function flags(address addr_) internal view returns (bool _isGroup, bool _isCredit, bool _isInternal) {
-        uint8 _flags = store().flags[addr_];
-        _isGroup = (_flags & FLAG_IS_GROUP) != 0;
-        _isCredit = (_flags & FLAG_IS_CREDIT) != 0;
-        _isInternal = (_flags & FLAG_IS_INTERNAL) != 0;
+    // function flags(address addr_)
+    //     internal
+    //     view
+    //     returns (address _wrapper, bool _isGroup, bool _isCredit, bool _isInternal)
+    // {
+    //     uint256 _flags = store().flags[addr_];
+    //     _wrapper = address(uint160(_flags >> PACK_ADDR_SHIFT));
+    //     _isGroup = (_flags & FLAG_IS_GROUP) != 0;
+    //     _isCredit = (_flags & FLAG_IS_CREDIT) != 0;
+    //     _isInternal = (_flags & FLAG_IS_INTERNAL) != 0;
+    // }
+
+    function flags(address addr_) internal view returns (uint256) {
+        return store().flags[addr_];
+    }
+
+    function wrapper(uint256 flags_) internal pure returns (address) {
+        return address(uint160(flags_ >> PACK_ADDR_SHIFT));
+    }
+
+    function isGroup(uint256 flags_) internal pure returns (bool) {
+        return (flags_ & FLAG_IS_GROUP) != 0;
+    }
+
+    function isCredit(uint256 flags_) internal pure returns (bool) {
+        return (flags_ & FLAG_IS_CREDIT) != 0;
+    }
+
+    function isInternal(uint256 flags_) internal pure returns (bool) {
+        return (flags_ & FLAG_IS_INTERNAL) != 0;
+    }
+
+    function wrapper(address token_) internal view returns (address) {
+        return wrapper(store().flags[token_]);
     }
 
     function isGroup(address addr_) internal view returns (bool) {
-        return (store().flags[addr_] & FLAG_IS_GROUP) != 0;
+        return isGroup(store().flags[addr_]);
     }
 
     function isCredit(address addr_) internal view returns (bool) {
-        return (store().flags[addr_] & FLAG_IS_CREDIT) != 0;
+        return isCredit(store().flags[addr_]);
     }
 
     function isInternal(address addr_) internal view returns (bool) {
-        return (store().flags[addr_] & FLAG_IS_INTERNAL) != 0;
-    }
-
-    function setGroup(address addr_, bool isGroup_) internal {
-        uint8 _flags = store().flags[addr_];
-        if (isGroup_) {
-            _flags |= FLAG_IS_GROUP;
-        } else {
-            _flags &= ~FLAG_IS_GROUP;
-        }
-        store().flags[addr_] = _flags;
+        return isInternal(store().flags[addr_]);
     }
 
     function checkGroup(address addr_) internal view {
@@ -197,10 +222,6 @@ library LedgerLib {
         return store().subIndex[_addr];
     }
 
-    function wrapper(address token_) internal view returns (address) {
-        return store().wrapper[token_];
-    }
-
     //==================================================================
     //                        Balance & Valuation
     //==================================================================
@@ -284,7 +305,7 @@ library LedgerLib {
         s.parent[_sub] = parent_;
         s.subs[parent_].push(toNamedAddress(name_));
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.flags[_sub] = flags(true, isCredit_, true);
+        s.flags[_sub] = flags(_root, true, isCredit_, true);
         emit ILedger.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
@@ -315,83 +336,98 @@ library LedgerLib {
         s.parent[_sub] = parent_;
         s.subs[parent_].push(addr_);
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.flags[_sub] = flags(false, isCredit_, true);
+        s.flags[_sub] = flags(_root, false, isCredit_, true);
         emit ILedger.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
     function addLedger(
-        address token_,
+        address root_,
+        address wrapper_,
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
         bool isCredit_,
         bool isInternal_
     ) internal {
-        if (isZeroAddress(token_) || !isValidString(name_) || !isValidString(symbol_) || decimals_ == 0) {
-            revert ILedger.InvalidToken(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
+        if (
+            isZeroAddress(root_) // Root cannot be zero address
+                || (root_ == address(this) && !isZeroAddress(wrapper_)) // If root is Ledger, wrapper must be zero address
+                || (isZeroAddress(wrapper_) && root_ != address(this)) // If root is not Ledger, wrapper cannot be zero address
+                || !isValidString(name_) || !isValidString(symbol_)
+        ) {
+            revert ILedger.InvalidToken(root_, name_, symbol_, decimals_);
         }
 
         Store storage s = store();
         // Check if token already exists
-        if (token_ != address(0) && s.root[token_] == token_) {
+        if (s.root[root_] == root_) {
             // Token already exists
-            bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(name(token_)));
-            bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(token_)));
-            bool _sameDec = decimals(token_) == decimals_;
-            (bool _isGroup, bool _isCredit, bool _isInternal) = flags(token_);
-            bool _sameType = _isGroup == true && _isCredit == isCredit_ && _isInternal == isInternal_;
-            if (_sameName && _sameSymbol && _sameDec && _sameType) {
+            bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(name(root_)));
+            bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(root_)));
+            bool _sameDec = decimals(root_) == decimals_;
+            if (_sameName && _sameSymbol && _sameDec) {
                 // No changes needed
                 return;
             }
-            revert ILedger.InvalidToken(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
+            revert ILedger.InvalidToken(root_, name_, symbol_, decimals_);
         }
-        // Handle external tokens
-        if (!isInternal_) {
-            IERC20Metadata meta = IERC20Metadata(token_);
-            bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(meta.name()));
-            bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(meta.symbol()));
-            bool _sameDec = meta.decimals() == decimals_;
-            if (!_sameName || !_sameSymbol || !_sameDec) {
-                revert ILedger.InvalidToken(token_, name_, symbol_, decimals_, isCredit_, isInternal_);
-            }
-            name_ = string(abi.encodePacked(name_, " | CavalRe"));
-            symbol_ = string(abi.encodePacked(symbol_, ".cav"));
-            address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-            s.wrapper[token_] = _token;
-            token_ = _token; // Use the internal wrapper address
-        }
-        s.name[token_] = name_;
-        s.symbol[token_] = symbol_;
-        s.decimals[token_] = decimals_;
-        s.root[token_] = token_;
-        s.flags[token_] = flags(true, isCredit_, isInternal_);
+        s.name[root_] = name_;
+        s.symbol[root_] = symbol_;
+        s.decimals[root_] = decimals_;
+        s.root[root_] = root_;
+        s.flags[root_] = flags(wrapper_, true, isCredit_, isInternal_);
 
         // Add a "Total" credit subaccount group
-        addSubAccountGroup(token_, "Total", true);
+        addSubAccountGroup(root_, "Total", true);
+        addSubAccount(toLedgerAddress(root_, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, "Default Source", true);
 
         // Add a Reserve subaccount and subaccount to Scale for this token
-        if (token_ != address(this)) {
-            if (isCredit_) {
-                addSubAccount(toGroupAddress(token_, "Total"), RESERVE_ADDRESS, "Reserve", isCredit_);
-                addSubAccount(toGroupAddress(address(this), "Total"), token_, name_, isCredit_);
-            } else {
-                addSubAccount(token_, RESERVE_ADDRESS, "Reserve", isCredit_);
-                addSubAccount(address(this), token_, name_, isCredit_);
-            }
+        if (root_ != address(this)) {
+            addSubAccount(parent(root_, isCredit_), RESERVE_ADDRESS, "Reserve", isCredit_);
+            addSubAccount(parent(address(this), isCredit_), root_, name_, isCredit_);
         }
 
-        emit ILedger.LedgerAdded(token_, name_, symbol_, decimals_);
+        emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
     }
 
-    function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
-        external
-        returns (address)
-    {
-        address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-        addLedger(_token, name_, symbol_, decimals_, isCredit_, true);
-        return _token;
+    function createWrappedToken(address token_) internal {
+        IERC20Metadata _meta = IERC20Metadata(token_);
+        string memory _name = _meta.name();
+        string memory _symbol = _meta.symbol();
+        uint8 _decimals = _meta.decimals();
+        if (!isValidString(_name) || !isValidString(_symbol)) {
+            revert ILedger.InvalidToken(token_, _name, _symbol, _decimals);
+        }
+        address _wrapper = address(
+            new ERC20Wrapper(
+                address(this),
+                string(abi.encodePacked(_name, " | CavalRe")),
+                string(abi.encodePacked(_symbol, ".cav")),
+                _decimals
+            )
+        );
+        addLedger(token_, _wrapper, _name, _symbol, _decimals, false, false);
     }
+
+    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+        internal
+        returns (address wrapper_)
+    {
+        if (!isValidString(name_) || !isValidString(symbol_)) {
+            revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
+        }
+        wrapper_ = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
+        addLedger(wrapper_, wrapper_, name_, symbol_, decimals_, isCredit_, true);
+    }
+
+    // function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+    //     external
+    //     returns (address)
+    // {
+    //     address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
+    //     addLedger(_token, name_, symbol_, decimals_, isCredit_, true);
+    //     return _token;
+    // }
 
     function removeSubAccountGroup(address parent_, string memory name_) internal returns (address) {
         address _sub = toGroupAddress(parent_, name_);
@@ -541,16 +577,16 @@ library LedgerLib {
     }
 
     function wrap(address token_, uint256 amount_) internal {
-        address _wrapper = store().wrapper[token_];
+        address _wrapper = wrapper(token_);
         if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
         SafeERC20.safeTransferFrom(IERC20(token_), msg.sender, address(this), amount_);
-        mint(_wrapper, msg.sender, amount_);
+        mint(token_, msg.sender, amount_);
     }
 
     function unwrap(address token_, uint256 amount_) internal {
-        address _wrapper = store().wrapper[token_];
+        address _wrapper = wrapper(token_);
         if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
-        burn(_wrapper, msg.sender, amount_);
+        burn(token_, msg.sender, amount_);
         SafeERC20.safeTransfer(IERC20(token_), msg.sender, amount_);
     }
 
@@ -570,12 +606,13 @@ library LedgerLib {
 
     function mint(address toParent_, address to_, uint256 amount_) internal returns (bool) {
         address _token = root(toParent_);
-        return transfer(_token, TOTAL_ADDRESS, toParent_, to_, amount_, true);
+        return transfer(toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, toParent_, to_, amount_, true);
     }
 
     function burn(address fromParent_, address from_, uint256 amount_) internal returns (bool) {
         address _token = root(fromParent_);
-        return transfer(fromParent_, from_, _token, TOTAL_ADDRESS, amount_, true);
+        return
+            transfer(fromParent_, from_, toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, amount_, true);
     }
 
     function approve(address ownerParent_, address owner_, address spender_, uint256 amount_, bool emitEvent_)
