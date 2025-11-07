@@ -194,7 +194,6 @@ library LedgerLib {
 
     function root(address addr_) internal view returns (address _root) {
         _root = store().root[addr_];
-        if (_root == address(0)) revert ILedger.InvalidAccountGroup(addr_);
     }
 
     function parent(address addr_) internal view returns (address) {
@@ -389,6 +388,8 @@ library LedgerLib {
     }
 
     function createWrappedToken(address token_) internal {
+        if (!isZeroAddress(token_) && token_ == root(token_)) revert ILedger.DuplicateToken(token_);
+
         IERC20Metadata _meta = IERC20Metadata(token_);
         string memory _name = _meta.name();
         string memory _symbol = _meta.symbol();
@@ -416,6 +417,7 @@ library LedgerLib {
             revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
         }
         wrapper_ = address(new ERC20Wrapper(address(this), address(0), name_, symbol_, decimals_));
+        if (wrapper_ == wrapper(wrapper_)) revert ILedger.DuplicateToken(wrapper_);
         addLedger(wrapper_, wrapper_, name_, symbol_, decimals_, isCredit_, true);
     }
 

@@ -98,6 +98,7 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     error DifferentRoots(address a, address b);
     error DuplicateSubAccount(address sub);
+    error DuplicateToken(address token);
     error HasBalance(address addr);
     error HasSubAccount(address addr);
     error InsufficientAllowance(address ownerParent, address owner, address spender, uint256 current, uint256 amount);
