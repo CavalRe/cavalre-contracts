@@ -6,6 +6,7 @@ import {Float, FloatLib} from "./FloatLib.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 library LedgerLib {
     using FloatLib for uint256;
@@ -585,10 +586,16 @@ library LedgerLib {
     }
 
     function unwrap(address token_, uint256 amount_) internal {
-        address _wrapper = wrapper(token_);
-        if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
-        burn(token_, msg.sender, amount_);
-        SafeERC20.safeTransfer(IERC20(token_), msg.sender, amount_);
+        if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
+        if (token_ == NATIVE_ADDRESS) {
+            burn(token_, msg.sender, amount_);
+            Address.sendValue(payable(msg.sender), amount_);
+        } else {
+            address _wrapper = wrapper(token_);
+            if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
+            burn(token_, msg.sender, amount_);
+            SafeERC20.safeTransfer(IERC20(token_), msg.sender, amount_);
+        }
     }
 
     function transfer(

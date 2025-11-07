@@ -116,7 +116,7 @@ contract TestLedger is Ledger {
         LedgerLib.wrap(token_, amount_);
     }
 
-    function unwrap(address token_, uint256 amount_) external {
+    function unwrap(address token_, uint256 amount_) external payable {
         LedgerLib.unwrap(token_, amount_);
     }
 
@@ -138,6 +138,8 @@ contract MockERC20 is ERC20 {
         return _mockDecimals;
     }
 }
+
+contract DummyWrapper {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
@@ -533,6 +535,48 @@ contract LedgerTest is Test {
         vm.deal(alice, 1 ether);
         vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
         ledgers.wrap{value: 1}(address(externalToken), wrapAmount);
+        vm.stopPrank();
+    }
+
+    function testLedgerUnwrapNative() public {
+        vm.deal(alice, 5 ether);
+        vm.startPrank(alice);
+
+        uint256 wrapAmount = 3 ether;
+        ledgers.wrap{value: wrapAmount}(native, wrapAmount);
+        uint256 routerBalanceAfterWrap = address(router).balance;
+        uint256 aliceBalanceAfterWrap = alice.balance;
+
+        uint256 unwrapAmount = 1 ether;
+        ledgers.unwrap(native, unwrapAmount);
+        vm.stopPrank();
+
+        assertEq(address(router).balance, routerBalanceAfterWrap - unwrapAmount, "router native balance");
+        assertEq(alice.balance, aliceBalanceAfterWrap + unwrapAmount, "alice native balance");
+        assertEq(ledgers.balanceOf(native, alice), wrapAmount - unwrapAmount, "ledger native balance");
+        assertEq(ledgers.totalSupply(native), wrapAmount - unwrapAmount, "native total supply");
+    }
+
+    function testLedgerUnwrapNativeRejectsValue() public {
+        vm.deal(alice, 2 ether);
+        vm.startPrank(alice);
+
+        uint256 wrapAmount = 1 ether;
+        ledgers.wrap{value: wrapAmount}(native, wrapAmount);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
+        ledgers.unwrap{value: 1}(native, 0.5 ether);
+        vm.stopPrank();
+    }
+
+    function testLedgerUnwrapNonNativeRejectsValue() public {
+        vm.startPrank(alice);
+        uint256 wrapAmount = 50;
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledgers), wrapAmount);
+        ledgers.wrap(address(externalToken), wrapAmount);
+        vm.deal(alice, 1 ether);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
+        ledgers.unwrap{value: 1}(address(externalToken), 10);
         vm.stopPrank();
     }
 
