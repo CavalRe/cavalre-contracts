@@ -15,6 +15,7 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     address private immutable _router;
+    address private immutable _token;
     string private _name;
     string private _symbol;
     uint8 public immutable _decimals;
@@ -30,8 +31,9 @@ contract ERC20Wrapper {
     // Init
     // -------------------------------------------------------------------------
 
-    constructor(address router_, string memory name_, string memory symbol_, uint8 decimals_) {
+    constructor(address router_, address token_, string memory name_, string memory symbol_, uint8 decimals_) {
         _router = router_;
+        _token = token_ == address(0) ? address(this) : token_;
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
@@ -63,11 +65,11 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     function totalSupply() public view returns (uint256) {
-        return ILedger(_router).totalSupply(address(this));
+        return ILedger(_router).totalSupply(_token);
     }
 
     function balanceOf(address account_) public view returns (uint256) {
-        return ILedger(_router).balanceOf(address(this), account_);
+        return ILedger(_router).balanceOf(_token, account_);
     }
 
     // -------------------------------------------------------------------------
@@ -75,25 +77,25 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     function allowance(address owner_, address spender_) public view returns (uint256) {
-        return ILedger(_router).allowance(address(this), owner_, spender_);
+        return ILedger(_router).allowance(_token, owner_, spender_);
     }
 
     function approve(address spender_, uint256 amount_) public returns (bool) {
         emit Approval(msg.sender, spender_, amount_);
-        return ILedger(_router).approve(address(this), msg.sender, spender_, amount_);
+        return ILedger(_router).approve(_token, msg.sender, spender_, amount_);
     }
 
     /// @notice Atomically increases `spender` allowance for `msg.sender`.
     function increaseAllowance(address spender_, uint256 addedValue_) public returns (bool _ok) {
         uint256 _amount;
-        (_ok, _amount) = ILedger(_router).increaseAllowance(address(this), msg.sender, spender_, addedValue_);
+        (_ok, _amount) = ILedger(_router).increaseAllowance(_token, msg.sender, spender_, addedValue_);
         emit Approval(msg.sender, spender_, _amount);
     }
 
     /// @notice Atomically decreases `spender` allowance for `msg.sender`.
     function decreaseAllowance(address spender_, uint256 subtractedValue_) public returns (bool _ok) {
         uint256 _amount;
-        (_ok, _amount) = ILedger(_router).decreaseAllowance(address(this), msg.sender, spender_, subtractedValue_);
+        (_ok, _amount) = ILedger(_router).decreaseAllowance(_token, msg.sender, spender_, subtractedValue_);
         emit Approval(msg.sender, spender_, _amount);
     }
 
@@ -101,7 +103,7 @@ contract ERC20Wrapper {
     /// If both current and desired are non-zero, sets to 0 first, then to `amount_`.
     function forceApprove(address spender_, uint256 amount_) public returns (bool) {
         emit Approval(msg.sender, spender_, amount_);
-        return ILedger(_router).forceApprove(address(this), msg.sender, spender_, amount_);
+        return ILedger(_router).forceApprove(_token, msg.sender, spender_, amount_);
     }
 
     // -------------------------------------------------------------------------
@@ -110,12 +112,13 @@ contract ERC20Wrapper {
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
         emit Transfer(msg.sender, to_, amount_);
-        return ILedger(_router).transfer(address(this), msg.sender, address(this), to_, amount_, false);
+        console.log("ERC20Wrapper transfer called: ", msg.sender, to_, amount_);
+        return ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_, false);
     }
 
     function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
         emit Transfer(from_, to_, amount_);
-        return ILedger(_router).transferFrom(msg.sender, address(this), from_, address(this), to_, amount_, false);
+        return ILedger(_router).transferFrom(msg.sender, _token, from_, _token, to_, amount_, false);
     }
 
     // // -------------------------------------------------------------------------
@@ -320,7 +323,7 @@ contract Ledger is Module, Initializable, ILedger {
         uint256 amount_,
         bool emitEvent_
     ) external returns (bool) {
-        if (msg.sender != LedgerLib.root(fromParent_)) revert ILedger.Unauthorized(msg.sender);
+        if (msg.sender != LedgerLib.wrapper(LedgerLib.root(fromParent_))) revert ILedger.Unauthorized(msg.sender);
         return LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_, emitEvent_);
     }
 

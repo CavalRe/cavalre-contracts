@@ -7,8 +7,6 @@ import {Float, FloatLib} from "./FloatLib.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-import {console} from "forge-std/src/console.sol";
-
 library LedgerLib {
     using FloatLib for uint256;
     using FloatLib for Float;
@@ -401,6 +399,7 @@ library LedgerLib {
         address _wrapper = address(
             new ERC20Wrapper(
                 address(this),
+                token_,
                 string(abi.encodePacked(_name, " | CavalRe")),
                 string(abi.encodePacked(_symbol, ".cav")),
                 _decimals
@@ -416,18 +415,9 @@ library LedgerLib {
         if (!isValidString(name_) || !isValidString(symbol_)) {
             revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
         }
-        wrapper_ = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
+        wrapper_ = address(new ERC20Wrapper(address(this), address(0), name_, symbol_, decimals_));
         addLedger(wrapper_, wrapper_, name_, symbol_, decimals_, isCredit_, true);
     }
-
-    // function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
-    //     external
-    //     returns (address)
-    // {
-    //     address _token = address(new ERC20Wrapper(address(this), name_, symbol_, decimals_));
-    //     addLedger(_token, name_, symbol_, decimals_, isCredit_, true);
-    //     return _token;
-    // }
 
     function removeSubAccountGroup(address parent_, string memory name_) internal returns (address) {
         address _sub = toGroupAddress(parent_, name_);
