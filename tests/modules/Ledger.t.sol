@@ -6,7 +6,7 @@ pragma solidity ^0.8.26;
 // Adjust paths if your repo layout differs.
 // ─────────────────────────────────────────────────────────────────────────────
 import {ILedger} from "../../interfaces/ILedger.sol";
-import {LedgerLib as LLib} from "../../libraries/LedgerLib.sol";
+import {LedgerLib} from "../../libraries/LedgerLib.sol";
 import {Ledger} from "../../modules/Ledger.sol";
 import {Module} from "../../modules/Module.sol";
 import {Router} from "../../modules/Router.sol";
@@ -74,30 +74,30 @@ contract TestLedger is Ledger {
     }
 
     function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) external returns (address) {
-        return LLib.addSubAccountGroup(parent_, name_, isCredit_);
+        return LedgerLib.addSubAccountGroup(parent_, name_, isCredit_);
     }
 
     function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
         external
         returns (address)
     {
-        return LLib.addSubAccount(parent_, addr_, name_, isCredit_);
+        return LedgerLib.addSubAccount(parent_, addr_, name_, isCredit_);
     }
 
     function removeSubAccountGroup(address parent_, string memory name_) external returns (address) {
-        return LLib.removeSubAccountGroup(parent_, name_);
+        return LedgerLib.removeSubAccountGroup(parent_, name_);
     }
 
     function removeSubAccount(address parent_, address addr_) external returns (address) {
-        return LLib.removeSubAccount(parent_, addr_);
+        return LedgerLib.removeSubAccount(parent_, addr_);
     }
 
     function mint(address toParent_, address to_, uint256 amount_) external {
-        LLib.mint(toParent_, to_, amount_);
+        LedgerLib.mint(toParent_, to_, amount_);
     }
 
     function burn(address fromParent_, address from_, uint256 amount_) external {
-        LLib.burn(fromParent_, from_, amount_);
+        LedgerLib.burn(fromParent_, from_, amount_);
     }
 
     function addLedger(
@@ -109,15 +109,15 @@ contract TestLedger is Ledger {
         bool isCredit_,
         bool isInternal_
     ) external {
-        LLib.addLedger(root_, wrapper_, name_, symbol_, decimals_, isCredit_, isInternal_);
+        LedgerLib.addLedger(root_, wrapper_, name_, symbol_, decimals_, isCredit_, isInternal_);
     }
 
     function wrap(address token_, uint256 amount_) external payable {
-        LLib.wrap(token_, amount_);
+        LedgerLib.wrap(token_, amount_);
     }
 
     function unwrap(address token_, uint256 amount_) external {
-        LLib.unwrap(token_, amount_);
+        LedgerLib.unwrap(token_, amount_);
     }
 
     receive() external payable {}
@@ -149,7 +149,7 @@ contract LedgerTest is Test {
     address alice = address(0xA11CE);
     address bob = address(0xB0B);
     address charlie = address(0xCA11);
-    address internal constant NATIVE_TOKEN = 0xE0092BfAe8c1A1d8CB953ed67bd42A4861E423F9;
+    address native = LedgerLib.NATIVE_ADDRESS;
 
     address testLedger;
     MockERC20 externalToken;
@@ -157,15 +157,15 @@ contract LedgerTest is Test {
     address externalWrapper;
 
     // Root
-    address _1 = LLib.toNamedAddress("1");
+    address _1 = LedgerLib.toNamedAddress("1");
     // Depth 1
-    address _10 = LLib.toNamedAddress("10");
-    address _11 = LLib.toNamedAddress("11");
+    address _10 = LedgerLib.toNamedAddress("10");
+    address _11 = LedgerLib.toNamedAddress("11");
     // Depth 2
-    address _100 = LLib.toNamedAddress("100");
-    address _101 = LLib.toNamedAddress("101");
-    address _110 = LLib.toNamedAddress("110");
-    address _111 = LLib.toNamedAddress("111");
+    address _100 = LedgerLib.toNamedAddress("100");
+    address _101 = LedgerLib.toNamedAddress("101");
+    address _110 = LedgerLib.toNamedAddress("110");
+    address _111 = LedgerLib.toNamedAddress("111");
 
     address r1;
     address r10;
@@ -191,7 +191,7 @@ contract LedgerTest is Test {
         ledgers.initializeTestLedger("AVAX");
 
         // Add a standalone ledger tree for misc checks
-        // testLedger = LLib.toNamedAddress("Test Ledger");
+        // testLedger = LedgerLib.toNamedAddress("Test Ledger");
         if (isVerbose) console.log("Creating Test Ledger token");
         testLedger = ledgers.createInternalToken("Test Ledger", "TL", 18, false);
         if (isVerbose) console.log("Adding sub-groups to Test Ledger");
@@ -268,10 +268,10 @@ contract LedgerTest is Test {
 
         // Add a fresh sub under r1
         address added = ledgers.addSubAccountGroup(r1, "newSubAccount", false);
-        assertEq(added, LLib.toGroupAddress(r1, "newSubAccount"), "address mismatch");
+        assertEq(added, LedgerLib.toGroupAddress(r1, "newSubAccount"), "address mismatch");
         assertEq(ledgers.parent(added), r1, "parent mismatch");
         assertEq(
-            ledgers.subAccountIndex(r1, LLib.toNamedAddress("newSubAccount")),
+            ledgers.subAccountIndex(r1, LedgerLib.toNamedAddress("newSubAccount")),
             ledgers.subAccounts(r1).length,
             "index should equal #subs"
         );
@@ -318,7 +318,7 @@ contract LedgerTest is Test {
 
     function testLedgerRemoveSubAccountThatDoesNotExistReverts() public {
         vm.startPrank(alice);
-        address nonExistent = LLib.toGroupAddress(r1, "nope");
+        address nonExistent = LedgerLib.toGroupAddress(r1, "nope");
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, nonExistent));
         ledgers.removeSubAccountGroup(r1, "nope");
     }
@@ -349,15 +349,15 @@ contract LedgerTest is Test {
 
         // Parent == child group (nonsense) => InvalidAccountGroup on computed subAddress
         vm.expectRevert(
-            abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, LLib.toGroupAddress(_valid, "validSub"))
+            abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, LedgerLib.toGroupAddress(_valid, "validSub"))
         );
         ledgers.removeSubAccountGroup(_valid, "validSub");
     }
 
     function testLedgerRemoveUpdatesSiblingIndices() public {
         vm.startPrank(alice);
-        address _s1 = LLib.toNamedAddress("s1");
-        address _s3 = LLib.toNamedAddress("s3");
+        address _s1 = LedgerLib.toNamedAddress("s1");
+        address _s3 = LedgerLib.toNamedAddress("s3");
 
         ledgers.addSubAccountGroup(r1, "s1", false);
         ledgers.addSubAccountGroup(r1, "s2", false);
@@ -507,12 +507,12 @@ contract LedgerTest is Test {
 
         uint256 wrapAmount = 2 ether;
         uint256 routerBalanceBefore = address(router).balance;
-        ledgers.wrap{value: wrapAmount}(NATIVE_TOKEN, wrapAmount);
+        ledgers.wrap{value: wrapAmount}(native, wrapAmount);
         vm.stopPrank();
 
         assertEq(address(router).balance, routerBalanceBefore + wrapAmount, "router holds native collateral");
-        assertEq(ledgers.balanceOf(NATIVE_TOKEN, alice), wrapAmount, "ledger native balance");
-        assertEq(ledgers.totalSupply(NATIVE_TOKEN), wrapAmount, "native total supply");
+        assertEq(ledgers.balanceOf(native, alice), wrapAmount, "ledger native balance");
+        assertEq(ledgers.totalSupply(native), wrapAmount, "native total supply");
     }
 
     function testLedgerWrapNativeIncorrectValue() public {
@@ -521,7 +521,7 @@ contract LedgerTest is Test {
 
         uint256 wrapAmount = 2 ether;
         vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, wrapAmount - 1, wrapAmount));
-        ledgers.wrap{value: wrapAmount - 1}(NATIVE_TOKEN, wrapAmount);
+        ledgers.wrap{value: wrapAmount - 1}(native, wrapAmount);
         vm.stopPrank();
     }
 
@@ -625,7 +625,7 @@ contract LedgerTest is Test {
 
 //     if (isVerbose) console.log("Adding a new valid subAccount");
 //     address added = ledgers.addSubAccount(r1, "newSubAccount", true, false);
-//     assertEq(added, LLib.toGroupAddress(r1, "newSubAccount"), "addSubAccount address");
+//     assertEq(added, LedgerLib.toGroupAddress(r1, "newSubAccount"), "addSubAccount address");
 //     assertEq(ledgers.parent(added), r1, "Parent should be r1");
 //     assertEq(
 //         ledgers.subAccountIndex(added),
@@ -707,17 +707,17 @@ contract LedgerTest is Test {
 //     }
 //     ledgers.addSubAccount(r1, "leafSubAccount", true, false);
 //     ledgers.removeSubAccount(r1, "leafSubAccount");
-//     assertEq(ledgers.parent(LLib.toGroupAddress(r1, "leafSubAccount")), address(0), "Parent should be reset");
+//     assertEq(ledgers.parent(LedgerLib.toGroupAddress(r1, "leafSubAccount")), address(0), "Parent should be reset");
 //     assertEq(
-//         ledgers.subAccountIndex(LLib.toGroupAddress(r1, "leafSubAccount")), 0, "SubAccount index should be reset"
+//         ledgers.subAccountIndex(LedgerLib.toGroupAddress(r1, "leafSubAccount")), 0, "SubAccount index should be reset"
 //     );
-//     assertEq(ledgers.name(LLib.toGroupAddress(r1, "leafSubAccount")), "", "Name should be cleared");
-//     assertFalse(ledgers.hasSubAccount(LLib.toGroupAddress(r1, "leafSubAccount")), "Should not have subAccounts");
+//     assertEq(ledgers.name(LedgerLib.toGroupAddress(r1, "leafSubAccount")), "", "Name should be cleared");
+//     assertFalse(ledgers.hasSubAccount(LedgerLib.toGroupAddress(r1, "leafSubAccount")), "Should not have subAccounts");
 
 //     if (isVerbose) {
 //         console.log("Test 2: Remove a subAccount that doesn't exist");
 //     }
-//     address nonExistentSubAccount = LLib.toGroupAddress(r1, "nonExistentSubAccount");
+//     address nonExistentSubAccount = LedgerLib.toGroupAddress(r1, "nonExistentSubAccount");
 //     vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, nonExistentSubAccount));
 //     ledgers.removeSubAccount(r1, "nonExistentSubAccount");
 
@@ -748,7 +748,7 @@ contract LedgerTest is Test {
 //     // Try to remove with same address for parent and subAccount
 //     vm.expectRevert(
 //         abi.encodeWithSelector(
-//             ILedger.InvalidAccountGroup.selector, LLib.toGroupAddress(validSubAccount, "validSubAccount")
+//             ILedger.InvalidAccountGroup.selector, LedgerLib.toGroupAddress(validSubAccount, "validSubAccount")
 //         )
 //     );
 //     ledgers.removeSubAccount(validSubAccount, "validSubAccount");
@@ -779,7 +779,7 @@ contract LedgerTest is Test {
 
 //     if (isVerbose) console.log("Verify subAccount indices are updated");
 //     assertEq(
-//         ledgers.subAccountIndex(LLib.toGroupAddress(r1, "subAccount1")),
+//         ledgers.subAccountIndex(LedgerLib.toGroupAddress(r1, "subAccount1")),
 //         subAccountCount - 2,
 //         "subAccount1 index incorrect"
 //     );
@@ -792,7 +792,7 @@ contract LedgerTest is Test {
 //         }
 //     }
 //     assertEq(
-//         ledgers.subAccountIndex(LLib.toGroupAddress(r1, "subAccount3")),
+//         ledgers.subAccountIndex(LedgerLib.toGroupAddress(r1, "subAccount3")),
 //         subAccountCount - 1,
 //         "subAccount3 index incorrect"
 //     );
