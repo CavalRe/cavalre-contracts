@@ -37,7 +37,7 @@ contract ERC20WrapperTest is Test {
         ledgers = TestLedger(payable(address(router)));
 
         if (isVerbose) console.log("Initializing Test Ledger");
-        ledgers.initializeTestLedger();
+        ledgers.initializeTestLedger("AVAX");
 
         if (isVerbose) console.log("Adding new token to ledger");
         token = ERC20Wrapper(ledgers.createInternalToken("Internal Test Token", "ITT", 18, false));

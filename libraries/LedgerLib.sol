@@ -39,6 +39,8 @@ library LedgerLib {
     address internal constant TOTAL_ADDRESS = 0xa763678a2e868D872d408672C9f80B77F4d1d14B;
     // toNamedAddress("Reserve")
     address internal constant RESERVE_ADDRESS = 0x3a9097D216F9D5859bE6b3918F997A8823E92984;
+    // toNamedAddress("Native")
+    address internal constant NATIVE_ADDRESS = 0xE0092BfAe8c1A1d8CB953ed67bd42A4861E423F9;
     // toNamedAddress("Defaul Source")
     address internal constant DEFAULT_SOURCE_ADDRESS = 0xFa37b787d525B289AA879f2D9bEDF3eDDF0FbeDd;
     uint256 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
@@ -569,9 +571,16 @@ library LedgerLib {
     }
 
     function wrap(address token_, uint256 amount_) internal {
-        address _wrapper = wrapper(token_);
-        if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
-        SafeERC20.safeTransferFrom(IERC20(token_), msg.sender, address(this), amount_);
+        if (token_ == NATIVE_ADDRESS) {
+            if (msg.value != amount_) revert ILedger.IncorrectAmount(msg.value, amount_);
+            // Native value already sits on the router (this contract via delegatecall),
+            // so no external transfer is needed.
+        } else {
+            if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
+            address _wrapper = wrapper(token_);
+            if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
+            SafeERC20.safeTransferFrom(IERC20(token_), msg.sender, address(this), amount_);
+        }
         mint(token_, msg.sender, amount_);
     }
 

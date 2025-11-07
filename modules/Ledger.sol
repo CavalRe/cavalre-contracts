@@ -163,7 +163,7 @@ contract Ledger is Module, Initializable, ILedger {
     function commands() external pure virtual override returns (bytes4[] memory _commands) {
         uint256 n;
         _commands = new bytes4[](31);
-        _commands[n++] = bytes4(keccak256("initializeLedger()"));
+        _commands[n++] = bytes4(keccak256("initializeLedger(string)"));
         _commands[n++] = bytes4(keccak256("createWrappedToken(address)"));
         _commands[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
         _commands[n++] = bytes4(keccak256("name(address)"));
@@ -198,14 +198,29 @@ contract Ledger is Module, Initializable, ILedger {
         if (n != _commands.length) revert InvalidCommandsLength(n);
     }
 
-    function initializeLedger_unchained() public onlyInitializing {
+    function initializeLedger_unchained(string memory nativeTokenSymbol_) public onlyInitializing {
         enforceIsOwner();
 
         LedgerLib.addLedger(address(this), address(0), "Scale", "S", 18, false, true);
+
+        // Add native token wrapper
+        address token_ = LedgerLib.NATIVE_ADDRESS;
+        if (!LedgerLib.isZeroAddress(token_) && token_ == LedgerLib.root(token_)) revert ILedger.DuplicateToken(token_);
+        if (!LedgerLib.isValidString(nativeTokenSymbol_)) revert ILedger.InvalidString(nativeTokenSymbol_);
+        address _wrapper = address(
+            new ERC20Wrapper(
+                address(this),
+                token_,
+                string(abi.encodePacked(nativeTokenSymbol_, " | CavalRe")),
+                string(abi.encodePacked(nativeTokenSymbol_, ".cav")),
+                18
+            )
+        );
+        LedgerLib.addLedger(token_, _wrapper, nativeTokenSymbol_, nativeTokenSymbol_, 18, false, false);
     }
 
-    function initializeLedger() external initializer {
-        initializeLedger_unchained();
+    function initializeLedger(string memory nativeTokenSymbol_) external initializer {
+        initializeLedger_unchained(nativeTokenSymbol_);
     }
 
     function createWrappedToken(address token_) external {

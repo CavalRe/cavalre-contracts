@@ -7,7 +7,7 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Initializers
     // ─────────────────────────────────────────────────────────────────────────────
-    function initializeLedger() external;
+    function initializeLedger(string memory nativeTokenSymbol) external;
     function createWrappedToken(address token) external;
     function createInternalToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
         external
@@ -101,16 +101,17 @@ interface ILedger {
     error DuplicateToken(address token);
     error HasBalance(address addr);
     error HasSubAccount(address addr);
+    error IncorrectAmount(uint256 received, uint256 expected);
     error InsufficientAllowance(address ownerParent, address owner, address spender, uint256 current, uint256 amount);
     error InsufficientBalance(address token, address parent, address account, uint256 amount);
     error InvalidAddress(address absoluteAddress);
     error InvalidDecimals(uint8 decimals);
     error InvalidAccountGroup(address groupAddress);
     error InvalidLedgerAccount(address ledgerAddress);
+    error InvalidString(string symbol);
     error InvalidSubAccount(address addr, bool isCredit);
     error InvalidSubAccountGroup(string subName, bool isCredit);
     error InvalidSubAccountIndex(uint256 index);
-    error InvalidString(string symbol);
     error InvalidToken(address token, string name, string symbol, uint8 decimals);
     error MaxDepthExceeded();
     error NotCredit(string name);
