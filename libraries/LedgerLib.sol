@@ -379,7 +379,7 @@ library LedgerLib {
 
         // Add a "Total" credit subaccount group
         addSubAccountGroup(root_, "Total", true);
-        addSubAccount(toLedgerAddress(root_, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, "Default Source", true);
+        addSubAccount(toLedgerAddress(root_, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, "Default Source", true); // Needed for wrap / unwrap
 
         // Add a Reserve subaccount and subaccount to Scale for this token
         if (root_ != address(this)) {
