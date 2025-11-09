@@ -623,6 +623,15 @@ library LedgerLib {
             transfer(fromParent_, from_, toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, amount_, true);
     }
 
+    function reallocate(address fromToken_, address toToken_, uint256 amount_) internal {
+        if (amount_ == 0) return;
+
+        address fromParent = LedgerLib.parent(address(this), isCredit(fromToken_));
+        address toParent = LedgerLib.parent(address(this), isCredit(toToken_));
+
+        LedgerLib.transfer(fromParent, fromToken_, toParent, toToken_, amount_, true);
+    }
+
     function approve(address ownerParent_, address owner_, address spender_, uint256 amount_, bool emitEvent_)
         internal
         returns (bool)

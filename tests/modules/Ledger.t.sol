@@ -24,7 +24,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](45);
+        _selectors = new bytes4[](46);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger(string)"));
         _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
@@ -72,6 +72,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool,bool)"));
+        _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
         if (n != _selectors.length) revert InvalidCommandsLength(n);
     }
 
@@ -117,6 +118,10 @@ contract TestLedger is Ledger {
         bool isInternal_
     ) external {
         LedgerLib.addLedger(root_, wrapper_, name_, symbol_, decimals_, isCredit_, isInternal_);
+    }
+
+    function reallocate(address fromToken_, address toToken_, uint256 amount_) external {
+        LedgerLib.reallocate(fromToken_, toToken_, amount_);
     }
 
     receive() external payable {}
@@ -177,7 +182,7 @@ contract LedgerTest is Test {
     address r111;
 
     function setUp() public {
-        bool isVerbose = true;
+        bool isVerbose = false;
 
         vm.startPrank(alice);
         if (isVerbose) console.log("Deploying TestLedger");
@@ -231,7 +236,7 @@ contract LedgerTest is Test {
     // Structure / initialization
     // ─────────────────────────────────────────────────────────────────────────
     function testLedgerInit() public {
-        bool isVerbose = true;
+        bool isVerbose = false;
 
         if (isVerbose) console.log("Display Account Hierarchy");
         if (isVerbose) console.log("--------------------");
@@ -453,8 +458,36 @@ contract LedgerTest is Test {
         assertEq(ledgers.totalSupply(r1), 400, "totalSupply(r1)");
     }
 
+    function testLedgerReallocate() public {
+        bool isVerbose = false;
+
+        vm.startPrank(alice);
+
+        address tokenA = ledgers.createInternalToken("Realloc A", "REA", 18, false);
+        address tokenB = ledgers.createInternalToken("Realloc B", "REB", 18, false);
+
+        uint256 initialAmount = 1_000 ether;
+        uint256 shift = 400 ether;
+
+        if (isVerbose) console.log("Minting initial amount to tokenA");
+        ledgers.mint(address(ledgers), tokenA, initialAmount);
+
+        if (isVerbose) console.log("Reallocating from tokenA to tokenB");
+        ledgers.reallocate(tokenA, tokenB, shift);
+        assertEq(ledgers.balanceOf(address(ledgers), tokenA), initialAmount - shift, "tokenA debited");
+        assertEq(ledgers.balanceOf(address(ledgers), tokenB), shift, "tokenB credited");
+
+        uint256 shiftBack = 125 ether;
+        if (isVerbose) console.log("Reallocating back from tokenB to tokenA");
+        ledgers.reallocate(tokenB, tokenA, shiftBack);
+        assertEq(
+            ledgers.balanceOf(address(ledgers), tokenA), initialAmount - shift + shiftBack, "tokenA after rebalancing"
+        );
+        assertEq(ledgers.balanceOf(address(ledgers), tokenB), shift - shiftBack, "tokenB after rebalancing");
+    }
+
     function testLedgerWrap() public {
-        bool isVerbose = true;
+        bool isVerbose = false;
 
         vm.startPrank(alice);
 

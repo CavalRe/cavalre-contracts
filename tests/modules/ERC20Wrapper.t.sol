@@ -223,7 +223,7 @@ contract ERC20WrapperTest is Test {
     }
 
     function testWrappedExternalWrapperTransferThroughSurface() public {
-        bool isVerbose = true;
+        bool isVerbose = false;
 
         uint256 wrapAmount = 100;
 
