@@ -113,6 +113,7 @@ interface ILedger {
     error InvalidDecimals(uint8 decimals);
     error InvalidAccountGroup(address groupAddress);
     error InvalidLedgerAccount(address ledgerAddress);
+    error InvalidReallocation(address token, int256 reallocation);
     error InvalidString(string symbol);
     error InvalidSubAccount(address addr, bool isCredit);
     error InvalidSubAccountGroup(string subName, bool isCredit);
