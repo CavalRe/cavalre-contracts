@@ -37,7 +37,7 @@ function _initializableStorageSlot() internal pure override returns (bytes32);
 ### commands
 
 ```solidity
-function commands() public pure virtual override returns (bytes4[] memory _commands);
+function selectors() public pure virtual override returns (bytes4[] memory _selectors);
 ```
 
 ### initializeLedger_unchained

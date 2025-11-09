@@ -12,9 +12,9 @@ library TestModuleLib {
 }
 
 contract Foo is Module {
-    function commands() public pure override returns (bytes4[] memory _commands) {
-        _commands = new bytes4[](1);
-        _commands[0] = TestModuleLib.FOO;
+    function selectors() public pure override returns (bytes4[] memory _selectors) {
+        _selectors = new bytes4[](1);
+        _selectors[0] = TestModuleLib.FOO;
     }
 
     function foo() public pure returns (string memory) {
@@ -23,9 +23,9 @@ contract Foo is Module {
 }
 
 contract Bar is Module {
-    function commands() public pure override returns (bytes4[] memory _commands) {
-        _commands = new bytes4[](1);
-        _commands[0] = TestModuleLib.BAR;
+    function selectors() public pure override returns (bytes4[] memory _selectors) {
+        _selectors = new bytes4[](1);
+        _selectors[0] = TestModuleLib.BAR;
     }
 
     function bar() public pure returns (string memory) {

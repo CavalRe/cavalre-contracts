@@ -160,42 +160,47 @@ contract Ledger is Module, Initializable, ILedger {
         return INITIALIZABLE_STORAGE;
     }
 
-    function commands() external pure virtual override returns (bytes4[] memory _commands) {
+    function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _commands = new bytes4[](31);
-        _commands[n++] = bytes4(keccak256("initializeLedger(string)"));
-        _commands[n++] = bytes4(keccak256("createWrappedToken(address)"));
-        _commands[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
-        _commands[n++] = bytes4(keccak256("name(address)"));
-        _commands[n++] = bytes4(keccak256("symbol(address)"));
-        _commands[n++] = bytes4(keccak256("decimals(address)"));
-        _commands[n++] = bytes4(keccak256("root(address)"));
-        _commands[n++] = bytes4(keccak256("parent(address)"));
-        _commands[n++] = bytes4(keccak256("isGroup(address)"));
-        _commands[n++] = bytes4(keccak256("isCredit(address)"));
-        _commands[n++] = bytes4(keccak256("isInternal(address)"));
-        _commands[n++] = bytes4(keccak256("subAccounts(address)"));
-        _commands[n++] = bytes4(keccak256("hasSubAccount(address)"));
-        _commands[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
-        _commands[n++] = bytes4(keccak256("wrapper(address)"));
-        _commands[n++] = bytes4(keccak256("balanceOf(address,string)"));
-        _commands[n++] = bytes4(keccak256("balanceOf(address,address)"));
-        _commands[n++] = bytes4(keccak256("totalSupply(address)"));
-        _commands[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256,bool)"));
-        _commands[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("approve(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("approve(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("increaseAllowance(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("increaseAllowance(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("decreaseAllowance(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("decreaseAllowance(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("forceApprove(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("forceApprove(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("allowance(address,address,address)"));
-        _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,address,uint256,bool)"));
+        _selectors = new bytes4[](38);
+        _selectors[n++] = bytes4(keccak256("initializeLedger(string)"));
+        _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
+        _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
+        _selectors[n++] = bytes4(keccak256("name(address)"));
+        _selectors[n++] = bytes4(keccak256("symbol(address)"));
+        _selectors[n++] = bytes4(keccak256("decimals(address)"));
+        _selectors[n++] = bytes4(keccak256("root(address)"));
+        _selectors[n++] = bytes4(keccak256("parent(address)"));
+        _selectors[n++] = bytes4(keccak256("flags(address)"));
+        _selectors[n++] = bytes4(keccak256("wrapper(address)"));
+        _selectors[n++] = bytes4(keccak256("isGroup(address)"));
+        _selectors[n++] = bytes4(keccak256("isCredit(address)"));
+        _selectors[n++] = bytes4(keccak256("isInternal(address)"));
+        _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
+        _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
+        _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
+        _selectors[n++] = bytes4(keccak256("balanceOf(address,string)"));
+        _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
+        _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
+        _selectors[n++] = bytes4(keccak256("reserveAddress(address)"));
+        _selectors[n++] = bytes4(keccak256("scaleAddress(address)"));
+        _selectors[n++] = bytes4(keccak256("reserve(address)"));
+        _selectors[n++] = bytes4(keccak256("scale(address)"));
+        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256,bool)"));
+        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("approve(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("approve(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("increaseAllowance(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("increaseAllowance(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("decreaseAllowance(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("decreaseAllowance(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("forceApprove(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("forceApprove(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("allowance(address,address,address)"));
+        _selectors[n++] = bytes4(keccak256("transferFrom(address,address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("transferFrom(address,address,address,address,address,uint256,bool)"));
 
-        if (n != _commands.length) revert InvalidCommandsLength(n);
+        if (n != _selectors.length) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory nativeTokenSymbol_) public onlyInitializing {
@@ -265,6 +270,10 @@ contract Ledger is Module, Initializable, ILedger {
         return LedgerLib.flags(addr_);
     }
 
+    function wrapper(address token_) external view returns (address) {
+        return LedgerLib.wrapper(token_);
+    }
+
     function isGroup(address addr_) external view returns (bool) {
         return LedgerLib.isGroup(addr_);
     }
@@ -289,10 +298,6 @@ contract Ledger is Module, Initializable, ILedger {
         return LedgerLib.subAccountIndex(parent_, addr_);
     }
 
-    function wrapper(address token_) external view returns (address) {
-        return LedgerLib.wrapper(token_);
-    }
-
     //=========================
     // Balances & Valuations
     //=========================
@@ -308,6 +313,14 @@ contract Ledger is Module, Initializable, ILedger {
 
     function totalSupply(address token_) external view returns (uint256) {
         return LedgerLib.balanceOf(LedgerLib.toLedgerAddress(token_, LedgerLib.TOTAL_ADDRESS));
+    }
+
+    function reserveAddress(address token_) external view returns (address) {
+        return LedgerLib.reserveAddress(token_);
+    }
+
+    function scaleAddress(address token_) external view returns (address) {
+        return LedgerLib.scaleAddress(token_);
     }
 
     function reserve(address token_) external view returns (uint256) {
@@ -419,5 +432,13 @@ contract Ledger is Module, Initializable, ILedger {
         returns (bool)
     {
         return LedgerLib.transferFrom(msg.sender, fromParent_, from_, toParent_, to_, amount_, true);
+    }
+
+    function wrap(address token_, uint256 amount_) external payable {
+        LedgerLib.wrap(token_, amount_);
+    }
+
+    function unwrap(address token_, uint256 amount_) external payable {
+        LedgerLib.unwrap(token_, amount_);
     }
 }

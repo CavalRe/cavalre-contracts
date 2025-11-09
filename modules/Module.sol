@@ -13,7 +13,7 @@ abstract contract Module {
     error InvalidCommandsLength(uint256 n);
 
     // Commands
-    function commands() external pure virtual returns (bytes4[] memory _commands);
+    function selectors() external pure virtual returns (bytes4[] memory _selectors);
 
     function enforceIsOwner() internal view returns (ModuleLib.Store storage s) {
         s = ModuleLib.store();

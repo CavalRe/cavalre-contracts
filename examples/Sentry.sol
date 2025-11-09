@@ -35,13 +35,13 @@ contract Sentry is Module {
     // Errors
     error OwnableInvalidOwner(address owner);
 
-    function commands() public pure virtual override returns (bytes4[] memory _commands) {
-        _commands = new bytes4[](5);
-        _commands[0] = SentryLib.TRANSFER_OWNERSHIP;
-        _commands[1] = SentryLib.ACCEPT_OWNERSHIP;
-        _commands[2] = SentryLib.RENOUNCE_OWNERSHIP;
-        _commands[3] = SentryLib.CONFIRM_RENOUNCE_OWNERSHIP;
-        _commands[4] = SentryLib.PENDING_OWNER;
+    function selectors() public pure virtual override returns (bytes4[] memory _selectors) {
+        _selectors = new bytes4[](5);
+        _selectors[0] = SentryLib.TRANSFER_OWNERSHIP;
+        _selectors[1] = SentryLib.ACCEPT_OWNERSHIP;
+        _selectors[2] = SentryLib.RENOUNCE_OWNERSHIP;
+        _selectors[3] = SentryLib.CONFIRM_RENOUNCE_OWNERSHIP;
+        _selectors[4] = SentryLib.PENDING_OWNER;
     }
 
     function transferOwnership(address _module, address _newOwner) external {

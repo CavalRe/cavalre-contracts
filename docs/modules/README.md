@@ -10,7 +10,7 @@ It is paired with a `Lib` library that defines the storage layout and access met
 struct Store {
     mapping(address => address) owners;
 }
-````
+```
 
 The storage slot is namespaced using:
 
@@ -20,7 +20,7 @@ keccak256("cavalre.storage.Module")
 
 ## Key Functions
 
-### `function commands() public pure virtual returns (bytes4[] memory)`
+### `function selectors() public pure virtual returns (bytes4[] memory)`
 
 Each module must override this function to return the list of function selectors it implements.
 
@@ -38,9 +38,9 @@ Ensures the function is **not** being called via `delegatecall`. Reverts with `I
 
 ## Errors
 
-* `OwnableUnauthorizedAccount(address)`
-* `NotDelegated()`
-* `IsDelegated()`
+- `OwnableUnauthorizedAccount(address)`
+- `NotDelegated()`
+- `IsDelegated()`
 
 ## Notes
 
@@ -56,7 +56,7 @@ The `Router` contract is the immutable dispatcher in CavalRe's modular architect
 struct Store {
     mapping(bytes4 => address) modules;
 }
-````
+```
 
 The mapping is stored under a unique storage slot derived from:
 
@@ -66,16 +66,16 @@ keccak256("cavalre.storage.Router")
 
 ## Events
 
-* `CommandSet(bytes4 indexed command, address indexed module)`
-* `ModuleAdded(address indexed module)`
-* `ModuleRemoved(address indexed module)`
-* `RouterCreated(address indexed router)`
+- `CommandSet(bytes4 indexed command, address indexed module)`
+- `ModuleAdded(address indexed module)`
+- `ModuleRemoved(address indexed module)`
+- `RouterCreated(address indexed router)`
 
 ## Errors
 
-* `CommandAlreadySet(bytes4 command, address module)`
-* `CommandNotFound(bytes4 command)`
-* `ModuleNotFound(address module)`
+- `CommandAlreadySet(bytes4 command, address module)`
+- `CommandNotFound(bytes4 command)`
+- `ModuleNotFound(address module)`
 
 ## Constructor
 
@@ -85,12 +85,12 @@ constructor(address owner_)
 
 Sets a specified owner of the router’s context (via module storage), and emits `RouterCreated`.
 
-## Function: `commands()`
+## Function: `selectors()`
 
 Returns the list of supported commands (selectors). In the base `Router` contract, this returns an empty array:
 
 ```solidity
-function commands() public pure override returns (bytes4[] memory) {
+function selectors() public pure override returns (bytes4[] memory) {
     return new bytes4 ;
 }
 ```
@@ -99,6 +99,6 @@ This means the `Router` itself does not handle application logic — it only man
 
 ## Design Notes
 
-* Built atop `Module.sol`, the Router shares access control logic.
-* Command-module relationships are mutable (you can add/remove modules).
-* The Router itself is designed to be immutable — it delegates to upgradeable modules via `delegatecall`.
+- Built atop `Module.sol`, the Router shares access control logic.
+- Command-module relationships are mutable (you can add/remove modules).
+- The Router itself is designed to be immutable — it delegates to upgradeable modules via `delegatecall`.

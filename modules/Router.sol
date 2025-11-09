@@ -26,7 +26,7 @@ contract Router is Module {
         emit RouterCreated(__self);
     }
 
-    function commands() public pure override returns (bytes4[] memory) {
+    function selectors() public pure override returns (bytes4[] memory) {
         return new bytes4[](0);
     }
 
@@ -49,22 +49,22 @@ contract Router is Module {
     }
 
     function getCommands(address module_) public returns (bytes4[] memory) {
-        (bool _success, bytes memory _data) = module_.call(abi.encodeWithSignature("commands()"));
+        (bool _success, bytes memory _data) = module_.call(abi.encodeWithSignature("selectors()"));
         require(_success, "Command: getCommands failed");
         return abi.decode(_data, (bytes4[]));
     }
 
     function addModule(address module_) external {
         enforceIsOwner();
-        bytes4[] memory _commands = getCommands(module_);
-        if (_commands.length == 0) revert ModuleNotFound(module_);
+        bytes4[] memory _selectors = getCommands(module_);
+        if (_selectors.length == 0) revert ModuleNotFound(module_);
         RouterLib.Store storage s = RouterLib.store();
-        for (uint256 i = 0; i < _commands.length; i++) {
-            if (s.modules[_commands[i]] != address(0)) {
-                revert CommandAlreadySet(_commands[i], module_);
+        for (uint256 i = 0; i < _selectors.length; i++) {
+            if (s.modules[_selectors[i]] != address(0)) {
+                revert CommandAlreadySet(_selectors[i], module_);
             }
-            s.modules[_commands[i]] = module_;
-            emit CommandSet(_commands[i], module_);
+            s.modules[_selectors[i]] = module_;
+            emit CommandSet(_selectors[i], module_);
         }
         ModuleLib.store().owners[module_] = msg.sender;
         emit ModuleAdded(module_);
@@ -72,12 +72,12 @@ contract Router is Module {
 
     function removeModule(address module_) external {
         enforceIsOwner();
-        bytes4[] memory _commands = getCommands(module_);
-        if (_commands.length == 0) revert ModuleNotFound(module_);
+        bytes4[] memory _selectors = getCommands(module_);
+        if (_selectors.length == 0) revert ModuleNotFound(module_);
         RouterLib.Store storage s = RouterLib.store();
-        for (uint256 i = 0; i < _commands.length; i++) {
-            s.modules[_commands[i]] = address(0);
-            emit CommandSet(_commands[i], address(0));
+        for (uint256 i = 0; i < _selectors.length; i++) {
+            s.modules[_selectors[i]] = address(0);
+            emit CommandSet(_selectors[i], address(0));
         }
         delete ModuleLib.store().owners[module_];
         emit ModuleRemoved(module_);

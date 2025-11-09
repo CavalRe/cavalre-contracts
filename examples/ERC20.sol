@@ -43,18 +43,18 @@ contract ERC20 is Module, ERC20Upgradeable {
         return INITIALIZABLE_STORAGE;
     }
 
-    function commands() public pure virtual override returns (bytes4[] memory _commands) {
-        _commands = new bytes4[](10);
-        _commands[0] = ERC20Lib.INITIALIZE_ERC20;
-        _commands[1] = ERC20Lib.NAME;
-        _commands[2] = ERC20Lib.SYMBOL;
-        _commands[3] = ERC20Lib.DECIMALS;
-        _commands[4] = ERC20Lib.TOTAL_SUPPLY;
-        _commands[5] = ERC20Lib.BALANCE_OF;
-        _commands[6] = ERC20Lib.TRANSFER;
-        _commands[7] = ERC20Lib.ALLOWANCE;
-        _commands[8] = ERC20Lib.APPROVE;
-        _commands[9] = ERC20Lib.TRANSFER_FROM;
+    function selectors() public pure virtual override returns (bytes4[] memory _selectors) {
+        _selectors = new bytes4[](10);
+        _selectors[0] = ERC20Lib.INITIALIZE_ERC20;
+        _selectors[1] = ERC20Lib.NAME;
+        _selectors[2] = ERC20Lib.SYMBOL;
+        _selectors[3] = ERC20Lib.DECIMALS;
+        _selectors[4] = ERC20Lib.TOTAL_SUPPLY;
+        _selectors[5] = ERC20Lib.BALANCE_OF;
+        _selectors[6] = ERC20Lib.TRANSFER;
+        _selectors[7] = ERC20Lib.ALLOWANCE;
+        _selectors[8] = ERC20Lib.APPROVE;
+        _selectors[9] = ERC20Lib.TRANSFER_FROM;
     }
 
     function decimals() public view override returns (uint8) {

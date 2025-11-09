@@ -22,50 +22,57 @@ contract TestLedger is Ledger {
     constructor(uint8 decimals_) Ledger(decimals_) {}
 
     // Keep command registry so Router can “register” the module (if you use it)
-    function commands() external pure virtual override returns (bytes4[] memory _commands) {
+    function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _commands = new bytes4[](40);
-        _commands[n++] = bytes4(keccak256("initializeTestLedger(string)"));
-        _commands[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
-        _commands[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
-        _commands[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
-        _commands[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
-        _commands[n++] = bytes4(keccak256("mint(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("burn(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool,bool)"));
-        _commands[n++] = bytes4(keccak256("createWrappedToken(address)"));
-        _commands[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
-        _commands[n++] = bytes4(keccak256("name(address)"));
-        _commands[n++] = bytes4(keccak256("symbol(address)"));
-        _commands[n++] = bytes4(keccak256("decimals(address)"));
-        _commands[n++] = bytes4(keccak256("root(address)"));
-        _commands[n++] = bytes4(keccak256("parent(address)"));
-        _commands[n++] = bytes4(keccak256("isGroup(address)"));
-        _commands[n++] = bytes4(keccak256("isCredit(address)"));
-        _commands[n++] = bytes4(keccak256("isInternal(address)"));
-        _commands[n++] = bytes4(keccak256("subAccounts(address)"));
-        _commands[n++] = bytes4(keccak256("hasSubAccount(address)"));
-        _commands[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
-        _commands[n++] = bytes4(keccak256("wrapper(address)"));
-        _commands[n++] = bytes4(keccak256("balanceOf(address,string)"));
-        _commands[n++] = bytes4(keccak256("balanceOf(address,address)"));
-        _commands[n++] = bytes4(keccak256("totalSupply(address)"));
-        _commands[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256,bool)"));
-        _commands[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("approve(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("approve(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("increaseAllowance(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("increaseAllowance(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("decreaseAllowance(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("decreaseAllowance(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("forceApprove(address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("forceApprove(address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("allowance(address,address,address)"));
-        _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,uint256)"));
-        _commands[n++] = bytes4(keccak256("transferFrom(address,address,address,address,address,uint256,bool)"));
-        _commands[n++] = bytes4(keccak256("wrap(address,uint256)"));
-        _commands[n++] = bytes4(keccak256("unwrap(address,uint256)"));
-        if (n != _commands.length) revert InvalidCommandsLength(n);
+        _selectors = new bytes4[](45);
+        // From Ledger
+        _selectors[n++] = bytes4(keccak256("initializeTestLedger(string)"));
+        _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
+        _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
+        _selectors[n++] = bytes4(keccak256("name(address)"));
+        _selectors[n++] = bytes4(keccak256("symbol(address)"));
+        _selectors[n++] = bytes4(keccak256("decimals(address)"));
+        _selectors[n++] = bytes4(keccak256("root(address)"));
+        _selectors[n++] = bytes4(keccak256("parent(address)"));
+        _selectors[n++] = bytes4(keccak256("flags(address)"));
+        _selectors[n++] = bytes4(keccak256("wrapper(address)"));
+        _selectors[n++] = bytes4(keccak256("isGroup(address)"));
+        _selectors[n++] = bytes4(keccak256("isCredit(address)"));
+        _selectors[n++] = bytes4(keccak256("isInternal(address)"));
+        _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
+        _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
+        _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
+        _selectors[n++] = bytes4(keccak256("balanceOf(address,string)"));
+        _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
+        _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
+        _selectors[n++] = bytes4(keccak256("reserveAddress(address)"));
+        _selectors[n++] = bytes4(keccak256("scaleAddress(address)"));
+        _selectors[n++] = bytes4(keccak256("reserve(address)"));
+        _selectors[n++] = bytes4(keccak256("scale(address)"));
+        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256,bool)"));
+        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("approve(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("approve(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("increaseAllowance(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("increaseAllowance(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("decreaseAllowance(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("decreaseAllowance(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("forceApprove(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("forceApprove(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("allowance(address,address,address)"));
+        _selectors[n++] = bytes4(keccak256("transferFrom(address,address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("transferFrom(address,address,address,address,address,uint256,bool)"));
+        _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
+        // Extra test-exposing commands
+        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
+        _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool,bool)"));
+        if (n != _selectors.length) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger(string memory nativeTokenSymbol_) external initializer {
@@ -110,14 +117,6 @@ contract TestLedger is Ledger {
         bool isInternal_
     ) external {
         LedgerLib.addLedger(root_, wrapper_, name_, symbol_, decimals_, isCredit_, isInternal_);
-    }
-
-    function wrap(address token_, uint256 amount_) external payable {
-        LedgerLib.wrap(token_, amount_);
-    }
-
-    function unwrap(address token_, uint256 amount_) external payable {
-        LedgerLib.unwrap(token_, amount_);
     }
 
     receive() external payable {}

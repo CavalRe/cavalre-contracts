@@ -40,6 +40,8 @@ interface ILedger {
     function balanceOf(address parent, string memory subName) external view returns (uint256);
     function balanceOf(address parent, address owner) external view returns (uint256);
     function totalSupply(address token) external view returns (uint256);
+    function reserveAddress(address token) external view returns (address);
+    function scaleAddress(address token) external view returns (address);
     function reserve(address token) external view returns (uint256);
     function scale(address token) external view returns (uint256);
     function price(address token) external view returns (Float memory);
@@ -92,6 +94,9 @@ interface ILedger {
     function transferFrom(address fromParent, address from, address toParent, address to, uint256 amount)
         external
         returns (bool);
+
+    function wrap(address token_, uint256 amount_) external payable;
+    function unwrap(address token_, uint256 amount_) external payable;
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Custom errors

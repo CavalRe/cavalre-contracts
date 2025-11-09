@@ -1,13 +1,13 @@
 # Router
+
 [Git Source](https://github.com/CavalRe/cavalre-contracts/blob/b96f8602f431eb4f1948c1233246d58b344ea36f/src/modules/Router.sol)
 
 **Inherits:**
 [Module](/src/modules/Module.sol/abstract.Module.md)
 
-
 ## Functions
-### constructor
 
+### constructor
 
 ```solidity
 constructor(address owner_);
@@ -15,13 +15,11 @@ constructor(address owner_);
 
 ### commands
 
-
 ```solidity
-function commands() public pure override returns (bytes4[] memory);
+function selectors() public pure override returns (bytes4[] memory);
 ```
 
 ### fallback
-
 
 ```solidity
 fallback() external payable;
@@ -29,13 +27,11 @@ fallback() external payable;
 
 ### receive
 
-
 ```solidity
 receive() external payable;
 ```
 
 ### getCommands
-
 
 ```solidity
 function getCommands(address _module) public returns (bytes4[] memory);
@@ -43,13 +39,11 @@ function getCommands(address _module) public returns (bytes4[] memory);
 
 ### addModule
 
-
 ```solidity
 function addModule(address _module) external;
 ```
 
 ### removeModule
-
 
 ```solidity
 function removeModule(address _module) external;
@@ -57,19 +51,18 @@ function removeModule(address _module) external;
 
 ### owner
 
-
 ```solidity
 function owner(address _module) public view returns (address);
 ```
 
 ### module
 
-
 ```solidity
 function module(bytes4 _selector) public view returns (address);
 ```
 
 ## Events
+
 ### CommandSet
 
 ```solidity
@@ -95,6 +88,7 @@ event RouterCreated(address indexed router);
 ```
 
 ## Errors
+
 ### CommandAlreadySet
 
 ```solidity
@@ -112,4 +106,3 @@ error CommandNotFound(bytes4 _command);
 ```solidity
 error ModuleNotFound(address _module);
 ```
-

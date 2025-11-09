@@ -52,34 +52,34 @@ contract ERC4626 is Module, ERC4626Upgradeable {
         return INITIALIZABLE_STORAGE;
     }
 
-    function commands() public pure virtual override returns (bytes4[] memory _commands) {
-        _commands = new bytes4[](26);
-        _commands[0] = Lib.INITIALIZE_ERC4626;
-        _commands[1] = ERC20Lib.NAME;
-        _commands[2] = ERC20Lib.SYMBOL;
-        _commands[3] = ERC20Lib.DECIMALS;
-        _commands[4] = ERC20Lib.TOTAL_SUPPLY;
-        _commands[5] = ERC20Lib.BALANCE_OF;
-        _commands[6] = ERC20Lib.TRANSFER;
-        _commands[7] = ERC20Lib.ALLOWANCE;
-        _commands[8] = ERC20Lib.APPROVE;
-        _commands[9] = ERC20Lib.TRANSFER_FROM;
-        _commands[10] = Lib.ASSET;
-        _commands[11] = Lib.TOTAL_ASSETS;
-        _commands[12] = Lib.CONVERT_TO_SHARES;
-        _commands[13] = Lib.CONVERT_TO_ASSETS;
-        _commands[14] = Lib.MAX_DEPOSIT;
-        _commands[15] = Lib.PREVIEW_DEPOSIT;
-        _commands[16] = Lib.DEPOSIT;
-        _commands[17] = Lib.MAX_MINT;
-        _commands[18] = Lib.PREVIEW_MINT;
-        _commands[19] = Lib.MINT;
-        _commands[20] = Lib.MAX_WITHDRAW;
-        _commands[21] = Lib.PREVIEW_WITHDRAW;
-        _commands[22] = Lib.WITHDRAW;
-        _commands[23] = Lib.MAX_REDEEM;
-        _commands[24] = Lib.PREVIEW_REDEEM;
-        _commands[25] = Lib.REDEEM;
+    function selectors() public pure virtual override returns (bytes4[] memory _selectors) {
+        _selectors = new bytes4[](26);
+        _selectors[0] = Lib.INITIALIZE_ERC4626;
+        _selectors[1] = ERC20Lib.NAME;
+        _selectors[2] = ERC20Lib.SYMBOL;
+        _selectors[3] = ERC20Lib.DECIMALS;
+        _selectors[4] = ERC20Lib.TOTAL_SUPPLY;
+        _selectors[5] = ERC20Lib.BALANCE_OF;
+        _selectors[6] = ERC20Lib.TRANSFER;
+        _selectors[7] = ERC20Lib.ALLOWANCE;
+        _selectors[8] = ERC20Lib.APPROVE;
+        _selectors[9] = ERC20Lib.TRANSFER_FROM;
+        _selectors[10] = Lib.ASSET;
+        _selectors[11] = Lib.TOTAL_ASSETS;
+        _selectors[12] = Lib.CONVERT_TO_SHARES;
+        _selectors[13] = Lib.CONVERT_TO_ASSETS;
+        _selectors[14] = Lib.MAX_DEPOSIT;
+        _selectors[15] = Lib.PREVIEW_DEPOSIT;
+        _selectors[16] = Lib.DEPOSIT;
+        _selectors[17] = Lib.MAX_MINT;
+        _selectors[18] = Lib.PREVIEW_MINT;
+        _selectors[19] = Lib.MINT;
+        _selectors[20] = Lib.MAX_WITHDRAW;
+        _selectors[21] = Lib.PREVIEW_WITHDRAW;
+        _selectors[22] = Lib.WITHDRAW;
+        _selectors[23] = Lib.MAX_REDEEM;
+        _selectors[24] = Lib.PREVIEW_REDEEM;
+        _selectors[25] = Lib.REDEEM;
     }
 
     function decimals() public view override returns (uint8) {
