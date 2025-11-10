@@ -208,7 +208,7 @@ contract Ledger is Module, Initializable, ILedger {
     function initializeLedger_unchained(string memory nativeTokenSymbol_) public onlyInitializing {
         enforceIsOwner();
 
-        LedgerLib.addLedger(address(this), address(0), "Scale", "S", 18, false, true);
+        LedgerLib.addLedger(address(this), address(0), "Scale", "SCALE", 18, false, true);
 
         // Add native token wrapper
         address token_ = LedgerLib.NATIVE_ADDRESS;
