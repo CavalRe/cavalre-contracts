@@ -352,7 +352,6 @@ library LedgerLib {
         if (
             isZeroAddress(root_) // Root cannot be zero address
                 || (root_ == address(this) && !isZeroAddress(wrapper_)) // If root is Ledger, wrapper must be zero address
-                || (isZeroAddress(wrapper_) && root_ != address(this)) // If root is not Ledger, wrapper cannot be zero address
                 || !isValidString(name_) || !isValidString(symbol_)
         ) {
             revert ILedger.InvalidToken(root_, name_, symbol_, decimals_);
