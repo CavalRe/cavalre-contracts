@@ -22,11 +22,19 @@ library FloatLib {
     uint256 constant NORMALIZED_MANTISSA_MAX = 10 ** SIGNIFICANT_DIGITS - 1;
     uint256 constant NORMALIZED_MANTISSA_MIN = 10 ** (SIGNIFICANT_DIGITS - 1);
 
+    int256 constant ONE_MANTISSA = int256(10 ** (SIGNIFICANT_DIGITS - 1));
+    int256 constant ONE_EXPONENT = -int256(SIGNIFICANT_DIGITS - 1);
+
     int256 constant _LOG10 = 2302585092994045684;
 
     //=================
     //   Conversions
     //=================
+
+    function one() internal pure returns (Float memory) {
+        return Float(ONE_MANTISSA, ONE_EXPONENT);
+    }
+
     //-----------
     //   toInt
     //-----------
