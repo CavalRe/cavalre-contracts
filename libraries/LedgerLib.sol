@@ -381,7 +381,7 @@ library LedgerLib {
         addSubAccount(toLedgerAddress(root_, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, "Default Source", true); // Needed for wrap / unwrap
 
         // Add a Reserve subaccount and subaccount to Scale for this token
-        if (root_ != address(this)) {
+        if (!isZeroAddress(wrapper_)) {
             addSubAccount(parent(root_, isCredit_), RESERVE_ADDRESS, "Reserve", isCredit_);
             addSubAccount(parent(address(this), isCredit_), root_, name_, isCredit_);
         }

@@ -162,8 +162,9 @@ contract Ledger is Module, Initializable, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](38);
+        _selectors = new bytes4[](39);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string)"));
+        _selectors[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool)"));
         _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
         _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
         _selectors[n++] = bytes4(keccak256("name(address)"));
@@ -228,6 +229,20 @@ contract Ledger is Module, Initializable, ILedger {
 
     function initializeLedger(string memory nativeTokenSymbol_) external initializer {
         initializeLedger_unchained(nativeTokenSymbol_);
+    }
+
+    function addLedger(
+        address token_,
+        address wrapper_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        bool isCredit_,
+        bool isInternal_
+    ) external {
+        enforceIsOwner();
+
+        LedgerLib.addLedger(token_, wrapper_, name_, symbol_, decimals_, isCredit_, isInternal_);
     }
 
     function createWrappedToken(address token_) external {

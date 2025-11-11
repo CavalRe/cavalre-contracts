@@ -8,6 +8,15 @@ interface ILedger {
     // Initializers
     // ─────────────────────────────────────────────────────────────────────────────
     function initializeLedger(string memory nativeTokenSymbol) external;
+    function addLedger(
+        address token,
+        address wrapper,
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        bool isCredit,
+        bool isInternal
+    ) external;
     function createWrappedToken(address token) external;
     function createInternalToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
         external

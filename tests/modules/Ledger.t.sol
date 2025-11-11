@@ -27,6 +27,7 @@ contract TestLedger is Ledger {
         _selectors = new bytes4[](46);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger(string)"));
+        _selectors[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool,bool)"));
         _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
         _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
         _selectors[n++] = bytes4(keccak256("name(address)"));
@@ -71,7 +72,6 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool,bool)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
         if (n != _selectors.length) revert InvalidCommandsLength(n);
     }
@@ -106,18 +106,6 @@ contract TestLedger is Ledger {
 
     function burn(address fromParent_, address from_, uint256 amount_) external {
         LedgerLib.burn(fromParent_, from_, amount_);
-    }
-
-    function addLedger(
-        address root_,
-        address wrapper_,
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        bool isCredit_,
-        bool isInternal_
-    ) external {
-        LedgerLib.addLedger(root_, wrapper_, name_, symbol_, decimals_, isCredit_, isInternal_);
     }
 
     function reallocate(address fromToken_, address toToken_, uint256 amount_) external {
