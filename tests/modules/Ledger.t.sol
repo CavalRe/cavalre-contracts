@@ -27,9 +27,13 @@ contract TestLedger is Ledger {
         _selectors = new bytes4[](46);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger(string)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool,bool)"));
         _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
         _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _selectors[n++] = bytes4(keccak256("name(address)"));
         _selectors[n++] = bytes4(keccak256("symbol(address)"));
         _selectors[n++] = bytes4(keccak256("decimals(address)"));
@@ -66,10 +70,6 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         // Extra test-exposing commands
-        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
@@ -79,25 +79,6 @@ contract TestLedger is Ledger {
     function initializeTestLedger(string memory nativeTokenSymbol_) external initializer {
         enforceIsOwner();
         initializeLedger_unchained(nativeTokenSymbol_);
-    }
-
-    function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) external returns (address) {
-        return LedgerLib.addSubAccountGroup(parent_, name_, isCredit_);
-    }
-
-    function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
-        external
-        returns (address)
-    {
-        return LedgerLib.addSubAccount(parent_, addr_, name_, isCredit_);
-    }
-
-    function removeSubAccountGroup(address parent_, string memory name_) external returns (address) {
-        return LedgerLib.removeSubAccountGroup(parent_, name_);
-    }
-
-    function removeSubAccount(address parent_, address addr_) external returns (address) {
-        return LedgerLib.removeSubAccount(parent_, addr_);
     }
 
     function mint(address toParent_, address to_, uint256 amount_) external {

@@ -162,11 +162,15 @@ contract Ledger is Module, Initializable, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](39);
+        _selectors = new bytes4[](43);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool)"));
         _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
         _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
         _selectors[n++] = bytes4(keccak256("name(address)"));
         _selectors[n++] = bytes4(keccak256("symbol(address)"));
         _selectors[n++] = bytes4(keccak256("decimals(address)"));
@@ -231,6 +235,21 @@ contract Ledger is Module, Initializable, ILedger {
         initializeLedger_unchained(nativeTokenSymbol_);
     }
 
+    function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) external returns (address) {
+        enforceIsOwner();
+
+        return LedgerLib.addSubAccountGroup(parent_, name_, isCredit_);
+    }
+
+    function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
+        external
+        returns (address)
+    {
+        enforceIsOwner();
+
+        return LedgerLib.addSubAccount(parent_, addr_, name_, isCredit_);
+    }
+
     function addLedger(
         address token_,
         address wrapper_,
@@ -258,6 +277,18 @@ contract Ledger is Module, Initializable, ILedger {
         enforceIsOwner();
 
         return LedgerLib.createInternalToken(name_, symbol_, decimals_, isCredit_);
+    }
+
+    function removeSubAccountGroup(address parent_, string memory name_) external returns (address) {
+        enforceIsOwner();
+
+        return LedgerLib.removeSubAccountGroup(parent_, name_);
+    }
+
+    function removeSubAccount(address parent_, address addr_) external returns (address) {
+        enforceIsOwner();
+
+        return LedgerLib.removeSubAccount(parent_, addr_);
     }
 
     //==========

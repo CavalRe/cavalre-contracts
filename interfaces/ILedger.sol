@@ -8,20 +8,6 @@ interface ILedger {
     // Initializers
     // ─────────────────────────────────────────────────────────────────────────────
     function initializeLedger(string memory nativeTokenSymbol) external;
-    function addLedger(
-        address token,
-        address wrapper,
-        string memory name,
-        string memory symbol,
-        uint8 decimals,
-        bool isCredit,
-        bool isInternal
-    ) external;
-    function createWrappedToken(address token) external;
-    function createInternalToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
-        external
-        returns (address);
-
     // ─────────────────────────────────────────────────────────────────────────────
     // Metadata (by arbitrary address)
     // ─────────────────────────────────────────────────────────────────────────────
@@ -42,6 +28,29 @@ interface ILedger {
     function subAccounts(address parent) external view returns (address[] memory);
     function hasSubAccount(address parent) external view returns (bool);
     function subAccountIndex(address parent, address addr) external view returns (uint32);
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Tree Manipulation
+    // ─────────────────────────────────────────────────────────────────────────────
+    function addSubAccountGroup(address parent, string memory name, bool isCredit) external returns (address);
+    function addSubAccount(address parent, address addr, string memory name, bool isInternal)
+        external
+        returns (address);
+    function addLedger(
+        address root,
+        address wrapper,
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        bool isCredit,
+        bool isInternal
+    ) external;
+    function createWrappedToken(address token) external;
+    function createInternalToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
+        external
+        returns (address);
+    function removeSubAccountGroup(address parent, string memory name) external returns (address);
+    function removeSubAccount(address parent, address child) external returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Balances & Valuations
