@@ -3,12 +3,10 @@ pragma solidity ^0.8.26;
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
-struct Float {
-    int256 mantissa;
-    int256 exponent;
-}
+type Float is int256;
 
 library FloatLib {
+    using FloatLib for Float;
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 
@@ -27,94 +25,104 @@ library FloatLib {
 
     int256 constant _LOG10 = 2302585092994045684;
 
+    uint256 constant _MANTISSA_MASK = (uint256(1) << 128) - 1;
+
     //=================
     //   Conversions
     //=================
 
-    function one() internal pure returns (Float memory) {
-        return Float(ONE_MANTISSA, ONE_EXPONENT);
+    function one() internal pure returns (Float) {
+        return _from(ONE_MANTISSA, ONE_EXPONENT);
+    }
+
+    function oneMinus(Float a_) internal pure returns (Float) {
+        return one().minus(a_);
     }
 
     //-----------
     //   toInt
     //-----------
-    function toInt(uint256 a) internal pure returns (int256) {
-        require(a <= uint256(type(int256).max), "Value out of int256 range");
-        return int256(a);
+    function toInt(uint256 a_) internal pure returns (int256) {
+        require(a_ <= uint256(type(int256).max), "Value out of int256 range");
+        return int256(a_);
     }
 
-    function toInt(Float memory a, uint256 decimals) internal pure returns (int256) {
-        if (a.exponent + toInt(decimals) >= 0) {
-            return a.mantissa * int256(10 ** toUInt(a.exponent + toInt(decimals)));
+    function toInt(Float a_, uint256 decimals_) internal pure returns (int256) {
+        (int256 _mantissa, int256 _exponent) = _components(a_);
+        int256 _exp = _exponent + toInt(decimals_);
+        if (_exp >= 0) {
+            return _mantissa * int256(10 ** toUInt(_exp));
         } else {
-            return a.mantissa / int256(10 ** toUInt(-(a.exponent + toInt(decimals))));
+            return _mantissa / int256(10 ** toUInt(-_exp));
         }
     }
 
-    function toInt(Float memory a) internal pure returns (int256) {
-        return toInt(a, 18);
+    function toInt(Float a_) internal pure returns (int256) {
+        return toInt(a_, 18);
     }
 
     //------------
     //   toUInt
     //------------
-    function toUInt(int256 a) internal pure returns (uint256) {
-        require(a >= 0, "Value must be non-negative");
-        return uint256(a);
+    function toUInt(int256 a_) internal pure returns (uint256) {
+        require(a_ >= 0, "Value must be non-negative");
+        return uint256(a_);
     }
 
-    function toUInt(Float memory a, uint256 decimals) internal pure returns (uint256) {
-        require(a.mantissa >= 0, "Value must be non-negative");
-        if (a.exponent + toInt(decimals) >= 0) {
-            return uint256(a.mantissa) * 10 ** toUInt(a.exponent + toInt(decimals));
+    function toUInt(Float a_, uint256 decimals_) internal pure returns (uint256) {
+        (int256 _mantissa, int256 _exponent) = _components(a_);
+        require(_mantissa >= 0, "Value must be non-negative");
+        int256 _exp = _exponent + toInt(decimals_);
+        if (_exp >= 0) {
+            return uint256(_mantissa) * 10 ** toUInt(_exp);
         } else {
-            return uint256(a.mantissa) / 10 ** toUInt(-(a.exponent + toInt(decimals)));
+            return uint256(_mantissa) / 10 ** toUInt(-_exp);
         }
     }
 
-    function toUInt(Float memory a) internal pure returns (uint256) {
-        return toUInt(a, 18);
+    function toUInt(Float a_) internal pure returns (uint256) {
+        return toUInt(a_, 18);
     }
 
     //--------------
     //   toFloat
     //--------------
 
-    function toFloat(int256 a, uint256 decimals) internal pure returns (Float memory) {
-        return normalize(a, -toInt(decimals));
+    function toFloat(int256 a_, uint256 decimals_) internal pure returns (Float) {
+        return normalize(a_, -toInt(decimals_));
     }
 
-    function toFloat(int256 a) internal pure returns (Float memory) {
-        return toFloat(a, 18);
+    function toFloat(int256 a_) internal pure returns (Float) {
+        return toFloat(a_, 18);
     }
 
-    function toFloat(uint256 a, uint256 decimals) internal pure returns (Float memory) {
-        require(a <= uint256(type(int256).max), "Value out of int256 range");
-        return normalize(int256(a), -toInt(decimals));
+    function toFloat(uint256 a_, uint256 decimals_) internal pure returns (Float) {
+        require(a_ <= uint256(type(int256).max), "Value out of int256 range");
+        return normalize(int256(a_), -toInt(decimals_));
     }
 
-    function toFloat(uint256 a) internal pure returns (Float memory) {
-        return toFloat(a, 18);
+    function toFloat(uint256 a_) internal pure returns (Float) {
+        return toFloat(a_, 18);
     }
 
     //-------------------
     //   toFloatArray
     //-------------------
 
-    function toFloatArray(int256[] memory a, uint256[] memory decimals) internal pure returns (Float[] memory) {
-        Float[] memory result = new Float[](a.length);
-        for (uint256 i = 0; i < a.length; i++) {
-            result[i] = toFloat(a[i], decimals[i]);
+    function toFloatArray(int256[] memory a_, uint256[] memory decimals_) internal pure returns (Float[] memory) {
+        Float[] memory _result = new Float[](a_.length);
+        for (uint256 _i = 0; _i < a_.length; _i++) {
+            _result[_i] = toFloat(a_[_i], decimals_[_i]);
         }
-        return result;
+        return _result;
     }
 
-    function toFloatArray(int256[] memory a) internal pure returns (Float[] memory) {
-        Float[] memory result = new Float[](a.length);
-        for (uint256 i = 0; i < a.length; i++) {
-            result[i] = toFloat(a[i]);
+    function toFloatArray(int256[] memory a_) internal pure returns (Float[] memory) {
+        Float[] memory _result = new Float[](a_.length);
+        for (uint256 _i = 0; _i < a_.length; _i++) {
+            _result[_i] = toFloat(a_[_i]);
         }
-        return result;
+        return _result;
     }
 
     //=================
@@ -123,265 +131,259 @@ library FloatLib {
     //----------
     //   isEQ
     //----------
-    function isEQ(Float memory a, Float memory b) internal pure returns (bool) {
-        (a, b) = align(a, b);
-        return a.mantissa == b.mantissa;
+    function isEQ(Float a_, Float b_) internal pure returns (bool) {
+        (Float _alignedA, Float _alignedB) = align(a_, b_);
+        return _mantissa(_alignedA) == _mantissa(_alignedB);
     }
 
-    function isGT(Float memory a, Float memory b) internal pure returns (bool) {
-        (a, b) = align(a, b);
-        return a.mantissa > b.mantissa;
+    function isGT(Float a_, Float b_) internal pure returns (bool) {
+        (Float _alignedA, Float _alignedB) = align(a_, b_);
+        return _mantissa(_alignedA) > _mantissa(_alignedB);
     }
 
-    function isGEQ(Float memory a, Float memory b) internal pure returns (bool) {
-        (a, b) = align(a, b);
-        return a.mantissa >= b.mantissa;
+    function isGEQ(Float a_, Float b_) internal pure returns (bool) {
+        (Float _alignedA, Float _alignedB) = align(a_, b_);
+        return _mantissa(_alignedA) >= _mantissa(_alignedB);
     }
 
-    function isLT(Float memory a, Float memory b) internal pure returns (bool) {
-        (a, b) = align(a, b);
-        return a.mantissa < b.mantissa;
+    function isLT(Float a_, Float b_) internal pure returns (bool) {
+        (Float _alignedA, Float _alignedB) = align(a_, b_);
+        return _mantissa(_alignedA) < _mantissa(_alignedB);
     }
 
-    function isLEQ(Float memory a, Float memory b) internal pure returns (bool) {
-        (a, b) = align(a, b);
-        return a.mantissa <= b.mantissa;
+    function isLEQ(Float a_, Float b_) internal pure returns (bool) {
+        (Float _alignedA, Float _alignedB) = align(a_, b_);
+        return _mantissa(_alignedA) <= _mantissa(_alignedB);
     }
 
     //=====================
     //   Transformations
     //=====================
-    function abs(Float memory a) internal pure returns (Float memory) {
-        return Float(int256(a.mantissa.abs()), a.exponent);
+    function abs(Float a_) internal pure returns (Float) {
+        return _from(int256(_mantissa(a_).abs()), _exponent(a_));
     }
 
-    function integerPart(Float memory number) internal pure returns (Float memory) {
-        if (number.exponent < 0) {
-            int256 temp = number.mantissa;
-            for (uint256 i; i < toUInt(-number.exponent); i++) {
-                temp /= 10;
-                if (temp == 0) return Float(0, 0);
+    function integerPart(Float number_) internal pure returns (Float) {
+        (int256 _mantissaValue, int256 _exponentValue) = _components(number_);
+        if (_exponentValue < 0) {
+            int256 _temp = _mantissaValue;
+            for (uint256 _i; _i < toUInt(-_exponentValue); _i++) {
+                _temp /= 10;
+                if (_temp == 0) return _from(0, 0);
             }
-            return Float(temp, 0);
+            return _from(_temp, 0);
         } else {
-            return number;
+            return number_;
         }
     }
 
     //-----------
     //   Shift
     //-----------
-    function shift(Float memory a, int256 i) internal pure returns (Float memory) {
-        if (i == 0 || a.mantissa == 0) return a;
+    function shift(Float a_, int256 i_) internal pure returns (Float) {
+        int256 _mantissaValue = _mantissa(a_);
+        if (i_ == 0 || _mantissaValue == 0) return a_;
 
-        uint256 k = i > 0 ? uint256(i) : uint256(-i);
+        uint256 _k = i_ > 0 ? uint256(i_) : uint256(-i_);
 
-        int256 m = a.mantissa;
-        int256 e = a.exponent + i;
+        int256 _m = _mantissaValue;
+        int256 _e = _exponent(a_) + i_;
 
-        // chunked by powers of 10 to avoid 10**k
-        if (i > 0) {
-            while (k >= 16) {
-                m /= 1e16;
-                k -= 16;
+        if (i_ > 0) {
+            while (_k >= 16) {
+                _m /= 1e16;
+                _k -= 16;
             }
-            if (k >= 8) {
-                m /= 1e8;
-                k -= 8;
+            if (_k >= 8) {
+                _m /= 1e8;
+                _k -= 8;
             }
-            if (k >= 4) {
-                m /= 1e4;
-                k -= 4;
+            if (_k >= 4) {
+                _m /= 1e4;
+                _k -= 4;
             }
-            if (k >= 2) {
-                m /= 1e2;
-                k -= 2;
+            if (_k >= 2) {
+                _m /= 1e2;
+                _k -= 2;
             }
-            if (k >= 1) m /= 10;
+            if (_k >= 1) _m /= 10;
         } else {
-            require(k <= SIGNIFICANT_DIGITS, "shift: |i| too large");
-            while (k >= 16) {
-                m *= 1e16;
-                k -= 16;
+            require(_k <= SIGNIFICANT_DIGITS, "shift: |i| too large");
+            while (_k >= 16) {
+                _m *= 1e16;
+                _k -= 16;
             }
-            if (k >= 8) {
-                m *= 1e8;
-                k -= 8;
+            if (_k >= 8) {
+                _m *= 1e8;
+                _k -= 8;
             }
-            if (k >= 4) {
-                m *= 1e4;
-                k -= 4;
+            if (_k >= 4) {
+                _m *= 1e4;
+                _k -= 4;
             }
-            if (k >= 2) {
-                m *= 1e2;
-                k -= 2;
+            if (_k >= 2) {
+                _m *= 1e2;
+                _k -= 2;
             }
-            if (k >= 1) m *= 10;
+            if (_k >= 1) _m *= 10;
         }
 
-        return Float(m, e);
+        return _from(_m, _e);
     }
 
     //---------------
     //   normalize
     //---------------
-    function normalize(int256 mantissa, int256 exponent) internal pure returns (Float memory) {
-        // Fast path
-        if (mantissa == 0) return Float(0, 0);
+    function normalize(int256 mantissa_, int256 exponent_) internal pure returns (Float) {
+        if (mantissa_ == 0) return _from(0, 0);
 
-        int256 m = mantissa;
-        int256 e = exponent;
+        int256 _m = mantissa_;
+        int256 _e = exponent_;
 
-        // Single abs computation (safe for -2^255)
-        uint256 mag = _abs256(m);
+        uint256 _mag = _abs256(_m);
 
-        // Scale down by 10s until within bounds
-        if (mag > NORMALIZED_MANTISSA_MAX) {
-            while (mag > NORMALIZED_MANTISSA_MAX) {
-                m /= 10;
-                e += 1;
-                mag /= 10;
+        if (_mag > NORMALIZED_MANTISSA_MAX) {
+            while (_mag > NORMALIZED_MANTISSA_MAX) {
+                _m /= 10;
+                _e += 1;
+                _mag /= 10;
             }
-            return Float(m, e);
+            return _from(_m, _e);
         }
 
-        // Scale up by 10s until within bounds
-        if (mag < NORMALIZED_MANTISSA_MIN) {
-            while (mag < NORMALIZED_MANTISSA_MIN) {
-                m *= 10;
-                e -= 1;
-                mag *= 10;
+        if (_mag < NORMALIZED_MANTISSA_MIN) {
+            while (_mag < NORMALIZED_MANTISSA_MIN) {
+                _m *= 10;
+                _e -= 1;
+                _mag *= 10;
             }
-            return Float(m, e);
+            return _from(_m, _e);
         }
 
-        return Float(m, e);
+        return _from(_m, _e);
     }
 
-    function _abs256(int256 x) private pure returns (uint256) {
-        if (x >= 0) return uint256(x);
-        unchecked {
-            return uint256(~x) + 1;
-        } // == uint256(-x)
+    function normalize(Float a_) internal pure returns (Float) {
+        (int256 _mantissaValue, int256 _exponentValue) = _components(a_);
+        return normalize(_mantissaValue, _exponentValue);
     }
 
-    function normalize(Float memory a) internal pure returns (Float memory) {
-        return normalize(a.mantissa, a.exponent);
+    function fromUnnormalized(int256 mantissa_, int256 exponent_) internal pure returns (Float) {
+        return _from(mantissa_, exponent_);
+    }
+
+    function components(Float a_) internal pure returns (int256 mantissa, int256 exponent) {
+        return _components(a_);
+    }
+
+    function mantissa(Float a_) internal pure returns (int256) {
+        (int256 _mantissaValue,) = _components(a_);
+        return _mantissaValue;
+    }
+
+    function exponent(Float a_) internal pure returns (int256) {
+        (, int256 _exponentValue) = _components(a_);
+        return _exponentValue;
     }
 
     //-----------
     //   align
     //-----------
-    // a and b should be normalized before shifting because shifting shifts the mantissa downward
-    function align(Float memory a, Float memory b) internal pure returns (Float memory, Float memory) {
-        if (a.mantissa == 0 && b.mantissa == 0) {
-            return (Float(0, 0), Float(0, 0));
-        } else if (a.mantissa == 0) {
-            return (Float(0, b.exponent), Float(b.mantissa, b.exponent));
-        } else if (b.mantissa == 0) {
-            return (Float(a.mantissa, a.exponent), Float(0, a.exponent));
+    function align(Float a_, Float b_) internal pure returns (Float, Float) {
+        (int256 _aMantissa, int256 _aExponent) = _components(a_);
+        (int256 _bMantissa, int256 _bExponent) = _components(b_);
+        if (_aMantissa == 0 && _bMantissa == 0) {
+            Float _zero = _from(0, 0);
+            return (_zero, _zero);
+        } else if (_aMantissa == 0) {
+            return (_from(0, _bExponent), _from(_bMantissa, _bExponent));
+        } else if (_bMantissa == 0) {
+            return (_from(_aMantissa, _aExponent), _from(0, _aExponent));
         }
 
-        a = normalize(a);
-        b = normalize(b);
+        Float _normA = normalize(a_);
+        Float _normB = normalize(b_);
+        _aMantissa = _mantissa(_normA);
+        _aExponent = _exponent(_normA);
+        _bMantissa = _mantissa(_normB);
+        _bExponent = _exponent(_normB);
 
-        int256 delta = a.exponent - b.exponent;
-        if (delta >= 0) {
-            if (uint256(delta) > SIGNIFICANT_DIGITS) {
-                return (Float(a.mantissa, a.exponent), Float(0, a.exponent));
+        int256 _delta = _aExponent - _bExponent;
+        if (_delta >= 0) {
+            if (uint256(_delta) > SIGNIFICANT_DIGITS) {
+                return (_normA, _from(0, _aExponent));
             }
-            return (Float(a.mantissa, a.exponent), shift(b, delta));
+            return (_normA, shift(_normB, _delta));
         } else {
-            if (uint256(-delta) > SIGNIFICANT_DIGITS) {
-                return (Float(0, b.exponent), Float(b.mantissa, b.exponent));
+            if (uint256(-_delta) > SIGNIFICANT_DIGITS) {
+                return (_from(0, _bExponent), _normB);
             }
-            return (shift(a, -delta), Float(b.mantissa, b.exponent));
+            return (shift(_normA, -_delta), _normB);
         }
     }
 
     //================
     //   Arithmetic
     //================
-    //----------
-    //   plus
-    //----------
-    function plus(Float memory a, Float memory b) internal pure returns (Float memory) {
-        (a, b) = align(a, b);
-        return normalize(a.mantissa + b.mantissa, a.exponent);
+    function plus(Float a_, Float b_) internal pure returns (Float) {
+        (Float _alignedA, Float _alignedB) = align(a_, b_);
+        return normalize(_mantissa(_alignedA) + _mantissa(_alignedB), _exponent(_alignedA));
     }
 
-    //-----------
-    //   minus
-    //-----------
-    function minus(Float memory a) internal pure returns (Float memory) {
-        return Float(-a.mantissa, a.exponent);
+    function minus(Float a_) internal pure returns (Float) {
+        return _from(-_mantissa(a_), _exponent(a_));
     }
 
-    function minus(Float memory a, Float memory b) internal pure returns (Float memory) {
-        (a, b) = align(a, b);
-        return normalize(a.mantissa - b.mantissa, a.exponent);
+    function minus(Float a_, Float b_) internal pure returns (Float) {
+        (Float _alignedA, Float _alignedB) = align(a_, b_);
+        return normalize(_mantissa(_alignedA) - _mantissa(_alignedB), _exponent(_alignedA));
     }
 
-    //-----------
-    //   times
-    //-----------
-    function times(Float memory a, Float memory b) internal pure returns (Float memory) {
-        a = normalize(a);
-        b = normalize(b);
-
+    function times(Float a_, Float b_) internal pure returns (Float) {
+        Float _normA = normalize(a_);
+        Float _normB = normalize(b_);
         return normalize(
-            (a.mantissa * b.mantissa) / int256(10 ** SIGNIFICANT_DIGITS),
-            toInt(SIGNIFICANT_DIGITS) + a.exponent + b.exponent
+            (_mantissa(_normA) * _mantissa(_normB)) / int256(10 ** SIGNIFICANT_DIGITS),
+            toInt(SIGNIFICANT_DIGITS) + _exponent(_normA) + _exponent(_normB)
         );
     }
 
-    //------------
-    //   divide
-    //------------
-    function divide(Float memory a, Float memory b) internal pure returns (Float memory) {
-        a = normalize(a);
-        b = normalize(b);
-
+    function divide(Float a_, Float b_) internal pure returns (Float) {
+        Float _normA = normalize(a_);
+        Float _normB = normalize(b_);
         return normalize(
-            (a.mantissa * int256(10 ** SIGNIFICANT_DIGITS)) / b.mantissa,
-            a.exponent - b.exponent - toInt(SIGNIFICANT_DIGITS)
+            (_mantissa(_normA) * int256(10 ** SIGNIFICANT_DIGITS)) / _mantissa(_normB),
+            _exponent(_normA) - _exponent(_normB) - toInt(SIGNIFICANT_DIGITS)
         );
     }
 
     //=======================
     //   Special functions
     //=======================
-    function round(Float memory a, uint256 digits) internal pure returns (Float memory) {
-        if (a.mantissa == 0) return Float(0, 0);
-        a = normalize(a);
-        int256 factor = int256(10 ** (SIGNIFICANT_DIGITS - digits));
-        int256 scaled = a.mantissa / factor;
-        int256 remainder = a.mantissa % factor;
-        if (remainder * 2 >= factor) {
-            scaled++;
+    function round(Float a_, uint256 digits_) internal pure returns (Float) {
+        if (_mantissa(a_) == 0) return _from(0, 0);
+        Float _norm = normalize(a_);
+        int256 _factor = int256(10 ** (SIGNIFICANT_DIGITS - digits_));
+        int256 _scaled = _mantissa(_norm) / _factor;
+        int256 _remainder = _mantissa(_norm) % _factor;
+        if (_remainder * 2 >= _factor) {
+            _scaled++;
         }
-        if (remainder * 2 <= -factor) {
-            scaled--;
+        if (_remainder * 2 <= -_factor) {
+            _scaled--;
         }
-        return Float(scaled * factor, a.exponent);
+        return _from(_scaled * _factor, _exponent(_norm));
     }
 
-    function exp(
-        int256 a // 18 decimals
-    ) internal pure returns (Float memory) {
-        int256 k = a / _LOG10;
-        int256 aprime = a - k * _LOG10;
-        return normalize(aprime.expWad(), k - 18);
+    function exp(int256 a_) internal pure returns (Float) {
+        int256 _k = a_ / _LOG10;
+        int256 _aprime = a_ - _k * _LOG10;
+        return normalize(_aprime.expWad(), _k - 18);
     }
 
-    function log(Float memory a)
-        internal
-        pure
-        returns (
-            int256 // 18 decimals
-        )
-    {
-        return int256(a.mantissa).lnWad() + (a.exponent + 18) * _LOG10;
+    function log(Float a_) internal pure returns (int256) {
+        Float _norm = normalize(a_);
+        return int256(_mantissa(_norm)).lnWad() + (_exponent(_norm) + 18) * _LOG10;
     }
 
     struct Cubic {
@@ -392,38 +394,72 @@ library FloatLib {
         Float w;
     }
 
-    function cubicsolve(Float memory b, Float memory c, Float memory d) internal pure returns (Float memory x) {
-        Cubic memory cubic;
+    function cubicsolve(Float b_, Float c_, Float d_) internal pure returns (Float _x) {
+        Cubic memory _cubic;
 
-        cubic.p = minus(c, divide(times(b, b), Float(3, 0)));
-        cubic.q = minus(plus(d, divide(times(b, times(b, b)), Float(135, -1))), divide(times(b, c), Float(3e17, -17)));
-        cubic.rad = plus(
-            divide(times(cubic.q, cubic.q), Float(4, 0)), divide(times(cubic.p, times(cubic.p, cubic.p)), Float(27, 0))
+        _cubic.p = minus(c_, divide(times(b_, b_), _from(3, 0)));
+        _cubic.q =
+            minus(plus(d_, divide(times(b_, times(b_, b_)), _from(135, -1))), divide(times(b_, c_), _from(3e17, -17)));
+        _cubic.rad = plus(
+            divide(times(_cubic.q, _cubic.q), _from(4, 0)),
+            divide(times(_cubic.p, times(_cubic.p, _cubic.p)), _from(27, 0))
         );
-        if (isLT(cubic.rad, Float(0, 0))) revert NoSolution();
-        cubic.u = minus(exp(log(cubic.rad) / 2), divide(cubic.q, Float(2, 0)));
-        cubic.w = cubic.u.mantissa > 0 ? exp(log(cubic.u) / 3) : minus(exp(log(minus(cubic.u)) / 3));
+        if (isLT(_cubic.rad, _from(0, 0))) revert NoSolution();
+        _cubic.u = minus(exp(log(_cubic.rad) / 2), divide(_cubic.q, _from(2, 0)));
+        _cubic.w =
+            _mantissa(_cubic.u) > 0 ? exp(log(_cubic.u) / 3) : minus(exp(log(minus(_cubic.u)) / 3));
 
-        x = minus(minus(cubic.w, divide(cubic.p, times(Float(3, 0), cubic.w))), divide(b, Float(3, 0)));
+        _x = minus(minus(_cubic.w, divide(_cubic.p, times(_from(3, 0), _cubic.w))), divide(b_, _from(3, 0)));
     }
 
-    function fullMulDiv(Float memory a, Float memory b, Float memory c) internal pure returns (Float memory) {
-        int256 sign = 1;
-        if (a.mantissa < 0) {
-            sign *= -1;
+    function fullMulDiv(Float a_, Float b_, Float c_) internal pure returns (Float) {
+        int256 _sign = 1;
+        if (_mantissa(a_) < 0) {
+            _sign *= -1;
         }
-        if (b.mantissa < 0) {
-            sign *= -1;
+        if (_mantissa(b_) < 0) {
+            _sign *= -1;
         }
-        if (c.mantissa < 0) {
-            sign *= -1;
+        if (_mantissa(c_) < 0) {
+            _sign *= -1;
         }
-        a = normalize(a);
-        b = normalize(b);
-        c = normalize(c);
+        Float _normA = normalize(a_);
+        Float _normB = normalize(b_);
+        Float _normC = normalize(c_);
         return normalize(
-            sign * int256(a.mantissa.abs().fullMulDiv(b.mantissa.abs(), c.mantissa.abs())),
-            a.exponent + b.exponent - c.exponent
+            _sign * int256(_mantissa(_normA).abs().fullMulDiv(_mantissa(_normB).abs(), _mantissa(_normC).abs())),
+            _exponent(_normA) + _exponent(_normB) - _exponent(_normC)
         );
+    }
+
+    //====================
+    //   Helper methods
+    //====================
+    function _from(int256 mantissa_, int256 exponent_) private pure returns (Float) {
+        require(mantissa_ >= type(int128).min && mantissa_ <= type(int128).max, "Mantissa overflow");
+        require(exponent_ >= type(int128).min && exponent_ <= type(int128).max, "Exponent overflow");
+        int256 _packed = (exponent_ << 128) | (mantissa_ & int256(_MANTISSA_MASK));
+        return Float.wrap(_packed);
+    }
+
+    function _components(Float a_) internal pure returns (int256 mantissa, int256 exponent) {
+        int256 _raw = Float.unwrap(a_);
+        mantissa = int256(int128(_raw));
+        exponent = int256(int128(_raw >> 128));
+    }
+
+    function _mantissa(Float a_) private pure returns (int256) {
+        return int256(int128(Float.unwrap(a_)));
+    }
+
+    function _exponent(Float a_) private pure returns (int256) {
+        return int256(int128(Float.unwrap(a_) >> 128));
+    }
+
+    function _abs256(int256 x_) private pure returns (uint256) {
+        if (x_ >= 0) return uint256(x_);
+        unchecked {
+            return uint256(~x_) + 1;
+        }
     }
 }
