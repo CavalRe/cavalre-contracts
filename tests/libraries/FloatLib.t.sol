@@ -63,11 +63,11 @@ contract FloatTest is Test {
     int256 internal mantissaTWO_unnormalized;
     int256 internal exponentTWO_unnormalized;
 
-    function assertEq(Float memory x, Float memory y) internal pure {
+    function assertEq(Float x, Float y) internal pure {
         x = FloatLib.normalize(x);
         y = FloatLib.normalize(y);
-        assertEq(x.mantissa, y.mantissa, "mantissa");
-        assertEq(x.exponent, y.exponent, "exponent");
+        assertEq(x.mantissa(), y.mantissa(), "mantissa");
+        assertEq(x.exponent(), y.exponent(), "exponent");
     }
 
     function setUp() public {
@@ -94,91 +94,91 @@ contract FloatTest is Test {
         EIGHTnHALF = FloatLib.normalize(85, -1);
         NINEnHALF = FloatLib.normalize(95, -1);
 
-        ZERO_unnormalized = Float(0, 0);
-        HALF_unnormalized = Float(1, -1);
-        ONE_unnormalized = Float(1, 0);
-        TWO_unnormalized = Float(2, 0);
+        ZERO_unnormalized = FloatLib.from(0, 0);
+        HALF_unnormalized = FloatLib.from(1, -1);
+        ONE_unnormalized = FloatLib.from(1, 0);
+        TWO_unnormalized = FloatLib.from(2, 0);
 
-        mantissaZERO = ZERO.mantissa;
-        exponentZERO = ZERO.exponent;
-        mantissaHALF = HALF.mantissa;
-        exponentHALF = HALF.exponent;
-        mantissaONE = ONE.mantissa;
-        exponentONE = ONE.exponent;
-        mantissaTWO = TWO.mantissa;
-        exponentTWO = TWO.exponent;
+        mantissaZERO = ZERO.mantissa();
+        exponentZERO = ZERO.exponent();
+        mantissaHALF = HALF.mantissa();
+        exponentHALF = HALF.exponent();
+        mantissaONE = ONE.mantissa();
+        exponentONE = ONE.exponent();
+        mantissaTWO = TWO.mantissa();
+        exponentTWO = TWO.exponent();
 
-        mantissaZERO_unnormalized = ZERO_unnormalized.mantissa;
-        exponentZERO_unnormalized = ZERO_unnormalized.exponent;
-        mantissaHALF_unnormalized = HALF_unnormalized.mantissa;
-        exponentHALF_unnormalized = HALF_unnormalized.exponent;
-        mantissaONE_unnormalized = ONE_unnormalized.mantissa;
-        exponentONE_unnormalized = ONE_unnormalized.exponent;
-        mantissaTWO_unnormalized = TWO_unnormalized.mantissa;
-        exponentTWO_unnormalized = TWO_unnormalized.exponent;
+        mantissaZERO_unnormalized = ZERO_unnormalized.mantissa();
+        exponentZERO_unnormalized = ZERO_unnormalized.exponent();
+        mantissaHALF_unnormalized = HALF_unnormalized.mantissa();
+        exponentHALF_unnormalized = HALF_unnormalized.exponent();
+        mantissaONE_unnormalized = ONE_unnormalized.mantissa();
+        exponentONE_unnormalized = ONE_unnormalized.exponent();
+        mantissaTWO_unnormalized = TWO_unnormalized.mantissa();
+        exponentTWO_unnormalized = TWO_unnormalized.exponent();
     }
 
     function getFloats() public view returns (Float[] memory) {
-        Float[] memory floats = new Float[](41);
-        floats[0] = TEN.minus();
-        floats[1] = NINEnHALF.minus();
-        floats[2] = NINE.minus();
-        floats[3] = EIGHTnHALF.minus();
-        floats[4] = EIGHT.minus();
-        floats[5] = SEVENnHALF.minus();
-        floats[6] = SEVEN.minus();
-        floats[7] = SIXnHALF.minus();
-        floats[8] = SIX.minus();
-        floats[9] = FIVEnHALF.minus();
-        floats[10] = FIVE.minus();
-        floats[11] = FOURnHALF.minus();
-        floats[12] = FOUR.minus();
-        floats[13] = THREEnHALF.minus();
-        floats[14] = THREE.minus();
-        floats[15] = TWOnHALF.minus();
-        floats[16] = TWO.minus();
-        floats[17] = ONEnHALF.minus();
-        floats[18] = ONE.minus();
-        floats[19] = HALF.minus();
-        floats[20] = ZERO;
-        // floats[20] = ONE;
-        floats[21] = HALF;
-        floats[22] = ONE;
-        floats[23] = ONEnHALF;
-        floats[24] = TWO;
-        floats[25] = TWOnHALF;
-        floats[26] = THREE;
-        floats[27] = THREEnHALF;
-        floats[28] = FOUR;
-        floats[29] = FOURnHALF;
-        floats[30] = FIVE;
-        floats[31] = FIVEnHALF;
-        floats[32] = SIX;
-        floats[33] = SIXnHALF;
-        floats[34] = SEVEN;
-        floats[35] = SEVENnHALF;
-        floats[36] = EIGHT;
-        floats[37] = EIGHTnHALF;
-        floats[38] = NINE;
-        floats[39] = NINEnHALF;
-        floats[40] = TEN;
-        return floats;
+        Float[] memory _floats = new Float[](41);
+        _floats[0] = TEN.minus();
+        _floats[1] = NINEnHALF.minus();
+        _floats[2] = NINE.minus();
+        _floats[3] = EIGHTnHALF.minus();
+        _floats[4] = EIGHT.minus();
+        _floats[5] = SEVENnHALF.minus();
+        _floats[6] = SEVEN.minus();
+        _floats[7] = SIXnHALF.minus();
+        _floats[8] = SIX.minus();
+        _floats[9] = FIVEnHALF.minus();
+        _floats[10] = FIVE.minus();
+        _floats[11] = FOURnHALF.minus();
+        _floats[12] = FOUR.minus();
+        _floats[13] = THREEnHALF.minus();
+        _floats[14] = THREE.minus();
+        _floats[15] = TWOnHALF.minus();
+        _floats[16] = TWO.minus();
+        _floats[17] = ONEnHALF.minus();
+        _floats[18] = ONE.minus();
+        _floats[19] = HALF.minus();
+        _floats[20] = ZERO;
+        // _floats[20] = ONE;
+        _floats[21] = HALF;
+        _floats[22] = ONE;
+        _floats[23] = ONEnHALF;
+        _floats[24] = TWO;
+        _floats[25] = TWOnHALF;
+        _floats[26] = THREE;
+        _floats[27] = THREEnHALF;
+        _floats[28] = FOUR;
+        _floats[29] = FOURnHALF;
+        _floats[30] = FIVE;
+        _floats[31] = FIVEnHALF;
+        _floats[32] = SIX;
+        _floats[33] = SIXnHALF;
+        _floats[34] = SEVEN;
+        _floats[35] = SEVENnHALF;
+        _floats[36] = EIGHT;
+        _floats[37] = EIGHTnHALF;
+        _floats[38] = NINE;
+        _floats[39] = NINEnHALF;
+        _floats[40] = TEN;
+        return _floats;
     }
 
     function testFloatToString() public {
-        Float memory float;
-        Float memory intergerPartFloat;
-        Float memory fractionPartFloat;
-        float = Float(12, -1);
-        intergerPartFloat = float.integerPart();
-        fractionPartFloat = float.minus(intergerPartFloat);
-        emit log_named_string("1.2", float.toString());
+        Float _float;
+        Float _integerPartFloat;
+        Float _fractionPartFloat;
+        _float = FloatLib.from(12, -1);
+        _integerPartFloat = _float.integerPart();
+        _fractionPartFloat = _float.minus(_integerPartFloat);
+        emit log_named_string("1.2", _float.toString());
         // emit log_named_uint("1.2.mantissa", float.mantissa);
         // emit log_named_int("1.2.exponent", float.exponent);
-        emit log_named_string("Integer part of 1.2", intergerPartFloat.toString());
+        emit log_named_string("Integer part of 1.2", _integerPartFloat.toString());
         // emit log_named_uint("Integer part of 1.2.mantissa", intergerPartFloat.mantissa);
         // emit log_named_int("Integer part of 1.2.exponent", intergerPartFloat.exponent);
-        emit log_named_string("Fraction part of 1.2", fractionPartFloat.toString());
+        emit log_named_string("Fraction part of 1.2", _fractionPartFloat.toString());
         // emit log_named_uint("Fraction part of 1.2.mantissa", fractionPartFloat.mantissa);
         // emit log_named_int("Fraction part of 1.2.exponent", fractionPartFloat.exponent);
 
@@ -195,32 +195,32 @@ contract FloatTest is Test {
         // emit log_named_uint("Fraction part of 1.2.mantissa", fractionPartFloat.mantissa);
         // emit log_named_int("Fraction part of 1.2.exponent", fractionPartFloat.exponent);
 
-        emit log_named_string("1.15 x 10^-6", Float(115, -8).toString());
+        emit log_named_string("1.15 x 10^-6", FloatLib.from(115, -8).toString());
 
         emit log("Round number");
-        emit log_named_string("1.23456789 x 10^-6", Float(123456789, -14).round(5).toString());
-        emit log_named_string("-1.23456789 x 10^-6", Float(-123456789, -14).round(5).toString());
+        emit log_named_string("1.23456789 x 10^-6", FloatLib.from(123456789, -14).round(5).toString());
+        emit log_named_string("-1.23456789 x 10^-6", FloatLib.from(-123456789, -14).round(5).toString());
 
-        Float memory bigNumber = FloatLib.normalize(115, 63);
+        Float _bigNumber = FloatLib.normalize(115, 63);
         emit log("Write big number");
-        emit log_named_int("bigNumber.mantissa", bigNumber.mantissa);
-        emit log_named_string("1.15 x 10^65", bigNumber.toString());
+        emit log_named_int("bigNumber.mantissa", _bigNumber.mantissa());
+        emit log_named_string("1.15 x 10^65", _bigNumber.toString());
 
-        Float memory bigNumberPlus = bigNumber.plus(bigNumber);
+        Float _bigNumberPlus = _bigNumber.plus(_bigNumber);
         emit log("Plus big number");
-        emit log_named_string("2.30 x 10^65", bigNumberPlus.toString());
+        emit log_named_string("2.30 x 10^65", _bigNumberPlus.toString());
 
-        Float memory reallyBigNumber = bigNumber.times(bigNumber);
+        Float _reallyBigNumber = _bigNumber.times(_bigNumber);
         emit log("Write really big number");
-        emit log_named_string("1.3225 x 10^130", reallyBigNumber.toString());
+        emit log_named_string("1.3225 x 10^130", _reallyBigNumber.toString());
 
-        Float memory smallNumber = FloatLib.normalize(115, -44);
+        Float _smallNumber = FloatLib.normalize(115, -44);
         emit log("Write small number");
-        emit log_named_string("1.15 x 10^-42", smallNumber.toString());
+        emit log_named_string("1.15 x 10^-42", _smallNumber.toString());
 
-        Float memory reallySmallNumber = smallNumber.times(smallNumber);
+        Float _reallySmallNumber = _smallNumber.times(_smallNumber);
         emit log("Write really small number");
-        emit log_named_string("1.3225 x 10^-84", reallySmallNumber.toString());
+        emit log_named_string("1.3225 x 10^-84", _reallySmallNumber.toString());
 
         // Float[] memory floats = getFloats();
         // emit log("Half integers");
@@ -228,12 +228,12 @@ contract FloatTest is Test {
         //     emit log_named_string("Float to string", floats[i].toString());
         // }
         // int256 exponent = 19;
-        // float = ONE.divide(Float(9, exponent));
+        // float = ONE.divide(FloatLib.from(9, exponent));
         // for (uint256 i; i < uint256(2 * int256(exponent)); i++) {
         //     emit log_named_string("Float to string", float.toString());
         //     float = float.times(TEN);
         // }
-        // float = Float(1, exponent).divide(Float(9, 0));
+        // float = FloatLib.from(1, exponent).divide(FloatLib.from(9, 0));
         // for (uint256 i; i < uint256(2 * int256(exponent)); i++) {
         //     emit log_named_string("Float to string", float.toString());
         //     float = float.divide(TEN);
@@ -322,42 +322,42 @@ contract FloatTest is Test {
 
     function testFloatNormalize() public view {
         assertEq(
-            FloatLib.normalize(ONE_unnormalized).mantissa.msb(),
+            FloatLib.normalize(ONE_unnormalized).mantissa().msb(),
             FloatLib.SIGNIFICANT_DIGITS,
             "mantissa (from unnormalized)"
         );
-        assertEq(ONE.mantissa.msb(), FloatLib.SIGNIFICANT_DIGITS, "mantissa (from normalized)");
-        assertEq(ONE.exponent, FloatLib.normalize(ONE_unnormalized).exponent, "exponent");
+        assertEq(ONE.mantissa().msb(), FloatLib.SIGNIFICANT_DIGITS, "mantissa (from normalized)");
+        assertEq(ONE.exponent(), FloatLib.normalize(ONE_unnormalized).exponent(), "exponent");
     }
 
     function testFloatAlign() public {
         (a, b) = FloatLib.align(ONE, TWO_unnormalized);
         assertEq(a, ONE);
         assertEq(b, TWO_unnormalized);
-        assertEq(a.exponent, b.exponent, "exponent");
+        assertEq(a.exponent(), b.exponent(), "exponent");
     }
 
     function testFloatONE() public {
-        a = Float(1, 0);
+        a = FloatLib.from(1, 0);
         a = FloatLib.normalize(a);
-        assertEq(a.mantissa.msb(), FloatLib.SIGNIFICANT_DIGITS, "msb");
+        assertEq(a.mantissa().msb(), FloatLib.SIGNIFICANT_DIGITS, "msb");
     }
 
     function testFloatAdd() public {
-        Float[] memory floats = getFloats();
-        uint256 nfloats = floats.length;
-        int256 floatMax = int256((nfloats - 1) / 2);
-        int256 ifloat;
-        int256 jfloat;
-        for (uint256 i; i < nfloats; i++) {
-            ifloat = int256(i) - floatMax;
-            for (uint256 j; j < nfloats; j++) {
-                jfloat = int256(j) - floatMax;
-                a = floats[i];
-                b = floats[j];
+        Float[] memory _floats = getFloats();
+        uint256 _nFloats = _floats.length;
+        int256 _floatMax = int256((_nFloats - 1) / 2);
+        int256 _iFloat;
+        int256 _jFloat;
+        for (uint256 _i; _i < _nFloats; _i++) {
+            _iFloat = int256(_i) - _floatMax;
+            for (uint256 _j; _j < _nFloats; _j++) {
+                _jFloat = int256(_j) - _floatMax;
+                a = _floats[_i];
+                b = _floats[_j];
                 c = a.plus(b);
                 assertTrue(
-                    c.isEQ(Float(5 * (ifloat + jfloat), -1)),
+                    c.isEQ(FloatLib.from(5 * (_iFloat + _jFloat), -1)),
                     string(abi.encodePacked(a.toString(), "+", b.toString(), "=", c.toString()))
                 );
             }
@@ -365,20 +365,20 @@ contract FloatTest is Test {
     }
 
     function testFloatSubtract() public {
-        Float[] memory floats = getFloats();
-        uint256 nfloats = floats.length;
-        int256 floatMax = int256((nfloats - 1) / 2);
-        int256 ifloat;
-        int256 jfloat;
-        for (uint256 i; i < nfloats; i++) {
-            ifloat = int256(i) - floatMax;
-            for (uint256 j; j < nfloats; j++) {
-                jfloat = int256(j) - floatMax;
-                a = floats[i];
-                b = floats[j];
+        Float[] memory _floats = getFloats();
+        uint256 _nFloats = _floats.length;
+        int256 _floatMax = int256((_nFloats - 1) / 2);
+        int256 _iFloat;
+        int256 _jFloat;
+        for (uint256 _i; _i < _nFloats; _i++) {
+            _iFloat = int256(_i) - _floatMax;
+            for (uint256 _j; _j < _nFloats; _j++) {
+                _jFloat = int256(_j) - _floatMax;
+                a = _floats[_i];
+                b = _floats[_j];
                 c = a.minus(b);
                 assertTrue(
-                    c.isEQ(Float(5 * (ifloat - jfloat), -1)),
+                    c.isEQ(FloatLib.from(5 * (_iFloat - _jFloat), -1)),
                     string(abi.encodePacked(a.toString(), "-", b.toString(), "=", c.toString()))
                 );
             }
@@ -386,20 +386,20 @@ contract FloatTest is Test {
     }
 
     function testFloatMultiply() public {
-        Float[] memory floats = getFloats();
-        uint256 nfloats = floats.length;
-        int256 floatMax = int256((nfloats - 1) / 2);
-        int256 ifloat;
-        int256 jfloat;
-        for (uint256 i; i < nfloats; i++) {
-            ifloat = int256(i) - floatMax;
-            for (uint256 j; j < nfloats; j++) {
-                jfloat = int256(j) - floatMax;
-                a = floats[i];
-                b = floats[j];
+        Float[] memory _floats = getFloats();
+        uint256 _nFloats = _floats.length;
+        int256 _floatMax = int256((_nFloats - 1) / 2);
+        int256 _iFloat;
+        int256 _jFloat;
+        for (uint256 _i; _i < _nFloats; _i++) {
+            _iFloat = int256(_i) - _floatMax;
+            for (uint256 _j; _j < _nFloats; _j++) {
+                _jFloat = int256(_j) - _floatMax;
+                a = _floats[_i];
+                b = _floats[_j];
                 c = a.times(b);
                 assertTrue(
-                    c.isEQ(Float(25 * (ifloat * jfloat), -2)),
+                    c.isEQ(FloatLib.from(25 * (_iFloat * _jFloat), -2)),
                     string(abi.encodePacked(a.toString(), "*", b.toString(), "=", c.toString()))
                 );
             }
@@ -407,23 +407,24 @@ contract FloatTest is Test {
     }
 
     function testFloatDivide() public {
-        Float[] memory floats = getFloats();
-        uint256 nfloats = floats.length;
-        int256 floatMax = int256((nfloats - 1) / 2);
-        int256 ifloat;
-        int256 jfloat;
-        for (uint256 i; i < nfloats; i++) {
-            ifloat = int256(i) - floatMax;
-            for (uint256 j; j < nfloats; j++) {
-                jfloat = int256(j) - floatMax;
-                a = floats[i];
-                b = floats[j];
+        Float[] memory _floats = getFloats();
+        uint256 _nFloats = _floats.length;
+        int256 _floatMax = int256((_nFloats - 1) / 2);
+        int256 _iFloat;
+        int256 _jFloat;
+        for (uint256 _i; _i < _nFloats; _i++) {
+            _iFloat = int256(_i) - _floatMax;
+            for (uint256 _j; _j < _nFloats; _j++) {
+                _jFloat = int256(_j) - _floatMax;
+                a = _floats[_i];
+                b = _floats[_j];
                 if (b.isEQ(ZERO)) {
                     continue;
                 }
                 c = a.divide(b).times(b);
                 assertTrue(
-                    c.round(10).isEQ(Float(5 * ifloat, -1)), string(abi.encodePacked(a.toString(), "=", c.toString()))
+                    c.round(10).isEQ(FloatLib.from(5 * _iFloat, -1)),
+                    string(abi.encodePacked(a.toString(), "=", c.toString()))
                 );
             }
         }
@@ -447,7 +448,7 @@ contract FloatTest is Test {
         emit log_named_string("exp(1e-5)", FloatLib.exp(int256(1e13)).toString());
         emit log_named_string("exp(-1e6)", FloatLib.exp(int256(-1e24)).toString());
 
-        emit log_named_string("exp(log(4e18)/2)", FloatLib.exp(FloatLib.log(Float(4, 0)) / 2).toString());
+        emit log_named_string("exp(log(4e18)/2)", FloatLib.exp(FloatLib.log(FloatLib.from(4, 0)) / 2).toString());
         // emit log_named_int("exp(1e6)", FloatLib.exp(int256(1e24)).mantissa);
         // emit log_named_int("exp(-1e6)", FloatLib.exp(int256(-1e24)).mantissa);
         // emit log_named_string("exp(1e7)", FloatLib.exp(int256(1e25)).toString());
@@ -458,7 +459,7 @@ contract FloatTest is Test {
     }
 
     function testFloatCubic() public {
-        Float memory x = FloatLib.cubicsolve(Float(-5, 0), Float(1, 0), Float(-5, 0));
+        Float x = FloatLib.cubicsolve(FloatLib.from(-5, 0), FloatLib.from(1, 0), FloatLib.from(-5, 0));
         emit log_named_string("x", x.toString());
     }
 

@@ -62,8 +62,8 @@ interface ILedger {
     function scaleAddress(address token) external view returns (address);
     function reserve(address token) external view returns (uint256);
     function scale(address token) external view returns (uint256);
-    function price(address token) external view returns (Float memory);
-    function totalValue(address token) external view returns (Float memory);
+    function price(address token) external view returns (Float);
+    function totalValue(address token) external view returns (Float);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)

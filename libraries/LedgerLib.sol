@@ -28,10 +28,10 @@ library LedgerLib {
     bytes32 private constant STORE_POSITION =
         keccak256(abi.encode(uint256(keccak256("cavalre.storage.Ledger")) - 1)) & ~bytes32(uint256(0xff));
 
-    function store() internal pure returns (Store storage s) {
-        bytes32 position = STORE_POSITION;
+    function store() internal pure returns (Store storage _s) {
+        bytes32 _position = STORE_POSITION;
         assembly {
-            s.slot := position
+            _s.slot := _position
         }
     }
 
@@ -208,9 +208,9 @@ library LedgerLib {
     }
 
     function subAccount(address parent_, uint256 index_) internal view returns (address) {
-        address[] storage subs_ = store().subs[parent_];
-        if (index_ >= subs_.length) revert ILedger.InvalidSubAccountIndex(index_);
-        return subs_[index_];
+        address[] storage _subs = store().subs[parent_];
+        if (index_ >= _subs.length) revert ILedger.InvalidSubAccountIndex(index_);
+        return _subs[index_];
     }
 
     function hasSubAccount(address addr_) internal view returns (bool) {
@@ -257,19 +257,19 @@ library LedgerLib {
         return balanceOf(scaleAddress(token_));
     }
 
-    function price(address token_) internal view returns (Float memory) {
-        Float memory _reserve = reserve(token_).toFloat(uint256(decimals(token_)));
-        if (_reserve.mantissa == 0) revert ILedger.ZeroReserve(token_);
-        Float memory _scale = scale(token_).toFloat();
+    function price(address token_) internal view returns (Float) {
+        Float _reserve = reserve(token_).toFloat(uint256(decimals(token_)));
+        if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
+        Float _scale = scale(token_).toFloat();
         return _scale.divide(_reserve);
     }
 
-    function totalValue(address token_) internal view returns (Float memory) {
+    function totalValue(address token_) internal view returns (Float) {
         uint8 _decimals = decimals(token_);
-        Float memory _reserve = reserve(token_).toFloat(uint256(_decimals));
-        if (_reserve.mantissa == 0) revert ILedger.ZeroReserve(token_);
-        Float memory _scale = scale(token_).toFloat();
-        Float memory _totalSupply = isInternal(token_)
+        Float _reserve = reserve(token_).toFloat(uint256(_decimals));
+        if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
+        Float _scale = scale(token_).toFloat();
+        Float _totalSupply = isInternal(token_)
             ? balanceOf(toLedgerAddress(parent(address(this), isCredit(token_)), token_)).toFloat(_decimals)
             : IERC20(token_).totalSupply().toFloat(_decimals);
         return _totalSupply.fullMulDiv(_scale, _reserve);
@@ -299,13 +299,13 @@ library LedgerLib {
 
         address _root = root(parent_);
 
-        Store storage s = store();
-        s.name[_sub] = name_;
-        s.root[_sub] = _root;
-        s.parent[_sub] = parent_;
-        s.subs[parent_].push(toNamedAddress(name_));
-        s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.flags[_sub] = flags(_root, true, isCredit_, true);
+        Store storage _s = store();
+        _s.name[_sub] = name_;
+        _s.root[_sub] = _root;
+        _s.parent[_sub] = parent_;
+        _s.subs[parent_].push(toNamedAddress(name_));
+        _s.subIndex[_sub] = uint32(_s.subs[parent_].length);
+        _s.flags[_sub] = flags(_root, true, isCredit_, true);
         emit ILedger.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
@@ -330,13 +330,13 @@ library LedgerLib {
 
         address _root = root(parent_);
 
-        Store storage s = store();
-        s.name[_sub] = name_;
-        s.root[_sub] = _root;
-        s.parent[_sub] = parent_;
-        s.subs[parent_].push(addr_);
-        s.subIndex[_sub] = uint32(s.subs[parent_].length);
-        s.flags[_sub] = flags(_root, false, isCredit_, true);
+        Store storage _s = store();
+        _s.name[_sub] = name_;
+        _s.root[_sub] = _root;
+        _s.parent[_sub] = parent_;
+        _s.subs[parent_].push(addr_);
+        _s.subIndex[_sub] = uint32(_s.subs[parent_].length);
+        _s.flags[_sub] = flags(_root, false, isCredit_, true);
         emit ILedger.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
@@ -357,9 +357,9 @@ library LedgerLib {
             revert ILedger.InvalidToken(root_, name_, symbol_, decimals_);
         }
 
-        Store storage s = store();
+        Store storage _s = store();
         // Check if token already exists
-        if (s.root[root_] == root_) {
+        if (_s.root[root_] == root_) {
             // Token already exists
             bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(name(root_)));
             bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(root_)));
@@ -370,11 +370,11 @@ library LedgerLib {
             }
             revert ILedger.InvalidToken(root_, name_, symbol_, decimals_);
         }
-        s.name[root_] = name_;
-        s.symbol[root_] = symbol_;
-        s.decimals[root_] = decimals_;
-        s.root[root_] = root_;
-        s.flags[root_] = flags(wrapper_, true, isCredit_, isInternal_);
+        _s.name[root_] = name_;
+        _s.symbol[root_] = symbol_;
+        _s.decimals[root_] = decimals_;
+        _s.root[root_] = root_;
+        _s.flags[root_] = flags(wrapper_, true, isCredit_, isInternal_);
 
         // Add a "Total" credit subaccount group
         addSubAccountGroup(root_, "Total", true);
@@ -436,23 +436,23 @@ library LedgerLib {
         if (hasSubAccount(_sub)) revert ILedger.HasSubAccount(_sub);
         if (hasBalance(_sub)) revert ILedger.HasBalance(_sub);
 
-        Store storage s = store();
+        Store storage _s = store();
 
-        uint256 _index = s.subIndex[_sub]; // 1-based
-        uint256 _lastIndex = s.subs[parent_].length; // 1-based
-        address _lastChild = s.subs[parent_][_lastIndex - 1];
+        uint256 _index = _s.subIndex[_sub]; // 1-based
+        uint256 _lastIndex = _s.subs[parent_].length; // 1-based
+        address _lastChild = _s.subs[parent_][_lastIndex - 1];
         address _lastChildAbsolute = toLedgerAddress(parent_, _lastChild);
         if (_index != _lastIndex) {
-            s.subs[parent_][_index - 1] = _lastChild;
-            s.subIndex[_lastChildAbsolute] = uint32(_index);
+            _s.subs[parent_][_index - 1] = _lastChild;
+            _s.subIndex[_lastChildAbsolute] = uint32(_index);
         }
-        s.subs[parent_].pop();
+        _s.subs[parent_].pop();
 
-        s.name[_sub] = "";
-        s.root[_sub] = address(0);
-        s.parent[_sub] = address(0);
-        s.subIndex[_sub] = 0;
-        s.flags[_sub] = 0;
+        _s.name[_sub] = "";
+        _s.root[_sub] = address(0);
+        _s.parent[_sub] = address(0);
+        _s.subIndex[_sub] = 0;
+        _s.flags[_sub] = 0;
 
         address _root = root(parent_);
         emit ILedger.SubAccountGroupRemoved(_root, parent_, name_);
@@ -473,23 +473,23 @@ library LedgerLib {
         if (hasSubAccount(_sub)) revert ILedger.HasSubAccount(addr_);
         if (hasBalance(_sub)) revert ILedger.HasBalance(addr_);
 
-        Store storage s = store();
+        Store storage _s = store();
 
-        uint256 _index = s.subIndex[_sub]; // 1-based
-        uint256 _lastIndex = s.subs[parent_].length; // 1-based
-        address _lastChild = s.subs[parent_][_lastIndex - 1];
+        uint256 _index = _s.subIndex[_sub]; // 1-based
+        uint256 _lastIndex = _s.subs[parent_].length; // 1-based
+        address _lastChild = _s.subs[parent_][_lastIndex - 1];
         address _lastChildAbsolute = toLedgerAddress(parent_, _lastChild);
         if (_index != _lastIndex) {
-            s.subs[parent_][_index - 1] = _lastChild;
-            s.subIndex[_lastChildAbsolute] = uint32(_index);
+            _s.subs[parent_][_index - 1] = _lastChild;
+            _s.subIndex[_lastChildAbsolute] = uint32(_index);
         }
-        s.subs[parent_].pop();
+        _s.subs[parent_].pop();
 
-        s.name[_sub] = "";
-        s.root[_sub] = address(0);
-        s.parent[_sub] = address(0);
-        s.subIndex[_sub] = 0;
-        s.flags[_sub] = 0;
+        _s.name[_sub] = "";
+        _s.root[_sub] = address(0);
+        _s.parent[_sub] = address(0);
+        _s.subIndex[_sub] = 0;
+        _s.flags[_sub] = 0;
 
         address _root = root(parent_);
         emit ILedger.SubAccountRemoved(_root, parent_, addr_);
@@ -505,7 +505,7 @@ library LedgerLib {
         checkAccountGroup(parent_);
         _root = toLedgerAddress(parent_, addr_);
 
-        Store storage s = store();
+        Store storage _s = store();
         uint256 _balance;
         uint8 _depth;
         address _parent = parent_;
@@ -520,15 +520,15 @@ library LedgerLib {
                 return _root;
             }
             if (isCredit(_root)) {
-                if (s.balance[_root] < amount_) revert ILedger.InsufficientBalance(_root, parent_, addr_, amount_);
-                _balance = s.balance[_root] - amount_;
-                s.balance[_root] = _balance;
+                if (_s.balance[_root] < amount_) revert ILedger.InsufficientBalance(_root, parent_, addr_, amount_);
+                _balance = _s.balance[_root] - amount_;
+                _s.balance[_root] = _balance;
             } else {
-                _balance = s.balance[_root] + amount_;
-                s.balance[_root] = _balance;
+                _balance = _s.balance[_root] + amount_;
+                _s.balance[_root] = _balance;
             }
             _root = _parent;
-            _parent = s.parent[_parent];
+            _parent = _s.parent[_parent];
             _depth++;
         }
         revert ILedger.MaxDepthExceeded();
@@ -541,7 +541,7 @@ library LedgerLib {
         checkAccountGroup(parent_);
         _root = toLedgerAddress(parent_, addr_);
 
-        Store storage s = store();
+        Store storage _s = store();
         uint256 _balance;
         uint8 _depth;
         address _parent = parent_;
@@ -556,15 +556,15 @@ library LedgerLib {
                 return _root;
             }
             if (isCredit(_root)) {
-                _balance = s.balance[_root] + amount_;
-                s.balance[_root] = _balance;
+                _balance = _s.balance[_root] + amount_;
+                _s.balance[_root] = _balance;
             } else {
-                if (s.balance[_root] < amount_) revert ILedger.InsufficientBalance(_root, parent_, addr_, amount_);
-                _balance = s.balance[_root] - amount_;
-                s.balance[_root] = _balance;
+                if (_s.balance[_root] < amount_) revert ILedger.InsufficientBalance(_root, parent_, addr_, amount_);
+                _balance = _s.balance[_root] - amount_;
+                _s.balance[_root] = _balance;
             }
             _root = _parent;
-            _parent = s.parent[_parent];
+            _parent = _s.parent[_parent];
             _depth++;
         }
         revert ILedger.MaxDepthExceeded();
@@ -605,9 +605,9 @@ library LedgerLib {
         uint256 amount_,
         bool emitEvent_
     ) internal returns (bool) {
-        address creditRoot = credit(fromParent_, from_, amount_, emitEvent_);
-        address debitRoot = debit(toParent_, to_, amount_, emitEvent_);
-        if (creditRoot != debitRoot) revert ILedger.DifferentRoots(creditRoot, debitRoot);
+        address _creditRoot = credit(fromParent_, from_, amount_, emitEvent_);
+        address _debitRoot = debit(toParent_, to_, amount_, emitEvent_);
+        if (_creditRoot != _debitRoot) revert ILedger.DifferentRoots(_creditRoot, _debitRoot);
         return true;
     }
 
@@ -625,10 +625,10 @@ library LedgerLib {
     function reallocate(address fromToken_, address toToken_, uint256 amount_) internal {
         if (amount_ == 0) return;
 
-        address fromParent = LedgerLib.parent(address(this), isCredit(fromToken_));
-        address toParent = LedgerLib.parent(address(this), isCredit(toToken_));
+        address _fromParent = LedgerLib.parent(address(this), isCredit(fromToken_));
+        address _toParent = LedgerLib.parent(address(this), isCredit(toToken_));
 
-        LedgerLib.transfer(fromParent, fromToken_, toParent, toToken_, amount_, true);
+        LedgerLib.transfer(_fromParent, fromToken_, _toParent, toToken_, amount_, true);
     }
 
     function approve(address ownerParent_, address owner_, address spender_, uint256 amount_, bool emitEvent_)
@@ -647,9 +647,9 @@ library LedgerLib {
         internal
         returns (bool, uint256)
     {
-        uint256 current = allowance(ownerParent_, owner_, spender_);
-        uint256 newAmount = current + added_; // ^0.8 handles overflow
-        return (approve(ownerParent_, owner_, spender_, newAmount, emitEvent_), newAmount);
+        uint256 _current = allowance(ownerParent_, owner_, spender_);
+        uint256 _newAmount = _current + added_; // ^0.8 handles overflow
+        return (approve(ownerParent_, owner_, spender_, _newAmount, emitEvent_), _newAmount);
     }
 
     /// @notice Decrease allowance for (ownerParent_/owner_) → (spenderParent_/spender_) by `subtracted_`.
@@ -661,12 +661,12 @@ library LedgerLib {
         uint256 subtracted_,
         bool emitEvent_
     ) internal returns (bool, uint256) {
-        uint256 current = allowance(ownerParent_, owner_, spender_);
-        if (subtracted_ > current) {
-            revert ILedger.InsufficientAllowance(ownerParent_, owner_, spender_, current, subtracted_);
+        uint256 _current = allowance(ownerParent_, owner_, spender_);
+        if (subtracted_ > _current) {
+            revert ILedger.InsufficientAllowance(ownerParent_, owner_, spender_, _current, subtracted_);
         }
-        uint256 newAmount = current - subtracted_;
-        return (approve(ownerParent_, owner_, spender_, newAmount, emitEvent_), newAmount);
+        uint256 _newAmount = _current - subtracted_;
+        return (approve(ownerParent_, owner_, spender_, _newAmount, emitEvent_), _newAmount);
     }
 
     /// @notice Forcefully set allowance for (ownerParent_/owner_) → (spenderParent_/spender_) to `amount_`.
@@ -675,9 +675,9 @@ library LedgerLib {
         internal
         returns (bool)
     {
-        uint256 current = allowance(ownerParent_, owner_, spender_);
+        uint256 _current = allowance(ownerParent_, owner_, spender_);
 
-        if (current != 0 && amount_ != 0) {
+        if (_current != 0 && amount_ != 0) {
             // zero first to avoid non-zero→non-zero race
             approve(ownerParent_, owner_, spender_, 0, false);
         }
@@ -700,10 +700,10 @@ library LedgerLib {
         bool emitEvent_
     ) internal returns (bool) {
         checkRoots(fromParent_, toParent_);
-        Store storage s = store();
+        Store storage _s = store();
 
         address _ownerAddress = toLedgerAddress(fromParent_, from_);
-        s.allowances[_ownerAddress][spender_] -= amount_;
+        _s.allowances[_ownerAddress][spender_] -= amount_;
 
         return transfer(fromParent_, from_, toParent_, to_, amount_, emitEvent_);
     }

@@ -1,214 +1,218 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {FloatLib, Float} from "./FloatLib.sol";
+import {Float, FloatLib} from "./FloatLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 library FloatStrings {
     using FixedPointMathLib for int256;
-    using FloatLib for uint256;
-    using FloatLib for int256;
     using FloatLib for Float;
 
     // Most significant bit
-    function msb(int256 value) internal pure returns (uint256) {
-        if (value == 0) {
+    function msb(int256 value_) internal pure returns (uint256) {
+        if (value_ == 0) {
             return 0;
         }
 
-        return toStringBytes(value.abs()).length;
+        return toStringBytes(value_.abs()).length;
     }
 
-    function shiftStringBytesLeft(bytes memory strBytes, uint256 numChars) public pure returns (bytes memory) {
-        bytes memory result = new bytes(strBytes.length + numChars);
+    function shiftStringBytesLeft(bytes memory strBytes_, uint256 numChars_) public pure returns (bytes memory) {
+        bytes memory _result = new bytes(strBytes_.length + numChars_);
 
-        for (uint256 i = 0; i < result.length; i++) {
-            if (i < strBytes.length) {
-                result[i] = strBytes[i];
+        for (uint256 _i = 0; _i < _result.length; _i++) {
+            if (_i < strBytes_.length) {
+                _result[_i] = strBytes_[_i];
             } else {
-                result[i] = "0";
+                _result[_i] = "0";
             }
         }
 
-        return result;
+        return _result;
     }
 
-    function shiftStringLeft(string memory str, uint256 numChars) public pure returns (string memory) {
-        return string(shiftStringBytesLeft(bytes(str), numChars));
+    function shiftStringLeft(string memory str_, uint256 numChars_) public pure returns (string memory) {
+        return string(shiftStringBytesLeft(bytes(str_), numChars_));
     }
 
-    function shiftStringBytesRight(bytes memory strBytes, uint256 numChars)
+    function shiftStringBytesRight(bytes memory strBytes_, uint256 numChars_)
         public
         pure
-        returns (bytes memory result, bytes memory remainder)
+        returns (bytes memory _result, bytes memory _remainder)
     {
-        uint256 resultChars;
-        uint256 remainderChars;
-        uint256 excessChars;
-        if (numChars > strBytes.length) {
-            resultChars = 0;
-            excessChars = numChars - strBytes.length;
-            result = new bytes(1);
+        uint256 _resultChars;
+        uint256 _remainderChars;
+        uint256 _excessChars;
+        if (numChars_ > strBytes_.length) {
+            _resultChars = 0;
+            _excessChars = numChars_ - strBytes_.length;
+            _result = new bytes(1);
         } else {
-            resultChars = strBytes.length - numChars;
-            result = new bytes(resultChars);
+            _resultChars = strBytes_.length - numChars_;
+            _result = new bytes(_resultChars);
         }
-        remainderChars = numChars;
-        remainder = new bytes(remainderChars);
+        _remainderChars = numChars_;
+        _remainder = new bytes(_remainderChars);
 
-        for (uint256 i = 0; i < strBytes.length; i++) {
-            if (i < resultChars) {
-                result[i] = strBytes[i];
+        for (uint256 _i = 0; _i < strBytes_.length; _i++) {
+            if (_i < _resultChars) {
+                _result[_i] = strBytes_[_i];
             } else {
-                remainder[remainderChars - 1 + resultChars - i] = strBytes[strBytes.length - 1 + resultChars - i];
+                _remainder[_remainderChars - 1 + _resultChars - _i] =
+                    strBytes_[strBytes_.length - 1 + _resultChars - _i];
             }
         }
 
-        return (result, remainder);
+        return (_result, _remainder);
     }
 
-    function shiftStringRight(string memory str, uint256 numChars)
+    function shiftStringRight(string memory str_, uint256 numChars_)
         public
         pure
-        returns (string memory result, string memory remainder)
+        returns (string memory _result, string memory _remainder)
     {
-        bytes memory strBytes = bytes(str);
-        bytes memory resultBytes;
-        bytes memory remainderBytes;
-        (resultBytes, remainderBytes) = shiftStringBytesRight(strBytes, numChars);
-        result = string(resultBytes);
-        remainder = string(remainderBytes);
+        bytes memory _strBytes = bytes(str_);
+        bytes memory _resultBytes;
+        bytes memory _remainderBytes;
+        (_resultBytes, _remainderBytes) = shiftStringBytesRight(_strBytes, numChars_);
+        _result = string(_resultBytes);
+        _remainder = string(_remainderBytes);
     }
 
-    function toStringBytes(uint256 value) public pure returns (bytes memory) {
+    function toStringBytes(uint256 value_) public pure returns (bytes memory) {
         // Handle the special case of zero.
-        if (value == 0) {
+        if (value_ == 0) {
             return bytes("0");
         }
 
         // Determine the length of the decimal number.
-        uint256 digits_ = digits(value);
+        uint256 _digits = digits(value_);
 
         // Create a temporary byte array to fill with the digits of the number.
-        bytes memory buffer = new bytes(digits_);
-        while (value != 0) {
-            digits_ -= 1;
-            buffer[digits_] = bytes1(uint8(48 + (value % 10)));
-            value /= 10;
+        bytes memory _buffer = new bytes(_digits);
+        while (value_ != 0) {
+            _digits -= 1;
+            _buffer[_digits] = bytes1(uint8(48 + (value_ % 10)));
+            value_ /= 10;
         }
 
         // Convert the byte array to a string and return it.
-        return buffer;
+        return _buffer;
     }
 
-    function toStringBytes(Float memory value) public pure returns (bytes memory, bytes memory) {
-        // Handle the special case of zero.
-        if (value.mantissa == 0) {
+    function toStringBytes(Float value_) internal pure returns (bytes memory, bytes memory) {
+        (int256 _mantissa, ) = FloatLib.components(value_);
+        if (_mantissa == 0) {
             return (bytes("0"), bytes("0"));
         }
 
-        Float memory integerPartFloat = value.integerPart();
+        Float _integerPartFloat = FloatLib.integerPart(value_);
+        bytes memory _integerPartBytes;
 
-        bytes memory integerPartBytes;
-        if (integerPartFloat.mantissa == 0) {
-            integerPartBytes = bytes("0");
+        (int256 _intMantissa, int256 _intExponent) = FloatLib.components(_integerPartFloat);
+        if (_intMantissa == 0) {
+            _integerPartBytes = bytes("0");
         } else {
-            bytes memory integerPartMantissaBytes = toStringBytes(integerPartFloat.mantissa.abs());
+            bytes memory _integerPartMantissaBytes =
+                toStringBytes(uint256(_intMantissa >= 0 ? _intMantissa : -_intMantissa));
 
-            integerPartBytes = new bytes(integerPartMantissaBytes.length + integerPartFloat.exponent.toUInt());
+            _integerPartBytes = new bytes(_integerPartMantissaBytes.length + uint256(_intExponent));
 
-            for (uint256 i = 0; i < integerPartBytes.length; i++) {
-                if (i < integerPartMantissaBytes.length) {
-                    integerPartBytes[i] = integerPartMantissaBytes[i];
+            for (uint256 _i = 0; _i < _integerPartBytes.length; _i++) {
+                if (_i < _integerPartMantissaBytes.length) {
+                    _integerPartBytes[_i] = _integerPartMantissaBytes[_i];
                 } else {
-                    integerPartBytes[i] = bytes1("0");
+                    _integerPartBytes[_i] = bytes1("0");
                 }
             }
         }
 
-        Float memory fractionalPartFloat;
-        if (integerPartFloat.mantissa == 0) {
-            fractionalPartFloat = value;
+        Float _fractionalPartFloat;
+        if (_intMantissa == 0) {
+            _fractionalPartFloat = value_;
         } else {
-            fractionalPartFloat = value.minus(integerPartFloat);
+            _fractionalPartFloat = FloatLib.minus(value_, _integerPartFloat);
         }
 
-        bytes memory fractionalPartBytes;
-        if (fractionalPartFloat.mantissa == 0) {
-            fractionalPartBytes = bytes("0");
+        bytes memory _fractionalPartBytes;
+        (int256 _fracMantissa, int256 _fracExponent) = FloatLib.components(_fractionalPartFloat);
+        if (_fracMantissa == 0) {
+            _fractionalPartBytes = bytes("0");
         } else {
-            bytes memory fractionalPartMantissaBytes = toStringBytes(fractionalPartFloat.mantissa.abs());
+            bytes memory _fractionalPartMantissaBytes =
+                toStringBytes(uint256(_fracMantissa >= 0 ? _fracMantissa : -_fracMantissa));
 
-            fractionalPartBytes = new bytes((-fractionalPartFloat.exponent).toUInt());
+            _fractionalPartBytes = new bytes(uint256(-_fracExponent));
 
-            for (uint256 i = 0; i < fractionalPartBytes.length; i++) {
-                if (i < fractionalPartMantissaBytes.length) {
-                    fractionalPartBytes[fractionalPartBytes.length - 1 - i] =
-                        fractionalPartMantissaBytes[fractionalPartMantissaBytes.length - 1 - i];
+            for (uint256 _i = 0; _i < _fractionalPartBytes.length; _i++) {
+                if (_i < _fractionalPartMantissaBytes.length) {
+                    _fractionalPartBytes[_fractionalPartBytes.length - 1 - _i] =
+                        _fractionalPartMantissaBytes[_fractionalPartMantissaBytes.length - 1 - _i];
                 } else {
-                    fractionalPartBytes[fractionalPartBytes.length - 1 - i] = bytes1("0");
+                    _fractionalPartBytes[_fractionalPartBytes.length - 1 - _i] = bytes1("0");
                 }
             }
         }
 
-        return (integerPartBytes, fractionalPartBytes);
+        return (_integerPartBytes, _fractionalPartBytes);
     }
 
-    function toString(uint256 value) public pure returns (string memory) {
-        return string(toStringBytes(value));
+    function toString(uint256 value_) public pure returns (string memory) {
+        return string(toStringBytes(value_));
     }
 
-    function toString(int256 value) public pure returns (string memory) {
-        return string(abi.encodePacked(value < 0 ? "-" : "", toStringBytes(value.abs())));
+    function toString(int256 value_) public pure returns (string memory) {
+        return string(abi.encodePacked(value_ < 0 ? "-" : "", toStringBytes(value_.abs())));
     }
 
-    function trimStringBytesRight(bytes memory strBytes) public pure returns (bytes memory) {
-        uint256 i = strBytes.length - 1;
-        while (i > 0 && strBytes[i] == "0") {
-            i--;
+    function trimStringBytesRight(bytes memory strBytes_) public pure returns (bytes memory) {
+        uint256 _i = strBytes_.length - 1;
+        while (_i > 0 && strBytes_[_i] == "0") {
+            _i--;
         }
-        bytes memory result = new bytes(i + 1);
-        for (uint256 j = 0; j < i + 1; j++) {
-            result[j] = strBytes[j];
+        bytes memory _result = new bytes(_i + 1);
+        for (uint256 _j = 0; _j < _i + 1; _j++) {
+            _result[_j] = strBytes_[_j];
         }
-        return result;
+        return _result;
     }
 
-    function trimStringRight(string memory str) public pure returns (string memory) {
-        return string(trimStringBytesRight(bytes(str)));
+    function trimStringRight(string memory str_) public pure returns (string memory) {
+        return string(trimStringBytesRight(bytes(str_)));
     }
 
-    function toString(Float memory number) public pure returns (string memory) {
-        bytes memory integerPartBytes;
-        bytes memory fractionalPartBytes;
+    function toString(Float number_) internal pure returns (string memory) {
+        bytes memory _integerPartBytes;
+        bytes memory _fractionalPartBytes;
 
-        number = FloatLib.normalize(number.mantissa, number.exponent);
+        number_ = FloatLib.normalize(number_);
 
-        Float memory max = FloatLib.normalize(int256(FloatLib.NORMALIZED_MANTISSA_MAX), 0);
+        Float _max = FloatLib.normalize(int256(FloatLib.NORMALIZED_MANTISSA_MAX), 0);
 
-        uint256 ushift = FloatLib.SIGNIFICANT_DIGITS - 1;
-        int256 ishift = int256(ushift);
+        uint256 _ushift = FloatLib.SIGNIFICANT_DIGITS - 1;
+        int256 _ishift = int256(_ushift);
 
-        if (number.abs().isLT(max) && number.exponent >= -ishift) {
-            (integerPartBytes, fractionalPartBytes) = toStringBytes(number);
+        (int256 _mantissa, int256 _exponent) = FloatLib.components(number_);
+        if (FloatLib.abs(number_).isLT(_max) && _exponent >= -_ishift) {
+            (_integerPartBytes, _fractionalPartBytes) = toStringBytes(number_);
             return string(
                 abi.encodePacked(
-                    number.mantissa < 0 ? "-" : "",
-                    string(integerPartBytes),
+                    _mantissa < 0 ? "-" : "",
+                    string(_integerPartBytes),
                     ".",
-                    string(trimStringBytesRight(fractionalPartBytes))
+                    string(trimStringBytesRight(_fractionalPartBytes))
                 )
             );
         } else {
-            (integerPartBytes, fractionalPartBytes) = toStringBytes(Float(number.mantissa, -ishift));
+            (_integerPartBytes, _fractionalPartBytes) = toStringBytes(FloatLib.normalize(_mantissa, -_ishift));
             return string(
                 abi.encodePacked(
-                    number.mantissa < 0 ? "-" : "",
-                    string(integerPartBytes),
+                    _mantissa < 0 ? "-" : "",
+                    string(_integerPartBytes),
                     ".",
-                    string(trimStringBytesRight(fractionalPartBytes)),
+                    string(trimStringBytesRight(_fractionalPartBytes)),
                     "e",
-                    toString(number.exponent + ishift)
+                    toString(_exponent + _ishift)
                 )
             );
         }

@@ -379,11 +379,11 @@ contract Ledger is Module, Initializable, ILedger {
         return LedgerLib.scale(token_);
     }
 
-    function price(address token_) external view returns (Float memory) {
+    function price(address token_) external view returns (Float) {
         return LedgerLib.price(token_);
     }
 
-    function totalValue(address token_) external view returns (Float memory) {
+    function totalValue(address token_) external view returns (Float) {
         return LedgerLib.totalValue(token_);
     }
 
