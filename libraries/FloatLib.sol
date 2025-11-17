@@ -27,17 +27,21 @@ library FloatLib {
 
     uint256 constant MANTISSA_MASK = (uint256(1) << 128) - 1;
 
+    Float constant ZERO = Float.wrap(0);
+    Float constant ONE = Float.wrap((ONE_EXPONENT << 128) | (ONE_MANTISSA & int256(MANTISSA_MASK)));
+    Float constant TWO = Float.wrap((ONE_EXPONENT << 128) | ((2 * ONE_MANTISSA) & int256(MANTISSA_MASK)));
+    Float constant THREE = Float.wrap((ONE_EXPONENT << 128) | ((3 * ONE_MANTISSA) & int256(MANTISSA_MASK)));
+    Float constant FOUR = Float.wrap((ONE_EXPONENT << 128) | ((4 * ONE_MANTISSA) & int256(MANTISSA_MASK)));
+    Float constant FIVE = Float.wrap((ONE_EXPONENT << 128) | ((5 * ONE_MANTISSA) & int256(MANTISSA_MASK)));
+    Float constant SIX = Float.wrap((ONE_EXPONENT << 128) | ((6 * ONE_MANTISSA) & int256(MANTISSA_MASK)));
+    Float constant SEVEN = Float.wrap((ONE_EXPONENT << 128) | ((7 * ONE_MANTISSA) & int256(MANTISSA_MASK)));
+    Float constant EIGHT = Float.wrap((ONE_EXPONENT << 128) | ((8 * ONE_MANTISSA) & int256(MANTISSA_MASK)));
+    Float constant NINE = Float.wrap((ONE_EXPONENT << 128) | ((9 * ONE_MANTISSA) & int256(MANTISSA_MASK)));
+    Float constant TEN = Float.wrap(((ONE_EXPONENT + 1) << 128) | (ONE_MANTISSA & int256(MANTISSA_MASK)));
+
     //=================
     //   Conversions
     //=================
-
-    function one() internal pure returns (Float) {
-        return from(ONE_MANTISSA, ONE_EXPONENT);
-    }
-
-    function oneMinus(Float a_) internal pure returns (Float) {
-        return one().minus(a_);
-    }
 
     //-----------
     //   toInt
@@ -169,7 +173,7 @@ library FloatLib {
             int256 _temp = _mantissa;
             for (uint256 _i; _i < toUInt(-_exponent); _i++) {
                 _temp /= 10;
-                if (_temp == 0) return from(0, 0);
+                if (_temp == 0) return ZERO;
             }
             return from(_temp, 0);
         } else {
@@ -235,7 +239,7 @@ library FloatLib {
     //   normalize
     //---------------
     function normalize(int256 mantissa_, int256 exponent_) internal pure returns (Float) {
-        if (mantissa_ == 0) return from(0, 0);
+        if (mantissa_ == 0) return ZERO;
 
         int256 _m = mantissa_;
         int256 _e = exponent_;
@@ -275,8 +279,7 @@ library FloatLib {
         (int256 _aMantissa, int256 _aExponent) = components(a_);
         (int256 _bMantissa, int256 _bExponent) = components(b_);
         if (_aMantissa == 0 && _bMantissa == 0) {
-            Float _zero = from(0, 0);
-            return (_zero, _zero);
+            return (ZERO, ZERO);
         } else if (_aMantissa == 0) {
             return (from(0, _bExponent), from(_bMantissa, _bExponent));
         } else if (_bMantissa == 0) {
@@ -343,7 +346,7 @@ library FloatLib {
     //   Special functions
     //=======================
     function round(Float a_, uint256 digits_) internal pure returns (Float) {
-        if (mantissa(a_) == 0) return from(0, 0);
+        if (mantissa(a_) == 0) return ZERO;
         Float _norm = normalize(a_);
         int256 _factor = int256(10 ** (SIGNIFICANT_DIGITS - digits_));
         int256 _scaled = mantissa(_norm) / _factor;
@@ -379,18 +382,17 @@ library FloatLib {
     function cubicsolve(Float b_, Float c_, Float d_) internal pure returns (Float _x) {
         Cubic memory _cubic;
 
-        _cubic.p = minus(c_, divide(times(b_, b_), from(3, 0)));
+        _cubic.p = minus(c_, divide(times(b_, b_), THREE));
         _cubic.q =
             minus(plus(d_, divide(times(b_, times(b_, b_)), from(135, -1))), divide(times(b_, c_), from(3e17, -17)));
         _cubic.rad = plus(
-            divide(times(_cubic.q, _cubic.q), from(4, 0)),
-            divide(times(_cubic.p, times(_cubic.p, _cubic.p)), from(27, 0))
+            divide(times(_cubic.q, _cubic.q), FOUR), divide(times(_cubic.p, times(_cubic.p, _cubic.p)), from(27, 0))
         );
-        if (isLT(_cubic.rad, from(0, 0))) revert NoSolution();
-        _cubic.u = minus(exp(log(_cubic.rad) / 2), divide(_cubic.q, from(2, 0)));
+        if (isLT(_cubic.rad, ZERO)) revert NoSolution();
+        _cubic.u = minus(exp(log(_cubic.rad) / 2), divide(_cubic.q, TWO));
         _cubic.w = mantissa(_cubic.u) > 0 ? exp(log(_cubic.u) / 3) : minus(exp(log(minus(_cubic.u)) / 3));
 
-        _x = minus(minus(_cubic.w, divide(_cubic.p, times(from(3, 0), _cubic.w))), divide(b_, from(3, 0)));
+        _x = minus(minus(_cubic.w, divide(_cubic.p, times(THREE, _cubic.w))), divide(b_, THREE));
     }
 
     function fullMulDiv(Float a_, Float b_, Float c_) internal pure returns (Float) {
