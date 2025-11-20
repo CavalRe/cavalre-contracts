@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {FloatLib, Float} from "../../libraries/FloatLib.sol";
 import {FloatStrings} from "../../libraries/FloatStrings.sol";
-import {Test} from "forge-std/src/Test.sol";
+import {Test, console} from "forge-std/src/Test.sol";
 
 contract FloatTest is Test {
     using FloatLib for uint256;
@@ -322,11 +322,11 @@ contract FloatTest is Test {
 
     function testFloatNormalize() public view {
         assertEq(
-            FloatLib.normalize(ONE_unnormalized).mantissa().msb(),
+            FloatStrings.msb(int256(FloatLib.normalize(ONE_unnormalized).mantissa())),
             FloatLib.SIGNIFICANT_DIGITS,
             "mantissa (from unnormalized)"
         );
-        assertEq(ONE.mantissa().msb(), FloatLib.SIGNIFICANT_DIGITS, "mantissa (from normalized)");
+        assertEq(FloatStrings.msb(int256(ONE.mantissa())), FloatLib.SIGNIFICANT_DIGITS, "mantissa (from normalized)");
         assertEq(ONE.exponent(), FloatLib.normalize(ONE_unnormalized).exponent(), "exponent");
     }
 
@@ -340,24 +340,38 @@ contract FloatTest is Test {
     function testFloatONE() public {
         a = FloatLib.from(1, 0);
         a = FloatLib.normalize(a);
-        assertEq(a.mantissa().msb(), FloatLib.SIGNIFICANT_DIGITS, "msb");
+        assertEq(FloatStrings.msb(int256(a.mantissa())), FloatLib.SIGNIFICANT_DIGITS, "msb");
     }
 
     function testFloatAdd() public {
+        bool isVerbose = true;
+
+        if (isVerbose) console.log("testFloatAdd");
         Float[] memory _floats = getFloats();
         uint256 _nFloats = _floats.length;
+        if (isVerbose) console.log("Number of floats:", _nFloats);
         int256 _floatMax = int256((_nFloats - 1) / 2);
+        if (isVerbose) console.log("Max floats:", _floatMax);
         int256 _iFloat;
         int256 _jFloat;
         for (uint256 _i; _i < _nFloats; _i++) {
+            if (isVerbose) console.log("i:", _i);
             _iFloat = int256(_i) - _floatMax;
+            if (isVerbose) console.log("iFloat:", _iFloat);
             for (uint256 _j; _j < _nFloats; _j++) {
+                if (isVerbose) console.log("  j:", _j);
                 _jFloat = int256(_j) - _floatMax;
+                if (isVerbose) console.log("  jFloat:", _jFloat);
                 a = _floats[_i];
+                if (isVerbose) console.log("    a:", a.toString());
                 b = _floats[_j];
+                if (isVerbose) console.log("    b:", b.toString());
                 c = a.plus(b);
+                if (isVerbose) console.log("    c:", c.toString());
+                int128 expected = int128(int256(5 * (_iFloat + _jFloat)));
+                if (isVerbose) console.log("    expected:", FloatLib.from(expected, -1).toString());
                 assertTrue(
-                    c.isEQ(FloatLib.from(5 * (_iFloat + _jFloat), -1)),
+                    c.isEQ(FloatLib.from(expected, -1)),
                     string(abi.encodePacked(a.toString(), "+", b.toString(), "=", c.toString()))
                 );
             }
@@ -377,8 +391,9 @@ contract FloatTest is Test {
                 a = _floats[_i];
                 b = _floats[_j];
                 c = a.minus(b);
+                int128 expected = int128(int256(5 * (_iFloat - _jFloat)));
                 assertTrue(
-                    c.isEQ(FloatLib.from(5 * (_iFloat - _jFloat), -1)),
+                    c.isEQ(FloatLib.from(expected, -1)),
                     string(abi.encodePacked(a.toString(), "-", b.toString(), "=", c.toString()))
                 );
             }
@@ -398,8 +413,9 @@ contract FloatTest is Test {
                 a = _floats[_i];
                 b = _floats[_j];
                 c = a.times(b);
+                int128 expected = int128(int256(25 * (_iFloat * _jFloat)));
                 assertTrue(
-                    c.isEQ(FloatLib.from(25 * (_iFloat * _jFloat), -2)),
+                    c.isEQ(FloatLib.from(expected, -2)),
                     string(abi.encodePacked(a.toString(), "*", b.toString(), "=", c.toString()))
                 );
             }
@@ -422,8 +438,9 @@ contract FloatTest is Test {
                     continue;
                 }
                 c = a.divide(b).times(b);
+                int128 expected = int128(int256(5 * _iFloat));
                 assertTrue(
-                    c.round(10).isEQ(FloatLib.from(5 * _iFloat, -1)),
+                    c.round(10).isEQ(FloatLib.from(expected, -1)),
                     string(abi.encodePacked(a.toString(), "=", c.toString()))
                 );
             }
