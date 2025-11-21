@@ -101,56 +101,36 @@ library FloatStrings {
     }
 
     function toStringBytes(Float value_) internal pure returns (bytes memory, bytes memory) {
-        (int128 _mantissa, ) = FloatLib.components(value_);
-        int256 _mant = int256(_mantissa);
-        if (_mant == 0) {
-            return (bytes("0"), bytes("0"));
-        }
+        Float _norm = FloatLib.normalize(value_);
+        (Float _intPart, Float _fracPart) = FloatLib.parts(_norm);
 
-        Float _integerPartFloat = FloatLib.integerPart(value_);
+        // Integer part
         bytes memory _integerPartBytes;
-
-        (int128 _intMantissa, int128 _intExponent) = FloatLib.components(_integerPartFloat);
+        Float _absInt = FloatLib.abs(_intPart);
+        (int128 _intMantissa, int128 _intExponent) = FloatLib.components(_absInt);
         if (_intMantissa == 0) {
             _integerPartBytes = bytes("0");
         } else {
-            bytes memory _integerPartMantissaBytes =
-                toStringBytes(uint256(int256(_intMantissa >= 0 ? _intMantissa : -_intMantissa)));
-
-            _integerPartBytes = new bytes(_integerPartMantissaBytes.length + uint256(int256(_intExponent)));
-
-            for (uint256 _i = 0; _i < _integerPartBytes.length; _i++) {
-                if (_i < _integerPartMantissaBytes.length) {
-                    _integerPartBytes[_i] = _integerPartMantissaBytes[_i];
-                } else {
-                    _integerPartBytes[_i] = bytes1("0");
-                }
-            }
+            uint256 _intVal = FloatLib.toUInt(_absInt, 0);
+            _integerPartBytes = toStringBytes(_intVal);
         }
 
-        Float _fractionalPartFloat;
-        if (_intMantissa == 0) {
-            _fractionalPartFloat = value_;
-        } else {
-            _fractionalPartFloat = FloatLib.minus(value_, _integerPartFloat);
-        }
-
+        // Fractional part
         bytes memory _fractionalPartBytes;
-        (int128 _fracMantissa, int128 _fracExponent) = FloatLib.components(_fractionalPartFloat);
+        Float _absFrac = FloatLib.abs(_fracPart);
+        (int128 _fracMantissa, int128 _fracExponent) = FloatLib.components(_absFrac);
         if (_fracMantissa == 0) {
             _fractionalPartBytes = bytes("0");
         } else {
-            bytes memory _fractionalPartMantissaBytes =
+            bytes memory _mantBytes =
                 toStringBytes(uint256(int256(_fracMantissa >= 0 ? _fracMantissa : -_fracMantissa)));
-
-            _fractionalPartBytes = new bytes(uint256(-int256(_fracExponent)));
-
-            for (uint256 _i = 0; _i < _fractionalPartBytes.length; _i++) {
-                if (_i < _fractionalPartMantissaBytes.length) {
-                    _fractionalPartBytes[_fractionalPartBytes.length - 1 - _i] =
-                        _fractionalPartMantissaBytes[_fractionalPartMantissaBytes.length - 1 - _i];
+            uint256 _digits = uint256(uint128(-_fracExponent)); // exponent is negative for fractional part
+            _fractionalPartBytes = new bytes(_digits);
+            for (uint256 _i = 0; _i < _digits; _i++) {
+                if (_i < _mantBytes.length) {
+                    _fractionalPartBytes[_digits - 1 - _i] = _mantBytes[_mantBytes.length - 1 - _i];
                 } else {
-                    _fractionalPartBytes[_fractionalPartBytes.length - 1 - _i] = bytes1("0");
+                    _fractionalPartBytes[_digits - 1 - _i] = bytes1("0");
                 }
             }
         }
@@ -188,34 +168,34 @@ library FloatStrings {
 
         number_ = FloatLib.normalize(number_);
 
-        Float _max = FloatLib.normalize(int256(uint256(FloatLib.NORMALIZED_MANTISSA_MAX)), 0);
+        Float _max = FloatLib.normalize(int128(FloatLib.NORMALIZED_MANTISSA_MAX), 0);
 
-        uint256 _ushift = FloatLib.SIGNIFICANT_DIGITS - 1;
-        int256 _ishift = int256(_ushift);
+        int128 _ushift = FloatLib.SIGNIFICANT_DIGITS - 1;
+        int128 _ishift = _ushift;
 
         (int128 _mantissa, int128 _exponent) = FloatLib.components(number_);
-        int256 _mant = int256(_mantissa);
-        int256 _exp = int256(_exponent);
-        if (FloatLib.abs(number_).isLT(_max) && _exp >= -_ishift) {
+        // int256 _mant = int256(_mantissa);
+        // int256 _exp = int256(_exponent);
+        if (FloatLib.abs(number_).isLT(_max) && _exponent >= -_ishift) {
             (_integerPartBytes, _fractionalPartBytes) = toStringBytes(number_);
             return string(
                 abi.encodePacked(
-                    _mant < 0 ? "-" : "",
+                    _mantissa < 0 ? "-" : "",
                     string(_integerPartBytes),
                     ".",
                     string(trimStringBytesRight(_fractionalPartBytes))
                 )
             );
         } else {
-            (_integerPartBytes, _fractionalPartBytes) = toStringBytes(FloatLib.normalize(_mant, -_ishift));
+            (_integerPartBytes, _fractionalPartBytes) = toStringBytes(FloatLib.normalize(_mantissa, -_ishift));
             return string(
                 abi.encodePacked(
-                    _mant < 0 ? "-" : "",
+                    _mantissa < 0 ? "-" : "",
                     string(_integerPartBytes),
                     ".",
                     string(trimStringBytesRight(_fractionalPartBytes)),
                     "e",
-                    toString(_exp + _ishift)
+                    toString(_exponent + _ishift)
                 )
             );
         }

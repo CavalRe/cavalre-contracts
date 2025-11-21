@@ -258,7 +258,7 @@ library LedgerLib {
     }
 
     function price(address token_) internal view returns (Float) {
-        Float _reserve = reserve(token_).toFloat(uint256(decimals(token_)));
+        Float _reserve = reserve(token_).toFloat(decimals(token_));
         if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
         Float _scale = scale(token_).toFloat();
         return _scale.divide(_reserve);
@@ -266,7 +266,7 @@ library LedgerLib {
 
     function totalValue(address token_) internal view returns (Float) {
         uint8 _decimals = decimals(token_);
-        Float _reserve = reserve(token_).toFloat(uint256(_decimals));
+        Float _reserve = reserve(token_).toFloat(_decimals);
         if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
         Float _scale = scale(token_).toFloat();
         Float _totalSupply = isInternal(token_)
