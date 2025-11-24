@@ -16,7 +16,7 @@ library FloatLib {
     //===============
     //   Constants
     //===============
-    uint256 constant SIGNIFICANT_DIGITS = 19;
+    uint256 constant SIGNIFICANT_DIGITS = 21;
     uint256 constant NORMALIZED_MANTISSA_MAX = 10 ** SIGNIFICANT_DIGITS - 1;
     uint256 constant NORMALIZED_MANTISSA_MIN = 10 ** (SIGNIFICANT_DIGITS - 1);
     uint256 constant MANTISSA_BITS = 72;
@@ -26,7 +26,7 @@ library FloatLib {
     int256 constant ONE_EXPONENT = -int256(SIGNIFICANT_DIGITS - 1);
 
     int256 constant LOG10_WAD = 2302585092994045684;
-    Float constant LOG10 = Float.wrap((int256(-18) << MANTISSA_BITS) | int256(LOG10_WAD));
+    Float constant LOG10 = Float.wrap((int256(-18) << MANTISSA_BITS) | LOG10_WAD);
 
     Float constant ZERO = Float.wrap(0);
     Float constant ONE = Float.wrap((ONE_EXPONENT << MANTISSA_BITS) | ONE_MANTISSA);
@@ -52,9 +52,9 @@ library FloatLib {
         (int256 _m, int256 _e) = components(a_);
         _e += int256(uint256(decimals_));
         if (_e >= 0) {
-            return int256(_m) * int256(10 ** uint256(_e));
+            return _m * int256(10 ** uint256(_e));
         } else {
-            return int256(_m) / int256(10 ** uint256(-_e));
+            return _m / int256(10 ** uint256(-_e));
         }
     }
 
@@ -414,7 +414,7 @@ library FloatLib {
         uint256 _mb = uint256(mantissa(_normB));
         uint256 _mc = uint256(mantissa(_normC));
         int256 _m = _isNegative ? -int256(_ma.fullMulDiv(_mb, _mc)) : int256(_ma.fullMulDiv(_mb, _mc));
-        int256 _e = int256(exponent(_normA)) + int256(exponent(_normB)) - int256(exponent(_normC));
+        int256 _e = exponent(_normA) + exponent(_normB) - exponent(_normC);
         return normalize(_m, _e);
     }
 
@@ -429,7 +429,7 @@ library FloatLib {
     function components(Float a_) internal pure returns (int256 _mantissa, int256 _exponent) {
         int256 _raw = Float.unwrap(a_);
         _mantissa = int256(int72(_raw));
-        _exponent = int256(_raw >> MANTISSA_BITS);
+        _exponent = _raw >> MANTISSA_BITS;
     }
 
     function mantissa(Float a_) internal pure returns (int256) {
