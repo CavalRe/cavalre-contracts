@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {FloatLib, Float} from "../../libraries/FloatLib.sol";
 import {FloatStrings} from "../../libraries/FloatStrings.sol";
-import {Test, console} from "forge-std/src/Test.sol";
+import {Test, console2 as console} from "forge-std/src/Test.sol";
 
 contract FloatTest is Test {
     using FloatLib for uint256;
@@ -319,14 +319,10 @@ contract FloatTest is Test {
     function testFloatNormalize() public view {
         assertEq(
             FloatStrings.msb(FloatLib.normalize(ONE_unnormalized).mantissa()),
-            uint256(uint128(FloatLib.SIGNIFICANT_DIGITS)),
+            FloatLib.SIGNIFICANT_DIGITS,
             "mantissa (from unnormalized)"
         );
-        assertEq(
-            FloatStrings.msb(ONE.mantissa()),
-            uint256(uint128(FloatLib.SIGNIFICANT_DIGITS)),
-            "mantissa (from normalized)"
-        );
+        assertEq(FloatStrings.msb(ONE.mantissa()), FloatLib.SIGNIFICANT_DIGITS, "mantissa (from normalized)");
         assertEq(ONE.exponent(), FloatLib.normalize(ONE_unnormalized).exponent(), "exponent");
     }
 
@@ -340,11 +336,11 @@ contract FloatTest is Test {
     function testFloatONE() public {
         a = FloatLib.from(1, 0);
         a = FloatLib.normalize(a);
-        assertEq(FloatStrings.msb(a.mantissa()), uint256(uint128(FloatLib.SIGNIFICANT_DIGITS)), "msb");
+        assertEq(FloatStrings.msb(a.mantissa()), FloatLib.SIGNIFICANT_DIGITS, "msb");
     }
 
     function testFloatAdd() public {
-        bool isVerbose = false;
+        bool isVerbose = true;
 
         if (isVerbose) console.log("testFloatAdd");
         Float[] memory _floats = getFloats();
@@ -364,11 +360,17 @@ contract FloatTest is Test {
                 if (isVerbose) console.log("  jFloat:", _jFloat);
                 a = _floats[_i];
                 if (isVerbose) console.log("    a:", a.toString());
+                if (isVerbose) console.log("mantissa:", a.mantissa());
+                if (isVerbose) console.log("exponent:", a.exponent());
                 b = _floats[_j];
                 if (isVerbose) console.log("    b:", b.toString());
+                if (isVerbose) console.log("mantissa:", b.mantissa());
+                if (isVerbose) console.log("exponent:", b.exponent());
                 c = a.plus(b);
                 if (isVerbose) console.log("    c:", c.toString());
-                int128 expected = int128(int256(5 * (_iFloat + _jFloat)));
+                if (isVerbose) console.log("mantissa:", c.mantissa());
+                if (isVerbose) console.log("exponent:", c.exponent());
+                int256 expected = 5 * (_iFloat + _jFloat);
                 if (isVerbose) console.log("    expected:", FloatLib.from(expected, -1).toString());
                 assertTrue(
                     c.isEQ(FloatLib.from(expected, -1)),
@@ -391,7 +393,7 @@ contract FloatTest is Test {
                 a = _floats[_i];
                 b = _floats[_j];
                 c = a.minus(b);
-                int128 expected = int128(int256(5 * (_iFloat - _jFloat)));
+                int256 expected = 5 * (_iFloat - _jFloat);
                 assertTrue(
                     c.isEQ(FloatLib.from(expected, -1)),
                     string(abi.encodePacked(a.toString(), "-", b.toString(), "=", c.toString()))
@@ -413,7 +415,7 @@ contract FloatTest is Test {
                 a = _floats[_i];
                 b = _floats[_j];
                 c = a.times(b);
-                int128 expected = int128(int256(25 * (_iFloat * _jFloat)));
+                int256 expected = 25 * (_iFloat * _jFloat);
                 assertTrue(
                     c.isEQ(FloatLib.from(expected, -2)),
                     string(abi.encodePacked(a.toString(), "*", b.toString(), "=", c.toString()))
@@ -438,7 +440,7 @@ contract FloatTest is Test {
                     continue;
                 }
                 c = a.divide(b).times(b);
-                int128 expected = int128(int256(5 * _iFloat));
+                int256 expected = 5 * _iFloat;
                 assertTrue(
                     c.round(10).isEQ(FloatLib.from(expected, -1)),
                     string(abi.encodePacked(a.toString(), "=", c.toString()))
@@ -455,7 +457,7 @@ contract FloatTest is Test {
             if (f.isLEQ(ZERO)) continue;
             Float l = FloatLib.log(f);
             Float e = FloatLib.exp(l);
-            uint128 digits = 12;
+            uint8 digits = 12;
             assertTrue(
                 e.round(digits).isEQ(f.round(digits)), string(abi.encodePacked("log/exp mismatch for ", f.toString()))
             );

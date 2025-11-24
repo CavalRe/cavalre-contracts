@@ -107,7 +107,7 @@ library FloatStrings {
         // Integer part
         bytes memory _integerPartBytes;
         Float _absInt = FloatLib.abs(_intPart);
-        (int128 _intMantissa, int128 _intExponent) = FloatLib.components(_absInt);
+        (int256 _intMantissa, int256 _intExponent) = FloatLib.components(_absInt);
         if (_intMantissa == 0) {
             _integerPartBytes = bytes("0");
         } else {
@@ -118,13 +118,13 @@ library FloatStrings {
         // Fractional part
         bytes memory _fractionalPartBytes;
         Float _absFrac = FloatLib.abs(_fracPart);
-        (int128 _fracMantissa, int128 _fracExponent) = FloatLib.components(_absFrac);
+        (int256 _fracMantissa, int256 _fracExponent) = FloatLib.components(_absFrac);
         if (_fracMantissa == 0) {
             _fractionalPartBytes = bytes("0");
         } else {
             bytes memory _mantBytes =
                 toStringBytes(uint256(int256(_fracMantissa >= 0 ? _fracMantissa : -_fracMantissa)));
-            uint256 _digits = uint256(uint128(-_fracExponent)); // exponent is negative for fractional part
+            uint256 _digits = uint256(-_fracExponent); // exponent is negative for fractional part
             _fractionalPartBytes = new bytes(_digits);
             for (uint256 _i = 0; _i < _digits; _i++) {
                 if (_i < _mantBytes.length) {
@@ -168,12 +168,12 @@ library FloatStrings {
 
         number_ = FloatLib.normalize(number_);
 
-        Float _max = FloatLib.normalize(int128(FloatLib.NORMALIZED_MANTISSA_MAX), 0);
+        Float _max = FloatLib.normalize(int256(FloatLib.NORMALIZED_MANTISSA_MAX), 0);
 
-        int128 _ushift = FloatLib.SIGNIFICANT_DIGITS - 1;
-        int128 _ishift = _ushift;
+        int256 _ushift = int256(FloatLib.SIGNIFICANT_DIGITS) - 1;
+        int256 _ishift = _ushift;
 
-        (int128 _mantissa, int128 _exponent) = FloatLib.components(number_);
+        (int256 _mantissa, int256 _exponent) = FloatLib.components(number_);
         // int256 _mant = int256(_mantissa);
         // int256 _exp = int256(_exponent);
         if (FloatLib.abs(number_).isLT(_max) && _exponent >= -_ishift) {
