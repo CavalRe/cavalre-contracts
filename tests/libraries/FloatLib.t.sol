@@ -63,8 +63,6 @@ contract FloatTest is Test {
     int256 internal mantissaTWO_unnormalized;
     int256 internal exponentTWO_unnormalized;
 
-    int80 seed;
-
     function assertEq(Float x, Float y) internal pure {
         x = FloatLib.normalize(x);
         y = FloatLib.normalize(y);
@@ -165,24 +163,6 @@ contract FloatTest is Test {
         _floats[39] = NINEnHALF;
         _floats[40] = TEN;
         return _floats;
-    }
-
-    function random() internal returns (Float) {
-        seed = int80(int256(uint256(keccak256(abi.encodePacked(seed)))));
-
-        int256 _mantissa = int256(int72(seed));
-        int256 _exponent = int256(seed >> FloatLib.MANTISSA_BITS);
-
-        return FloatLib.from(_mantissa, _exponent);
-    }
-
-    function testFloatRandom() public {
-        for (uint256 i = 0; i < 100; i++) {
-            Float _float = random();
-            emit log_named_string("Random Float", _float.toString());
-            // emit log_named_int("  mantissa", _float.mantissa());
-            // emit log_named_int("  exponent", _float.exponent());
-        }
     }
 
     function testFloatToString() public {

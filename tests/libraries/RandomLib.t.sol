@@ -14,6 +14,8 @@ contract RandomLibTest is Test {
     function setUp() public {}
 
     function testRandom() public {
+        bool isVerbose = false;
+
         for (uint256 i = 0; i < 10000; i++) {
             // Float _float = RandomLib.random();
             // Float _float = RandomLib.randomPositive();
@@ -22,8 +24,9 @@ contract RandomLibTest is Test {
             // Float _float = RandomLib.randomPositive().minus(FloatLib.ONE);
             // Float _float = RandomLib.randomUnitNormal();
             // Float _float = RandomLib.randomNormal(FloatLib.FIVE, FloatLib.FIVE);
-            Float _float = RandomLib.randomLogNormal(FloatLib.HALF.times(FloatLib.HALF), FloatLib.HALF);
-            emit log_string(_float.toString());
+            Float _float =
+                RandomLib.randomLogNormal(FloatLib.HALF.times(FloatLib.HALF), FloatLib.HALF).minus(FloatLib.ONE);
+            if (isVerbose) emit log_string(_float.toString());
             // emit log_named_int("  mantissa", _float.mantissa());
             // emit log_named_int("  exponent", _float.exponent());
         }
