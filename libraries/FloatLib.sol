@@ -25,6 +25,8 @@ library FloatLib {
     int256 constant ONE_MANTISSA = int256(10 ** (SIGNIFICANT_DIGITS - 1));
     int256 constant ONE_EXPONENT = -int256(SIGNIFICANT_DIGITS - 1);
 
+    Float constant PI = Float.wrap((int256(-1) << MANTISSA_BITS) | 314159265358979323846);
+
     int256 constant LOG10_WAD = 2302585092994045684;
     Float constant LOG10 = Float.wrap((int256(-18) << MANTISSA_BITS) | LOG10_WAD);
 
@@ -140,6 +142,10 @@ library FloatLib {
     function isLEQ(Float a_, Float b_) internal pure returns (bool) {
         (Float _alignedA, Float _alignedB) = align(a_, b_);
         return mantissa(_alignedA) <= mantissa(_alignedB);
+    }
+
+    function isZero(Float a_) internal pure returns (bool) {
+        return mantissa(a_) == 0;
     }
 
     //=====================
@@ -391,6 +397,10 @@ library FloatLib {
         int256 _lnWad = (_m * 1e18).lnWad() + _e * LOG10_WAD;
 
         return normalize(_lnWad, -18);
+    }
+
+    function sqrt(Float x_) internal pure returns (Float) {
+        return exp(log(x_).divide(TWO));
     }
 
     function fullMulDiv(Float a_, Float b_, Float c_) internal pure returns (Float) {
