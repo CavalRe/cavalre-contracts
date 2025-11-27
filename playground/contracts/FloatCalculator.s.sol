@@ -6,40 +6,48 @@ import {FloatStrings} from "../../libraries/FloatStrings.sol";
 
 contract FloatCalculator {
     using FloatLib for Float;
-    using FloatLib for int256;
     using FloatLib for uint256;
     using FloatStrings for Float;
+
+    // Helper to convert signed value to Float
+    function _toFloat(int256 a, uint8 decimals) internal pure returns (Float) {
+        if (a >= 0) {
+            return uint256(a).toFloat(decimals);
+        } else {
+            return uint256(-a).toFloat(decimals).minus();
+        }
+    }
 
     // ==================
     //     Arithmetic
     // ==================
 
-    function add(int256 a, int256 b, uint256 decimals) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
+    function add(int256 a, int256 b, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
         return fa.plus(fb).toString();
     }
 
-    function subtract(int256 a, int256 b, uint256 decimals) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
+    function subtract(int256 a, int256 b, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
         return fa.minus(fb).toString();
     }
 
-    function multiply(int256 a, int256 b, uint256 decimals) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
+    function multiply(int256 a, int256 b, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
         return fa.times(fb).toString();
     }
 
-    function divide(int256 a, int256 b, uint256 decimals) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
+    function divide(int256 a, int256 b, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
         return fa.divide(fb).toString();
     }
 
-    function negate(int256 a, uint256 decimals) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
+    function negate(int256 a, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
         return fa.minus().toString();
     }
 
@@ -47,57 +55,63 @@ contract FloatCalculator {
     //    Comparisons
     // ==================
 
-    function isEqual(int256 a, int256 b, uint256 decimals) external pure returns (bool) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
+    function isEqual(int256 a, int256 b, uint8 decimals) external pure returns (bool) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
         return fa.isEQ(fb);
     }
 
-    function isGreaterThan(int256 a, int256 b, uint256 decimals) external pure returns (bool) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
+    function isGreaterThan(int256 a, int256 b, uint8 decimals) external pure returns (bool) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
         return fa.isGT(fb);
     }
 
-    function isLessThan(int256 a, int256 b, uint256 decimals) external pure returns (bool) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
+    function isLessThan(int256 a, int256 b, uint8 decimals) external pure returns (bool) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
         return fa.isLT(fb);
     }
 
-    function isGreaterOrEqual(int256 a, int256 b, uint256 decimals) external pure returns (bool) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
+    function isGreaterOrEqual(int256 a, int256 b, uint8 decimals) external pure returns (bool) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
         return fa.isGEQ(fb);
     }
 
-    function isLessOrEqual(int256 a, int256 b, uint256 decimals) external pure returns (bool) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
+    function isLessOrEqual(int256 a, int256 b, uint8 decimals) external pure returns (bool) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
         return fa.isLEQ(fb);
+    }
+
+    function isZero(int256 a, uint8 decimals) external pure returns (bool) {
+        Float fa = _toFloat(a, decimals);
+        return fa.isZero();
     }
 
     // ==================
     //  Transformations
     // ==================
 
-    function absoluteValue(int256 a, uint256 decimals) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
+    function absoluteValue(int256 a, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
         return fa.abs().toString();
     }
 
-    function getIntegerPart(int256 a, uint256 decimals) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
-        return fa.integerPart().toString();
+    function getParts(int256 a, uint8 decimals) external pure returns (string memory intPart, string memory fracPart) {
+        Float fa = _toFloat(a, decimals);
+        (Float intFloat, Float fracFloat) = fa.parts();
+        return (intFloat.toString(), fracFloat.toString());
     }
 
-    function shift(int256 a, uint256 decimals, int256 places) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
+    function shift(int256 a, uint8 decimals, int256 places) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
         return fa.shift(places).toString();
     }
 
-    function roundTo(int256 a, uint256 decimals, uint256 digits) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
+    function roundTo(int256 a, uint8 decimals, uint256 digits) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
         return fa.round(digits).toString();
     }
 
@@ -105,27 +119,31 @@ contract FloatCalculator {
     //  Special Functions
     // ==================
 
-    function exponential(int256 a) external pure returns (string memory) {
-        // exp takes raw int256 (18 decimal fixed point)
-        return FloatLib.exp(a).toString();
+    function exponential(int256 a, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
+        return fa.exp().toString();
     }
 
-    function naturalLog(int256 a, uint256 decimals) external pure returns (int256) {
-        Float fa = a.toFloat(decimals);
-        return fa.log();
+    function naturalLog(int256 a, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
+        return fa.log().toString();
     }
 
-    function cubicSolve(int256 b, int256 c, int256 d, uint256 decimals) external pure returns (string memory) {
-        Float fb = b.toFloat(decimals);
-        Float fc = c.toFloat(decimals);
-        Float fd = d.toFloat(decimals);
-        return FloatLib.cubicsolve(fb, fc, fd).toString();
+    function power(int256 base, int256 exp, uint8 decimals) external pure returns (string memory) {
+        Float fb = _toFloat(base, decimals);
+        Float fe = _toFloat(exp, decimals);
+        return fb.pow(fe).toString();
     }
 
-    function fullMulDiv(int256 a, int256 b, int256 c, uint256 decimals) external pure returns (string memory) {
-        Float fa = a.toFloat(decimals);
-        Float fb = b.toFloat(decimals);
-        Float fc = c.toFloat(decimals);
+    function squareRoot(int256 a, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
+        return fa.sqrt().toString();
+    }
+
+    function fullMulDiv(int256 a, int256 b, int256 c, uint8 decimals) external pure returns (string memory) {
+        Float fa = _toFloat(a, decimals);
+        Float fb = _toFloat(b, decimals);
+        Float fc = _toFloat(c, decimals);
         return FloatLib.fullMulDiv(fa, fb, fc).toString();
     }
 
@@ -133,12 +151,12 @@ contract FloatCalculator {
     //     Utilities
     // ==================
 
-    function toFloatString(int256 value, uint256 decimals) external pure returns (string memory) {
-        return value.toFloat(decimals).toString();
+    function toFloatString(int256 value, uint8 decimals) external pure returns (string memory) {
+        return _toFloat(value, decimals).toString();
     }
 
-    function getComponents(int256 value, uint256 decimals) external pure returns (int256 mantissa, int256 exponent) {
-        Float f = value.toFloat(decimals);
+    function getComponents(int256 value, uint8 decimals) external pure returns (int256 mantissa, int256 exponent) {
+        Float f = _toFloat(value, decimals);
         return FloatLib.components(f);
     }
 
@@ -168,5 +186,9 @@ contract FloatCalculator {
 
     function ten() external pure returns (string memory) {
         return FloatLib.TEN.toString();
+    }
+
+    function pi() external pure returns (string memory) {
+        return FloatLib.PI.toString();
     }
 }

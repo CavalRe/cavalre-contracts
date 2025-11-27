@@ -12,35 +12,37 @@ interface FunctionDef {
 // Function definitions
 const functions: FunctionDef[] = [
   // Arithmetic
-  { name: 'add', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.5' }, { name: 'b', type: 'decimal', placeholder: '2.5' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'arithmetic' },
-  { name: 'subtract', inputs: [{ name: 'a', type: 'decimal', placeholder: '5.0' }, { name: 'b', type: 'decimal', placeholder: '2.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'arithmetic' },
-  { name: 'multiply', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.5' }, { name: 'b', type: 'decimal', placeholder: '4.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'arithmetic' },
-  { name: 'divide', inputs: [{ name: 'a', type: 'decimal', placeholder: '10.0' }, { name: 'b', type: 'decimal', placeholder: '4.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'arithmetic' },
-  { name: 'negate', inputs: [{ name: 'a', type: 'decimal', placeholder: '5.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'arithmetic' },
+  { name: 'add', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.5' }, { name: 'b', type: 'decimal', placeholder: '2.5' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'arithmetic' },
+  { name: 'subtract', inputs: [{ name: 'a', type: 'decimal', placeholder: '5.0' }, { name: 'b', type: 'decimal', placeholder: '2.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'arithmetic' },
+  { name: 'multiply', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.5' }, { name: 'b', type: 'decimal', placeholder: '4.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'arithmetic' },
+  { name: 'divide', inputs: [{ name: 'a', type: 'decimal', placeholder: '10.0' }, { name: 'b', type: 'decimal', placeholder: '4.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'arithmetic' },
+  { name: 'negate', inputs: [{ name: 'a', type: 'decimal', placeholder: '5.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'arithmetic' },
 
   // Comparisons
-  { name: 'isEqual', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.0' }, { name: 'b', type: 'decimal', placeholder: '1.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'comparisons' },
-  { name: 'isGreaterThan', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.0' }, { name: 'b', type: 'decimal', placeholder: '1.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'comparisons' },
-  { name: 'isLessThan', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.0' }, { name: 'b', type: 'decimal', placeholder: '2.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'comparisons' },
-  { name: 'isGreaterOrEqual', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.0' }, { name: 'b', type: 'decimal', placeholder: '2.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'comparisons' },
-  { name: 'isLessOrEqual', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.0' }, { name: 'b', type: 'decimal', placeholder: '2.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'comparisons' },
+  { name: 'isEqual', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.0' }, { name: 'b', type: 'decimal', placeholder: '1.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'comparisons' },
+  { name: 'isGreaterThan', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.0' }, { name: 'b', type: 'decimal', placeholder: '1.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'comparisons' },
+  { name: 'isLessThan', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.0' }, { name: 'b', type: 'decimal', placeholder: '2.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'comparisons' },
+  { name: 'isGreaterOrEqual', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.0' }, { name: 'b', type: 'decimal', placeholder: '2.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'comparisons' },
+  { name: 'isLessOrEqual', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.0' }, { name: 'b', type: 'decimal', placeholder: '2.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'comparisons' },
+  { name: 'isZero', inputs: [{ name: 'a', type: 'decimal', placeholder: '0.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'comparisons' },
 
   // Transformations
-  { name: 'absoluteValue', inputs: [{ name: 'a', type: 'decimal', placeholder: '-5.5' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'transformations' },
-  { name: 'getIntegerPart', inputs: [{ name: 'a', type: 'decimal', placeholder: '3.14159' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'transformations' },
-  { name: 'shift', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.5' }, { name: 'decimals', type: 'uint256', placeholder: '18' }, { name: 'places', type: 'int256', placeholder: '2' }], category: 'transformations' },
-  { name: 'roundTo', inputs: [{ name: 'a', type: 'decimal', placeholder: '3.14159' }, { name: 'decimals', type: 'uint256', placeholder: '18' }, { name: 'digits', type: 'uint256', placeholder: '3' }], category: 'transformations' },
+  { name: 'absoluteValue', inputs: [{ name: 'a', type: 'decimal', placeholder: '-5.5' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'transformations' },
+  { name: 'getParts', inputs: [{ name: 'a', type: 'decimal', placeholder: '3.14159' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'transformations' },
+  { name: 'shift', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.5' }, { name: 'decimals', type: 'uint8', placeholder: '18' }, { name: 'places', type: 'int256', placeholder: '2' }], category: 'transformations' },
+  { name: 'roundTo', inputs: [{ name: 'a', type: 'decimal', placeholder: '3.14159' }, { name: 'decimals', type: 'uint8', placeholder: '18' }, { name: 'digits', type: 'uint256', placeholder: '3' }], category: 'transformations' },
 
   // Special Functions
-  { name: 'exponential', inputs: [{ name: 'a', type: 'int256', placeholder: '1000000000000000000' }], category: 'special' },
-  { name: 'naturalLog', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.718281828' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'special' },
-  { name: 'cubicSolve', inputs: [{ name: 'b', type: 'decimal', placeholder: '0' }, { name: 'c', type: 'decimal', placeholder: '-1' }, { name: 'd', type: 'decimal', placeholder: '0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'special' },
-  { name: 'fullMulDiv', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.0' }, { name: 'b', type: 'decimal', placeholder: '3.0' }, { name: 'c', type: 'decimal', placeholder: '4.0' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'special' },
+  { name: 'exponential', inputs: [{ name: 'a', type: 'decimal', placeholder: '1.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'special' },
+  { name: 'naturalLog', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.718281828' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'special' },
+  { name: 'power', inputs: [{ name: 'base', type: 'decimal', placeholder: '2.0' }, { name: 'exp', type: 'decimal', placeholder: '3.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'special' },
+  { name: 'squareRoot', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'special' },
+  { name: 'fullMulDiv', inputs: [{ name: 'a', type: 'decimal', placeholder: '2.0' }, { name: 'b', type: 'decimal', placeholder: '3.0' }, { name: 'c', type: 'decimal', placeholder: '4.0' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'special' },
 
   // Utilities
-  { name: 'toFloatString', inputs: [{ name: 'value', type: 'decimal', placeholder: '123.456' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'utilities' },
-  { name: 'getComponents', inputs: [{ name: 'value', type: 'decimal', placeholder: '1.5' }, { name: 'decimals', type: 'uint256', placeholder: '18' }], category: 'utilities' },
-  { name: 'fromComponents', inputs: [{ name: 'mantissa', type: 'int256', placeholder: '150000000000000000' }, { name: 'exponent', type: 'int256', placeholder: '-17' }], category: 'utilities' },
+  { name: 'toFloatString', inputs: [{ name: 'value', type: 'decimal', placeholder: '123.456' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'utilities' },
+  { name: 'getComponents', inputs: [{ name: 'value', type: 'decimal', placeholder: '1.5' }, { name: 'decimals', type: 'uint8', placeholder: '18' }], category: 'utilities' },
+  { name: 'fromComponents', inputs: [{ name: 'mantissa', type: 'int256', placeholder: '150000000000000000000' }, { name: 'exponent', type: 'int256', placeholder: '-20' }], category: 'utilities' },
   { name: 'normalize', inputs: [{ name: 'mantissa', type: 'int256', placeholder: '1500' }, { name: 'exponent', type: 'int256', placeholder: '0' }], category: 'utilities' },
 
   // Constants
@@ -48,6 +50,7 @@ const functions: FunctionDef[] = [
   { name: 'one', inputs: [], category: 'constants' },
   { name: 'two', inputs: [], category: 'constants' },
   { name: 'ten', inputs: [], category: 'constants' },
+  { name: 'pi', inputs: [], category: 'constants' },
 ]
 
 // Parse decimal string to bigint with given decimals
