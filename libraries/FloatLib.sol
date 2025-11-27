@@ -399,6 +399,48 @@ library FloatLib {
         return normalize(_lnWad, -18);
     }
 
+    //-------------
+    //   Pow
+    //-------------
+    // Exponentiation by squaring for integer exponents; faster and avoids the rounding stack-up of exp(log(x) * n).
+    function powUint(Float base_, uint256 e_) internal pure returns (Float result_) {
+        if (e_ == 0) return ONE;
+        Float _base = normalize(base_);
+        if (e_ == 1) return _base;
+        if (mantissa(_base) == 0) return ZERO;
+        if (_base.isEQ(ONE)) return ONE;
+
+        result_ = ONE;
+        uint256 _exp = e_;
+        while (_exp != 0) {
+            if (_exp & 1 == 1) {
+                result_ = result_.times(_base);
+            }
+            _exp >>= 1;
+            if (_exp != 0) {
+                _base = _base.times(_base);
+            }
+        }
+    }
+
+    function powInt(Float base_, int256 e_) internal pure returns (Float) {
+        Float _base = normalize(base_);
+        if (e_ >= 0) return powUint(_base, uint256(e_));
+        require(mantissa(_base) != 0, "pow: zero base");
+        require(e_ != type(int256).min, "pow: exponent too small");
+        Float _pos = powUint(_base, uint256(-e_));
+        return ONE.divide(_pos);
+    }
+
+    // Real-exponent power via exp(log(base) * exponent); base must be positive to keep log defined.
+    function pow(Float base_, Float e_) internal pure returns (Float) {
+        Float _base = normalize(base_);
+        if (mantissa(e_) == 0) return ONE;
+        if (_base.isEQ(ONE)) return ONE;
+        require(mantissa(_base) > 0, "pow: base must be positive");
+        return exp(log(_base).times(e_));
+    }
+
     function sqrt(Float x_) internal pure returns (Float) {
         return exp(log(x_).divide(TWO));
     }
