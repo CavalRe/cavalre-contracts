@@ -7,3 +7,4 @@ artifacts
 broadcast
 
 *.csv
+playground/.tevm/

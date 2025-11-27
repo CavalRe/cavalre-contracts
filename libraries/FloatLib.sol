@@ -25,7 +25,7 @@ library FloatLib {
     int256 constant ONE_MANTISSA = int256(10 ** (SIGNIFICANT_DIGITS - 1));
     int256 constant ONE_EXPONENT = -int256(SIGNIFICANT_DIGITS - 1);
 
-    Float constant PI = Float.wrap((int256(-1) << MANTISSA_BITS) | 314159265358979323846);
+    Float constant PI = Float.wrap((ONE_EXPONENT << MANTISSA_BITS) | 314159265358979323846);
 
     int256 constant LOG10_WAD = 2302585092994045684;
     Float constant LOG10 = Float.wrap((int256(-18) << MANTISSA_BITS) | LOG10_WAD);

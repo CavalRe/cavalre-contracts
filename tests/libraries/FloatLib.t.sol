@@ -218,6 +218,8 @@ contract FloatTest is Test {
         emit log("Write really small number");
         emit log_named_string("1.3225 x 10^-84", _reallySmallNumber.toString());
 
+        emit log_named_string("PI", FloatLib.PI.toString());
+
         // Float[] memory floats = getFloats();
         // emit log("Half integers");
         // for (uint256 i = 0; i < floats.length; i++) {

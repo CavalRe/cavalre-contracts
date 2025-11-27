@@ -1,9 +1,0 @@
-{
-  "version": "1.x.x",
-  "files": {
-    "/Users/williamcory/cavalre-contracts/playground/contracts/FloatCalculator.s.sol": 1764242158748.0645,
-    "/Users/williamcory/cavalre-contracts/libraries/FloatStrings.sol": 1764242022421.7715,
-    "/Users/williamcory/cavalre-contracts/node_modules/solady/src/utils/FixedPointMathLib.sol": 1764241139031.5918,
-    "/Users/williamcory/cavalre-contracts/libraries/FloatLib.sol": 1764242022421.3975
-  }
-}
