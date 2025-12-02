@@ -342,7 +342,7 @@ contract FloatTest is Test {
     }
 
     function testFloatAdd() public {
-        bool isVerbose = true;
+        bool isVerbose = false;
 
         if (isVerbose) console.log("testFloatAdd");
         Float[] memory _floats = getFloats();
