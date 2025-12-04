@@ -73,7 +73,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != _selectors.length) revert InvalidCommandsLength(n);
+        if (n != 46) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger(string memory nativeTokenSymbol_) external initializer {

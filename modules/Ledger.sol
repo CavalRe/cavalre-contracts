@@ -207,7 +207,7 @@ contract Ledger is Module, Initializable, ILedger {
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
 
-        if (n != _selectors.length) revert InvalidCommandsLength(n);
+        if (n != 43) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory nativeTokenSymbol_) public onlyInitializing {
