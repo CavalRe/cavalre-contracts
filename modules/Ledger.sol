@@ -4,10 +4,9 @@ pragma solidity ^0.8.26;
 import {Module} from "./Module.sol";
 import {Initializable} from "../utilities/Initializable.sol";
 import {LedgerLib} from "../libraries/LedgerLib.sol";
+import {LedgerValuationLib} from "../libraries/LedgerValuationLib.sol";
 
 import {Float, ILedger} from "../interfaces/ILedger.sol";
-
-import {console} from "forge-std/src/console.sol";
 
 contract ERC20Wrapper {
     // -------------------------------------------------------------------------
@@ -112,7 +111,6 @@ contract ERC20Wrapper {
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
         emit Transfer(msg.sender, to_, amount_);
-        console.log("ERC20Wrapper transfer called: ", msg.sender, to_, amount_);
         return ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_, false);
     }
 
@@ -380,16 +378,56 @@ contract Ledger is Module, Initializable, ILedger {
     }
 
     function price(address token_) external view returns (Float) {
-        return LedgerLib.price(token_);
+        return LedgerValuationLib.price(token_);
     }
 
     function totalValue(address token_) external view returns (Float) {
-        return LedgerLib.totalValue(token_);
+        return LedgerValuationLib.totalValue(token_);
     }
 
     //===========
     // Transfers
     //===========
+
+    function _enforceRootCaller(address parent_) private view {
+        if (msg.sender != LedgerLib.root(parent_)) revert ILedger.Unauthorized(msg.sender);
+    }
+
+    function _enforceWrapperCaller(address parent_) private view {
+        if (msg.sender != LedgerLib.wrapper(LedgerLib.root(parent_))) revert ILedger.Unauthorized(msg.sender);
+    }
+
+    function _approveInternal(address ownerParent_, address owner_, address spender_, uint256 amount_, bool checkRoot_)
+        private
+        returns (bool)
+    {
+        if (checkRoot_) _enforceRootCaller(ownerParent_);
+        return LedgerLib.approve(ownerParent_, owner_, spender_, amount_, true);
+    }
+
+    function _changeAllowance(
+        address ownerParent_,
+        address owner_,
+        address spender_,
+        uint256 value_,
+        bool increase_,
+        bool checkRoot_
+    ) private returns (bool _ok, uint256 _newAllowance) {
+        if (checkRoot_) _enforceRootCaller(ownerParent_);
+        if (increase_) {
+            (_ok, _newAllowance) = LedgerLib.increaseAllowance(ownerParent_, owner_, spender_, value_, true);
+        } else {
+            (_ok, _newAllowance) = LedgerLib.decreaseAllowance(ownerParent_, owner_, spender_, value_, true);
+        }
+    }
+
+    function _forceApprove(address ownerParent_, address owner_, address spender_, uint256 amount_, bool checkRoot_)
+        private
+        returns (bool)
+    {
+        if (checkRoot_) _enforceRootCaller(ownerParent_);
+        return LedgerLib.forceApprove(ownerParent_, owner_, spender_, amount_, true);
+    }
 
     function transfer(
         address fromParent_,
@@ -399,7 +437,7 @@ contract Ledger is Module, Initializable, ILedger {
         uint256 amount_,
         bool emitEvent_
     ) external returns (bool) {
-        if (msg.sender != LedgerLib.wrapper(LedgerLib.root(fromParent_))) revert ILedger.Unauthorized(msg.sender);
+        _enforceWrapperCaller(fromParent_);
         return LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_, emitEvent_);
     }
 
@@ -408,54 +446,50 @@ contract Ledger is Module, Initializable, ILedger {
     }
 
     function approve(address ownerParent_, address owner_, address spender_, uint256 amount_) external returns (bool) {
-        if (msg.sender != LedgerLib.root(ownerParent_)) revert ILedger.Unauthorized(msg.sender);
-        return LedgerLib.approve(ownerParent_, owner_, spender_, amount_, true);
+        return _approveInternal(ownerParent_, owner_, spender_, amount_, true);
     }
 
     function approve(address ownerParent_, address spender_, uint256 amount_) external returns (bool) {
-        return LedgerLib.approve(ownerParent_, msg.sender, spender_, amount_, true);
+        return _approveInternal(ownerParent_, msg.sender, spender_, amount_, false);
     }
 
     function increaseAllowance(address ownerParent_, address owner_, address spender_, uint256 addedValue_)
         external
         returns (bool _ok, uint256 _newAllowance)
     {
-        if (msg.sender != LedgerLib.root(ownerParent_)) revert ILedger.Unauthorized(msg.sender);
-        (_ok, _newAllowance) = LedgerLib.increaseAllowance(ownerParent_, owner_, spender_, addedValue_, true);
+        (_ok, _newAllowance) = _changeAllowance(ownerParent_, owner_, spender_, addedValue_, true, true);
     }
 
     function increaseAllowance(address ownerParent_, address spender_, uint256 addedValue_)
         external
         returns (bool _ok)
     {
-        (_ok,) = LedgerLib.increaseAllowance(ownerParent_, msg.sender, spender_, addedValue_, true);
+        (_ok,) = _changeAllowance(ownerParent_, msg.sender, spender_, addedValue_, true, false);
     }
 
     function decreaseAllowance(address ownerParent_, address owner_, address spender_, uint256 subtractedValue_)
         external
         returns (bool _ok, uint256 _newAllowance)
     {
-        if (msg.sender != LedgerLib.root(ownerParent_)) revert ILedger.Unauthorized(msg.sender);
-        (_ok, _newAllowance) = LedgerLib.decreaseAllowance(ownerParent_, owner_, spender_, subtractedValue_, true);
+        (_ok, _newAllowance) = _changeAllowance(ownerParent_, owner_, spender_, subtractedValue_, false, true);
     }
 
     function decreaseAllowance(address ownerParent_, address spender_, uint256 subtractedValue_)
         external
         returns (bool _ok)
     {
-        (_ok,) = LedgerLib.decreaseAllowance(ownerParent_, msg.sender, spender_, subtractedValue_, true);
+        (_ok,) = _changeAllowance(ownerParent_, msg.sender, spender_, subtractedValue_, false, false);
     }
 
     function forceApprove(address ownerParent_, address owner_, address spender_, uint256 amount_)
         external
         returns (bool)
     {
-        if (msg.sender != LedgerLib.root(ownerParent_)) revert ILedger.Unauthorized(msg.sender);
-        return LedgerLib.forceApprove(ownerParent_, owner_, spender_, amount_, true);
+        return _forceApprove(ownerParent_, owner_, spender_, amount_, true);
     }
 
     function forceApprove(address ownerParent_, address spender_, uint256 amount_) external returns (bool) {
-        return LedgerLib.forceApprove(ownerParent_, msg.sender, spender_, amount_, true);
+        return _forceApprove(ownerParent_, msg.sender, spender_, amount_, false);
     }
 
     function allowance(address ownerParent_, address owner_, address spender_) external view returns (uint256) {
@@ -471,7 +505,7 @@ contract Ledger is Module, Initializable, ILedger {
         uint256 amount_,
         bool emitEvent_
     ) external returns (bool) {
-        if (msg.sender != LedgerLib.root(fromParent_)) revert ILedger.Unauthorized(msg.sender);
+        _enforceRootCaller(fromParent_);
         return LedgerLib.transferFrom(spender_, fromParent_, from_, toParent_, to_, amount_, emitEvent_);
     }
 

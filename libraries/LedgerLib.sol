@@ -2,16 +2,12 @@
 pragma solidity ^0.8.26;
 
 import {ILedger, ERC20Wrapper} from "../modules/Ledger.sol";
-import {Float, FloatLib} from "./FloatLib.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 library LedgerLib {
-    using FloatLib for uint256;
-    using FloatLib for Float;
-
     struct Store {
         mapping(address => string) name;
         mapping(address => string) symbol;
@@ -255,24 +251,6 @@ library LedgerLib {
 
     function scale(address token_) internal view returns (uint256) {
         return balanceOf(scaleAddress(token_));
-    }
-
-    function price(address token_) internal view returns (Float) {
-        Float _reserve = reserve(token_).toFloat(decimals(token_));
-        if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
-        Float _scale = scale(token_).toFloat();
-        return _scale.divide(_reserve);
-    }
-
-    function totalValue(address token_) internal view returns (Float) {
-        uint8 _decimals = decimals(token_);
-        Float _reserve = reserve(token_).toFloat(_decimals);
-        if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
-        Float _scale = scale(token_).toFloat();
-        Float _totalSupply = isInternal(token_)
-            ? balanceOf(toLedgerAddress(parent(address(this), isCredit(token_)), token_)).toFloat(_decimals)
-            : IERC20(token_).totalSupply().toFloat(_decimals);
-        return _totalSupply.fullMulDiv(_scale, _reserve);
     }
 
     //==================================================================
