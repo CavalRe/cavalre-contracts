@@ -10,6 +10,7 @@ import {LedgerLib} from "../../libraries/LedgerLib.sol";
 import {Ledger} from "../../modules/Ledger.sol";
 import {Module} from "../../modules/Module.sol";
 import {Router} from "../../modules/Router.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {TreeLib} from "../../libraries/TreeLib.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -98,6 +99,42 @@ contract MockERC20 is ERC20 {
 
     function decimals() public view override returns (uint8) {
         return _mockDecimals;
+    }
+}
+
+contract ReenterToken is ERC20 {
+    address public target;
+    bool public reenter;
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
+        _decimals = decimals_;
+    }
+
+    uint8 private immutable _decimals;
+
+    function decimals() public view override returns (uint8) {
+        return _decimals;
+    }
+
+    function mint(address to_, uint256 amount_) external {
+        _mint(to_, amount_);
+    }
+
+    function setTarget(address target_) external {
+        target = target_;
+    }
+
+    function setReenter(bool reenter_) external {
+        reenter = reenter_;
+    }
+
+    function transferFrom(address from_, address to_, uint256 amount_) public override returns (bool) {
+        bool ok = super.transferFrom(from_, to_, amount_);
+        if (reenter) {
+            reenter = false;
+            Ledger(target).wrap(address(this), 1);
+        }
+        return ok;
     }
 }
 
@@ -505,6 +542,22 @@ contract LedgerTest is Test {
         assertEq(address(router).balance, routerBalanceBefore + wrapAmount, "router holds native collateral");
         assertEq(ledgers.balanceOf(native, alice), wrapAmount, "ledger native balance");
         assertEq(ledgers.totalSupply(native), wrapAmount, "native total supply");
+    }
+
+    function testLedgerWrapReentrancyGuard() public {
+        // Deploy a token that reenters during transferFrom
+        ReenterToken reToken = new ReenterToken("ReToken", "RET", 18);
+        reToken.setTarget(address(ledgers));
+        ledgers.createWrappedToken(address(reToken));
+
+        // Fund Alice and approve the ledger
+        vm.startPrank(alice);
+        reToken.mint(alice, 10);
+        reToken.approve(address(ledgers), 10);
+        reToken.setReenter(true);
+        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
+        ledgers.wrap(address(reToken), 5);
+        vm.stopPrank();
     }
 
     function testLedgerWrapNativeIncorrectValue() public {

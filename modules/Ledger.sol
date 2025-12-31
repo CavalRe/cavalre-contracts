@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Module} from "./Module.sol";
 import {Initializable} from "../utilities/Initializable.sol";
+import {ReentrancyGuard} from "../utilities/ReentrancyGuard.sol";
 import {LedgerLib} from "../libraries/LedgerLib.sol";
 import {LedgerValuationLib} from "../libraries/LedgerValuationLib.sol";
 
@@ -165,18 +166,25 @@ contract ERC20Wrapper {
     // }
 }
 
-contract Ledger is Module, Initializable, ILedger {
+contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     constructor(uint8 decimals_) {
         _decimals = decimals_;
     }
 
     uint8 internal immutable _decimals;
+    bytes32 private constant REENTRANCY_GUARD_STORAGE =
+        keccak256(abi.encode(uint256(keccak256("cavalre.storage.Ledger.ReentrancyGuard")) - 1))
+            & ~bytes32(uint256(0xff));
 
     bytes32 private constant INITIALIZABLE_STORAGE =
         keccak256(abi.encode(uint256(keccak256("cavalre.storage.Ledger.Initializable")) - 1)) & ~bytes32(uint256(0xff));
 
     function _initializableStorageSlot() internal pure override returns (bytes32) {
         return INITIALIZABLE_STORAGE;
+    }
+
+    function _reentrancyGuardStorageSlot() internal pure override returns (bytes32) {
+        return REENTRANCY_GUARD_STORAGE;
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
@@ -419,11 +427,11 @@ contract Ledger is Module, Initializable, ILedger {
         return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_, true);
     }
 
-    function wrap(address token_, uint256 amount_) external payable {
+    function wrap(address token_, uint256 amount_) external payable nonReentrant {
         LedgerLib.wrap(token_, amount_);
     }
 
-    function unwrap(address token_, uint256 amount_) external payable {
+    function unwrap(address token_, uint256 amount_) external payable nonReentrant {
         LedgerLib.unwrap(token_, amount_);
     }
 }
