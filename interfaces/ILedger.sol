@@ -74,45 +74,6 @@ interface ILedger {
     function transfer(address fromParent, address toParent, address to, uint256 amount) external returns (bool);
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Approvals (full routed; explicit parents)
-    // ─────────────────────────────────────────────────────────────────────────────
-    function approve(address ownerParent, address owner, address spender, uint256 amount) external returns (bool);
-    function approve(address ownerParent, address spender, uint256 amount) external returns (bool);
-    function increaseAllowance(address ownerParent, address owner, address spender, uint256 addedValue)
-        external
-        returns (bool, uint256);
-    function increaseAllowance(address ownerParent, address spender, uint256 addedValue) external returns (bool);
-    function decreaseAllowance(address ownerParent, address owner, address spender, uint256 subtractedValue)
-        external
-        returns (bool, uint256);
-    function decreaseAllowance(address ownerParent, address spender, uint256 subtractedValue) external returns (bool);
-    function forceApprove(address ownerParent, address owner, address spender, uint256 amount)
-        external
-        returns (bool);
-    function forceApprove(address ownerParent, address spender, uint256 amount) external returns (bool);
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Allowance (full routed; explicit parents)
-    // ─────────────────────────────────────────────────────────────────────────────
-    function allowance(address ownerParent, address owner, address spender) external view returns (uint256);
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // transferFrom (full routed; explicit parents)
-    // ─────────────────────────────────────────────────────────────────────────────
-    function transferFrom(
-        address spender,
-        address fromParent,
-        address from,
-        address toParent,
-        address to,
-        uint256 amount,
-        bool emitEvent
-    ) external returns (bool);
-
-    function transferFrom(address fromParent, address from, address toParent, address to, uint256 amount)
-        external
-        returns (bool);
-
     function wrap(address token_, uint256 amount_) external payable;
     function unwrap(address token_, uint256 amount_) external payable;
 

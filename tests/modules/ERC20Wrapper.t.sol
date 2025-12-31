@@ -251,25 +251,9 @@ contract ERC20WrapperTest is Test {
         bool isVerbose = false;
 
         // Any external calling Ledger.*Wrapper (not the token itself) should revert
-        if (isVerbose) console.log("Expect revert: Ledger.*Wrapper approve called externally");
-        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
-        ledgers.approve(address(token), alice, bob, 1);
-
         if (isVerbose) console.log("Expect revert: Ledger.*Wrapper transfer called externally");
         vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
         ledgers.transfer(address(token), alice, address(token), bob, 1, false);
-
-        // if (isVerbose) console.log("Expect revert: Ledger.*Wrapper mint called externally");
-        // vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
-        // ledgers.mint(address(token), alice, 1);
-
-        // if (isVerbose) console.log("Expect revert: Ledger.*Wrapper burn called externally");
-        // vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
-        // ledgers.burn(address(token), alice, 1);
-
-        if (isVerbose) console.log("Expect revert: Ledger.*Wrapper transferFrom called externally");
-        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
-        ledgers.transferFrom(bob, address(token), alice, address(token), bob, 1, false);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

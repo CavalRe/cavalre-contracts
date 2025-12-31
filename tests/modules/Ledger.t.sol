@@ -24,7 +24,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](46);
+        _selectors = new bytes4[](35);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger(string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -56,24 +56,13 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("scale(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256,bool)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("approve(address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("approve(address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("increaseAllowance(address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("increaseAllowance(address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("decreaseAllowance(address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("decreaseAllowance(address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("forceApprove(address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("forceApprove(address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("allowance(address,address,address)"));
-        _selectors[n++] = bytes4(keccak256("transferFrom(address,address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("transferFrom(address,address,address,address,address,uint256,bool)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         // Extra test-exposing commands
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 46) revert InvalidCommandsLength(n);
+        if (n != 35) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger(string memory nativeTokenSymbol_) external initializer {
@@ -604,54 +593,6 @@ contract LedgerTest is Test {
         ledgers.transfer(routerRoot, r1, bob, 100);
     }
 
-    function testLedgerApproveAndAllowance() public {
-        bool isVerbose = false;
-
-        vm.startPrank(alice);
-
-        if (isVerbose) console.log("Mint 1000 to alice");
-        address routerRoot = address(ledgers);
-        ledgers.mint(routerRoot, alice, 1000);
-
-        if (isVerbose) console.log("Approve bob 100");
-        // approve(ownerParent=routerRoot, spenderParent=routerRoot, spender=bob, amount=100)
-        ledgers.approve(routerRoot, bob, 100);
-
-        if (isVerbose) console.log("Check allowance");
-        assertEq(ledgers.allowance(routerRoot, alice, bob), 100, "allowance(alice->bob)");
-        assertEq(ledgers.allowance(routerRoot, bob, alice), 0, "allowance(bob->alice)");
-        assertEq(ledgers.allowance(routerRoot, bob, bob), 0, "allowance(bob->bob)");
-        assertEq(ledgers.allowance(routerRoot, alice, alice), 0, "allowance(alice->alice)");
-    }
-
-    function testLedgerTransferFrom() public {
-        vm.startPrank(alice);
-
-        ledgers.mint(address(ledgers), alice, 1000);
-        ledgers.approve(address(ledgers), bob, 100);
-
-        vm.startPrank(bob);
-
-        ledgers.transferFrom(address(ledgers), alice, address(ledgers), bob, 100);
-
-        assertEq(ledgers.balanceOf(address(ledgers), alice), 900, "balanceOf(alice)");
-        assertEq(ledgers.balanceOf(address(ledgers), bob), 100, "balanceOf(bob)");
-        assertEq(ledgers.totalSupply(address(ledgers)), 1000, "totalSupply()");
-
-        vm.startPrank(alice);
-
-        ledgers.mint(r1, alice, 1000);
-        ledgers.approve(r1, bob, 100);
-
-        vm.startPrank(bob);
-
-        ledgers.transferFrom(r1, alice, r1, r10, 100);
-
-        assertEq(ledgers.balanceOf(r1, alice), 900, "balanceOf(r1, alice)");
-        assertEq(ledgers.balanceOf(r1, bob), 0, "balanceOf(r1, bob)");
-        assertEq(ledgers.balanceOf(r10, _100), 0, "balanceOf(r10, _100)");
-        assertEq(ledgers.totalSupply(r1), 1000, "totalSupply(r1)");
-    }
 }
 
 // contract Bah {

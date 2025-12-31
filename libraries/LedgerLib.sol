@@ -18,7 +18,6 @@ library LedgerLib {
         mapping(address sub => uint32) subIndex;
         mapping(address => uint256) flags;
         mapping(address => uint256) balance;
-        mapping(address owner => mapping(address spender => uint256)) allowances;
     }
 
     bytes32 private constant STORE_POSITION =
@@ -607,82 +606,5 @@ library LedgerLib {
         address _toParent = LedgerLib.parent(address(this), isCredit(toToken_));
 
         LedgerLib.transfer(_fromParent, fromToken_, _toParent, toToken_, amount_, true);
-    }
-
-    function approve(address ownerParent_, address owner_, address spender_, uint256 amount_, bool emitEvent_)
-        internal
-        returns (bool)
-    {
-        address _owner = toLedgerAddress(ownerParent_, owner_);
-
-        store().allowances[_owner][spender_] = amount_;
-        if (emitEvent_) emit ILedger.InternalApproval(ownerParent_, owner_, spender_, amount_);
-        return true;
-    }
-
-    /// @notice Increase allowance for (ownerParent_/owner_) → (spenderParent_/spender_) by `added_`.
-    function increaseAllowance(address ownerParent_, address owner_, address spender_, uint256 added_, bool emitEvent_)
-        internal
-        returns (bool, uint256)
-    {
-        uint256 _current = allowance(ownerParent_, owner_, spender_);
-        uint256 _newAmount = _current + added_; // ^0.8 handles overflow
-        return (approve(ownerParent_, owner_, spender_, _newAmount, emitEvent_), _newAmount);
-    }
-
-    /// @notice Decrease allowance for (ownerParent_/owner_) → (spenderParent_/spender_) by `subtracted_`.
-    /// @dev Reverts on underflow (no clamping).
-    function decreaseAllowance(
-        address ownerParent_,
-        address owner_,
-        address spender_,
-        uint256 subtracted_,
-        bool emitEvent_
-    ) internal returns (bool, uint256) {
-        uint256 _current = allowance(ownerParent_, owner_, spender_);
-        if (subtracted_ > _current) {
-            revert ILedger.InsufficientAllowance(ownerParent_, owner_, spender_, _current, subtracted_);
-        }
-        uint256 _newAmount = _current - subtracted_;
-        return (approve(ownerParent_, owner_, spender_, _newAmount, emitEvent_), _newAmount);
-    }
-
-    /// @notice Forcefully set allowance for (ownerParent_/owner_) → (spenderParent_/spender_) to `amount_`.
-    /// If both current and target are non-zero, sets to 0 first, then to `amount_` (ERC-20 safety pattern).
-    function forceApprove(address ownerParent_, address owner_, address spender_, uint256 amount_, bool emitEvent_)
-        internal
-        returns (bool)
-    {
-        uint256 _current = allowance(ownerParent_, owner_, spender_);
-
-        if (_current != 0 && amount_ != 0) {
-            // zero first to avoid non-zero→non-zero race
-            approve(ownerParent_, owner_, spender_, 0, false);
-        }
-
-        return approve(ownerParent_, owner_, spender_, amount_, emitEvent_);
-    }
-
-    function allowance(address ownerParent_, address owner_, address spender_) internal view returns (uint256) {
-        address _ownerAddress = toLedgerAddress(ownerParent_, owner_);
-        return store().allowances[_ownerAddress][spender_];
-    }
-
-    function transferFrom(
-        address spender_,
-        address fromParent_,
-        address from_,
-        address toParent_,
-        address to_,
-        uint256 amount_,
-        bool emitEvent_
-    ) internal returns (bool) {
-        checkRoots(fromParent_, toParent_);
-        Store storage _s = store();
-
-        address _ownerAddress = toLedgerAddress(fromParent_, from_);
-        _s.allowances[_ownerAddress][spender_] -= amount_;
-
-        return transfer(fromParent_, from_, toParent_, to_, amount_, emitEvent_);
     }
 }
