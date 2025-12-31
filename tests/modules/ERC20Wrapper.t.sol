@@ -245,6 +245,23 @@ contract ERC20WrapperTest is Test {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Mint/Burn emit ERC20 Transfer events
+    // ─────────────────────────────────────────────────────────────────────────
+    function testERC20WrapperMintBurnEmitsTransfer() public {
+        vm.startPrank(owner);
+
+        vm.expectEmit(true, true, true, true, address(token));
+        emit ERC20Wrapper.Transfer(address(0), alice, 50);
+        ledgers.mint(address(token), alice, 50);
+
+        vm.expectEmit(true, true, true, true, address(token));
+        emit ERC20Wrapper.Transfer(alice, address(0), 20);
+        ledgers.burn(address(token), alice, 20);
+
+        vm.stopPrank();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Reverts: Direct calls into Ledger.*Wrapper MUST be from the token
     // ─────────────────────────────────────────────────────────────────────────
     function testERC20WrapperLedgerWrapperFunctionsUnauthorized() public {

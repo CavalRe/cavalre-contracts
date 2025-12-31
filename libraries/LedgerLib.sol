@@ -583,12 +583,27 @@ library LedgerLib {
 
     function mint(address toParent_, address to_, uint256 amount_) internal returns (bool) {
         address _token = root(toParent_);
-        return transfer(toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, toParent_, to_, amount_);
+        bool ok = transfer(toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, toParent_, to_, amount_);
+        if (ok && isInternal(_token)) {
+            address _wrapper = wrapper(_token);
+            if (_wrapper != address(0)) {
+                ERC20Wrapper(_wrapper).mint(to_, amount_);
+            }
+        }
+        return ok;
     }
 
     function burn(address fromParent_, address from_, uint256 amount_) internal returns (bool) {
         address _token = root(fromParent_);
-        return transfer(fromParent_, from_, toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, amount_);
+        bool ok =
+            transfer(fromParent_, from_, toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, amount_);
+        if (ok && isInternal(_token)) {
+            address _wrapper = wrapper(_token);
+            if (_wrapper != address(0)) {
+                ERC20Wrapper(_wrapper).burn(from_, amount_);
+            }
+        }
+        return ok;
     }
 
     function reallocate(address fromToken_, address toToken_, uint256 amount_) internal {
