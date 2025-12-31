@@ -68,7 +68,7 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
     // ─────────────────────────────────────────────────────────────────────────────
-    function transfer(address fromParent, address from, address toParent, address to, uint256 amount, bool emitEvent)
+    function transfer(address fromParent, address from, address toParent, address to, uint256 amount)
         external
         returns (bool);
     function transfer(address fromParent, address toParent, address to, uint256 amount) external returns (bool);

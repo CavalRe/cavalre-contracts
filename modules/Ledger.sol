@@ -126,7 +126,7 @@ contract ERC20Wrapper {
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
         emit Transfer(msg.sender, to_, amount_);
-        return ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_, false);
+        return ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_);
     }
 
     function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
@@ -138,7 +138,7 @@ contract ERC20Wrapper {
             _allowances[from_][msg.sender] = current - amount_;
         }
         emit Transfer(from_, to_, amount_);
-        return ILedger(_router).transfer(_token, from_, _token, to_, amount_, false);
+        return ILedger(_router).transfer(_token, from_, _token, to_, amount_);
     }
 
     // // -------------------------------------------------------------------------
@@ -218,7 +218,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("scaleAddress(address)"));
         _selectors[n++] = bytes4(keccak256("reserve(address)"));
         _selectors[n++] = bytes4(keccak256("scale(address)"));
-        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256,bool)"));
+        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
@@ -416,15 +416,14 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         address from_,
         address toParent_,
         address to_,
-        uint256 amount_,
-        bool emitEvent_
+        uint256 amount_
     ) external returns (bool) {
         _enforceWrapperCaller(fromParent_);
-        return LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_, emitEvent_);
+        return LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_);
     }
 
     function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external returns (bool) {
-        return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_, true);
+        return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
     }
 
     function wrap(address token_, uint256 amount_) external payable nonReentrant {

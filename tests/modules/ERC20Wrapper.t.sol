@@ -253,7 +253,7 @@ contract ERC20WrapperTest is Test {
         // Any external calling Ledger.*Wrapper (not the token itself) should revert
         if (isVerbose) console.log("Expect revert: Ledger.*Wrapper transfer called externally");
         vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, address(this)));
-        ledgers.transfer(address(token), alice, address(token), bob, 1, false);
+        ledgers.transfer(address(token), alice, address(token), bob, 1);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

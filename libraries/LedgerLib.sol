@@ -478,7 +478,7 @@ library LedgerLib {
     //                         Transfers
     //==================================================================
 
-    function debit(address parent_, address addr_, uint256 amount_, bool emitEvent_) internal returns (address _root) {
+    function debit(address parent_, address addr_, uint256 amount_) internal returns (address _root) {
         checkAccountGroup(parent_);
         _root = toLedgerAddress(parent_, addr_);
 
@@ -492,7 +492,7 @@ library LedgerLib {
                 // Root found
                 // Emits once after a successful full walk.
                 // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
-                if (emitEvent_) emit ILedger.Debit(_root, parent_, addr_, amount_);
+                emit ILedger.Debit(_root, parent_, addr_, amount_);
                 emit ILedger.BalanceUpdate(_root, parent_, addr_, _balance);
                 return _root;
             }
@@ -511,10 +511,7 @@ library LedgerLib {
         revert ILedger.MaxDepthExceeded();
     }
 
-    function credit(address parent_, address addr_, uint256 amount_, bool emitEvent_)
-        internal
-        returns (address _root)
-    {
+    function credit(address parent_, address addr_, uint256 amount_) internal returns (address _root) {
         checkAccountGroup(parent_);
         _root = toLedgerAddress(parent_, addr_);
 
@@ -528,7 +525,7 @@ library LedgerLib {
                 // Root found
                 // Emits once after a successful full walk.
                 // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
-                if (emitEvent_) emit ILedger.Credit(_root, parent_, addr_, amount_);
+                emit ILedger.Credit(_root, parent_, addr_, amount_);
                 emit ILedger.BalanceUpdate(_root, parent_, addr_, _balance);
                 return _root;
             }
@@ -574,29 +571,24 @@ library LedgerLib {
         }
     }
 
-    function transfer(
-        address fromParent_,
-        address from_,
-        address toParent_,
-        address to_,
-        uint256 amount_,
-        bool emitEvent_
-    ) internal returns (bool) {
-        address _creditRoot = credit(fromParent_, from_, amount_, emitEvent_);
-        address _debitRoot = debit(toParent_, to_, amount_, emitEvent_);
+    function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+        internal
+        returns (bool)
+    {
+        address _creditRoot = credit(fromParent_, from_, amount_);
+        address _debitRoot = debit(toParent_, to_, amount_);
         if (_creditRoot != _debitRoot) revert ILedger.DifferentRoots(_creditRoot, _debitRoot);
         return true;
     }
 
     function mint(address toParent_, address to_, uint256 amount_) internal returns (bool) {
         address _token = root(toParent_);
-        return transfer(toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, toParent_, to_, amount_, true);
+        return transfer(toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, toParent_, to_, amount_);
     }
 
     function burn(address fromParent_, address from_, uint256 amount_) internal returns (bool) {
         address _token = root(fromParent_);
-        return
-            transfer(fromParent_, from_, toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, amount_, true);
+        return transfer(fromParent_, from_, toLedgerAddress(_token, TOTAL_ADDRESS), DEFAULT_SOURCE_ADDRESS, amount_);
     }
 
     function reallocate(address fromToken_, address toToken_, uint256 amount_) internal {
@@ -605,6 +597,6 @@ library LedgerLib {
         address _fromParent = LedgerLib.parent(address(this), isCredit(fromToken_));
         address _toParent = LedgerLib.parent(address(this), isCredit(toToken_));
 
-        LedgerLib.transfer(_fromParent, fromToken_, _toParent, toToken_, amount_, true);
+        LedgerLib.transfer(_fromParent, fromToken_, _toParent, toToken_, amount_);
     }
 }
