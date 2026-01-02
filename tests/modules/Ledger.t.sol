@@ -25,12 +25,11 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](35);
+        _selectors = new bytes4[](34);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger(string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool,bool)"));
         _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
         _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
@@ -63,7 +62,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 35) revert InvalidCommandsLength(n);
+        if (n != 34) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger(string memory nativeTokenSymbol_) external initializer {

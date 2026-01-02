@@ -189,11 +189,10 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](32);
+        _selectors = new bytes4[](31);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("addLedger(address,address,string,string,uint8,bool)"));
         _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
         _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
@@ -223,7 +222,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
 
-        if (n != 32) revert InvalidCommandsLength(n);
+        if (n != 31) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory nativeTokenSymbol_) public onlyInitializing {
@@ -264,20 +263,6 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         enforceIsOwner();
 
         return LedgerLib.addSubAccount(parent_, addr_, name_, isCredit_);
-    }
-
-    function addLedger(
-        address token_,
-        address wrapper_,
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        bool isCredit_,
-        bool isInternal_
-    ) external {
-        enforceIsOwner();
-
-        LedgerLib.addLedger(token_, wrapper_, name_, symbol_, decimals_, isCredit_, isInternal_);
     }
 
     function createWrappedToken(address token_) external {
