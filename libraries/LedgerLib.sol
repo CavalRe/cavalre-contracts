@@ -464,18 +464,28 @@ library LedgerLib {
         );
     }
 
-    function createWrappedToken(address token_) internal {
+    function createWrappedToken(
+        address token_
+    )
+        internal
+        returns (
+            address _wrapper,
+            string memory _name,
+            string memory _symbol,
+            uint8 _decimals
+        )
+    {
         if (!isZeroAddress(token_) && token_ == root(token_))
             revert ILedger.DuplicateToken(token_);
 
         IERC20Metadata _meta = IERC20Metadata(token_);
-        string memory _name = _meta.name();
-        string memory _symbol = _meta.symbol();
-        uint8 _decimals = _meta.decimals();
+        _name = _meta.name();
+        _symbol = _meta.symbol();
+        _decimals = _meta.decimals();
         if (!isValidString(_name) || !isValidString(_symbol)) {
             revert ILedger.InvalidToken(token_, _name, _symbol, _decimals);
         }
-        address _wrapper = address(
+        _wrapper = address(
             new ERC20Wrapper(
                 address(this),
                 token_,
