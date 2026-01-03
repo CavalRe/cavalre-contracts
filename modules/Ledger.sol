@@ -26,13 +26,23 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 
     // -------------------------------------------------------------------------
     // Init
     // -------------------------------------------------------------------------
 
-    constructor(address router_, address token_, string memory name_, string memory symbol_, uint8 decimals_) {
+    constructor(
+        address router_,
+        address token_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_
+    ) {
         _router = router_;
         _token = token_ == address(0) ? address(this) : token_;
         _name = name_;
@@ -77,7 +87,10 @@ contract ERC20Wrapper {
     // Allowance (delegated to Ledger)
     // -------------------------------------------------------------------------
 
-    function allowance(address owner_, address spender_) public view returns (uint256) {
+    function allowance(
+        address owner_,
+        address spender_
+    ) public view returns (uint256) {
         return _allowances[owner_][spender_];
     }
 
@@ -88,7 +101,10 @@ contract ERC20Wrapper {
     }
 
     /// @notice Atomically increases `spender` allowance for `msg.sender`.
-    function increaseAllowance(address spender_, uint256 addedValue_) public returns (bool _ok) {
+    function increaseAllowance(
+        address spender_,
+        uint256 addedValue_
+    ) public returns (bool _ok) {
         uint256 _amount = _allowances[msg.sender][spender_] + addedValue_;
         _allowances[msg.sender][spender_] = _amount;
         emit Approval(msg.sender, spender_, _amount);
@@ -96,10 +112,19 @@ contract ERC20Wrapper {
     }
 
     /// @notice Atomically decreases `spender` allowance for `msg.sender`.
-    function decreaseAllowance(address spender_, uint256 subtractedValue_) public returns (bool _ok) {
+    function decreaseAllowance(
+        address spender_,
+        uint256 subtractedValue_
+    ) public returns (bool _ok) {
         uint256 current = _allowances[msg.sender][spender_];
         if (subtractedValue_ > current) {
-            revert ILedger.InsufficientAllowance(_token, msg.sender, spender_, current, subtractedValue_);
+            revert ILedger.InsufficientAllowance(
+                _token,
+                msg.sender,
+                spender_,
+                current,
+                subtractedValue_
+            );
         }
         uint256 _amount = current - subtractedValue_;
         _allowances[msg.sender][spender_] = _amount;
@@ -109,7 +134,10 @@ contract ERC20Wrapper {
 
     /// @notice Sets allowance safely even if a non-zero allowance already exists.
     /// If both current and desired are non-zero, sets to 0 first, then to `amount_`.
-    function forceApprove(address spender_, uint256 amount_) public returns (bool) {
+    function forceApprove(
+        address spender_,
+        uint256 amount_
+    ) public returns (bool) {
         uint256 current = _allowances[msg.sender][spender_];
         if (current != 0 && amount_ != 0) {
             _allowances[msg.sender][spender_] = 0;
@@ -126,13 +154,24 @@ contract ERC20Wrapper {
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
         emit Transfer(msg.sender, to_, amount_);
-        return ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_);
+        return
+            ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_);
     }
 
-    function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
+    function transferFrom(
+        address from_,
+        address to_,
+        uint256 amount_
+    ) public returns (bool) {
         uint256 current = _allowances[from_][msg.sender];
         if (current < amount_) {
-            revert ILedger.InsufficientAllowance(_token, from_, msg.sender, current, amount_);
+            revert ILedger.InsufficientAllowance(
+                _token,
+                from_,
+                msg.sender,
+                current,
+                amount_
+            );
         }
         if (current != type(uint256).max) {
             _allowances[from_][msg.sender] = current - amount_;
@@ -173,30 +212,66 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     uint8 internal immutable _decimals;
     bytes32 private constant REENTRANCY_GUARD_STORAGE =
-        keccak256(abi.encode(uint256(keccak256("cavalre.storage.Ledger.ReentrancyGuard")) - 1))
-            & ~bytes32(uint256(0xff));
+        keccak256(
+            abi.encode(
+                uint256(keccak256("cavalre.storage.Ledger.ReentrancyGuard")) - 1
+            )
+        ) & ~bytes32(uint256(0xff));
 
     bytes32 private constant INITIALIZABLE_STORAGE =
-        keccak256(abi.encode(uint256(keccak256("cavalre.storage.Ledger.Initializable")) - 1)) & ~bytes32(uint256(0xff));
+        keccak256(
+            abi.encode(
+                uint256(keccak256("cavalre.storage.Ledger.Initializable")) - 1
+            )
+        ) & ~bytes32(uint256(0xff));
 
-    function _initializableStorageSlot() internal pure override returns (bytes32) {
+    function _initializableStorageSlot()
+        internal
+        pure
+        override
+        returns (bytes32)
+    {
         return INITIALIZABLE_STORAGE;
     }
 
-    function _reentrancyGuardStorageSlot() internal pure override returns (bytes32) {
+    function _reentrancyGuardStorageSlot()
+        internal
+        pure
+        override
+        returns (bytes32)
+    {
         return REENTRANCY_GUARD_STORAGE;
     }
 
-    function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
+    function selectors()
+        external
+        pure
+        virtual
+        override
+        returns (bytes4[] memory _selectors)
+    {
         uint256 n;
-        _selectors = new bytes4[](31);
-        _selectors[n++] = bytes4(keccak256("initializeLedger(string)"));
-        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
+        _selectors = new bytes4[](32);
+        _selectors[n++] = bytes4(keccak256("initializeLedger()"));
+        _selectors[n++] = bytes4(
+            keccak256("addSubAccountGroup(address,string,bool)")
+        );
+        _selectors[n++] = bytes4(
+            keccak256("addSubAccount(address,address,string,bool)")
+        );
+        _selectors[n++] = bytes4(
+            keccak256("createNativeWrapper(string,string)")
+        );
         _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
-        _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
+        _selectors[n++] = bytes4(
+            keccak256("createInternalToken(string,string,uint8,bool)")
+        );
+        _selectors[n++] = bytes4(
+            keccak256("removeSubAccountGroup(address,string)")
+        );
+        _selectors[n++] = bytes4(
+            keccak256("removeSubAccount(address,address)")
+        );
         _selectors[n++] = bytes4(keccak256("name(address)"));
         _selectors[n++] = bytes4(keccak256("symbol(address)"));
         _selectors[n++] = bytes4(keccak256("decimals(address)"));
@@ -217,52 +292,65 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("scaleAddress(address)"));
         _selectors[n++] = bytes4(keccak256("reserve(address)"));
         _selectors[n++] = bytes4(keccak256("scale(address)"));
-        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
+        _selectors[n++] = bytes4(
+            keccak256("transfer(address,address,address,address,uint256)")
+        );
+        _selectors[n++] = bytes4(
+            keccak256("transfer(address,address,address,uint256)")
+        );
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
 
-        if (n != 31) revert InvalidCommandsLength(n);
+        if (n != 32) revert InvalidCommandsLength(n);
     }
 
-    function initializeLedger_unchained(string memory nativeTokenSymbol_) public onlyInitializing {
+    function initializeLedger_unchained() public onlyInitializing {
         enforceIsOwner();
 
-        LedgerLib.addLedger(address(this), address(0), "Scale", "SCALE", 18, false, true);
-
-        // Add native token wrapper
-        address token_ = LedgerLib.NATIVE_ADDRESS;
-        if (!LedgerLib.isZeroAddress(token_) && token_ == LedgerLib.root(token_)) revert ILedger.DuplicateToken(token_);
-        if (!LedgerLib.isValidString(nativeTokenSymbol_)) revert ILedger.InvalidString(nativeTokenSymbol_);
-        address _wrapper = address(
-            new ERC20Wrapper(
-                address(this),
-                token_,
-                string(abi.encodePacked(nativeTokenSymbol_, " | CavalRe")),
-                string(abi.encodePacked(nativeTokenSymbol_, ".cav")),
-                18
-            )
+        LedgerLib.addLedger(
+            address(this),
+            address(0),
+            "Scale",
+            "SCALE",
+            18,
+            false,
+            true
         );
-        LedgerLib.addLedger(token_, _wrapper, nativeTokenSymbol_, nativeTokenSymbol_, 18, false, false);
     }
 
-    function initializeLedger(string memory nativeTokenSymbol_) external initializer {
-        initializeLedger_unchained(nativeTokenSymbol_);
+    function initializeLedger() external initializer {
+        initializeLedger_unchained();
     }
 
-    function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) external returns (address) {
+    function addSubAccountGroup(
+        address parent_,
+        string memory name_,
+        bool isCredit_
+    ) external returns (address) {
         enforceIsOwner();
 
         return LedgerLib.addSubAccountGroup(parent_, name_, isCredit_);
     }
 
-    function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
-        external
-        returns (address)
-    {
+    function addSubAccount(
+        address parent_,
+        address addr_,
+        string memory name_,
+        bool isCredit_
+    ) external returns (address) {
         enforceIsOwner();
 
         return LedgerLib.addSubAccount(parent_, addr_, name_, isCredit_);
+    }
+
+    function createNativeWrapper(
+        string memory nativeTokenName_,
+        string memory nativeTokenSymbol_
+    ) external returns (address) {
+        enforceIsOwner();
+
+        return
+            LedgerLib.createNativeWrapper(nativeTokenName_, nativeTokenSymbol_);
     }
 
     function createWrappedToken(address token_) external {
@@ -271,22 +359,31 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         LedgerLib.createWrappedToken(token_);
     }
 
-    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
-        external
-        returns (address)
-    {
+    function createInternalToken(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        bool isCredit_
+    ) external returns (address) {
         enforceIsOwner();
 
-        return LedgerLib.createInternalToken(name_, symbol_, decimals_, isCredit_);
+        return
+            LedgerLib.createInternalToken(name_, symbol_, decimals_, isCredit_);
     }
 
-    function removeSubAccountGroup(address parent_, string memory name_) external returns (address) {
+    function removeSubAccountGroup(
+        address parent_,
+        string memory name_
+    ) external returns (address) {
         enforceIsOwner();
 
         return LedgerLib.removeSubAccountGroup(parent_, name_);
     }
 
-    function removeSubAccount(address parent_, address addr_) external returns (address) {
+    function removeSubAccount(
+        address parent_,
+        address addr_
+    ) external returns (address) {
         enforceIsOwner();
 
         return LedgerLib.removeSubAccount(parent_, addr_);
@@ -335,7 +432,9 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.isInternal(addr_);
     }
 
-    function subAccounts(address parent_) external view returns (address[] memory) {
+    function subAccounts(
+        address parent_
+    ) external view returns (address[] memory) {
         return LedgerLib.subAccounts(parent_);
     }
 
@@ -343,7 +442,10 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.hasSubAccount(parent_);
     }
 
-    function subAccountIndex(address parent_, address addr_) external view returns (uint32) {
+    function subAccountIndex(
+        address parent_,
+        address addr_
+    ) external view returns (uint32) {
         return LedgerLib.subAccountIndex(parent_, addr_);
     }
 
@@ -351,17 +453,26 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     // Balances & Valuations
     //=========================
     // Subaccount balances
-    function balanceOf(address parent_, string memory subName_) external view returns (uint256) {
+    function balanceOf(
+        address parent_,
+        string memory subName_
+    ) external view returns (uint256) {
         return LedgerLib.balanceOf(LedgerLib.toGroupAddress(parent_, subName_));
     }
 
     // Ledger account balances
-    function balanceOf(address parent_, address owner_) external view returns (uint256) {
+    function balanceOf(
+        address parent_,
+        address owner_
+    ) external view returns (uint256) {
         return LedgerLib.balanceOf(LedgerLib.toLedgerAddress(parent_, owner_));
     }
 
     function totalSupply(address token_) external view returns (uint256) {
-        return LedgerLib.balanceOf(LedgerLib.toLedgerAddress(token_, LedgerLib.TOTAL_ADDRESS));
+        return
+            LedgerLib.balanceOf(
+                LedgerLib.toLedgerAddress(token_, LedgerLib.TOTAL_ADDRESS)
+            );
     }
 
     function reserveAddress(address token_) external view returns (address) {
@@ -393,7 +504,8 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     //===========
 
     function _enforceWrapperCaller(address parent_) private view {
-        if (msg.sender != LedgerLib.wrapper(LedgerLib.root(parent_))) revert ILedger.Unauthorized(msg.sender);
+        if (msg.sender != LedgerLib.wrapper(LedgerLib.root(parent_)))
+            revert ILedger.Unauthorized(msg.sender);
     }
 
     function transfer(
@@ -407,15 +519,33 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_);
     }
 
-    function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external returns (bool) {
-        return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
+    function transfer(
+        address fromParent_,
+        address toParent_,
+        address to_,
+        uint256 amount_
+    ) external returns (bool) {
+        return
+            LedgerLib.transfer(
+                fromParent_,
+                msg.sender,
+                toParent_,
+                to_,
+                amount_
+            );
     }
 
-    function wrap(address token_, uint256 amount_) external payable nonReentrant {
+    function wrap(
+        address token_,
+        uint256 amount_
+    ) external payable nonReentrant {
         LedgerLib.wrap(token_, amount_);
     }
 
-    function unwrap(address token_, uint256 amount_) external payable nonReentrant {
+    function unwrap(
+        address token_,
+        uint256 amount_
+    ) external payable nonReentrant {
         LedgerLib.unwrap(token_, amount_);
     }
 }
