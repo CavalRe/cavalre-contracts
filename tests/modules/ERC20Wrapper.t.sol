@@ -61,6 +61,8 @@ contract ERC20WrapperTest is Test {
         assertEq(token.name(), "Internal Test Token");
         assertEq(token.symbol(), "ITT");
         assertEq(token.decimals(), 18);
+        assertEq(token.router(), address(router));
+        assertEq(token.token(), address(token));
         assertEq(token.totalSupply(), 0);
 
         assertEq(ledgers.name(address(token)), "Internal Test Token");
@@ -248,6 +250,12 @@ contract ERC20WrapperTest is Test {
             externalWrapper.balanceOf(alice),
             wrapAmount,
             "external wrapper balance after wrap"
+        );
+        assertEq(externalWrapper.router(), address(router), "external router");
+        assertEq(
+            externalWrapper.token(),
+            address(externalToken),
+            "external wrapped token"
         );
     }
 

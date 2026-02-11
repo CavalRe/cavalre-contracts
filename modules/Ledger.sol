@@ -71,6 +71,14 @@ contract ERC20Wrapper {
         return _decimals;
     }
 
+    function router() public view returns (address) {
+        return _router;
+    }
+
+    function token() public view returns (address) {
+        return _token;
+    }
+
     // -------------------------------------------------------------------------
     // Supply / Balances (delegated to Ledger)
     // -------------------------------------------------------------------------
