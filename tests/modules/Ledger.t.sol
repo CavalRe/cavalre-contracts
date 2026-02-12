@@ -337,6 +337,66 @@ contract LedgerTest is Test {
         assertEq(ledgers.name(native), "Avalanche", "name");
         assertEq(ledgers.symbol(native), "AVAX", "symbol");
         assertEq(ledgers.decimals(native), 18, "decimals");
+        assertTrue(
+            (ledgers.flags(native) & LedgerLib.FLAG_IS_NATIVE) != 0,
+            "native flag set"
+        );
+        assertTrue(
+            (ledgers.flags(native) & LedgerLib.FLAG_IS_WRAPPER) != 0,
+            "wrapper flag set"
+        );
+        assertEq(
+            ledgers.flags(native) & LedgerLib.FLAG_IS_INTERNAL,
+            0,
+            "native not internal"
+        );
+        assertEq(
+            ledgers.flags(native) & LedgerLib.FLAG_IS_EXTERNAL,
+            0,
+            "native not external"
+        );
+    }
+
+    function testLedgerRootFlagsByTokenType() public view {
+        uint256 internalFlags = ledgers.flags(r1);
+        assertTrue(
+            (internalFlags & LedgerLib.FLAG_IS_INTERNAL) != 0,
+            "internal token flag set"
+        );
+        assertTrue(
+            (internalFlags & LedgerLib.FLAG_IS_WRAPPER) != 0,
+            "internal wrapper flag set"
+        );
+        assertEq(
+            internalFlags & LedgerLib.FLAG_IS_NATIVE,
+            0,
+            "internal token not native"
+        );
+        assertEq(
+            internalFlags & LedgerLib.FLAG_IS_EXTERNAL,
+            0,
+            "internal token not external"
+        );
+
+        uint256 externalFlags = ledgers.flags(address(externalToken));
+        assertEq(
+            externalFlags & LedgerLib.FLAG_IS_INTERNAL,
+            0,
+            "external token not internal"
+        );
+        assertTrue(
+            (externalFlags & LedgerLib.FLAG_IS_WRAPPER) != 0,
+            "external wrapper flag set"
+        );
+        assertTrue(
+            (externalFlags & LedgerLib.FLAG_IS_EXTERNAL) != 0,
+            "external flag set"
+        );
+        assertEq(
+            externalFlags & LedgerLib.FLAG_IS_NATIVE,
+            0,
+            "external token not native"
+        );
     }
 
     function testCreateNativeWrapperDuplicateReverts() public {
