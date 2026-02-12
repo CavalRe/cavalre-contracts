@@ -5,7 +5,6 @@ import {Module} from "./Module.sol";
 import {Initializable} from "../utilities/Initializable.sol";
 import {ReentrancyGuard} from "../utilities/ReentrancyGuard.sol";
 import {LedgerLib} from "../libraries/LedgerLib.sol";
-import {LedgerValuationLib} from "../libraries/LedgerValuationLib.sol";
 
 import {Float, ILedger} from "../interfaces/ILedger.sol";
 
@@ -259,7 +258,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         returns (bytes4[] memory _selectors)
     {
         uint256 n;
-        _selectors = new bytes4[](32);
+        _selectors = new bytes4[](35);
         _selectors[n++] = bytes4(keccak256("initializeLedger()"));
         _selectors[n++] = bytes4(
             keccak256("addSubAccountGroup(address,string,bool)")
@@ -287,9 +286,12 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("parent(address)"));
         _selectors[n++] = bytes4(keccak256("flags(address)"));
         _selectors[n++] = bytes4(keccak256("wrapper(address)"));
-        _selectors[n++] = bytes4(keccak256("isGroup(address)"));
-        _selectors[n++] = bytes4(keccak256("isCredit(address)"));
-        _selectors[n++] = bytes4(keccak256("isInternal(address)"));
+        _selectors[n++] = bytes4(keccak256("isGroup(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isCredit(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isInternal(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isWrapper(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isExternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
         _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
         _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
@@ -309,7 +311,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
 
-        if (n != 32) revert InvalidCommandsLength(n);
+        if (n != 35) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained() public onlyInitializing {
@@ -428,16 +430,28 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.wrapper(token_);
     }
 
-    function isGroup(address addr_) external view returns (bool) {
-        return LedgerLib.isGroup(addr_);
+    function isGroup(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isGroup(flags_);
     }
 
-    function isCredit(address addr_) external view returns (bool) {
-        return LedgerLib.isCredit(addr_);
+    function isCredit(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isCredit(flags_);
     }
 
-    function isInternal(address addr_) external view returns (bool) {
-        return LedgerLib.isInternal(addr_);
+    function isInternal(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isInternal(flags_);
+    }
+
+    function isNative(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isNative(flags_);
+    }
+
+    function isWrapper(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isWrapper(flags_);
+    }
+
+    function isExternal(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isExternal(flags_);
     }
 
     function subAccounts(
@@ -500,11 +514,11 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     }
 
     function price(address token_) external view returns (Float) {
-        return LedgerValuationLib.price(token_);
+        return LedgerLib.price(token_);
     }
 
     function totalValue(address token_) external view returns (Float) {
-        return LedgerValuationLib.totalValue(token_);
+        return LedgerLib.totalValue(token_);
     }
 
     //===========

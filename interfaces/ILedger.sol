@@ -29,11 +29,17 @@ interface ILedger {
 
     function wrapper(address token) external view returns (address);
 
-    function isGroup(address addr) external view returns (bool);
+    function isGroup(uint256 flags) external pure returns (bool);
 
-    function isCredit(address addr) external view returns (bool);
+    function isCredit(uint256 flags) external pure returns (bool);
 
-    function isInternal(address addr) external view returns (bool);
+    function isInternal(uint256 flags) external pure returns (bool);
+
+    function isNative(uint256 flags) external pure returns (bool);
+
+    function isWrapper(uint256 flags) external pure returns (bool);
+
+    function isExternal(uint256 flags) external pure returns (bool);
 
     function subAccounts(
         address parent

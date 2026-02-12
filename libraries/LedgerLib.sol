@@ -2,12 +2,16 @@
 pragma solidity ^0.8.26;
 
 import {ILedger, ERC20Wrapper} from "../modules/Ledger.sol";
+import {Float, FloatLib} from "./FloatLib.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 library LedgerLib {
+    using FloatLib for uint256;
+    using FloatLib for Float;
+
     struct Store {
         mapping(address => string) name;
         mapping(address => string) symbol;
@@ -128,32 +132,8 @@ library LedgerLib {
         return wrapper(store().flags[token_]);
     }
 
-    function isGroup(address addr_) internal view returns (bool) {
-        return isGroup(store().flags[addr_]);
-    }
-
-    function isCredit(address addr_) internal view returns (bool) {
-        return isCredit(store().flags[addr_]);
-    }
-
-    function isInternal(address addr_) internal view returns (bool) {
-        return isInternal(store().flags[addr_]);
-    }
-
-    function isNative(address addr_) internal view returns (bool) {
-        return isNative(store().flags[addr_]);
-    }
-
-    function isWrapper(address addr_) internal view returns (bool) {
-        return isWrapper(store().flags[addr_]);
-    }
-
-    function isExternal(address addr_) internal view returns (bool) {
-        return isExternal(store().flags[addr_]);
-    }
-
     function checkGroup(address addr_) internal view {
-        if (!isGroup(addr_)) revert ILedger.InvalidAccountGroup(addr_);
+        if (!isGroup(flags(addr_))) revert ILedger.InvalidAccountGroup(addr_);
     }
 
     function isValidString(string memory str_) internal pure returns (bool) {
@@ -166,7 +146,7 @@ library LedgerLib {
     }
 
     function checkAccountGroup(address addr_) internal view {
-        if (!isGroup(addr_)) revert ILedger.InvalidAccountGroup(addr_);
+        if (!isGroup(flags(addr_))) revert ILedger.InvalidAccountGroup(addr_);
     }
 
     function toNamedAddress(
@@ -311,11 +291,18 @@ library LedgerLib {
 
     function reserveAddress(address token_) internal view returns (address) {
         return
-            toLedgerAddress(parent(token_, isCredit(token_)), RESERVE_ADDRESS);
+            toLedgerAddress(
+                parent(token_, isCredit(flags(token_))),
+                RESERVE_ADDRESS
+            );
     }
 
     function scaleAddress(address token_) internal view returns (address) {
-        return toLedgerAddress(parent(address(this), isCredit(token_)), token_);
+        return
+            toLedgerAddress(
+                parent(address(this), isCredit(flags(token_))),
+                token_
+            );
     }
 
     function reserve(address token_) internal view returns (uint256) {
@@ -324,6 +311,27 @@ library LedgerLib {
 
     function scale(address token_) internal view returns (uint256) {
         return balanceOf(scaleAddress(token_));
+    }
+
+    function price(address token_) internal view returns (Float) {
+        Float _reserve = reserve(token_).toFloat(decimals(token_));
+        if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
+        Float _scale = scale(token_).toFloat();
+        return _scale.divide(_reserve);
+    }
+
+    function totalValue(address token_) internal view returns (Float) {
+        uint256 _flags = flags(token_);
+        uint8 _decimals = decimals(token_);
+        Float _reserve = reserve(token_).toFloat(_decimals);
+        if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
+        Float _scale = scale(token_).toFloat();
+        Float _totalSupply = isInternal(_flags)
+            ? balanceOf(
+                toLedgerAddress(parent(address(this), isCredit(_flags)), token_)
+            ).toFloat(_decimals)
+            : IERC20(token_).totalSupply().toFloat(_decimals);
+        return _totalSupply.fullMulDiv(_scale, _reserve);
     }
 
     //==================================================================
@@ -344,7 +352,8 @@ library LedgerLib {
         bool _isExistingName = keccak256(bytes(name(_sub))) ==
             keccak256(bytes(name_));
         if (_isExistingParent && _isExistingName) {
-            if ((isCredit(_sub) == isCredit_) && isGroup(_sub)) {
+            uint256 _subFlags = flags(_sub);
+            if ((isCredit(_subFlags) == isCredit_) && isGroup(_subFlags)) {
                 // SubAccount already exists with the same name and credit status
                 return _sub;
             } else {
@@ -371,13 +380,15 @@ library LedgerLib {
         string memory name_,
         bool isCredit_
     ) internal returns (address _sub) {
-        if (!isGroup(parent_)) revert ILedger.InvalidAccountGroup(parent_);
+        if (!isGroup(flags(parent_)))
+            revert ILedger.InvalidAccountGroup(parent_);
 
         _sub = toLedgerAddress(parent_, addr_);
 
         bool _isExistingParent = parent(_sub) == parent_;
         if (_isExistingParent) {
-            if ((isCredit(_sub) == isCredit_) && !isGroup(_sub)) {
+            uint256 _subFlags = flags(_sub);
+            if ((isCredit(_subFlags) == isCredit_) && !isGroup(_subFlags)) {
                 // SubAccount already exists with the same name and credit status
                 return _sub;
             } else {
@@ -572,8 +583,8 @@ library LedgerLib {
         string memory name_
     ) internal returns (address) {
         address _sub = toGroupAddress(parent_, name_);
-        if (!isGroup(parent_)) revert ILedger.InvalidAccountGroup(parent_);
-        if (!isGroup(_sub)) revert ILedger.InvalidAccountGroup(_sub);
+        if (!isGroup(flags(parent_))) revert ILedger.InvalidAccountGroup(parent_);
+        if (!isGroup(flags(_sub))) revert ILedger.InvalidAccountGroup(_sub);
 
         // Must exist and belong to this parent
         if (parent(_sub) != parent_) {
@@ -612,8 +623,8 @@ library LedgerLib {
         address addr_
     ) internal returns (address) {
         address _sub = toLedgerAddress(parent_, addr_);
-        if (!isGroup(parent_)) revert ILedger.InvalidAccountGroup(parent_);
-        if (isGroup(_sub)) revert ILedger.InvalidLedgerAccount(_sub);
+        if (!isGroup(flags(parent_))) revert ILedger.InvalidAccountGroup(parent_);
+        if (isGroup(flags(_sub))) revert ILedger.InvalidLedgerAccount(_sub);
 
         // Must exist and belong to this parent
         if (parent(_sub) != parent_) {
@@ -673,7 +684,7 @@ library LedgerLib {
                 emit ILedger.BalanceUpdate(_root, parent_, addr_, _balance);
                 return _root;
             }
-            if (isCredit(_root)) {
+            if (isCredit(flags(_root))) {
                 if (_s.balance[_root] < amount_)
                     revert ILedger.InsufficientBalance(
                         _root,
@@ -716,7 +727,7 @@ library LedgerLib {
                 emit ILedger.BalanceUpdate(_root, parent_, addr_, _balance);
                 return _root;
             }
-            if (isCredit(_root)) {
+            if (isCredit(flags(_root))) {
                 _balance = _s.balance[_root] + amount_;
                 _s.balance[_root] = _balance;
             } else {
@@ -797,7 +808,7 @@ library LedgerLib {
             to_,
             amount_
         );
-        if (ok && isInternal(_token)) {
+        if (ok && isInternal(flags(_token))) {
             address _wrapper = wrapper(_token);
             if (_wrapper != address(0)) {
                 ERC20Wrapper(_wrapper).mint(to_, amount_);
@@ -819,7 +830,7 @@ library LedgerLib {
             DEFAULT_SOURCE_ADDRESS,
             amount_
         );
-        if (ok && isInternal(_token)) {
+        if (ok && isInternal(flags(_token))) {
             address _wrapper = wrapper(_token);
             if (_wrapper != address(0)) {
                 ERC20Wrapper(_wrapper).burn(from_, amount_);
@@ -837,9 +848,12 @@ library LedgerLib {
 
         address _fromParent = LedgerLib.parent(
             address(this),
-            isCredit(fromToken_)
+            isCredit(flags(fromToken_))
         );
-        address _toParent = LedgerLib.parent(address(this), isCredit(toToken_));
+        address _toParent = LedgerLib.parent(
+            address(this),
+            isCredit(flags(toToken_))
+        );
 
         LedgerLib.transfer(
             _fromParent,

@@ -31,7 +31,7 @@ contract TestLedger is Ledger {
         returns (bytes4[] memory _selectors)
     {
         uint256 n;
-        _selectors = new bytes4[](35);
+        _selectors = new bytes4[](38);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(
@@ -60,9 +60,12 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("parent(address)"));
         _selectors[n++] = bytes4(keccak256("flags(address)"));
         _selectors[n++] = bytes4(keccak256("wrapper(address)"));
-        _selectors[n++] = bytes4(keccak256("isGroup(address)"));
-        _selectors[n++] = bytes4(keccak256("isCredit(address)"));
-        _selectors[n++] = bytes4(keccak256("isInternal(address)"));
+        _selectors[n++] = bytes4(keccak256("isGroup(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isCredit(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isInternal(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isWrapper(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isExternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
         _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
         _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
@@ -87,7 +90,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(
             keccak256("reallocate(address,address,uint256)")
         );
-        if (n != 35) revert InvalidCommandsLength(n);
+        if (n != 38) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
