@@ -50,7 +50,6 @@ library LedgerLib {
     uint256 constant FLAG_IS_INTERNAL = 1 << 2; // 1 = internal token, 0 = external token
     uint256 constant FLAG_IS_NATIVE = 1 << 3; // 1 = native token root
     uint256 constant FLAG_IS_WRAPPER = 1 << 4; // 1 = token has wrapper surface
-    uint256 constant FLAG_IS_EXTERNAL = 1 << 5; // 1 = wrapped external ERC20 root
     uint256 constant PACK_ADDR_SHIFT = 96; // store address in high 160 bits
 
     //==================================================================
@@ -71,15 +70,13 @@ library LedgerLib {
         bool isCredit_,
         bool isInternal_,
         bool isNative_,
-        bool isWrapper_,
-        bool isExternal_
+        bool isWrapper_
     ) internal pure returns (uint256 _flags) {
         if (isGroup_) _flags |= FLAG_IS_GROUP;
         if (isCredit_) _flags |= FLAG_IS_CREDIT;
         if (isInternal_) _flags |= FLAG_IS_INTERNAL;
         if (isNative_) _flags |= FLAG_IS_NATIVE;
         if (isWrapper_) _flags |= FLAG_IS_WRAPPER;
-        if (isExternal_) _flags |= FLAG_IS_EXTERNAL;
         _flags |= (uint256(uint160(wrapper_)) << PACK_ADDR_SHIFT);
     }
 
@@ -124,7 +121,7 @@ library LedgerLib {
     }
 
     function isExternal(uint256 flags_) internal pure returns (bool) {
-        return (flags_ & FLAG_IS_EXTERNAL) != 0;
+        return !isInternal(flags_) && !isNative(flags_);
     }
 
     function wrapper(address token_) internal view returns (address) {
@@ -364,7 +361,7 @@ library LedgerLib {
         _s.parent[_sub] = parent_;
         _s.subs[parent_].push(toNamedAddress(name_));
         _s.subIndex[_sub] = uint32(_s.subs[parent_].length);
-        _s.flags[_sub] = flags(_root, true, isCredit_, true, false, false, false);
+        _s.flags[_sub] = flags(_root, true, isCredit_, true, false, false);
         emit ILedger.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
@@ -397,7 +394,7 @@ library LedgerLib {
         _s.parent[_sub] = parent_;
         _s.subs[parent_].push(addr_);
         _s.subIndex[_sub] = uint32(_s.subs[parent_].length);
-        _s.flags[_sub] = flags(_root, false, isCredit_, true, false, false, false);
+        _s.flags[_sub] = flags(_root, false, isCredit_, true, false, false);
         emit ILedger.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
@@ -440,15 +437,13 @@ library LedgerLib {
         _s.root[root_] = root_;
         bool _isNative = root_ == NATIVE_ADDRESS;
         bool _isWrapper = !isZeroAddress(wrapper_);
-        bool _isExternal = !_isNative && !isInternal_;
         _s.flags[root_] = flags(
             wrapper_,
             true,
             isCredit_,
             isInternal_,
             _isNative,
-            _isWrapper,
-            _isExternal
+            _isWrapper
         );
 
         // Add a "Total" credit subaccount group

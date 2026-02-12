@@ -350,9 +350,8 @@ contract LedgerTest is Test {
             0,
             "native not internal"
         );
-        assertEq(
-            ledgers.flags(native) & LedgerLib.FLAG_IS_EXTERNAL,
-            0,
+        assertFalse(
+            LedgerLib.isExternal(ledgers.flags(native)),
             "native not external"
         );
     }
@@ -372,9 +371,8 @@ contract LedgerTest is Test {
             0,
             "internal token not native"
         );
-        assertEq(
-            internalFlags & LedgerLib.FLAG_IS_EXTERNAL,
-            0,
+        assertFalse(
+            LedgerLib.isExternal(internalFlags),
             "internal token not external"
         );
 
@@ -388,10 +386,7 @@ contract LedgerTest is Test {
             (externalFlags & LedgerLib.FLAG_IS_WRAPPER) != 0,
             "external wrapper flag set"
         );
-        assertTrue(
-            (externalFlags & LedgerLib.FLAG_IS_EXTERNAL) != 0,
-            "external flag set"
-        );
+        assertTrue(LedgerLib.isExternal(externalFlags), "external flag set");
         assertEq(
             externalFlags & LedgerLib.FLAG_IS_NATIVE,
             0,
