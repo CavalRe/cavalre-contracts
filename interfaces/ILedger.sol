@@ -18,6 +18,10 @@ interface ILedger {
 
     function decimals(address addr) external view returns (uint8);
 
+    function nativeName() external view returns (string memory);
+
+    function nativeSymbol() external view returns (string memory);
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Tree navigation
     // ─────────────────────────────────────────────────────────────────────────────

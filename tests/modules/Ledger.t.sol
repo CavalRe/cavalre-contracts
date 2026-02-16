@@ -20,7 +20,7 @@ import {Test, console} from "forge-std/src/Test.sol";
 // Test module that exposes LedgerLib via external funcs for Router delegatecall
 // ─────────────────────────────────────────────────────────────────────────────
 contract TestLedger is Ledger {
-    constructor(uint8 decimals_) Ledger(decimals_) {}
+    constructor(uint8 decimals_) Ledger(decimals_, "Ethereum", "ETH") {}
 
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors()

@@ -5,6 +5,7 @@ import {Module} from "./Module.sol";
 import {Initializable} from "../utilities/Initializable.sol";
 import {ReentrancyGuard} from "../utilities/ReentrancyGuard.sol";
 import {LedgerLib} from "../libraries/LedgerLib.sol";
+import {ShortString, ShortStrings} from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
 import {Float, ILedger} from "../interfaces/ILedger.sol";
 
@@ -213,11 +214,26 @@ contract ERC20Wrapper {
 }
 
 contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
-    constructor(uint8 decimals_) {
+    using ShortStrings for *;
+
+    constructor(
+        uint8 decimals_,
+        string memory nativeName_,
+        string memory nativeSymbol_
+    ) {
         _decimals = decimals_;
+        bytes memory nativeNameRaw_ = bytes(nativeName_);
+        if (nativeNameRaw_.length == 0 || nativeNameRaw_.length > 31) revert ILedger.InvalidString(nativeName_);
+        _nativeName = nativeName_.toShortString();
+
+        bytes memory nativeSymbolRaw_ = bytes(nativeSymbol_);
+        if (nativeSymbolRaw_.length == 0 || nativeSymbolRaw_.length > 31) revert ILedger.InvalidString(nativeSymbol_);
+        _nativeSymbol = nativeSymbol_.toShortString();
     }
 
     uint8 internal immutable _decimals;
+    ShortString internal immutable _nativeName;
+    ShortString internal immutable _nativeSymbol;
     bytes32 private constant REENTRANCY_GUARD_STORAGE =
         keccak256(
             abi.encode(
@@ -258,7 +274,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         returns (bytes4[] memory _selectors)
     {
         uint256 n;
-        _selectors = new bytes4[](35);
+        _selectors = new bytes4[](37);
         _selectors[n++] = bytes4(keccak256("initializeLedger()"));
         _selectors[n++] = bytes4(
             keccak256("addSubAccountGroup(address,string,bool)")
@@ -282,6 +298,8 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("name(address)"));
         _selectors[n++] = bytes4(keccak256("symbol(address)"));
         _selectors[n++] = bytes4(keccak256("decimals(address)"));
+        _selectors[n++] = bytes4(keccak256("nativeName()"));
+        _selectors[n++] = bytes4(keccak256("nativeSymbol()"));
         _selectors[n++] = bytes4(keccak256("root(address)"));
         _selectors[n++] = bytes4(keccak256("parent(address)"));
         _selectors[n++] = bytes4(keccak256("flags(address)"));
@@ -311,7 +329,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
 
-        if (n != 35) revert InvalidCommandsLength(n);
+        if (n != 37) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained() public onlyInitializing {
@@ -412,6 +430,14 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function decimals(address addr_) external view returns (uint8) {
         return LedgerLib.decimals(addr_);
+    }
+
+    function nativeName() external view returns (string memory) {
+        return _nativeName.toString();
+    }
+
+    function nativeSymbol() external view returns (string memory) {
+        return _nativeSymbol.toString();
     }
 
     function root(address addr_) external view returns (address) {

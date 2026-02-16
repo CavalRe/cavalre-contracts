@@ -646,11 +646,6 @@
     - [Foo](tests/modules/Router.t.sol/contract.Foo.md)
     - [Bar](tests/modules/Router.t.sol/contract.Bar.md)
     - [RouterTest](tests/modules/Router.t.sol/contract.RouterTest.md)
-  - [❱ vyper](tests/vyper/README.md)
-    - [IFloatLibVyper](tests/vyper/FloatLibVyper.t.sol/interface.IFloatLibVyper.md)
-    - [FloatLibVyperHarness](tests/vyper/FloatLibVyper.t.sol/contract.FloatLibVyperHarness.md)
-    - [IFloatStringsVyper](tests/vyper/FloatStringsVyper.t.sol/interface.IFloatStringsVyper.md)
-    - [FloatStringsVyperHarness](tests/vyper/FloatStringsVyper.t.sol/contract.FloatStringsVyperHarness.md)
 # utilities
   - [Initializable](utilities/Initializable.sol/abstract.Initializable.md)
   - [ReentrancyGuard](utilities/ReentrancyGuard.sol/abstract.ReentrancyGuard.md)
