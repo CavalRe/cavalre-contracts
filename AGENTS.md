@@ -79,7 +79,7 @@ Special addresses (LedgerLib):
 - `TOTAL_ADDRESS` - account tree root
 - `RESERVE_ADDRESS` - reserve account
 - `NATIVE_ADDRESS` - native token (ETH)
-- `DEFAULT_SOURCE_ADDRESS` - default source for ops
+- `UNALLOCATED_ADDRESS` - unallocated for ops
 
 **ERC20Wrapper**: Creates ERC20-compatible wrappers per token. Delegates balance/allowance/transfers to Ledger via Router. Allows external contracts to treat ledger accounts as standard ERC20s.
 
