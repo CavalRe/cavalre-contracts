@@ -41,8 +41,9 @@ library Lib {
 contract ERC4626 is Module, ERC4626Upgradeable {
     uint8 private immutable _decimals;
 
-    bytes32 private constant INITIALIZABLE_STORAGE =
-        keccak256(abi.encode(uint256(keccak256("cavalre.storage.ERC4626.Initializable")) - 1)) & ~bytes32(uint256(0xff));
+    bytes32 private constant INITIALIZABLE_STORAGE = keccak256(
+        abi.encode(uint256(keccak256("cavalre.storage.ERC4626.Initializable")) - 1)
+    ) & ~bytes32(uint256(0xff));
 
     constructor(uint8 decimals_) {
         _decimals = decimals_;

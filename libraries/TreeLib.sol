@@ -19,26 +19,23 @@ library TreeLib {
     function logTree(Ledger ledgers, address root, string memory prefix, bool isFirst, bool isLast) internal view {
         uint256 _flags = ledgers.flags(root);
         string memory label =
-            string(
-                abi.encodePacked(
-                    ledgers.name(root),
-                    " (",
-                    LedgerLib.isCredit(_flags) ? "C" : "D",
-                    ")"
-                )
-            );
+            string(abi.encodePacked(ledgers.name(root), " (", LedgerLib.isCredit(_flags) ? "C" : "D", ")"));
         bool isGroup = LedgerLib.isGroup(_flags);
         console.log(
             "%s%s%s",
             prefix,
-            isFirst ? "" : (isLast ? (isGroup ? unicode"└─ " : unicode"└● ") : (isGroup ? unicode"├─ " : unicode"├● ")),
+            isFirst
+                ? ""
+                : (isLast
+                        ? (isGroup ? unicode"└─ " : unicode"└● ")
+                        : (isGroup ? unicode"├─ " : unicode"├● ")),
             label
         );
         string memory subPrefix = string(abi.encodePacked(prefix, isFirst ? "" : (isLast ? "   " : unicode"│  ")));
 
         address[] memory subs = ledgers.subAccounts(root);
         for (uint256 i = 0; i < subs.length; i++) {
-            logTree(ledgers, LedgerLib.toLedgerAddress(root, subs[i]), subPrefix, false, i == subs.length - 1);
+            logTree(ledgers, LedgerLib.toAddress(root, subs[i]), subPrefix, false, i == subs.length - 1);
         }
     }
 

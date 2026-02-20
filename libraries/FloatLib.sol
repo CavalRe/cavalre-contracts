@@ -42,6 +42,7 @@ library FloatLib {
     Float constant NINE = Float.wrap((ONE_EXPONENT << MANTISSA_BITS) | (9 * ONE_MANTISSA));
     Float constant TEN = Float.wrap(((ONE_EXPONENT + 1) << MANTISSA_BITS) | ONE_MANTISSA);
     Float constant HALF = Float.wrap(((ONE_EXPONENT - 1) << MANTISSA_BITS) | (5 * ONE_MANTISSA));
+
     //=================
     //   Conversions
     //=================

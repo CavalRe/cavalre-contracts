@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Communication Protocol
 
 **Be extremely concise.** Minimize tokens while maximizing information density. Sacrifice complete sentences, articles (a/an/the), and grammatical formality for brevity and clarity. Use fragments, bullet points, technical shorthand. Examples:
+
 - ❌ "I will now proceed to build the project using forge build"
 - ✅ "Building with `forge build`"
 - ❌ "The test has failed because there is a type mismatch error"
@@ -17,6 +18,7 @@ Apply this throughout responses—explanations, status updates, error descriptio
 ## Updating This File
 
 After completing **major tasks**, reflect on whether CLAUDE.md should be updated. Only update for:
+
 - **Fundamental architecture changes** (e.g., new core module, storage pattern changes, major refactors)
 - **Critical tips/best practices** that future agents should know (e.g., non-obvious gotchas, essential workflows)
 
@@ -58,6 +60,7 @@ forge clean
 **Router.sol** - Immutable entrypoint. Maps function selectors → module addresses, delegatecalls on each call. Enables upgradability with constant Router address.
 
 **Module.sol** - Abstract base for all modules:
+
 - `__self` immutable - detects delegatecall context
 - `enforceIsDelegated()` / `enforceNotDelegated()` - guards
 - `enforceIsOwner()` - access control via ModuleLib storage
@@ -73,9 +76,10 @@ forge clean
 - **Debit vs Credit**: Flagged via FLAG_IS_CREDIT
 - **Group vs Leaf**: Groups (containers) or leaves (actual balances)
 - **Internal vs External**: Internal (created) or external (wrapped ERC20s)
-- **Address encoding**: `keccak256(abi.encodePacked(parent, child))` via `LedgerLib.toLedgerAddress()`
+- **Address encoding**: `keccak256(abi.encodePacked(parent, child))` via `LedgerLib.toAddress()`
 
 Special addresses (LedgerLib):
+
 - `TOTAL_ADDRESS` - account tree root
 - `RESERVE_ADDRESS` - reserve account
 - `NATIVE_ADDRESS` - native token (ETH)
@@ -86,6 +90,7 @@ Special addresses (LedgerLib):
 ### Storage Pattern
 
 ERC-7201 namespaced storage avoids collisions:
+
 ```solidity
 bytes32 private constant STORE_POSITION =
     keccak256(abi.encode(uint256(keccak256("cavalre.storage.ModuleName")) - 1)) & ~bytes32(uint256(0xff));

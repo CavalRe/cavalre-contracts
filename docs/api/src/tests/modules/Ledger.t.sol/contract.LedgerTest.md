@@ -1,17 +1,17 @@
 # LedgerTest
+
 [Git Source](https://github.com/CavalRe/cavalre-contracts/blob/0c0c9e5af38811191bb039b59135f9126c750415/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
 
-
 ## State Variables
+
 ### router
 
 ```solidity
 Router router
 ```
-
 
 ### ledgers
 
@@ -19,13 +19,11 @@ Router router
 TestLedger ledgers
 ```
 
-
 ### alice
 
 ```solidity
 address alice = address(0xA11CE)
 ```
-
 
 ### bob
 
@@ -33,13 +31,11 @@ address alice = address(0xA11CE)
 address bob = address(0xB0B)
 ```
 
-
 ### charlie
 
 ```solidity
 address charlie = address(0xCA11)
 ```
-
 
 ### native
 
@@ -47,13 +43,11 @@ address charlie = address(0xCA11)
 address native = LedgerLib.NATIVE_ADDRESS
 ```
 
-
 ### testLedger
 
 ```solidity
 address testLedger
 ```
-
 
 ### externalToken
 
@@ -61,13 +55,11 @@ address testLedger
 MockERC20 externalToken
 ```
 
-
 ### unlistedToken
 
 ```solidity
 MockERC20 unlistedToken
 ```
-
 
 ### externalWrapper
 
@@ -75,55 +67,47 @@ MockERC20 unlistedToken
 address externalWrapper
 ```
 
-
-### _1
-
-```solidity
-address _1 = LedgerLib.toNamedAddress("1")
-```
-
-
-### _10
+### \_1
 
 ```solidity
-address _10 = LedgerLib.toNamedAddress("10")
+address _1 = LedgerLib.toAddress("1")
 ```
 
-
-### _11
+### \_10
 
 ```solidity
-address _11 = LedgerLib.toNamedAddress("11")
+address _10 = LedgerLib.toAddress("10")
 ```
 
-
-### _100
+### \_11
 
 ```solidity
-address _100 = LedgerLib.toNamedAddress("100")
+address _11 = LedgerLib.toAddress("11")
 ```
 
-
-### _101
+### \_100
 
 ```solidity
-address _101 = LedgerLib.toNamedAddress("101")
+address _100 = LedgerLib.toAddress("100")
 ```
 
-
-### _110
+### \_101
 
 ```solidity
-address _110 = LedgerLib.toNamedAddress("110")
+address _101 = LedgerLib.toAddress("101")
 ```
 
-
-### _111
+### \_110
 
 ```solidity
-address _111 = LedgerLib.toNamedAddress("111")
+address _110 = LedgerLib.toAddress("110")
 ```
 
+### \_111
+
+```solidity
+address _111 = LedgerLib.toAddress("111")
+```
 
 ### r1
 
@@ -131,13 +115,11 @@ address _111 = LedgerLib.toNamedAddress("111")
 address r1
 ```
 
-
 ### r10
 
 ```solidity
 address r10
 ```
-
 
 ### r11
 
@@ -145,13 +127,11 @@ address r10
 address r11
 ```
 
-
 ### r100
 
 ```solidity
 address r100
 ```
-
 
 ### r101
 
@@ -159,13 +139,11 @@ address r100
 address r101
 ```
 
-
 ### r110
 
 ```solidity
 address r110
 ```
-
 
 ### r111
 
@@ -173,10 +151,9 @@ address r110
 address r111
 ```
 
-
 ## Functions
-### setUp
 
+### setUp
 
 ```solidity
 function setUp() public;
@@ -184,13 +161,11 @@ function setUp() public;
 
 ### testLedgerInit
 
-
 ```solidity
 function testLedgerInit() public;
 ```
 
 ### testLedgerAddSubAccountGroup
-
 
 ```solidity
 function testLedgerAddSubAccountGroup() public;
@@ -198,13 +173,11 @@ function testLedgerAddSubAccountGroup() public;
 
 ### testLedgerAddSubAccountZeroParentReverts
 
-
 ```solidity
 function testLedgerAddSubAccountZeroParentReverts() public;
 ```
 
 ### testLedgerAddSubAccountEmptyNameReverts
-
 
 ```solidity
 function testLedgerAddSubAccountEmptyNameReverts() public;
@@ -212,13 +185,11 @@ function testLedgerAddSubAccountEmptyNameReverts() public;
 
 ### testLedgerRemoveSubAccountHappyPath
 
-
 ```solidity
 function testLedgerRemoveSubAccountHappyPath() public;
 ```
 
 ### testLedgerRemoveSubAccountThatDoesNotExistReverts
-
 
 ```solidity
 function testLedgerRemoveSubAccountThatDoesNotExistReverts() public;
@@ -226,13 +197,11 @@ function testLedgerRemoveSubAccountThatDoesNotExistReverts() public;
 
 ### testLedgerRemoveSubAccountWithChildrenReverts
 
-
 ```solidity
 function testLedgerRemoveSubAccountWithChildrenReverts() public;
 ```
 
 ### testLedgerRemoveSubAccountWithBalanceReverts
-
 
 ```solidity
 function testLedgerRemoveSubAccountWithBalanceReverts() public;
@@ -240,13 +209,11 @@ function testLedgerRemoveSubAccountWithBalanceReverts() public;
 
 ### testLedgerRemoveSubAccountInvalidAddresses
 
-
 ```solidity
 function testLedgerRemoveSubAccountInvalidAddresses() public;
 ```
 
 ### testLedgerRemoveUpdatesSiblingIndices
-
 
 ```solidity
 function testLedgerRemoveUpdatesSiblingIndices() public;
@@ -254,13 +221,11 @@ function testLedgerRemoveUpdatesSiblingIndices() public;
 
 ### testLedgerParents
 
-
 ```solidity
 function testLedgerParents() public view;
 ```
 
 ### testLedgerHasSubAccount
-
 
 ```solidity
 function testLedgerHasSubAccount() public view;
@@ -268,13 +233,11 @@ function testLedgerHasSubAccount() public view;
 
 ### testLedgerMint
 
-
 ```solidity
 function testLedgerMint() public;
 ```
 
 ### testLedgerBurn
-
 
 ```solidity
 function testLedgerBurn() public;
@@ -282,13 +245,11 @@ function testLedgerBurn() public;
 
 ### testLedgerReallocate
 
-
 ```solidity
 function testLedgerReallocate() public;
 ```
 
 ### testLedgerWrap
-
 
 ```solidity
 function testLedgerWrap() public;
@@ -296,13 +257,11 @@ function testLedgerWrap() public;
 
 ### testLedgerWrapNative
 
-
 ```solidity
 function testLedgerWrapNative() public;
 ```
 
 ### testLedgerWrapReentrancyGuard
-
 
 ```solidity
 function testLedgerWrapReentrancyGuard() public;
@@ -310,13 +269,11 @@ function testLedgerWrapReentrancyGuard() public;
 
 ### testLedgerWrapNativeIncorrectValue
 
-
 ```solidity
 function testLedgerWrapNativeIncorrectValue() public;
 ```
 
 ### testLedgerWrapNonNativeRejectsValue
-
 
 ```solidity
 function testLedgerWrapNonNativeRejectsValue() public;
@@ -324,13 +281,11 @@ function testLedgerWrapNonNativeRejectsValue() public;
 
 ### testLedgerUnwrapNative
 
-
 ```solidity
 function testLedgerUnwrapNative() public;
 ```
 
 ### testLedgerUnwrapNativeRejectsValue
-
 
 ```solidity
 function testLedgerUnwrapNativeRejectsValue() public;
@@ -338,22 +293,20 @@ function testLedgerUnwrapNativeRejectsValue() public;
 
 ### testLedgerUnwrapNonNativeRejectsValue
 
-
 ```solidity
 function testLedgerUnwrapNonNativeRejectsValue() public;
 ```
 
 ### testLedgerTransfer
 
-
 ```solidity
 function testLedgerTransfer() public;
 ```
 
 ## Errors
+
 ### InvalidInitialization
 
 ```solidity
 error InvalidInitialization();
 ```
-
