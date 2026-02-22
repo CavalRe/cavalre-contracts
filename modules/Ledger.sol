@@ -396,7 +396,9 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     }
 
     function scaleAddress(address token_) external view returns (address) {
-        return LedgerLib.scaleAddress(token_, LedgerLib.isCredit(LedgerLib.flags(token_)));
+        return LedgerLib.toAddress(
+            LedgerLib.accountTypeRootAddress(address(this), LedgerLib.isCredit(LedgerLib.flags(token_))), token_
+        );
     }
 
     function scale(address token_) external view returns (uint256) {

@@ -233,7 +233,7 @@ library LedgerLib {
         return store().balance[addr_] > 0;
     }
 
-    function parent(address addr_, bool isCredit_) internal pure returns (address) {
+    function accountTypeRootAddress(address addr_, bool isCredit_) internal pure returns (address) {
         if (isCredit_) {
             return toAddress(addr_, "Total");
         } else {
@@ -241,12 +241,8 @@ library LedgerLib {
         }
     }
 
-    function scaleAddress(address token_, bool isCredit_) internal view returns (address) {
-        return toAddress(parent(address(this), isCredit_), token_);
-    }
-
     function scale(address token_, bool isCredit_) internal view returns (uint256) {
-        return balanceOf(scaleAddress(token_, isCredit_));
+        return balanceOf(toAddress(accountTypeRootAddress(address(this), isCredit_), token_));
     }
 
     function scale(address token_) internal view returns (uint256) {
@@ -365,8 +361,8 @@ library LedgerLib {
 
         // Add a Reserve subaccount and subaccount to Scale for this token (skip Scale root itself)
         if (root_ != address(this)) {
-            addSubAccount(parent(root_, isCredit_), RESERVE_ADDRESS, "Reserve", isCredit_);
-            addSubAccount(parent(address(this), isCredit_), root_, name_, isCredit_);
+            addSubAccount(accountTypeRootAddress(root_, isCredit_), RESERVE_ADDRESS, "Reserve", isCredit_);
+            addSubAccount(accountTypeRootAddress(address(this), isCredit_), root_, name_, isCredit_);
         }
 
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
@@ -638,8 +634,8 @@ library LedgerLib {
     function reallocate(address fromToken_, address toToken_, uint256 amount_) internal {
         if (amount_ == 0) return;
 
-        address _fromParent = LedgerLib.parent(address(this), isCredit(flags(fromToken_)));
-        address _toParent = LedgerLib.parent(address(this), isCredit(flags(toToken_)));
+        address _fromParent = LedgerLib.accountTypeRootAddress(address(this), isCredit(flags(fromToken_)));
+        address _toParent = LedgerLib.accountTypeRootAddress(address(this), isCredit(flags(toToken_)));
 
         LedgerLib.transfer(_fromParent, fromToken_, _toParent, toToken_, amount_);
     }
