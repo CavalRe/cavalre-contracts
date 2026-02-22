@@ -160,22 +160,10 @@ contract ERC20Wrapper {
     function burn(address from_, uint256 amount_) public routerOnly {
         emit Transfer(from_, address(0), amount_);
     }
-
-    // function emitTransfer(address from_, address to_, uint256 amount_) public {
-    //     if (msg.sender != _router) revert ILedger.Unauthorized(msg.sender);
-
-    //     emit Transfer(from_, to_, amount_);
-    // }
-
-    // function emitApproval(address owner_, address spender_, uint256 amount_) public {
-    //     if (msg.sender != _router) revert ILedger.Unauthorized(msg.sender);
-
-    //     emit Approval(owner_, spender_, amount_);
-    // }
 }
 
 contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
-    using ShortStrings for *;
+    using ShortStrings for string;
 
     constructor(uint8 decimals_, string memory nativeName_, string memory nativeSymbol_) {
         _decimals = decimals_;
@@ -326,11 +314,11 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     }
 
     function nativeName() external view returns (string memory) {
-        return _nativeName.toString();
+        return ShortStrings.toString(_nativeName);
     }
 
     function nativeSymbol() external view returns (string memory) {
-        return _nativeSymbol.toString();
+        return ShortStrings.toString(_nativeSymbol);
     }
 
     function root(address addr_) external view returns (address) {
@@ -438,7 +426,11 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
     }
 
-    function wrap(address token_, uint256 amount_, address sourceParent_, address source_) external payable nonReentrant {
+    function wrap(address token_, uint256 amount_, address sourceParent_, address source_)
+        external
+        payable
+        nonReentrant
+    {
         LedgerLib.wrap(token_, amount_, sourceParent_, source_);
     }
 
