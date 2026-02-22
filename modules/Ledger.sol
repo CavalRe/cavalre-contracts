@@ -7,7 +7,7 @@ import {ReentrancyGuard} from "../utilities/ReentrancyGuard.sol";
 import {LedgerLib} from "../libraries/LedgerLib.sol";
 import {ShortString, ShortStrings} from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
-import {Float, ILedger} from "../interfaces/ILedger.sol";
+import {ILedger} from "../interfaces/ILedger.sol";
 
 contract ERC20Wrapper {
     // -------------------------------------------------------------------------
@@ -208,7 +208,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](38);
+        _selectors = new bytes4[](36);
         _selectors[n++] = bytes4(keccak256("initializeLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
@@ -239,16 +239,14 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("balanceOf(address,string)"));
         _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
-        _selectors[n++] = bytes4(keccak256("reserveAddress(address)"));
         _selectors[n++] = bytes4(keccak256("scaleAddress(address)"));
-        _selectors[n++] = bytes4(keccak256("reserve(address)"));
         _selectors[n++] = bytes4(keccak256("scale(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256,address,address)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256,address,address)"));
 
-        if (n != 38) revert InvalidCommandsLength(n);
+        if (n != 36) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained() public onlyInitializing {
@@ -409,28 +407,12 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.balanceOf(LedgerLib.toAddress(token_, LedgerLib.TOTAL_ADDRESS));
     }
 
-    function reserveAddress(address token_) external view returns (address) {
-        return LedgerLib.reserveAddress(token_);
-    }
-
     function scaleAddress(address token_) external view returns (address) {
-        return LedgerLib.scaleAddress(token_);
-    }
-
-    function reserve(address token_) external view returns (uint256) {
-        return LedgerLib.reserve(token_);
+        return LedgerLib.scaleAddress(token_, LedgerLib.isCredit(LedgerLib.flags(token_)));
     }
 
     function scale(address token_) external view returns (uint256) {
-        return LedgerLib.scale(token_);
-    }
-
-    function price(address token_) external view returns (Float) {
-        return LedgerLib.price(token_);
-    }
-
-    function totalValue(address token_) external view returns (Float) {
-        return LedgerLib.totalValue(token_);
+        return LedgerLib.scale(token_, LedgerLib.isCredit(LedgerLib.flags(token_)));
     }
 
     //===========

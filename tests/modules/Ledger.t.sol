@@ -25,7 +25,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](38);
+        _selectors = new bytes4[](36);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -54,9 +54,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("balanceOf(address,string)"));
         _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
-        _selectors[n++] = bytes4(keccak256("reserveAddress(address)"));
         _selectors[n++] = bytes4(keccak256("scaleAddress(address)"));
-        _selectors[n++] = bytes4(keccak256("reserve(address)"));
         _selectors[n++] = bytes4(keccak256("scale(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
@@ -66,7 +64,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 38) revert InvalidCommandsLength(n);
+        if (n != 36) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {

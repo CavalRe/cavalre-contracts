@@ -2,16 +2,12 @@
 pragma solidity ^0.8.26;
 
 import {ILedger, ERC20Wrapper} from "../modules/Ledger.sol";
-import {Float, FloatLib} from "./FloatLib.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 library LedgerLib {
-    using FloatLib for uint256;
-    using FloatLib for Float;
-
     struct Store {
         mapping(address => string) name;
         mapping(address => string) symbol;
@@ -245,49 +241,16 @@ library LedgerLib {
         }
     }
 
-    function reserveAddress(address token_) internal view returns (address) {
-        return reserveAddress(token_, flags(token_));
+    function scaleAddress(address token_, bool isCredit_) internal view returns (address) {
+        return toAddress(parent(address(this), isCredit_), token_);
     }
 
-    function reserveAddress(address token_, uint256 tokenFlags_) internal pure returns (address) {
-        return toAddress(parent(token_, isCredit(tokenFlags_)), RESERVE_ADDRESS);
-    }
-
-    function scaleAddress(address token_) internal view returns (address) {
-        return scaleAddress(token_, flags(token_));
-    }
-
-    function scaleAddress(address token_, uint256 tokenFlags_) internal view returns (address) {
-        return toAddress(parent(address(this), isCredit(tokenFlags_)), token_);
-    }
-
-    function reserve(address token_) internal view returns (uint256) {
-        return balanceOf(reserveAddress(token_, flags(token_)));
+    function scale(address token_, bool isCredit_) internal view returns (uint256) {
+        return balanceOf(scaleAddress(token_, isCredit_));
     }
 
     function scale(address token_) internal view returns (uint256) {
-        return balanceOf(scaleAddress(token_, flags(token_)));
-    }
-
-    function price(address token_) internal view returns (Float) {
-        uint256 _tokenFlags = flags(token_);
-        uint8 _decimals = decimals(token_);
-        Float _reserve = balanceOf(reserveAddress(token_, _tokenFlags)).toFloat(_decimals);
-        if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
-        Float _scale = balanceOf(scaleAddress(token_, _tokenFlags)).toFloat();
-        return _scale.divide(_reserve);
-    }
-
-    function totalValue(address token_) internal view returns (Float) {
-        uint256 _flags = flags(token_);
-        uint8 _decimals = decimals(token_);
-        Float _reserve = balanceOf(reserveAddress(token_, _flags)).toFloat(_decimals);
-        if (_reserve.mantissa() == 0) revert ILedger.ZeroReserve(token_);
-        Float _scale = balanceOf(scaleAddress(token_, _flags)).toFloat();
-        Float _totalSupply = isInternal(_flags)
-            ? balanceOf(toAddress(parent(address(this), isCredit(_flags)), token_)).toFloat(_decimals)
-            : IERC20(token_).totalSupply().toFloat(_decimals);
-        return _totalSupply.fullMulDiv(_scale, _reserve);
+        return scale(token_, isCredit(flags(token_)));
     }
 
     //==================================================================

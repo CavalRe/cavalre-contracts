@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Float} from "../libraries/FloatLib.sol";
-
 interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Initializers
@@ -83,17 +81,9 @@ interface ILedger {
 
     function totalSupply(address token) external view returns (uint256);
 
-    function reserveAddress(address token) external view returns (address);
-
     function scaleAddress(address token) external view returns (address);
 
-    function reserve(address token) external view returns (uint256);
-
     function scale(address token) external view returns (uint256);
-
-    function price(address token) external view returns (Float);
-
-    function totalValue(address token) external view returns (Float);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
@@ -136,7 +126,6 @@ interface ILedger {
     error SubAccountGroupNotFound(string subName);
     error Unauthorized(address user);
     error ZeroAddress();
-    error ZeroReserve(address addr);
     error ZeroScale(address addr);
 
     // ─────────────────────────────────────────────────────────────────────────────

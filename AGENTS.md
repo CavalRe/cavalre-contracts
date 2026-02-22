@@ -15,6 +15,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Apply this throughout responses—explanations, status updates, error descriptions. Every word should earn its token cost.
 
+- Keep `AGENTS.md` in active context for full session; re-open before substantial edits if context may have drifted.
+- Surface blockers/risks first; include file paths + line numbers when citing issues.
+- If unsure, ask one precise question rather than many.
+- Pause to confirm intent before assumptions; do not guess.
+- For reviews, clarify scope first.
+- NEVER change storage layout (`Store` structs/slots, ERC-7201 positions, packed storage) without explicit user permission.
+- Local variable naming: underscore suffix by default. Exception allowed for `*Context memory ctx` / `*Cache memory c`.
+- Style target: minimalist, consistent patterns, minimal locals/helpers, avoid redundant recomputation.
+- Section comment style: `// -- Section Name --` (avoid boxed multi-line separators).
+
 ## Updating This File
 
 After completing **major tasks**, reflect on whether CLAUDE.md should be updated. Only update for:
@@ -148,6 +158,7 @@ cavalre-contracts/
 - Test modules wrap actual modules (e.g., `TestLedger is Ledger`) for test-specific functions
 - Must implement `selectors()` for Router registration
 - Visualize ledger trees: `TreeLib.debugTree(ledgers, root)`
+- When running Forge, note EIP-3860 initcode size warnings: expected in tests sometimes; flag if non-test deployable contracts hit warning.
 
 ## Dependencies
 
