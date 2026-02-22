@@ -1,62 +1,33 @@
 # FloatLib
 
-`FloatLib` is a critical math library designed to enable safe and precise computations across extremely large and small numeric ranges using a custom floating-point representation. It plays a foundational role in Multiswap's internal logic, where value preservation, numerical stability, and scale invariance are essential.
+`libraries/FloatLib.sol` provides CavalRe’s custom decimal floating representation and arithmetic helpers.
 
 ## Overview
 
-At its core, `FloatLib` defines a `Float` struct:
+`Float` is a user-defined value type over `int256`:
 
 ```solidity
-struct Float {
-    int256 mantissa;
-    int256 exponent;
-}
-````
-
-This structure enables values to be represented as:
-
-```
-value = mantissa × 10^exponent
+type Float is int256;
 ```
 
-By working in base-10 scientific notation, `FloatLib` maintains high precision while gracefully handling overflows and underflows that would occur with fixed-point math alone.
+The packed format stores:
 
-## Key Features
+- signed exponent in high 128 bits
+- signed mantissa in low 128 bits
 
-* **Custom base-10 float representation**: Enables consistent rounding and human-readable scale.
-* **Normalization**: Ensures mantissas are kept within a consistent range for comparison and arithmetic.
-* **Safe conversions**: Between integers, fixed-point values, and floats with safeguards against overflow.
-* **Arithmetic operations**: Addition, subtraction, multiplication, and division of floats with automatic normalization.
-* **Advanced utilities**:
+Library helpers provide conversions, normalization, comparisons, and arithmetic over that representation.
 
-  * Logarithmic operations
-  * Exponent scaling
-  * Comparison functions (`min`, `max`, `eq`, `gt`, etc.)
-* **Solady-backed performance**: Integrates `FixedPointMathLib` from Solady for efficient low-level math operations.
+## Key Capabilities
 
-## Use Cases
+- conversion between integer amounts and `Float` with decimal-aware helpers
+- normalization to keep mantissa/exponent within canonical bounds
+- arithmetic (`add`, `subtract`, `multiply`, `divide`, `fullMulDiv`)
+- comparisons and sign helpers (`isZero`, `isPositive`, `isNegative`, etc.)
+- exponentials/log helpers used by protocol math
 
-* **Value-preserving AMM mechanics**: Used extensively in Multiswap to handle swaps, allocations, and rebalancing over arbitrary asset scales.
-* **Fee and price calculations**: Avoids rounding errors and inconsistent behavior across asset pairs with different decimal precisions.
-* **Protocol safety**: Prevents critical bugs stemming from overflow or precision loss in multi-asset systems.
+## Source Of Truth
 
-## Example
+For exact function signatures and semantics, use generated API docs:
 
-```solidity
-import {FloatLib, Float} from "path/to/FloatLib.sol";
-
-Float memory a = FloatLib.toFloat(123456789, 6); // represents 123.456789
-Float memory b = FloatLib.toFloat(1000, 0);      // represents 1000
-
-Float memory c = FloatLib.mul(a, b);             // precise multiplication
-int256 asInt = FloatLib.toInt(c, 18);            // convert back to int with 18 decimals
-```
-
-## Limitations
-
-* Not compatible with Solidity's native operators (`+`, `*`, etc.) — must use library functions.
-* Requires careful normalization and rounding when used outside the library to avoid subtle bugs.
-
-## License
-
-MIT
+- `docs/api/src/libraries/FloatLib.sol/library.FloatLib.md`
+- `docs/api/src/libraries/FloatLib.sol/type.Float.md`

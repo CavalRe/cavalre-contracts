@@ -48,7 +48,7 @@ This contract assumes the calling context may be either a direct call or a `dele
 
 # Router.sol
 
-The `Router` contract is the immutable dispatcher in CavalRe's modular architecture. It inherits from `Module` and assigns modules to function selectors using a mapping defined in its own `Store` struct.
+The `Router` contract is the immutable dispatcher in CavalRe's modular architecture. It inherits from `Module` and assigns modules to function selectors using a mapping defined in `RouterLib.Store`.
 
 ## Storage Layout
 
@@ -91,7 +91,7 @@ Returns the list of supported commands (selectors). In the base `Router` contrac
 
 ```solidity
 function selectors() public pure override returns (bytes4[] memory) {
-    return new bytes4 ;
+    return new bytes4[](0);
 }
 ```
 
