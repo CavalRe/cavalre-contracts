@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/0c0c9e5af38811191bb039b59135f9126c750415/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/27a8b6bea99c34fd7ef12952ab488aa1d4998a37/modules/Ledger.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [ILedger](/interfaces/ILedger.sol/interface.ILedger.md)
@@ -10,6 +10,20 @@
 
 ```solidity
 uint8 internal immutable _decimals
+```
+
+
+### _nativeName
+
+```solidity
+ShortString internal immutable _nativeName
+```
+
+
+### _nativeSymbol
+
+```solidity
+ShortString internal immutable _nativeSymbol
 ```
 
 
@@ -35,7 +49,7 @@ bytes32 private constant INITIALIZABLE_STORAGE =
 
 
 ```solidity
-constructor(uint8 decimals_) ;
+constructor(uint8 decimals_, string memory nativeName_, string memory nativeSymbol_) ;
 ```
 
 ### _initializableStorageSlot
@@ -63,14 +77,14 @@ function selectors() external pure virtual override returns (bytes4[] memory _se
 
 
 ```solidity
-function initializeLedger_unchained(string memory nativeTokenSymbol_) public onlyInitializing;
+function initializeLedger_unchained() public onlyInitializing;
 ```
 
 ### initializeLedger
 
 
 ```solidity
-function initializeLedger(string memory nativeTokenSymbol_) external initializer;
+function initializeLedger() external initializer;
 ```
 
 ### addSubAccountGroup
@@ -85,6 +99,15 @@ function addSubAccountGroup(address parent_, string memory name_, bool isCredit_
 
 ```solidity
 function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
+    external
+    returns (address);
+```
+
+### createNativeWrapper
+
+
+```solidity
+function createNativeWrapper(string memory nativeTokenName_, string memory nativeTokenSymbol_)
     external
     returns (address);
 ```
@@ -140,6 +163,20 @@ function symbol(address addr_) external view returns (string memory);
 function decimals(address addr_) external view returns (uint8);
 ```
 
+### nativeName
+
+
+```solidity
+function nativeName() external view returns (string memory);
+```
+
+### nativeSymbol
+
+
+```solidity
+function nativeSymbol() external view returns (string memory);
+```
+
 ### root
 
 
@@ -172,21 +209,49 @@ function wrapper(address token_) external view returns (address);
 
 
 ```solidity
-function isGroup(address addr_) external view returns (bool);
+function isGroup(uint256 flags_) external pure returns (bool);
 ```
 
 ### isCredit
 
 
 ```solidity
-function isCredit(address addr_) external view returns (bool);
+function isCredit(uint256 flags_) external pure returns (bool);
 ```
 
 ### isInternal
 
 
 ```solidity
-function isInternal(address addr_) external view returns (bool);
+function isInternal(uint256 flags_) external pure returns (bool);
+```
+
+### isNative
+
+
+```solidity
+function isNative(uint256 flags_) external pure returns (bool);
+```
+
+### isWrapper
+
+
+```solidity
+function isWrapper(uint256 flags_) external pure returns (bool);
+```
+
+### isRegistered
+
+
+```solidity
+function isRegistered(uint256 flags_) external pure returns (bool);
+```
+
+### isExternal
+
+
+```solidity
+function isExternal(uint256 flags_) external pure returns (bool);
 ```
 
 ### subAccounts
@@ -231,13 +296,6 @@ function balanceOf(address parent_, address owner_) external view returns (uint2
 function totalSupply(address token_) external view returns (uint256);
 ```
 
-### reserveAddress
-
-
-```solidity
-function reserveAddress(address token_) external view returns (address);
-```
-
 ### scaleAddress
 
 
@@ -245,32 +303,11 @@ function reserveAddress(address token_) external view returns (address);
 function scaleAddress(address token_) external view returns (address);
 ```
 
-### reserve
-
-
-```solidity
-function reserve(address token_) external view returns (uint256);
-```
-
 ### scale
 
 
 ```solidity
 function scale(address token_) external view returns (uint256);
-```
-
-### price
-
-
-```solidity
-function price(address token_) external view returns (Float);
-```
-
-### totalValue
-
-
-```solidity
-function totalValue(address token_) external view returns (Float);
 ```
 
 ### _enforceWrapperCaller
@@ -300,13 +337,19 @@ function transfer(address fromParent_, address toParent_, address to_, uint256 a
 
 
 ```solidity
-function wrap(address token_, uint256 amount_) external payable nonReentrant;
+function wrap(address token_, uint256 amount_, address sourceParent_, address source_)
+    external
+    payable
+    nonReentrant;
 ```
 
 ### unwrap
 
 
 ```solidity
-function unwrap(address token_, uint256 amount_) external payable nonReentrant;
+function unwrap(address token_, uint256 amount_, address sourceParent_, address source_)
+    external
+    payable
+    nonReentrant;
 ```
 

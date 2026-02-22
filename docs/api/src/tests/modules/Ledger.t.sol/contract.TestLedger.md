@@ -1,5 +1,5 @@
 # TestLedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/0c0c9e5af38811191bb039b59135f9126c750415/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/27a8b6bea99c34fd7ef12952ab488aa1d4998a37/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Ledger](/modules/Ledger.sol/contract.Ledger.md)
@@ -10,7 +10,7 @@
 
 
 ```solidity
-constructor(uint8 decimals_) Ledger(decimals_);
+constructor(uint8 decimals_) Ledger(decimals_, "Ethereum", "ETH");
 ```
 
 ### selectors
@@ -24,7 +24,7 @@ function selectors() external pure virtual override returns (bytes4[] memory _se
 
 
 ```solidity
-function initializeTestLedger(string memory nativeTokenSymbol_) external initializer;
+function initializeTestLedger() external initializer;
 ```
 
 ### mint

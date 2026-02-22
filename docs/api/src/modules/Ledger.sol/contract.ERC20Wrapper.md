@@ -1,5 +1,5 @@
 # ERC20Wrapper
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/0c0c9e5af38811191bb039b59135f9126c750415/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/27a8b6bea99c34fd7ef12952ab488aa1d4998a37/modules/Ledger.sol)
 
 
 ## State Variables
@@ -79,6 +79,20 @@ function symbol() public view returns (string memory);
 
 ```solidity
 function decimals() public view returns (uint8);
+```
+
+### router
+
+
+```solidity
+function router() public view returns (address);
+```
+
+### token
+
+
+```solidity
+function token() public view returns (address);
 ```
 
 ### totalSupply

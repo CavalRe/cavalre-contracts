@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/0c0c9e5af38811191bb039b59135f9126c750415/interfaces/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/27a8b6bea99c34fd7ef12952ab488aa1d4998a37/interfaces/ILedger.sol)
 
 
 ## Functions
@@ -7,7 +7,7 @@
 
 
 ```solidity
-function initializeLedger(string memory nativeTokenSymbol) external;
+function initializeLedger() external;
 ```
 
 ### name
@@ -29,6 +29,20 @@ function symbol(address addr) external view returns (string memory);
 
 ```solidity
 function decimals(address addr) external view returns (uint8);
+```
+
+### nativeName
+
+
+```solidity
+function nativeName() external view returns (string memory);
+```
+
+### nativeSymbol
+
+
+```solidity
+function nativeSymbol() external view returns (string memory);
 ```
 
 ### root
@@ -63,21 +77,49 @@ function wrapper(address token) external view returns (address);
 
 
 ```solidity
-function isGroup(address addr) external view returns (bool);
+function isGroup(uint256 flags) external pure returns (bool);
 ```
 
 ### isCredit
 
 
 ```solidity
-function isCredit(address addr) external view returns (bool);
+function isCredit(uint256 flags) external pure returns (bool);
 ```
 
 ### isInternal
 
 
 ```solidity
-function isInternal(address addr) external view returns (bool);
+function isInternal(uint256 flags) external pure returns (bool);
+```
+
+### isNative
+
+
+```solidity
+function isNative(uint256 flags) external pure returns (bool);
+```
+
+### isWrapper
+
+
+```solidity
+function isWrapper(uint256 flags) external pure returns (bool);
+```
+
+### isRegistered
+
+
+```solidity
+function isRegistered(uint256 flags) external pure returns (bool);
+```
+
+### isExternal
+
+
+```solidity
+function isExternal(uint256 flags) external pure returns (bool);
 ```
 
 ### subAccounts
@@ -113,6 +155,15 @@ function addSubAccountGroup(address parent, string memory name, bool isCredit) e
 
 ```solidity
 function addSubAccount(address parent, address addr, string memory name, bool isInternal) external returns (address);
+```
+
+### createNativeWrapper
+
+
+```solidity
+function createNativeWrapper(string memory nativeTokenName, string memory nativeTokenSymbol)
+    external
+    returns (address);
 ```
 
 ### createWrappedToken
@@ -166,13 +217,6 @@ function balanceOf(address parent, address owner) external view returns (uint256
 function totalSupply(address token) external view returns (uint256);
 ```
 
-### reserveAddress
-
-
-```solidity
-function reserveAddress(address token) external view returns (address);
-```
-
 ### scaleAddress
 
 
@@ -180,32 +224,11 @@ function reserveAddress(address token) external view returns (address);
 function scaleAddress(address token) external view returns (address);
 ```
 
-### reserve
-
-
-```solidity
-function reserve(address token) external view returns (uint256);
-```
-
 ### scale
 
 
 ```solidity
 function scale(address token) external view returns (uint256);
-```
-
-### price
-
-
-```solidity
-function price(address token) external view returns (Float);
-```
-
-### totalValue
-
-
-```solidity
-function totalValue(address token) external view returns (Float);
 ```
 
 ### transfer
@@ -228,14 +251,14 @@ function transfer(address fromParent, address toParent, address to, uint256 amou
 
 
 ```solidity
-function wrap(address token_, uint256 amount_) external payable;
+function wrap(address token_, uint256 amount_, address sourceParent_, address source_) external payable;
 ```
 
 ### unwrap
 
 
 ```solidity
-function unwrap(address token_, uint256 amount_) external payable;
+function unwrap(address token_, uint256 amount_, address sourceParent_, address source_) external payable;
 ```
 
 ## Events
@@ -369,7 +392,7 @@ error InvalidDecimals(uint8 decimals);
 ### InvalidAccountGroup
 
 ```solidity
-error InvalidAccountGroup(address groupAddress);
+error InvalidAccountGroup();
 ```
 
 ### InvalidLedgerAccount
@@ -448,12 +471,6 @@ error Unauthorized(address user);
 
 ```solidity
 error ZeroAddress();
-```
-
-### ZeroReserve
-
-```solidity
-error ZeroReserve(address addr);
 ```
 
 ### ZeroScale
