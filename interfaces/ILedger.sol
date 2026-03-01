@@ -64,9 +64,7 @@ interface ILedger {
 
     function createWrappedToken(address token) external;
 
-    function createInternalToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
-        external
-        returns (address);
+    function createInternalToken(string memory name, string memory symbol, uint8 decimals) external returns (address);
 
     function removeSubAccountGroup(address parent, string memory name) external returns (address);
 

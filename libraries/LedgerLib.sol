@@ -5,7 +5,6 @@ import {ILedger, ERC20Wrapper} from "../modules/Ledger.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 library LedgerLib {
     struct Store {
@@ -17,7 +16,8 @@ library LedgerLib {
         mapping(address parent => address[]) subs;
         mapping(address sub => uint32) subIndex;
         mapping(address => uint256) flags;
-        mapping(address => uint256) balance;
+        mapping(address => uint256) debits;
+        mapping(address => uint256) credits;
     }
 
     bytes32 private constant STORE_POSITION =
@@ -31,8 +31,6 @@ library LedgerLib {
     }
 
     uint8 internal constant MAX_DEPTH = 10;
-    // toNamedAddress("Total")
-    address internal constant TOTAL_ADDRESS = 0xa763678a2e868D872d408672C9f80B77F4d1d14B;
     // toNamedAddress("Reserve")
     address internal constant RESERVE_ADDRESS = 0x3a9097D216F9D5859bE6b3918F997A8823E92984;
     // toAddress("Native")
@@ -45,6 +43,8 @@ library LedgerLib {
     uint256 constant FLAG_IS_NATIVE = 1 << 3; // 1 = native token root
     uint256 constant FLAG_IS_WRAPPER = 1 << 4; // 1 = token has wrapper surface
     uint256 constant FLAG_IS_REGISTERED = 1 << 5; // 1 = account registered via addSubAccount*()
+    uint256 constant FLAG_DEPTH_SHIFT = 8;
+    uint256 constant FLAG_DEPTH_MASK = uint256(0xff) << FLAG_DEPTH_SHIFT;
     uint256 constant PACK_ADDR_SHIFT = 96; // store address in high 160 bits
 
     //==================================================================
@@ -66,7 +66,8 @@ library LedgerLib {
         bool isInternal_,
         bool isNative_,
         bool isWrapper_,
-        bool isRegistered_
+        bool isRegistered_,
+        uint8 depth_
     ) internal pure returns (uint256 _flags) {
         if (isGroup_) _flags |= FLAG_IS_GROUP;
         if (isCredit_) _flags |= FLAG_IS_CREDIT;
@@ -74,6 +75,7 @@ library LedgerLib {
         if (isNative_) _flags |= FLAG_IS_NATIVE;
         if (isWrapper_) _flags |= FLAG_IS_WRAPPER;
         if (isRegistered_) _flags |= FLAG_IS_REGISTERED;
+        _flags |= (uint256(depth_) << FLAG_DEPTH_SHIFT);
         _flags |= (uint256(uint160(wrapper_)) << PACK_ADDR_SHIFT);
     }
 
@@ -123,6 +125,10 @@ library LedgerLib {
 
     function isExternal(uint256 flags_) internal pure returns (bool) {
         return !isInternal(flags_) && !isNative(flags_);
+    }
+
+    function depth(uint256 flags_) internal pure returns (uint8) {
+        return uint8((flags_ & FLAG_DEPTH_MASK) >> FLAG_DEPTH_SHIFT);
     }
 
     function isValidString(string memory str_) internal pure returns (bool) {
@@ -193,8 +199,8 @@ library LedgerLib {
         return store().decimals[addr_];
     }
 
-    function root(address addr_) internal view returns (address _root) {
-        _root = store().root[addr_];
+    function root(address addr_) internal view returns (address) {
+        return store().root[addr_];
     }
 
     function parent(address addr_) internal view returns (address) {
@@ -225,28 +231,31 @@ library LedgerLib {
     //==================================================================
     //                        Balance & Valuation
     //==================================================================
-    function balanceOf(address addr_) internal view returns (uint256) {
-        return store().balance[addr_];
+    function debitOf(address addr_) internal view returns (uint256) {
+        return store().debits[addr_];
+    }
+
+    function creditOf(address addr_) internal view returns (uint256) {
+        return store().credits[addr_];
+    }
+
+    function balanceOf(address addr_, bool isCredit_) internal view returns (uint256) {
+        Store storage _s = store();
+        if (isCredit_) return _s.credits[addr_] - _s.debits[addr_];
+        return _s.debits[addr_] - _s.credits[addr_];
     }
 
     function hasBalance(address addr_) internal view returns (bool) {
-        return store().balance[addr_] > 0;
+        return debitOf(addr_) > 0 || creditOf(addr_) > 0;
     }
 
-    function accountTypeRootAddress(address addr_, bool isCredit_) internal pure returns (address) {
-        if (isCredit_) {
-            return toAddress(addr_, "Total");
-        } else {
-            return addr_;
-        }
+    function totalSupply(address token_) internal view returns (uint256 _supply) {
+        return debitOf(token_);
     }
 
     function scale(address token_, bool isCredit_) internal view returns (uint256) {
-        return balanceOf(toAddress(accountTypeRootAddress(address(this), isCredit_), token_));
-    }
-
-    function scale(address token_) internal view returns (uint256) {
-        return scale(token_, isCredit(flags(token_)));
+        address _scaleAccount = toAddress(address(this), token_);
+        return balanceOf(_scaleAccount, isCredit_);
     }
 
     //==================================================================
@@ -273,6 +282,8 @@ library LedgerLib {
         }
 
         address _root = root(parent_);
+        uint8 _depth = depth(flags(parent_)) + 1;
+        if (_depth > MAX_DEPTH) revert ILedger.MaxDepthExceeded();
 
         Store storage _s = store();
         _s.name[_sub] = name_;
@@ -280,7 +291,7 @@ library LedgerLib {
         _s.parent[_sub] = parent_;
         _s.subs[parent_].push(toAddress(name_));
         _s.subIndex[_sub] = uint32(_s.subs[parent_].length);
-        _s.flags[_sub] = flags(_root, true, isCredit_, true, false, false, true);
+        _s.flags[_sub] = flags(_root, true, isCredit_, true, false, false, true, _depth);
         emit ILedger.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
@@ -307,6 +318,8 @@ library LedgerLib {
         }
 
         address _root = root(parent_);
+        uint8 _depth = depth(flags(parent_)) + 1;
+        if (_depth > MAX_DEPTH) revert ILedger.MaxDepthExceeded();
 
         Store storage _s = store();
         _s.name[_sub] = name_;
@@ -314,7 +327,7 @@ library LedgerLib {
         _s.parent[_sub] = parent_;
         _s.subs[parent_].push(addr_);
         _s.subIndex[_sub] = uint32(_s.subs[parent_].length);
-        _s.flags[_sub] = flags(_root, false, isCredit_, true, false, false, true);
+        _s.flags[_sub] = flags(_root, false, isCredit_, true, false, false, true, _depth);
         emit ILedger.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
@@ -324,7 +337,6 @@ library LedgerLib {
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        bool isCredit_,
         bool isInternal_
     ) internal {
         if (
@@ -354,15 +366,11 @@ library LedgerLib {
         _s.root[root_] = root_;
         bool _isNative = root_ == NATIVE_ADDRESS;
         bool _isWrapper = !isZeroAddress(wrapper_);
-        _s.flags[root_] = flags(wrapper_, true, isCredit_, isInternal_, _isNative, _isWrapper, true);
+        _s.flags[root_] = flags(wrapper_, true, false, isInternal_, _isNative, _isWrapper, true, 1);
 
-        // Add a "Total" credit subaccount group
-        addSubAccountGroup(root_, "Total", true);
-
-        // Add a Reserve subaccount and subaccount to Scale for this token (skip Scale root itself)
+        // Register token under Scale root (skip Scale root itself).
         if (root_ != address(this)) {
-            addSubAccount(accountTypeRootAddress(root_, isCredit_), RESERVE_ADDRESS, "Reserve", isCredit_);
-            addSubAccount(accountTypeRootAddress(address(this), isCredit_), root_, name_, isCredit_);
+            addSubAccount(address(this), root_, name_, false);
         }
 
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
@@ -388,7 +396,7 @@ library LedgerLib {
                 18
             )
         );
-        addLedger(token_, wrapper_, nativeTokenName_, nativeTokenSymbol_, 18, false, false);
+        addLedger(token_, wrapper_, nativeTokenName_, nativeTokenSymbol_, 18, false);
     }
 
     function createWrappedToken(address token_)
@@ -415,10 +423,10 @@ library LedgerLib {
                 _decimals
             )
         );
-        addLedger(token_, _wrapper, _name, _symbol, _decimals, false, false);
+        addLedger(token_, _wrapper, _name, _symbol, _decimals, false);
     }
 
-    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
         internal
         returns (address wrapper_)
     {
@@ -429,7 +437,7 @@ library LedgerLib {
         if (wrapper_ == wrapper(flags(wrapper_))) {
             revert ILedger.DuplicateToken(wrapper_);
         }
-        addLedger(wrapper_, wrapper_, name_, symbol_, decimals_, isCredit_, true);
+        addLedger(wrapper_, wrapper_, name_, symbol_, decimals_, true);
     }
 
     function removeSubAccountGroup(address parent_, string memory name_) internal returns (address) {
@@ -510,81 +518,89 @@ library LedgerLib {
     //                         Transfers
     //==================================================================
 
-    function debit(address parent_, address addr_, uint256 amount_) internal returns (address _root) {
+    function debit(address root_, address parent_, address addr_, uint256 amount_) internal {
+        if (root_ == address(0)) revert ILedger.ZeroAddress();
+        address _current = toAddress(parent_, addr_);
+        uint256 _currentFlags = flags(_current);
+        if (isGroup(_currentFlags)) revert ILedger.InvalidLedgerAccount(_current);
         uint256 _parentFlags = flags(parent_);
-        if (!isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
-        _root = toAddress(parent_, addr_);
-        uint256 _rootFlags = flags(_root);
-        bool _isCredit = isRegistered(_rootFlags) ? isCredit(_rootFlags) : isCredit(_parentFlags);
+        bool _isRegistered = isRegistered(_currentFlags);
+        bool _isCreditSide = _isRegistered ? isCredit(_currentFlags) : isCredit(_parentFlags);
+        bool _isCredit = _isCreditSide;
 
         Store storage _s = store();
         uint256 _balance;
         uint8 _depth;
         address _parent = parent_;
         while (_depth < MAX_DEPTH) {
-            // Do not update the balance of the root
-            if (_parent == address(0)) {
+            if (_parent != root_ && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
+            _balance = _isCreditSide ? _s.credits[_current] : _s.debits[_current];
+            if (_isCredit) {
+                if (_balance < amount_) {
+                    revert ILedger.InsufficientBalance(root_, parent_, addr_, amount_);
+                }
+                _balance -= amount_;
+            } else {
+                _balance += amount_;
+            }
+            if (_isCreditSide) _s.credits[_current] = _balance;
+            else _s.debits[_current] = _balance;
+            if (_current == root_) {
                 // Root found
                 // Emits once after a successful full walk.
                 // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
-                emit ILedger.Debit(_root, parent_, addr_, amount_);
-                emit ILedger.BalanceUpdate(_root, parent_, addr_, _balance);
-                return _root;
+                emit ILedger.Debit(root_, parent_, addr_, amount_);
+                emit ILedger.BalanceUpdate(root_, parent_, addr_, _balance);
+                return;
             }
-            if (_isCredit) {
-                if (_s.balance[_root] < amount_) {
-                    revert ILedger.InsufficientBalance(_root, parent_, addr_, amount_);
-                }
-                _balance = _s.balance[_root] - amount_;
-                _s.balance[_root] = _balance;
-            } else {
-                _balance = _s.balance[_root] + amount_;
-                _s.balance[_root] = _balance;
-            }
-            _root = _parent;
-            _rootFlags = flags(_root);
+            _current = _parent;
+            _isCredit = isCredit(_parentFlags);
             _parent = _s.parent[_parent];
-            _isCredit = isCredit(_rootFlags);
+            _parentFlags = flags(_parent);
             _depth++;
         }
         revert ILedger.MaxDepthExceeded();
     }
 
-    function credit(address parent_, address addr_, uint256 amount_) internal returns (address _root) {
+    function credit(address root_, address parent_, address addr_, uint256 amount_) internal {
+        if (root_ == address(0)) revert ILedger.ZeroAddress();
+        address _current = toAddress(parent_, addr_);
+        uint256 _currentFlags = flags(_current);
+        if (isGroup(_currentFlags)) revert ILedger.InvalidLedgerAccount(_current);
         uint256 _parentFlags = flags(parent_);
-        if (!isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
-        _root = toAddress(parent_, addr_);
-        uint256 _rootFlags = flags(_root);
-        bool _isCredit = isRegistered(_rootFlags) ? isCredit(_rootFlags) : isCredit(_parentFlags);
+        bool _isRegistered = isRegistered(_currentFlags);
+        bool _isCreditSide = _isRegistered ? isCredit(_currentFlags) : isCredit(_parentFlags);
+        bool _isCredit = _isCreditSide;
 
         Store storage _s = store();
         uint256 _balance;
         uint8 _depth;
         address _parent = parent_;
         while (_depth < MAX_DEPTH) {
-            // Do not update the balance of the root
-            if (_parent == address(0)) {
+            if (_parent != root_ && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
+            _balance = _isCreditSide ? _s.credits[_current] : _s.debits[_current];
+            if (_isCredit) {
+                _balance += amount_;
+            } else {
+                if (_balance < amount_) {
+                    revert ILedger.InsufficientBalance(root_, parent_, addr_, amount_);
+                }
+                _balance -= amount_;
+            }
+            if (_isCreditSide) _s.credits[_current] = _balance;
+            else _s.debits[_current] = _balance;
+            if (_current == root_) {
                 // Root found
                 // Emits once after a successful full walk.
                 // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
-                emit ILedger.Credit(_root, parent_, addr_, amount_);
-                emit ILedger.BalanceUpdate(_root, parent_, addr_, _balance);
-                return _root;
+                emit ILedger.Credit(root_, parent_, addr_, amount_);
+                emit ILedger.BalanceUpdate(root_, parent_, addr_, _balance);
+                return;
             }
-            if (_isCredit) {
-                _balance = _s.balance[_root] + amount_;
-                _s.balance[_root] = _balance;
-            } else {
-                if (_s.balance[_root] < amount_) {
-                    revert ILedger.InsufficientBalance(_root, parent_, addr_, amount_);
-                }
-                _balance = _s.balance[_root] - amount_;
-                _s.balance[_root] = _balance;
-            }
-            _root = _parent;
-            _rootFlags = flags(_root);
+            _current = _parent;
+            _isCredit = isCredit(_parentFlags);
             _parent = _s.parent[_parent];
-            _isCredit = isCredit(_rootFlags);
+            _parentFlags = flags(_parent);
             _depth++;
         }
         revert ILedger.MaxDepthExceeded();
@@ -610,7 +626,8 @@ library LedgerLib {
         if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
         if (token_ == NATIVE_ADDRESS) {
             transfer(token_, msg.sender, sourceParent_, source_, amount_);
-            Address.sendValue(payable(msg.sender), amount_);
+            (bool _success,) = payable(msg.sender).call{value: amount_}("");
+            require(_success);
         } else {
             address _wrapper = wrapper(flags(token_));
             if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
@@ -623,20 +640,19 @@ library LedgerLib {
         internal
         returns (bool)
     {
-        address _creditRoot = credit(fromParent_, from_, amount_);
-        address _debitRoot = debit(toParent_, to_, amount_);
-        if (_creditRoot != _debitRoot) {
-            revert ILedger.DifferentRoots(_creditRoot, _debitRoot);
+        address _root = root(fromParent_);
+        address _toRoot = root(toParent_);
+        if (_root != _toRoot) {
+            revert ILedger.DifferentRoots(_root, _toRoot);
         }
+        credit(_root, fromParent_, from_, amount_);
+        debit(_root, toParent_, to_, amount_);
         return true;
     }
 
     function reallocate(address fromToken_, address toToken_, uint256 amount_) internal {
         if (amount_ == 0) return;
 
-        address _fromParent = LedgerLib.accountTypeRootAddress(address(this), isCredit(flags(fromToken_)));
-        address _toParent = LedgerLib.accountTypeRootAddress(address(this), isCredit(flags(toToken_)));
-
-        LedgerLib.transfer(_fromParent, fromToken_, _toParent, toToken_, amount_);
+        LedgerLib.transfer(address(this), fromToken_, address(this), toToken_, amount_);
     }
 }

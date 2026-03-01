@@ -21,6 +21,7 @@ Apply this throughout responses—explanations, status updates, error descriptio
 - Pause to confirm intent before assumptions; do not guess.
 - For reviews, clarify scope first.
 - NEVER change storage layout (`Store` structs/slots, ERC-7201 positions, packed storage) without explicit user permission.
+- Onchain state rule: persist only mutations required for protocol functionality/correctness; prefer deriving analytics/reporting/audit views offchain.
 - Local variable naming: underscore suffix by default. Exception allowed for `*Context memory ctx` / `*Cache memory c`.
 - Style target: minimalist, consistent patterns, minimal locals/helpers, avoid redundant recomputation.
 - Section comment style: `// -- Section Name --` (avoid boxed multi-line separators).

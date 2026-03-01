@@ -41,7 +41,7 @@ contract ERC20WrapperTest is Test {
         ledgers.initializeTestLedger();
 
         if (isVerbose) console.log("Adding new token to ledger");
-        token = ERC20Wrapper(ledgers.createInternalToken("Internal Test Token", "ITT", 18, false));
+        token = ERC20Wrapper(ledgers.createInternalToken("Internal Test Token", "ITT", 18));
 
         if (isVerbose) console.log("Creating external token + wrapper");
         externalToken = new MockERC20("External Token", "EXT", 18);
@@ -89,7 +89,7 @@ contract ERC20WrapperTest is Test {
     function testERC20WrapperCreateToken() public {
         vm.startPrank(owner);
 
-        address _newToken = ledgers.createInternalToken("New Test Token", "NTT", 18, false);
+        address _newToken = ledgers.createInternalToken("New Test Token", "NTT", 18);
         assertEq(ERC20Wrapper(_newToken).name(), "New Test Token");
         assertEq(ERC20Wrapper(_newToken).symbol(), "NTT");
         assertEq(ERC20Wrapper(_newToken).decimals(), 18);
@@ -233,8 +233,8 @@ contract ERC20WrapperTest is Test {
         ledgers.wrap(
             address(externalToken),
             wrapAmount,
-            LedgerLib.toAddress(address(externalToken), LedgerLib.TOTAL_ADDRESS),
-            alice
+            address(externalToken),
+            LedgerLib.RESERVE_ADDRESS
         );
         vm.stopPrank();
 
@@ -262,8 +262,8 @@ contract ERC20WrapperTest is Test {
         ledgers.wrap(
             address(externalToken),
             wrapAmount,
-            LedgerLib.toAddress(address(externalToken), LedgerLib.TOTAL_ADDRESS),
-            alice
+            address(externalToken),
+            LedgerLib.RESERVE_ADDRESS
         );
         // vm.stopPrank();
 

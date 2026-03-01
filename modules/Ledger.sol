@@ -202,7 +202,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("createNativeWrapper(string,string)"));
         _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
-        _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,bool)"));
+        _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
         _selectors[n++] = bytes4(keccak256("name(address)"));
@@ -240,7 +240,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     function initializeLedger_unchained() public onlyInitializing {
         enforceIsOwner();
 
-        LedgerLib.addLedger(address(this), address(0), "Scale", "SCALE", 18, false, true);
+        LedgerLib.addLedger(address(this), address(0), "Scale", "SCALE", 18, true);
     }
 
     function initializeLedger() external initializer {
@@ -277,13 +277,13 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         LedgerLib.createWrappedToken(token_);
     }
 
-    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
         external
         returns (address)
     {
         enforceIsOwner();
 
-        return LedgerLib.createInternalToken(name_, symbol_, decimals_, isCredit_);
+        return LedgerLib.createInternalToken(name_, symbol_, decimals_);
     }
 
     function removeSubAccountGroup(address parent_, string memory name_) external returns (address) {
@@ -383,26 +383,27 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     //=========================
     // Subaccount balances
     function balanceOf(address parent_, string memory subName_) external view returns (uint256) {
-        return LedgerLib.balanceOf(LedgerLib.toAddress(parent_, subName_));
+        address _account = LedgerLib.toAddress(parent_, subName_);
+        return LedgerLib.balanceOf(_account, LedgerLib.isCredit(LedgerLib.flags(_account)));
     }
 
     // Ledger account balances
     function balanceOf(address parent_, address owner_) external view returns (uint256) {
-        return LedgerLib.balanceOf(LedgerLib.toAddress(parent_, owner_));
+        address _account = LedgerLib.toAddress(parent_, owner_);
+        return LedgerLib.balanceOf(_account, LedgerLib.isCredit(LedgerLib.flags(_account)));
     }
 
     function totalSupply(address token_) external view returns (uint256) {
-        return LedgerLib.balanceOf(LedgerLib.toAddress(token_, LedgerLib.TOTAL_ADDRESS));
+        return LedgerLib.totalSupply(token_);
     }
 
     function scaleAddress(address token_) external view returns (address) {
-        return LedgerLib.toAddress(
-            LedgerLib.accountTypeRootAddress(address(this), LedgerLib.isCredit(LedgerLib.flags(token_))), token_
-        );
+        return LedgerLib.toAddress(address(this), token_);
     }
 
     function scale(address token_) external view returns (uint256) {
-        return LedgerLib.scale(token_, LedgerLib.isCredit(LedgerLib.flags(token_)));
+        address _scaleAccount = LedgerLib.toAddress(address(this), token_);
+        return LedgerLib.scale(token_, LedgerLib.isCredit(LedgerLib.flags(_scaleAccount)));
     }
 
     //===========
