@@ -42,10 +42,12 @@ contract ERC20WrapperTest is Test {
 
         if (isVerbose) console.log("Adding new token to ledger");
         token = ERC20Wrapper(ledgers.createInternalToken("Internal Test Token", "ITT", 18));
+        ledgers.addSubAccount(address(token), LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         if (isVerbose) console.log("Creating external token + wrapper");
         externalToken = new MockERC20("External Token", "EXT", 18);
         ledgers.createWrappedToken(address(externalToken));
+        ledgers.addSubAccount(address(externalToken), LedgerLib.SOURCE_ADDRESS, "Source", true);
         externalWrapper = ERC20Wrapper(ledgers.wrapper(address(externalToken)));
 
         if (isVerbose) console.log("Token added");
@@ -224,7 +226,7 @@ contract ERC20WrapperTest is Test {
         assertEq(token.allowance(alice, bob), 0);
     }
 
-    function testWrappedExternalWrapperSurfaceMatchesLedger() public {
+    function testERC20WrapperWrappedExternalSurfaceMatchesLedger() public {
         uint256 wrapAmount = 250;
 
         vm.startPrank(alice);
@@ -234,7 +236,7 @@ contract ERC20WrapperTest is Test {
             address(externalToken),
             wrapAmount,
             address(externalToken),
-            LedgerLib.RESERVE_ADDRESS
+            LedgerLib.SOURCE_ADDRESS
         );
         vm.stopPrank();
 
@@ -250,7 +252,7 @@ contract ERC20WrapperTest is Test {
         assertEq(externalWrapper.token(), address(externalToken), "external wrapped token");
     }
 
-    function testWrappedExternalWrapperTransferThroughSurface() public {
+    function testERC20WrapperWrappedExternalTransferThroughSurface() public {
         bool isVerbose = false;
 
         uint256 wrapAmount = 100;
@@ -263,7 +265,7 @@ contract ERC20WrapperTest is Test {
             address(externalToken),
             wrapAmount,
             address(externalToken),
-            LedgerLib.RESERVE_ADDRESS
+            LedgerLib.SOURCE_ADDRESS
         );
         // vm.stopPrank();
 
