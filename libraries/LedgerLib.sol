@@ -36,7 +36,7 @@ library LedgerLib {
     // toAddress("Native")
     address internal constant NATIVE_ADDRESS = 0xE0092BfAe8c1A1d8CB953ed67bd42A4861E423F9;
     // toAddress("Unallocated")
-    address internal constant UNALLOCATED_ADDRESS = 0xCb7943b1c8232a1F49aFDe9B865B7fB4C5870738;
+    address internal constant SOURCE_ADDRESS = 0x245f14e61ecde591FD8B445DC8e2bF76da4505E6;
     uint256 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
     uint256 constant FLAG_IS_CREDIT = 1 << 1; // 1 = credit account, 0 = debit
     uint256 constant FLAG_IS_INTERNAL = 1 << 2; // 1 = internal token, 0 = external token
@@ -78,18 +78,6 @@ library LedgerLib {
         _flags |= (uint256(depth_) << FLAG_DEPTH_SHIFT);
         _flags |= (uint256(uint160(wrapper_)) << PACK_ADDR_SHIFT);
     }
-
-    // function flags(address addr_)
-    //     internal
-    //     view
-    //     returns (address _wrapper, bool _isGroup, bool _isCredit, bool _isInternal)
-    // {
-    //     uint256 _flags = store().flags[addr_];
-    //     _wrapper = address(uint160(_flags >> PACK_ADDR_SHIFT));
-    //     _isGroup = (_flags & FLAG_IS_GROUP) != 0;
-    //     _isCredit = (_flags & FLAG_IS_CREDIT) != 0;
-    //     _isInternal = (_flags & FLAG_IS_INTERNAL) != 0;
-    // }
 
     function flags(address addr_) internal view returns (uint256) {
         return store().flags[addr_];
@@ -526,25 +514,24 @@ library LedgerLib {
         uint256 _parentFlags = flags(parent_);
         bool _isRegistered = isRegistered(_currentFlags);
         bool _isCreditSide = _isRegistered ? isCredit(_currentFlags) : isCredit(_parentFlags);
-        bool _isCredit = _isCreditSide;
 
         Store storage _s = store();
         uint256 _balance;
         uint8 _depth;
         address _parent = parent_;
         while (_depth < MAX_DEPTH) {
-            if (_parent != root_ && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
-            _balance = _isCreditSide ? _s.credits[_current] : _s.debits[_current];
-            if (_isCredit) {
+            if (_current != root_ && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
+            if (_isCreditSide) {
+                _balance = _s.credits[_current];
                 if (_balance < amount_) {
                     revert ILedger.InsufficientBalance(root_, parent_, addr_, amount_);
                 }
                 _balance -= amount_;
+                _s.credits[_current] = _balance;
             } else {
-                _balance += amount_;
+                _balance = _s.debits[_current] + amount_;
+                _s.debits[_current] = _balance;
             }
-            if (_isCreditSide) _s.credits[_current] = _balance;
-            else _s.debits[_current] = _balance;
             if (_current == root_) {
                 // Root found
                 // Emits once after a successful full walk.
@@ -554,7 +541,6 @@ library LedgerLib {
                 return;
             }
             _current = _parent;
-            _isCredit = isCredit(_parentFlags);
             _parent = _s.parent[_parent];
             _parentFlags = flags(_parent);
             _depth++;
@@ -570,25 +556,24 @@ library LedgerLib {
         uint256 _parentFlags = flags(parent_);
         bool _isRegistered = isRegistered(_currentFlags);
         bool _isCreditSide = _isRegistered ? isCredit(_currentFlags) : isCredit(_parentFlags);
-        bool _isCredit = _isCreditSide;
 
         Store storage _s = store();
         uint256 _balance;
         uint8 _depth;
         address _parent = parent_;
         while (_depth < MAX_DEPTH) {
-            if (_parent != root_ && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
-            _balance = _isCreditSide ? _s.credits[_current] : _s.debits[_current];
-            if (_isCredit) {
-                _balance += amount_;
+            if (_current != root_ && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
+            if (_isCreditSide) {
+                _balance = _s.credits[_current] + amount_;
+                _s.credits[_current] = _balance;
             } else {
+                _balance = _s.debits[_current];
                 if (_balance < amount_) {
                     revert ILedger.InsufficientBalance(root_, parent_, addr_, amount_);
                 }
                 _balance -= amount_;
+                _s.debits[_current] = _balance;
             }
-            if (_isCreditSide) _s.credits[_current] = _balance;
-            else _s.debits[_current] = _balance;
             if (_current == root_) {
                 // Root found
                 // Emits once after a successful full walk.
@@ -598,7 +583,6 @@ library LedgerLib {
                 return;
             }
             _current = _parent;
-            _isCredit = isCredit(_parentFlags);
             _parent = _s.parent[_parent];
             _parentFlags = flags(_parent);
             _depth++;
