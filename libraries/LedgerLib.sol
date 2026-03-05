@@ -12,7 +12,7 @@ library LedgerLib {
         mapping(address => string) symbol;
         mapping(address => uint8) decimals;
         mapping(address => address) root;
-        mapping(address sub => address) parent;
+        mapping(address => address) wrapper;
         mapping(address parent => address[]) subs;
         mapping(address sub => uint32) subIndex;
         mapping(address => uint256) flags;
@@ -60,7 +60,7 @@ library LedgerLib {
     }
 
     function flags(
-        address wrapper_,
+        address parent_,
         bool isGroup_,
         bool isCredit_,
         bool isInternal_,
@@ -76,14 +76,14 @@ library LedgerLib {
         if (isWrapper_) _flags |= FLAG_IS_WRAPPER;
         if (isRegistered_) _flags |= FLAG_IS_REGISTERED;
         _flags |= (uint256(depth_) << FLAG_DEPTH_SHIFT);
-        _flags |= (uint256(uint160(wrapper_)) << PACK_ADDR_SHIFT);
+        _flags |= (uint256(uint160(parent_)) << PACK_ADDR_SHIFT);
     }
 
     function flags(address addr_) internal view returns (uint256) {
         return store().flags[addr_];
     }
 
-    function wrapper(uint256 flags_) internal pure returns (address) {
+    function parent(uint256 flags_) internal pure returns (address) {
         return address(uint160(flags_ >> PACK_ADDR_SHIFT));
     }
 
@@ -113,6 +113,10 @@ library LedgerLib {
 
     function isExternal(uint256 flags_) internal pure returns (bool) {
         return !isInternal(flags_) && !isNative(flags_);
+    }
+
+    function isRoot(uint256 flags_) internal pure returns (bool) {
+        return depth(flags_) == 1 && isGroup(flags_) && isRegistered(flags_) && parent(flags_) == address(0);
     }
 
     function depth(uint256 flags_) internal pure returns (uint8) {
@@ -192,7 +196,11 @@ library LedgerLib {
     }
 
     function parent(address addr_) internal view returns (address) {
-        return store().parent[addr_];
+        return parent(flags(addr_));
+    }
+
+    function wrapper(address addr_) internal view returns (address) {
+        return store().wrapper[addr_];
     }
 
     function subAccounts(address addr_) internal view returns (address[] memory) {
@@ -227,10 +235,11 @@ library LedgerLib {
         return store().credits[addr_];
     }
 
-    function balanceOf(address addr_, bool isCredit_) internal view returns (uint256) {
+    function balanceOf(address addr_) internal view returns (uint256) {
         Store storage _s = store();
-        if (isCredit_) return _s.credits[addr_] - _s.debits[addr_];
-        return _s.debits[addr_] - _s.credits[addr_];
+        uint256 _debitBalance = _s.debits[addr_];
+        uint256 _creditBalance = _s.credits[addr_];
+        return _debitBalance > _creditBalance ? _debitBalance - _creditBalance : _creditBalance - _debitBalance;
     }
 
     function hasBalance(address addr_) internal view returns (bool) {
@@ -241,9 +250,13 @@ library LedgerLib {
         return debitOf(token_);
     }
 
-    function scale(address token_, bool isCredit_) internal view returns (uint256) {
+    function scale(address token_) internal view returns (uint256) {
         address _scaleAccount = toAddress(address(this), token_);
-        return balanceOf(_scaleAccount, isCredit_);
+        return balanceOf(_scaleAccount);
+    }
+
+    function totalScale() internal view returns (uint256) {
+        return totalSupply(address(this));
     }
 
     //==================================================================
@@ -276,10 +289,9 @@ library LedgerLib {
         Store storage _s = store();
         _s.name[_sub] = name_;
         _s.root[_sub] = _root;
-        _s.parent[_sub] = parent_;
         _s.subs[parent_].push(toAddress(name_));
         _s.subIndex[_sub] = uint32(_s.subs[parent_].length);
-        _s.flags[_sub] = flags(_root, true, isCredit_, true, false, false, true, _depth);
+        _s.flags[_sub] = flags(parent_, true, isCredit_, true, false, false, true, _depth);
         emit ILedger.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
     }
 
@@ -312,10 +324,9 @@ library LedgerLib {
         Store storage _s = store();
         _s.name[_sub] = name_;
         _s.root[_sub] = _root;
-        _s.parent[_sub] = parent_;
         _s.subs[parent_].push(addr_);
         _s.subIndex[_sub] = uint32(_s.subs[parent_].length);
-        _s.flags[_sub] = flags(_root, false, isCredit_, true, false, false, true, _depth);
+        _s.flags[_sub] = flags(parent_, false, isCredit_, true, false, false, true, _depth);
         emit ILedger.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
@@ -352,9 +363,10 @@ library LedgerLib {
         _s.symbol[root_] = symbol_;
         _s.decimals[root_] = decimals_;
         _s.root[root_] = root_;
+        _s.wrapper[root_] = wrapper_;
         bool _isNative = root_ == NATIVE_ADDRESS;
         bool _isWrapper = !isZeroAddress(wrapper_);
-        _s.flags[root_] = flags(wrapper_, true, false, isInternal_, _isNative, _isWrapper, true, 1);
+        _s.flags[root_] = flags(address(0), true, false, isInternal_, _isNative, _isWrapper, true, 1);
 
         // Register token under Scale root (skip Scale root itself).
         if (root_ != address(this)) {
@@ -422,7 +434,7 @@ library LedgerLib {
             revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
         }
         wrapper_ = address(new ERC20Wrapper(address(this), address(0), name_, symbol_, decimals_));
-        if (wrapper_ == wrapper(flags(wrapper_))) {
+        if (wrapper_ == wrapper(wrapper_)) {
             revert ILedger.DuplicateToken(wrapper_);
         }
         addLedger(wrapper_, wrapper_, name_, symbol_, decimals_, true);
@@ -455,7 +467,6 @@ library LedgerLib {
 
         _s.name[_sub] = "";
         _s.root[_sub] = address(0);
-        _s.parent[_sub] = address(0);
         _s.subIndex[_sub] = 0;
         _s.flags[_sub] = 0;
 
@@ -492,7 +503,6 @@ library LedgerLib {
 
         _s.name[_sub] = "";
         _s.root[_sub] = address(0);
-        _s.parent[_sub] = address(0);
         _s.subIndex[_sub] = 0;
         _s.flags[_sub] = 0;
 
@@ -541,7 +551,7 @@ library LedgerLib {
                 return;
             }
             _current = _parent;
-            _parent = _s.parent[_parent];
+            _parent = parent(_parentFlags);
             _parentFlags = flags(_parent);
             _depth++;
         }
@@ -583,7 +593,7 @@ library LedgerLib {
                 return;
             }
             _current = _parent;
-            _parent = _s.parent[_parent];
+            _parent = parent(_parentFlags);
             _parentFlags = flags(_parent);
             _depth++;
         }
@@ -599,7 +609,7 @@ library LedgerLib {
             // so no external transfer is needed.
         } else {
             if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
-            address _wrapper = wrapper(flags(token_));
+            address _wrapper = wrapper(token_);
             if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
             SafeERC20.safeTransferFrom(IERC20(token_), msg.sender, address(this), amount_);
         }
@@ -613,7 +623,7 @@ library LedgerLib {
             (bool _success,) = payable(msg.sender).call{value: amount_}("");
             require(_success);
         } else {
-            address _wrapper = wrapper(flags(token_));
+            address _wrapper = wrapper(token_);
             if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
             transfer(token_, msg.sender, sourceParent_, source_, amount_);
             SafeERC20.safeTransfer(IERC20(token_), msg.sender, amount_);
@@ -624,11 +634,7 @@ library LedgerLib {
         internal
         returns (bool)
     {
-        address _root = root(fromParent_);
-        address _toRoot = root(toParent_);
-        if (_root != _toRoot) {
-            revert ILedger.DifferentRoots(_root, _toRoot);
-        }
+        address _root = checkRoots(fromParent_, toParent_);
         credit(_root, fromParent_, from_, amount_);
         debit(_root, toParent_, to_, amount_);
         return true;

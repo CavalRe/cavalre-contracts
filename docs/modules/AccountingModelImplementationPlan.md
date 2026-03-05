@@ -57,7 +57,7 @@ Changes:
 - route reserve/scale registrations directly off root model
 - rewrite:
   - `totalSupply(address token)`
-  - `scaleAddress(address token)`
+  - `totalScale()`
   - `scale(address token)`
   to use root-side semantics instead of `TOTAL` pathing
 

@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4beb1bb5ec51300e77fe11434272324aa08bfb7c/libraries/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/eff46231d5d2a3b339a6c933eb930a9826eedb42/libraries/LedgerLib.sol)
 
 
 ## State Variables
@@ -18,13 +18,6 @@ uint8 internal constant MAX_DEPTH = 10
 ```
 
 
-### TOTAL_ADDRESS
-
-```solidity
-address internal constant TOTAL_ADDRESS = 0xa763678a2e868D872d408672C9f80B77F4d1d14B
-```
-
-
 ### RESERVE_ADDRESS
 
 ```solidity
@@ -39,10 +32,10 @@ address internal constant NATIVE_ADDRESS = 0xE0092BfAe8c1A1d8CB953ed67bd42A4861E
 ```
 
 
-### UNALLOCATED_ADDRESS
+### SOURCE_ADDRESS
 
 ```solidity
-address internal constant UNALLOCATED_ADDRESS = 0xCb7943b1c8232a1F49aFDe9B865B7fB4C5870738
+address internal constant SOURCE_ADDRESS = 0x245f14e61ecde591FD8B445DC8e2bF76da4505E6
 ```
 
 
@@ -88,6 +81,20 @@ uint256 constant FLAG_IS_REGISTERED = 1 << 5
 ```
 
 
+### FLAG_DEPTH_SHIFT
+
+```solidity
+uint256 constant FLAG_DEPTH_SHIFT = 8
+```
+
+
+### FLAG_DEPTH_MASK
+
+```solidity
+uint256 constant FLAG_DEPTH_MASK = uint256(0xff) << FLAG_DEPTH_SHIFT
+```
+
+
 ### PACK_ADDR_SHIFT
 
 ```solidity
@@ -122,13 +129,14 @@ function isZeroAddress(address addr_) internal pure returns (bool);
 
 ```solidity
 function flags(
-    address wrapper_,
+    address parent_,
     bool isGroup_,
     bool isCredit_,
     bool isInternal_,
     bool isNative_,
     bool isWrapper_,
-    bool isRegistered_
+    bool isRegistered_,
+    uint8 depth_
 ) internal pure returns (uint256 _flags);
 ```
 
@@ -139,11 +147,11 @@ function flags(
 function flags(address addr_) internal view returns (uint256);
 ```
 
-### wrapper
+### parent
 
 
 ```solidity
-function wrapper(uint256 flags_) internal pure returns (address);
+function parent(uint256 flags_) internal pure returns (address);
 ```
 
 ### isGroup
@@ -193,6 +201,20 @@ function isRegistered(uint256 flags_) internal pure returns (bool);
 
 ```solidity
 function isExternal(uint256 flags_) internal pure returns (bool);
+```
+
+### isRoot
+
+
+```solidity
+function isRoot(uint256 flags_) internal pure returns (bool);
+```
+
+### depth
+
+
+```solidity
+function depth(uint256 flags_) internal pure returns (uint8);
 ```
 
 ### isValidString
@@ -283,7 +305,7 @@ function decimals(address addr_) internal view returns (uint8);
 
 
 ```solidity
-function root(address addr_) internal view returns (address _root);
+function root(address addr_) internal view returns (address);
 ```
 
 ### parent
@@ -291,6 +313,13 @@ function root(address addr_) internal view returns (address _root);
 
 ```solidity
 function parent(address addr_) internal view returns (address);
+```
+
+### wrapper
+
+
+```solidity
+function wrapper(address addr_) internal view returns (address);
 ```
 
 ### subAccounts
@@ -321,6 +350,20 @@ function hasSubAccount(address addr_) internal view returns (bool);
 function subAccountIndex(address parent_, address addr_) internal view returns (uint32);
 ```
 
+### debitOf
+
+
+```solidity
+function debitOf(address addr_) internal view returns (uint256);
+```
+
+### creditOf
+
+
+```solidity
+function creditOf(address addr_) internal view returns (uint256);
+```
+
 ### balanceOf
 
 
@@ -335,18 +378,11 @@ function balanceOf(address addr_) internal view returns (uint256);
 function hasBalance(address addr_) internal view returns (bool);
 ```
 
-### accountTypeRootAddress
+### totalSupply
 
 
 ```solidity
-function accountTypeRootAddress(address addr_, bool isCredit_) internal pure returns (address);
-```
-
-### scale
-
-
-```solidity
-function scale(address token_, bool isCredit_) internal view returns (uint256);
+function totalSupply(address token_) internal view returns (uint256 _supply);
 ```
 
 ### scale
@@ -354,6 +390,13 @@ function scale(address token_, bool isCredit_) internal view returns (uint256);
 
 ```solidity
 function scale(address token_) internal view returns (uint256);
+```
+
+### totalScale
+
+
+```solidity
+function totalScale() internal view returns (uint256);
 ```
 
 ### addSubAccountGroup
@@ -382,7 +425,6 @@ function addLedger(
     string memory name_,
     string memory symbol_,
     uint8 decimals_,
-    bool isCredit_,
     bool isInternal_
 ) internal;
 ```
@@ -409,7 +451,7 @@ function createWrappedToken(address token_)
 
 
 ```solidity
-function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
     internal
     returns (address wrapper_);
 ```
@@ -432,14 +474,14 @@ function removeSubAccount(address parent_, address addr_) internal returns (addr
 
 
 ```solidity
-function debit(address parent_, address addr_, uint256 amount_) internal returns (address _root);
+function debit(address root_, address parent_, address addr_, uint256 amount_) internal;
 ```
 
 ### credit
 
 
 ```solidity
-function credit(address parent_, address addr_, uint256 amount_) internal returns (address _root);
+function credit(address root_, address parent_, address addr_, uint256 amount_) internal;
 ```
 
 ### wrap
@@ -481,11 +523,12 @@ struct Store {
     mapping(address => string) symbol;
     mapping(address => uint8) decimals;
     mapping(address => address) root;
-    mapping(address sub => address) parent;
+    mapping(address => address) wrapper;
     mapping(address parent => address[]) subs;
     mapping(address sub => uint32) subIndex;
     mapping(address => uint256) flags;
-    mapping(address => uint256) balance;
+    mapping(address => uint256) debits;
+    mapping(address => uint256) credits;
 }
 ```
 

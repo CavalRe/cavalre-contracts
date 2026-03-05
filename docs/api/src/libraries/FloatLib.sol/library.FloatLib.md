@@ -1,5 +1,5 @@
 # FloatLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4beb1bb5ec51300e77fe11434272324aa08bfb7c/libraries/FloatLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/eff46231d5d2a3b339a6c933eb930a9826eedb42/libraries/FloatLib.sol)
 
 
 ## State Variables
@@ -401,12 +401,5 @@ function mantissa(Float a_) internal pure returns (int256);
 
 ```solidity
 function exponent(Float a_) internal pure returns (int256);
-```
-
-## Errors
-### NoSolution
-
-```solidity
-error NoSolution();
 ```
 

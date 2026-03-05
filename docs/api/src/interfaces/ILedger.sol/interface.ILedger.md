@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4beb1bb5ec51300e77fe11434272324aa08bfb7c/interfaces/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/eff46231d5d2a3b339a6c933eb930a9826eedb42/interfaces/ILedger.sol)
 
 
 ## Functions
@@ -122,6 +122,13 @@ function isRegistered(uint256 flags) external pure returns (bool);
 function isExternal(uint256 flags) external pure returns (bool);
 ```
 
+### isRoot
+
+
+```solidity
+function isRoot(uint256 flags) external pure returns (bool);
+```
+
 ### subAccounts
 
 
@@ -177,9 +184,7 @@ function createWrappedToken(address token) external;
 
 
 ```solidity
-function createInternalToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
-    external
-    returns (address);
+function createInternalToken(string memory name, string memory symbol, uint8 decimals) external returns (address);
 ```
 
 ### removeSubAccountGroup
@@ -217,18 +222,18 @@ function balanceOf(address parent, address owner) external view returns (uint256
 function totalSupply(address token) external view returns (uint256);
 ```
 
-### scaleAddress
-
-
-```solidity
-function scaleAddress(address token) external view returns (address);
-```
-
 ### scale
 
 
 ```solidity
 function scale(address token) external view returns (uint256);
+```
+
+### totalScale
+
+
+```solidity
+function totalScale() external view returns (uint256);
 ```
 
 ### transfer
@@ -280,12 +285,6 @@ event Credit(address indexed token, address indexed parent, address indexed acco
 event Debit(address indexed token, address indexed parent, address indexed account, uint256 value);
 ```
 
-### InternalApproval
-
-```solidity
-event InternalApproval(address indexed ownerParent, address indexed owner, address indexed spender, uint256 value);
-```
-
 ### LedgerAdded
 
 ```solidity
@@ -333,12 +332,6 @@ event Approval(address indexed owner, address indexed spender, uint256 value);
 
 ```solidity
 error DifferentRoots(address a, address b);
-```
-
-### DuplicateSubAccount
-
-```solidity
-error DuplicateSubAccount(address sub);
 ```
 
 ### DuplicateToken
@@ -401,12 +394,6 @@ error InvalidAccountGroup();
 error InvalidLedgerAccount(address ledgerAddress);
 ```
 
-### InvalidReallocation
-
-```solidity
-error InvalidReallocation(address token, int256 reallocation);
-```
-
 ### InvalidString
 
 ```solidity
@@ -443,12 +430,6 @@ error InvalidToken(address token, string name, string symbol, uint8 decimals);
 error MaxDepthExceeded();
 ```
 
-### NotCredit
-
-```solidity
-error NotCredit(string name);
-```
-
 ### SubAccountNotFound
 
 ```solidity
@@ -471,11 +452,5 @@ error Unauthorized(address user);
 
 ```solidity
 error ZeroAddress();
-```
-
-### ZeroScale
-
-```solidity
-error ZeroScale(address addr);
 ```
 

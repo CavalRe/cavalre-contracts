@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4beb1bb5ec51300e77fe11434272324aa08bfb7c/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/eff46231d5d2a3b339a6c933eb930a9826eedb42/modules/Ledger.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [ILedger](/interfaces/ILedger.sol/interface.ILedger.md)
@@ -123,7 +123,7 @@ function createWrappedToken(address token_) external;
 
 
 ```solidity
-function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
     external
     returns (address);
 ```
@@ -254,6 +254,13 @@ function isRegistered(uint256 flags_) external pure returns (bool);
 function isExternal(uint256 flags_) external pure returns (bool);
 ```
 
+### isRoot
+
+
+```solidity
+function isRoot(uint256 flags_) external pure returns (bool);
+```
+
 ### subAccounts
 
 
@@ -296,18 +303,18 @@ function balanceOf(address parent_, address owner_) external view returns (uint2
 function totalSupply(address token_) external view returns (uint256);
 ```
 
-### scaleAddress
-
-
-```solidity
-function scaleAddress(address token_) external view returns (address);
-```
-
 ### scale
 
 
 ```solidity
 function scale(address token_) external view returns (uint256);
+```
+
+### totalScale
+
+
+```solidity
+function totalScale() external view returns (uint256);
 ```
 
 ### _enforceWrapperCaller

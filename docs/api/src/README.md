@@ -82,6 +82,10 @@ forge test
 forge doc
 ```
 
+Documentation:
+
+- [Docs Index](docs/README.md)
+
 ## License
 
 MIT

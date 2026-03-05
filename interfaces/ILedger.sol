@@ -45,6 +45,8 @@ interface ILedger {
 
     function isExternal(uint256 flags) external pure returns (bool);
 
+    function isRoot(uint256 flags) external pure returns (bool);
+
     function subAccounts(address parent) external view returns (address[] memory);
 
     function hasSubAccount(address parent) external view returns (bool);
@@ -79,9 +81,9 @@ interface ILedger {
 
     function totalSupply(address token) external view returns (uint256);
 
-    function scaleAddress(address token) external view returns (address);
-
     function scale(address token) external view returns (uint256);
+
+    function totalScale() external view returns (uint256);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
@@ -101,7 +103,6 @@ interface ILedger {
     // Custom errors
     // ─────────────────────────────────────────────────────────────────────────────
     error DifferentRoots(address a, address b);
-    error DuplicateSubAccount(address sub);
     error DuplicateToken(address token);
     error HasBalance(address addr);
     error HasSubAccount(address addr);
@@ -112,19 +113,16 @@ interface ILedger {
     error InvalidDecimals(uint8 decimals);
     error InvalidAccountGroup();
     error InvalidLedgerAccount(address ledgerAddress);
-    error InvalidReallocation(address token, int256 reallocation);
     error InvalidString(string symbol);
     error InvalidSubAccount(address addr, bool isCredit);
     error InvalidSubAccountGroup(string subName, bool isCredit);
     error InvalidSubAccountIndex(uint256 index);
     error InvalidToken(address token, string name, string symbol, uint8 decimals);
     error MaxDepthExceeded();
-    error NotCredit(string name);
     error SubAccountNotFound(address addr);
     error SubAccountGroupNotFound(string subName);
     error Unauthorized(address user);
     error ZeroAddress();
-    error ZeroScale(address addr);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Events (Double-entry journal)
@@ -137,7 +135,6 @@ interface ILedger {
     event BalanceUpdate(address indexed token, address indexed parent, address indexed account, uint256 newBalance);
     event Credit(address indexed token, address indexed parent, address indexed account, uint256 value);
     event Debit(address indexed token, address indexed parent, address indexed account, uint256 value);
-    event InternalApproval(address indexed ownerParent, address indexed owner, address indexed spender, uint256 value);
     event LedgerAdded(address indexed tokenAddress, string name, string symbol, uint8 decimals);
     event SubAccountAdded(address indexed root, address indexed parent, address addr, bool isCredit);
     event SubAccountGroupAdded(address indexed root, address indexed parent, string subName, bool isCredit);

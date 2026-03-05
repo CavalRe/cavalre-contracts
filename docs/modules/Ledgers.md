@@ -24,9 +24,10 @@ Ledger storage lives in `libraries/LedgerLib.sol` (`LedgerLib.Store`) under an E
 Core fields include:
 
 - metadata maps (`name`, `symbol`, `decimals`)
-- tree maps (`root`, `parent`, `subs`, `subIndex`)
+- tree maps (`root`, `subs`, `subIndex`)
+- wrapper map (`wrapper`) for token roots
 - flags map (`flags`)
-- balances map (`balance`)
+- balances maps (`debits`, `credits`)
 
 ## Events
 
@@ -40,7 +41,6 @@ Primary ledger/accounting events:
 - `SubAccountGroupAdded`
 - `SubAccountRemoved`
 - `SubAccountGroupRemoved`
-- `InternalApproval`
 
 ERC20-style wrapper events are emitted by wrapper contracts (`Transfer`, `Approval`).
 

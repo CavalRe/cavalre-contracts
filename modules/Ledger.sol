@@ -196,7 +196,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](36);
+        _selectors = new bytes4[](37);
         _selectors[n++] = bytes4(keccak256("initializeLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
@@ -221,20 +221,21 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("isWrapper(uint256)"));
         _selectors[n++] = bytes4(keccak256("isRegistered(uint256)"));
         _selectors[n++] = bytes4(keccak256("isExternal(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isRoot(uint256)"));
         _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
         _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
         _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
         _selectors[n++] = bytes4(keccak256("balanceOf(address,string)"));
         _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
-        _selectors[n++] = bytes4(keccak256("scaleAddress(address)"));
         _selectors[n++] = bytes4(keccak256("scale(address)"));
+        _selectors[n++] = bytes4(keccak256("totalScale()"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256,address,address)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256,address,address)"));
 
-        if (n != 36) revert InvalidCommandsLength(n);
+        if (n != 37) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained() public onlyInitializing {
@@ -334,8 +335,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     }
 
     function wrapper(address token_) external view returns (address) {
-        uint256 _flags = LedgerLib.flags(token_);
-        return LedgerLib.wrapper(_flags);
+        return LedgerLib.wrapper(token_);
     }
 
     function isGroup(uint256 flags_) external pure returns (bool) {
@@ -366,6 +366,10 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.isExternal(flags_);
     }
 
+    function isRoot(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isRoot(flags_);
+    }
+
     function subAccounts(address parent_) external view returns (address[] memory) {
         return LedgerLib.subAccounts(parent_);
     }
@@ -384,26 +388,25 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     // Subaccount balances
     function balanceOf(address parent_, string memory subName_) external view returns (uint256) {
         address _account = LedgerLib.toAddress(parent_, subName_);
-        return LedgerLib.balanceOf(_account, LedgerLib.isCredit(LedgerLib.flags(_account)));
+        return LedgerLib.balanceOf(_account);
     }
 
     // Ledger account balances
     function balanceOf(address parent_, address owner_) external view returns (uint256) {
         address _account = LedgerLib.toAddress(parent_, owner_);
-        return LedgerLib.balanceOf(_account, LedgerLib.isCredit(LedgerLib.flags(_account)));
+        return LedgerLib.balanceOf(_account);
     }
 
     function totalSupply(address token_) external view returns (uint256) {
         return LedgerLib.totalSupply(token_);
     }
 
-    function scaleAddress(address token_) external view returns (address) {
-        return LedgerLib.toAddress(address(this), token_);
+    function scale(address token_) external view returns (uint256) {
+        return LedgerLib.scale(token_);
     }
 
-    function scale(address token_) external view returns (uint256) {
-        address _scaleAccount = LedgerLib.toAddress(address(this), token_);
-        return LedgerLib.scale(token_, LedgerLib.isCredit(LedgerLib.flags(_scaleAccount)));
+    function totalScale() external view returns (uint256) {
+        return LedgerLib.totalScale();
     }
 
     //===========
@@ -411,8 +414,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     //===========
 
     function _enforceWrapperCaller(address parent_) private view {
-        uint256 _rootFlags = LedgerLib.flags(LedgerLib.root(parent_));
-        if (msg.sender != LedgerLib.wrapper(_rootFlags)) {
+        if (msg.sender != LedgerLib.wrapper(LedgerLib.root(parent_))) {
             revert ILedger.Unauthorized(msg.sender);
         }
     }

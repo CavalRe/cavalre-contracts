@@ -10,9 +10,6 @@ library FloatLib {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 
-    // Errors
-    error NoSolution();
-
     //===============
     //   Constants
     //===============
