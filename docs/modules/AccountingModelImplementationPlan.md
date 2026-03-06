@@ -2,6 +2,8 @@
 
 ## Scope Lock
 
+This is a historical implementation checklist for the balance-column refactor that has since landed. References to `TOTAL` describe the old model being removed.
+
 - no onchain income statement tracking
 - no onchain cashflow statement tracking
 - use 2-column state (`debits`, `credits`)

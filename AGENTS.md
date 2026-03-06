@@ -87,14 +87,14 @@ forge clean
 - **Debit vs Credit**: Flagged via FLAG_IS_CREDIT
 - **Group vs Leaf**: Groups (containers) or leaves (actual balances)
 - **Internal vs External**: Internal (created) or external (wrapped ERC20s)
+- **Registration**: Roots/subaccounts carry `FLAG_IS_REGISTERED`
 - **Address encoding**: `keccak256(abi.encodePacked(parent, child))` via `LedgerLib.toAddress()`
 
 Special addresses (LedgerLib):
 
-- `TOTAL_ADDRESS` - account tree root
 - `RESERVE_ADDRESS` - reserve account
 - `NATIVE_ADDRESS` - native token (ETH)
-- `UNALLOCATED_ADDRESS` - unallocated for ops
+- `SOURCE_ADDRESS` - source/unallocated minting account
 
 **ERC20Wrapper**: Internal roots are self-wrapped at creation. Native/external roots may optionally get ERC20-compatible wrappers later via `createWrapper`. Wrapper surfaces delegate balance/allowance/transfers to Ledger via Router.
 
@@ -116,9 +116,9 @@ Each library (ModuleLib, LedgerLib, RouterLib): `Store` struct + `store()` funct
 `libraries/FloatLib.sol` - Custom fixed-point:
 
 - **Type**: `Float` wraps `int256`
-- **Structure**: 128-bit signed exponent (high) + 128-bit signed mantissa (low)
-- **Precision**: 18 significant digits
-- **Normalization**: Mantissa ∈ [10^17, 10^18 - 1]
+- **Structure**: signed base-10 exponent packed with a 72-bit mantissa
+- **Precision**: 21 significant digits
+- **Normalization**: Mantissa magnitude normalized to `[10^20, 10^21 - 1]`
 - **Constants**: ONE, TWO, ..., TEN predefined
 
 Enables precise arithmetic across decimal scales—critical for multi-decimal tokens in accounting.

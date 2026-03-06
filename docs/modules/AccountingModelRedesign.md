@@ -11,7 +11,7 @@ Main goals:
 - keep a clear interpretation of root balances in ERC20 terms
 - improve auditability without sacrificing accounting correctness
 
-This is a conceptual design note, not implementation guidance yet.
+This is a historical design note capturing the discussion that led to the current 2-column model. Some references below describe the pre-refactor state intentionally.
 
 ## Quick Ledger Primer (for readers new to `LedgerLib`)
 
@@ -21,9 +21,9 @@ CavalRe organizes accounts in a tree:
 - group accounts aggregate their descendants
 - each account has a normal side: `debit` or `credit`
 
-Today, `LedgerLib` stores one balance per account (`mapping(address => uint256) balance`) and uses account type plus transfer logic to propagate updates up the tree.
+At the time of this discussion, `LedgerLib` stored one balance per account (`mapping(address => uint256) balance`) and used account type plus transfer logic to propagate updates up the tree.
 
-Current code also carries asymmetry:
+That pre-refactor code also carried asymmetry:
 
 - a special `TOTAL_ADDRESS`
 - helper logic like `accountTypeRootAddress(...)`

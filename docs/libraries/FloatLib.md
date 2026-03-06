@@ -12,8 +12,8 @@ type Float is int256;
 
 The packed format stores:
 
-- signed exponent in high 128 bits
-- signed mantissa in low 128 bits
+- signed base-10 exponent in the high bits
+- signed mantissa in the low 72 bits
 
 Library helpers provide conversions, normalization, comparisons, and arithmetic over that representation.
 
@@ -24,6 +24,8 @@ Library helpers provide conversions, normalization, comparisons, and arithmetic 
 - arithmetic (`add`, `subtract`, `multiply`, `divide`, `fullMulDiv`)
 - comparisons and sign helpers (`isZero`, `isPositive`, `isNegative`, etc.)
 - exponentials/log helpers used by protocol math
+
+Current constants target 21 significant digits (`SIGNIFICANT_DIGITS = 21`).
 
 ## Source Of Truth
 

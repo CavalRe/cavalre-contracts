@@ -6,7 +6,7 @@
 
 - token/account metadata (`name`, `symbol`, `decimals`)
 - account tree management (`addSubAccount*`, `removeSubAccount*`)
-- account flags (`isGroup`, `isCredit`, `isInternal`, `isNative`, `isWrapper`)
+- account flags (`isGroup`, `isCredit`, `isInternal`, `isNative`, `isWrapper`, `isRegistered`)
 - balances + routed transfers
 - wrapper-facing transfer hooks + wrap/unwrap flows
 - canonical-root ERC20 surface via `modules/ERC20.sol`
@@ -32,6 +32,12 @@ Core fields include:
 - wrapper map (`wrapper`) for token roots
 - flags map (`flags`)
 - balances maps (`debits`, `credits`)
+
+Special addresses:
+
+- `RESERVE_ADDRESS`
+- `NATIVE_ADDRESS`
+- `SOURCE_ADDRESS`
 
 ## Events
 

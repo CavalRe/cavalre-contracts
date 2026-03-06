@@ -1,6 +1,6 @@
 # Module.sol
 
-The `Module` contract is an abstract base for CavalRe modules. It provides access control, delegation checks, and a storage namespace for module-specific ownership using the `Store` struct.
+The `Module` contract is an abstract base for CavalRe modules. It provides access control, delegation checks, and shared ownership access through `ModuleLib.Store`.
 
 It is paired with a `Lib` library that defines the storage layout and access method using a fixed storage slot.
 
@@ -12,15 +12,15 @@ struct Store {
 }
 ```
 
-The storage slot is namespaced using:
+The storage slot is namespaced using the ERC-7201-style pattern:
 
 ```solidity
-keccak256("cavalre.storage.Module")
+keccak256(abi.encode(uint256(keccak256("cavalre.storage.Module")) - 1)) & ~bytes32(uint256(0xff))
 ```
 
 ## Key Functions
 
-### `function selectors() public pure virtual returns (bytes4[] memory)`
+### `function selectors() external pure virtual returns (bytes4[] memory)`
 
 Each module must override this function to return the list of function selectors it implements.
 
@@ -58,10 +58,10 @@ struct Store {
 }
 ```
 
-The mapping is stored under a unique storage slot derived from:
+The mapping is stored under a unique ERC-7201-style slot derived from:
 
 ```solidity
-keccak256("cavalre.storage.Router")
+keccak256(abi.encode(uint256(keccak256("cavalre.storage.Router")) - 1)) & ~bytes32(uint256(0xff))
 ```
 
 ## Events
@@ -90,7 +90,7 @@ Sets a specified owner of the router’s context (via module storage), and emits
 Returns the list of supported commands (selectors). In the base `Router` contract, this returns an empty array:
 
 ```solidity
-function selectors() public pure override returns (bytes4[] memory) {
+function selectors() external pure override returns (bytes4[] memory) {
     return new bytes4[](0);
 }
 ```
@@ -102,3 +102,32 @@ This means the `Router` itself does not handle application logic — it only man
 - Built atop `Module.sol`, the Router shares access control logic.
 - Command-module relationships are mutable (you can add/remove modules).
 - The Router itself is designed to be immutable — it delegates to upgradeable modules via `delegatecall`.
+
+# Ledger.sol
+
+The `Ledger` module owns token-root registration, hierarchical account trees, and double-entry postings.
+
+## Current Root Model
+
+- canonical root is always registered at `address(this)` during `initializeLedger(...)`
+- internal roots are self-wrapped at creation, so the returned root address is immediately an ERC20 surface
+- native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`
+- `wrap(...)` / `unwrap(...)` depend on registered roots, not wrapper existence
+
+## Responsibilities
+
+- token metadata by root (`name`, `symbol`, `decimals`)
+- tree management (`addSubAccount*`, `removeSubAccount*`)
+- root discovery / flags / wrapper lookup
+- transfer posting, wrap/unwrap, and total supply accounting
+
+# ERC20.sol
+
+The `ERC20` module is the optional ERC20 surface for the canonical root.
+
+## Design Notes
+
+- deployed as a module, so runtime address is the Router address via `delegatecall`
+- metadata, balances, total supply, and transfer posting all route through `LedgerLib`
+- allowances live in `ERC20Lib`
+- this keeps canonical-root ERC20 behavior out of `LedgerLib` while preserving `address(this)` as canonical token address

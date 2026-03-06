@@ -38,14 +38,16 @@ import {ReentrancyGuard} from "../utilities/ReentrancyGuard.sol";
 
 contract MyModule is Initializable, ReentrancyGuard {
     function _initializableStorageSlot() internal pure override returns (bytes32) {
-        return keccak256("mymodule.initializable.slot");
+        return keccak256(abi.encode(uint256(keccak256("mymodule.initializable.slot")) - 1))
+            & ~bytes32(uint256(0xff));
     }
 
     function _reentrancyGuardStorageSlot() internal pure override returns (bytes32) {
-        return keccak256("mymodule.reentrancy.slot");
+        return keccak256(abi.encode(uint256(keccak256("mymodule.reentrancy.slot")) - 1))
+            & ~bytes32(uint256(0xff));
     }
 }
-````
+```
 
 Each module must define unique storage slots to ensure safe, independent operation when called via `delegatecall`.
 
@@ -54,5 +56,3 @@ Each module must define unique storage slots to ensure safe, independent operati
 These contracts inherit the full functionality of their OpenZeppelin counterparts, including `initializer`, `reinitializer`, and `nonReentrant`. The only difference is that they override the internal storage slot accessors and revert by default.
 
 This design forces each module to explicitly define its own unique storage slot, preventing storage collisions in a `delegatecall`-based modular architecture.
-
-

@@ -52,6 +52,7 @@ cavalre-contracts/
 - Internal roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
 - Native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`.
 - Canonical-root ERC20 exposure is optional and provided by `modules/ERC20.sol`.
+- Account/root flags include `isGroup`, `isCredit`, `isInternal`, `isNative`, `isWrapper`, and `isRegistered`.
 
 ## Installation
 
