@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/eff46231d5d2a3b339a6c933eb930a9826eedb42/libraries/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/13953448a47e3ffd759f78ef0deceeed9ecda8e4/libraries/LedgerLib.sol)
 
 
 ## State Variables
@@ -383,20 +383,6 @@ function hasBalance(address addr_) internal view returns (bool);
 
 ```solidity
 function totalSupply(address token_) internal view returns (uint256 _supply);
-```
-
-### scale
-
-
-```solidity
-function scale(address token_) internal view returns (uint256);
-```
-
-### totalScale
-
-
-```solidity
-function totalScale() internal view returns (uint256);
 ```
 
 ### addSubAccountGroup

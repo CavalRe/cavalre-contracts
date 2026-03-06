@@ -383,7 +383,7 @@ library FloatLib {
         (Float _yInt, Float _yFrac) = _y.parts();
         int256 _wad = _yFrac.times(LOG10).toInt(); // 18-decimal wad
         int256 _m = _wad.expWad(); // still 18-decimal wad
-        int256 _e = _yInt.toInt(0) - 18; // adjust for wad scale
+        int256 _e = _yInt.toInt(0) - 18; // adjust for wad exponent
         return normalize(_m, _e);
     }
 

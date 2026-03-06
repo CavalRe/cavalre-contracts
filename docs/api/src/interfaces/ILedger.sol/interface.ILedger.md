@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/eff46231d5d2a3b339a6c933eb930a9826eedb42/interfaces/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/13953448a47e3ffd759f78ef0deceeed9ecda8e4/interfaces/ILedger.sol)
 
 
 ## Functions
@@ -220,20 +220,6 @@ function balanceOf(address parent, address owner) external view returns (uint256
 
 ```solidity
 function totalSupply(address token) external view returns (uint256);
-```
-
-### scale
-
-
-```solidity
-function scale(address token) external view returns (uint256);
-```
-
-### totalScale
-
-
-```solidity
-function totalScale() external view returns (uint256);
 ```
 
 ### transfer

@@ -196,7 +196,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](37);
+        _selectors = new bytes4[](35);
         _selectors[n++] = bytes4(keccak256("initializeLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
@@ -228,20 +228,18 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("balanceOf(address,string)"));
         _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
-        _selectors[n++] = bytes4(keccak256("scale(address)"));
-        _selectors[n++] = bytes4(keccak256("totalScale()"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256,address,address)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256,address,address)"));
 
-        if (n != 37) revert InvalidCommandsLength(n);
+        if (n != 35) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained() public onlyInitializing {
         enforceIsOwner();
 
-        LedgerLib.addLedger(address(this), address(0), "Scale", "SCALE", 18, true);
+        LedgerLib.addLedger(address(this), address(0), "Ledger", "LEDGER", 18, true);
     }
 
     function initializeLedger() external initializer {
@@ -399,14 +397,6 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function totalSupply(address token_) external view returns (uint256) {
         return LedgerLib.totalSupply(token_);
-    }
-
-    function scale(address token_) external view returns (uint256) {
-        return LedgerLib.scale(token_);
-    }
-
-    function totalScale() external view returns (uint256) {
-        return LedgerLib.totalScale();
     }
 
     //===========

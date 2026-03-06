@@ -25,7 +25,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](37);
+        _selectors = new bytes4[](35);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -55,8 +55,6 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("balanceOf(address,string)"));
         _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
-        _selectors[n++] = bytes4(keccak256("scale(address)"));
-        _selectors[n++] = bytes4(keccak256("totalScale()"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256,address,address)"));
@@ -65,7 +63,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 37) revert InvalidCommandsLength(n);
+        if (n != 35) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -309,6 +307,15 @@ contract LedgerTest is Test {
         assertFalse(LedgerLib.isExternal(ledgers.flags(native)), "native not external");
     }
 
+    function testCreateInternalTokenDoesNotRegisterUnderRoot() public {
+        vm.startPrank(alice);
+        address token_ = ledgers.createInternalToken("Neutral Token", "NT", 18);
+        vm.stopPrank();
+
+        address rootAccount_ = LedgerLib.toAddress(address(ledgers), token_);
+        assertEq(ledgers.flags(rootAccount_), 0, "not auto-registered under root");
+    }
+
     function testLedgerRootFlagsByTokenType() public view {
         uint256 internalFlags = ledgers.flags(r1);
         assertTrue((internalFlags & LedgerLib.FLAG_IS_INTERNAL) != 0, "internal token flag set");
@@ -549,24 +556,26 @@ contract LedgerTest is Test {
         address tokenA = ledgers.createInternalToken("Realloc A", "REA", 18);
         address tokenB = ledgers.createInternalToken("Realloc B", "REB", 18);
         ledgers.addSubAccount(address(ledgers), LedgerLib.SOURCE_ADDRESS, "Source", true);
+        ledgers.addSubAccount(address(ledgers), tokenA, "Realloc A", false);
+        ledgers.addSubAccount(address(ledgers), tokenB, "Realloc B", false);
 
         uint256 initialAmount = 1_000 ether;
         uint256 shift = 400 ether;
 
         if (isVerbose) console.log("Minting initial amount to tokenA");
         ledgers.mint(address(ledgers), tokenA, initialAmount);
-        assertEq(ledgers.totalScale(), initialAmount, "total scale after mint");
+        assertEq(ledgers.totalSupply(address(ledgers)), initialAmount, "root supply after mint");
 
         if (isVerbose) console.log("Reallocating from tokenA to tokenB");
         ledgers.reallocate(tokenA, tokenB, shift);
-        assertEq(ledgers.totalScale(), initialAmount, "total scale invariant after reallocate");
+        assertEq(ledgers.totalSupply(address(ledgers)), initialAmount, "root supply invariant after reallocate");
         assertEq(ledgers.balanceOf(address(ledgers), tokenA), initialAmount - shift, "tokenA debited");
         assertEq(ledgers.balanceOf(address(ledgers), tokenB), shift, "tokenB credited");
 
         uint256 shiftBack = 125 ether;
         if (isVerbose) console.log("Reallocating back from tokenB to tokenA");
         ledgers.reallocate(tokenB, tokenA, shiftBack);
-        assertEq(ledgers.totalScale(), initialAmount, "total scale invariant after rebalance");
+        assertEq(ledgers.totalSupply(address(ledgers)), initialAmount, "root supply invariant after rebalance");
         assertEq(
             ledgers.balanceOf(address(ledgers), tokenA), initialAmount - shift + shiftBack, "tokenA after rebalancing"
         );

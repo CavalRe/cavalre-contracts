@@ -1,5 +1,5 @@
 # ERC20
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/eff46231d5d2a3b339a6c933eb930a9826eedb42/examples/ERC20.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/13953448a47e3ffd759f78ef0deceeed9ecda8e4/examples/ERC20.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [ERC20Upgradeable](/node_modules/@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol/abstract.ERC20Upgradeable.md)

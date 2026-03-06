@@ -250,15 +250,6 @@ library LedgerLib {
         return debitOf(token_);
     }
 
-    function scale(address token_) internal view returns (uint256) {
-        address _scaleAccount = toAddress(address(this), token_);
-        return balanceOf(_scaleAccount);
-    }
-
-    function totalScale() internal view returns (uint256) {
-        return totalSupply(address(this));
-    }
-
     //==================================================================
     //                         Tree Manipulation
     //==================================================================
@@ -367,11 +358,6 @@ library LedgerLib {
         bool _isNative = root_ == NATIVE_ADDRESS;
         bool _isWrapper = !isZeroAddress(wrapper_);
         _s.flags[root_] = flags(address(0), true, false, isInternal_, _isNative, _isWrapper, true, 1);
-
-        // Register token under Scale root (skip Scale root itself).
-        if (root_ != address(this)) {
-            addSubAccount(address(this), root_, name_, false);
-        }
 
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
     }

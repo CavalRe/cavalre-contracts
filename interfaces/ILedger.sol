@@ -81,10 +81,6 @@ interface ILedger {
 
     function totalSupply(address token) external view returns (uint256);
 
-    function scale(address token) external view returns (uint256);
-
-    function totalScale() external view returns (uint256);
-
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
     // ─────────────────────────────────────────────────────────────────────────────

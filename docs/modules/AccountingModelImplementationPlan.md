@@ -54,11 +54,10 @@ Changes:
 
 - remove `TOTAL_ADDRESS` usage and `accountTypeRootAddress(...)`
 - in `addLedger(...)`, stop creating `"Total"` branch
-- route reserve/scale registrations directly off root model
+- route reserve/root registrations directly off root model
 - rewrite:
   - `totalSupply(address token)`
-  - `totalScale()`
-  - `scale(address token)`
+  - router-root balance queries
   to use root-side semantics instead of `TOTAL` pathing
 
 Exit criteria:
