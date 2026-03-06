@@ -131,3 +131,8 @@ The `ERC20` module is the optional ERC20 surface for the canonical root.
 - metadata, balances, total supply, and transfer posting all route through `LedgerLib`
 - allowances live in `ERC20Lib`
 - this keeps canonical-root ERC20 behavior out of `LedgerLib` while preserving `address(this)` as canonical token address
+
+## Further Reading
+
+- [Ledger Notes](Ledgers.md)
+- [ERC20 Notes](ERC20.md)
