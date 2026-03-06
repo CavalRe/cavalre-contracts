@@ -17,7 +17,8 @@
 - canonical root is `address(this)`
 - subaccounts are deterministic addresses derived from parent + label/address
 - transfers walk upward through the tree with debit/credit semantics
-- wrappers (`ERC20Wrapper`) expose ERC20-like UX for non-canonical roots while delegating ledger state updates to `Ledger`
+- internal roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
+- native/external roots can be registered first and optionally wrapped later via `createWrapper`
 - canonical root ERC20 UX is handled by `modules/ERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `ERC20Lib`
 
 ## Storage

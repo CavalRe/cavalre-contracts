@@ -41,12 +41,13 @@ contract ERC20WrapperTest is Test {
         ledgers.initializeTestLedger();
 
         if (isVerbose) console.log("Adding new token to ledger");
-        token = ERC20Wrapper(ledgers.createInternalToken("Internal Test Token", "ITT", 18));
+        token = ERC20Wrapper(ledgers.addInternalToken("Internal Test Token", "ITT", 18));
         ledgers.addSubAccount(address(token), LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         if (isVerbose) console.log("Creating external token + wrapper");
         externalToken = new MockERC20("External Token", "EXT", 18);
-        ledgers.createWrappedToken(address(externalToken));
+        ledgers.addExternalToken(address(externalToken));
+        ledgers.createWrapper(address(externalToken));
         ledgers.addSubAccount(address(externalToken), LedgerLib.SOURCE_ADDRESS, "Source", true);
         externalWrapper = ERC20Wrapper(ledgers.wrapper(address(externalToken)));
 
@@ -91,15 +92,16 @@ contract ERC20WrapperTest is Test {
     function testERC20WrapperCreateToken() public {
         vm.startPrank(owner);
 
-        address _newToken = ledgers.createInternalToken("New Test Token", "NTT", 18);
+        address _newRoot = ledgers.addInternalToken("New Test Token", "NTT", 18);
+        address _newToken = _newRoot;
         assertEq(ERC20Wrapper(_newToken).name(), "New Test Token");
         assertEq(ERC20Wrapper(_newToken).symbol(), "NTT");
         assertEq(ERC20Wrapper(_newToken).decimals(), 18);
         assertEq(ERC20Wrapper(_newToken).totalSupply(), 0);
 
-        assertEq(ledgers.name(_newToken), "New Test Token");
-        assertEq(ledgers.symbol(_newToken), "NTT");
-        assertEq(ledgers.decimals(_newToken), 18);
+        assertEq(ledgers.name(_newRoot), "New Test Token");
+        assertEq(ledgers.symbol(_newRoot), "NTT");
+        assertEq(ledgers.decimals(_newRoot), 18);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

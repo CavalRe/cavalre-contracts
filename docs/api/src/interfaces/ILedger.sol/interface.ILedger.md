@@ -164,27 +164,32 @@ function addSubAccountGroup(address parent, string memory name, bool isCredit) e
 function addSubAccount(address parent, address addr, string memory name, bool isInternal) external returns (address);
 ```
 
-### createNativeWrapper
+### addNativeToken
 
 
 ```solidity
-function createNativeWrapper(string memory nativeTokenName, string memory nativeTokenSymbol)
-    external
-    returns (address);
+function addNativeToken(string memory nativeTokenName, string memory nativeTokenSymbol) external;
 ```
 
-### createWrappedToken
+### addExternalToken
 
 
 ```solidity
-function createWrappedToken(address token) external;
+function addExternalToken(address token) external;
 ```
 
-### createInternalToken
+### addInternalToken
 
 
 ```solidity
-function createInternalToken(string memory name, string memory symbol, uint8 decimals) external returns (address);
+function addInternalToken(string memory name, string memory symbol, uint8 decimals) external returns (address);
+```
+
+### createWrapper
+
+
+```solidity
+function createWrapper(address token) external returns (address);
 ```
 
 ### removeSubAccountGroup
@@ -324,6 +329,12 @@ error DifferentRoots(address a, address b);
 
 ```solidity
 error DuplicateToken(address token);
+```
+
+### DuplicateWrapper
+
+```solidity
+error DuplicateWrapper(address token);
 ```
 
 ### HasBalance

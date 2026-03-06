@@ -28,14 +28,15 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](35);
+        _selectors = new bytes4[](36);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("createNativeWrapper(string,string)"));
-        _selectors[n++] = bytes4(keccak256("createWrappedToken(address)"));
-        _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8)"));
+        _selectors[n++] = bytes4(keccak256("addNativeToken(string,string)"));
+        _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
+        _selectors[n++] = bytes4(keccak256("addInternalToken(string,string,uint8)"));
+        _selectors[n++] = bytes4(keccak256("createWrapper(address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _selectors[n++] = bytes4(keccak256("name(address)"));
@@ -66,7 +67,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 35) revert InvalidCommandsLength(n);
+        if (n != 36) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -215,7 +216,7 @@ contract LedgerTest is Test {
         // Add a standalone ledger tree for misc checks
         // testLedger = LedgerLib.toAddress("Test Ledger");
         if (isVerbose) console.log("Creating Test Ledger token");
-        testLedger = ledgers.createInternalToken("Test Ledger", "TL", 18);
+        testLedger = ledgers.addInternalToken("Test Ledger", "TL", 18);
         ledgers.addSubAccount(testLedger, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-groups to Test Ledger");
         ledgers.addSubAccountGroup(
@@ -224,7 +225,7 @@ contract LedgerTest is Test {
 
         // Add token r1 and its sub-groups
         if (isVerbose) console.log("Creating root token '1'");
-        r1 = ledgers.createInternalToken("1", "1", 18);
+        r1 = ledgers.addInternalToken("1", "1", 18);
         ledgers.addSubAccount(r1, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-group '10' to root token '1'");
         r10 = ledgers.addSubAccountGroup(r1, "10", false);
@@ -241,7 +242,8 @@ contract LedgerTest is Test {
 
         if (isVerbose) console.log("Creating external token and its wrapper");
         externalToken = new MockERC20("External Token", "EXT", 18);
-        ledgers.createWrappedToken(address(externalToken));
+        ledgers.addExternalToken(address(externalToken));
+        ledgers.createWrapper(address(externalToken));
         ledgers.addSubAccount(address(externalToken), LedgerLib.SOURCE_ADDRESS, "Source", true);
         externalWrapper = ledgers.wrapper(address(externalToken));
 
@@ -296,9 +298,10 @@ contract LedgerTest is Test {
         assertEq(ledgers.symbol(native), "", "symbol empty");
     }
 
-    function testCreateNativeWrapperRegistersToken() public {
+    function testAddNativeTokenAndCreateWrapper() public {
         vm.startPrank(alice);
-        address wrapper = ledgers.createNativeWrapper("Avalanche", "AVAX");
+        ledgers.addNativeToken("Avalanche", "AVAX");
+        address wrapper = ledgers.createWrapper(native);
         vm.stopPrank();
 
         assertEq(ledgers.wrapper(native), wrapper, "wrapper set");
@@ -314,7 +317,7 @@ contract LedgerTest is Test {
 
     function testCreateInternalTokenDoesNotRegisterUnderRoot() public {
         vm.startPrank(alice);
-        address token_ = ledgers.createInternalToken("Neutral Token", "NT", 18);
+        address token_ = ledgers.addInternalToken("Neutral Token", "NT", 18);
         vm.stopPrank();
 
         address rootAccount_ = LedgerLib.toAddress(address(ledgers), token_);
@@ -348,17 +351,17 @@ contract LedgerTest is Test {
         assertEq(ledgers.wrapper(address(externalToken)), externalWrapper, "external root wrapper");
     }
 
-    function testCreateNativeWrapperDuplicateReverts() public {
+    function testAddNativeTokenDuplicateReverts() public {
         vm.startPrank(alice);
-        ledgers.createNativeWrapper("Avalanche", "AVAX");
+        ledgers.addNativeToken("Avalanche", "AVAX");
         vm.expectRevert(abi.encodeWithSelector(ILedger.DuplicateToken.selector, native));
-        ledgers.createNativeWrapper("Avalanche", "AVAX");
+        ledgers.addNativeToken("Avalanche", "AVAX");
     }
 
-    function testCreateNativeWrapperInvalidString() public {
+    function testAddNativeTokenInvalidString() public {
         vm.startPrank(alice);
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidString.selector, ""));
-        ledgers.createNativeWrapper("Avalanche", "");
+        ledgers.addNativeToken("Avalanche", "");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -558,8 +561,8 @@ contract LedgerTest is Test {
 
         vm.startPrank(alice);
 
-        address tokenA = ledgers.createInternalToken("Realloc A", "REA", 18);
-        address tokenB = ledgers.createInternalToken("Realloc B", "REB", 18);
+        address tokenA = ledgers.addInternalToken("Realloc A", "REA", 18);
+        address tokenB = ledgers.addInternalToken("Realloc B", "REB", 18);
         ledgers.addSubAccount(address(ledgers), LedgerLib.SOURCE_ADDRESS, "Source", true);
         ledgers.addSubAccount(address(ledgers), tokenA, "Realloc A", false);
         ledgers.addSubAccount(address(ledgers), tokenB, "Realloc B", false);
@@ -707,7 +710,7 @@ contract LedgerTest is Test {
     function testLedgerWrapNative() public {
         vm.deal(alice, 5 ether);
         vm.startPrank(alice);
-        ledgers.createNativeWrapper("Avalanche", "AVAX");
+        ledgers.addNativeToken("Avalanche", "AVAX");
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 2 ether;
@@ -724,7 +727,7 @@ contract LedgerTest is Test {
         // Deploy a token that reenters during transferFrom
         ReenterToken reToken = new ReenterToken("ReToken", "RET", 18);
         reToken.setTarget(address(ledgers));
-        ledgers.createWrappedToken(address(reToken));
+        ledgers.addExternalToken(address(reToken));
         ledgers.addSubAccount(address(reToken), LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         // Fund Alice and approve the ledger
@@ -740,7 +743,7 @@ contract LedgerTest is Test {
     function testLedgerWrapNativeIncorrectValue() public {
         vm.deal(alice, 5 ether);
         vm.startPrank(alice);
-        ledgers.createNativeWrapper("Avalanche", "AVAX");
+        ledgers.addNativeToken("Avalanche", "AVAX");
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 2 ether;
@@ -763,7 +766,7 @@ contract LedgerTest is Test {
     function testLedgerUnwrapNative() public {
         vm.deal(alice, 5 ether);
         vm.startPrank(alice);
-        ledgers.createNativeWrapper("Avalanche", "AVAX");
+        ledgers.addNativeToken("Avalanche", "AVAX");
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 3 ether;
@@ -784,7 +787,7 @@ contract LedgerTest is Test {
     function testLedgerUnwrapNativeRejectsValue() public {
         vm.deal(alice, 2 ether);
         vm.startPrank(alice);
-        ledgers.createNativeWrapper("Avalanche", "AVAX");
+        ledgers.addNativeToken("Avalanche", "AVAX");
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 1 ether;

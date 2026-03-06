@@ -321,19 +321,8 @@ library LedgerLib {
         emit ILedger.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
-    function addLedger(
-        address root_,
-        address wrapper_,
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        bool isInternal_
-    ) internal {
-        if (
-            isZeroAddress(root_) // Root cannot be zero address
-                || (root_ == address(this) && !isZeroAddress(wrapper_)) // If root is Ledger, wrapper must be zero address
-                || !isValidString(name_) || !isValidString(symbol_)
-        ) {
+    function addLedger(address root_, string memory name_, string memory symbol_, uint8 decimals_, bool isInternal_) internal {
+        if (isZeroAddress(root_) || !isValidString(name_) || !isValidString(symbol_)) {
             revert ILedger.InvalidToken(root_, name_, symbol_, decimals_);
         }
 
@@ -354,76 +343,76 @@ library LedgerLib {
         _s.symbol[root_] = symbol_;
         _s.decimals[root_] = decimals_;
         _s.root[root_] = root_;
-        _s.wrapper[root_] = wrapper_;
+        _s.wrapper[root_] = address(0);
         bool _isNative = root_ == NATIVE_ADDRESS;
-        bool _isWrapper = !isZeroAddress(wrapper_);
-        _s.flags[root_] = flags(address(0), true, false, isInternal_, _isNative, _isWrapper, true, 1);
+        _s.flags[root_] = flags(address(0), true, false, isInternal_, _isNative, false, true, 1);
 
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
     }
 
-    function createNativeWrapper(string memory nativeTokenName_, string memory nativeTokenSymbol_)
-        internal
-        returns (address wrapper_)
-    {
-        address token_ = NATIVE_ADDRESS;
-        if (!isZeroAddress(token_) && token_ == root(token_)) {
-            revert ILedger.DuplicateToken(token_);
-        }
-        if (!isValidString(nativeTokenSymbol_)) {
-            revert ILedger.InvalidString(nativeTokenSymbol_);
-        }
-        wrapper_ = address(
-            new ERC20Wrapper(
-                address(this),
-                token_,
-                string(abi.encodePacked(nativeTokenName_, " | CavalRe")),
-                string(abi.encodePacked(nativeTokenSymbol_, ".cav")),
-                18
-            )
-        );
-        addLedger(token_, wrapper_, nativeTokenName_, nativeTokenSymbol_, 18, false);
+    function addNativeToken(string memory nativeTokenName_, string memory nativeTokenSymbol_, uint8 decimals_) internal {
+        if (NATIVE_ADDRESS == root(NATIVE_ADDRESS)) revert ILedger.DuplicateToken(NATIVE_ADDRESS);
+        if (!isValidString(nativeTokenName_)) revert ILedger.InvalidString(nativeTokenName_);
+        if (!isValidString(nativeTokenSymbol_)) revert ILedger.InvalidString(nativeTokenSymbol_);
+        addLedger(NATIVE_ADDRESS, nativeTokenName_, nativeTokenSymbol_, decimals_, false);
     }
 
-    function createWrappedToken(address token_)
-        internal
-        returns (address _wrapper, string memory _name, string memory _symbol, uint8 _decimals)
-    {
+    function addExternalToken(address token_) internal {
         if (!isZeroAddress(token_) && token_ == root(token_)) {
             revert ILedger.DuplicateToken(token_);
         }
 
         IERC20Metadata _meta = IERC20Metadata(token_);
-        _name = _meta.name();
-        _symbol = _meta.symbol();
-        _decimals = _meta.decimals();
+        string memory _name = _meta.name();
+        string memory _symbol = _meta.symbol();
+        uint8 _decimals = _meta.decimals();
         if (!isValidString(_name) || !isValidString(_symbol)) {
             revert ILedger.InvalidToken(token_, _name, _symbol, _decimals);
         }
-        _wrapper = address(
-            new ERC20Wrapper(
-                address(this),
-                token_,
-                string(abi.encodePacked(_name, " | CavalRe")),
-                string(abi.encodePacked(_symbol, ".cav")),
-                _decimals
-            )
-        );
-        addLedger(token_, _wrapper, _name, _symbol, _decimals, false);
+        addLedger(token_, _name, _symbol, _decimals, false);
     }
 
-    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
-        internal
-        returns (address wrapper_)
-    {
+    function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_) internal returns (address token_) {
         if (!isValidString(name_) || !isValidString(symbol_)) {
             revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
         }
-        wrapper_ = address(new ERC20Wrapper(address(this), address(0), name_, symbol_, decimals_));
-        if (wrapper_ == wrapper(wrapper_)) {
-            revert ILedger.DuplicateToken(wrapper_);
+        // Internal roots remain self-wrapped so the root address is immediately usable as an ERC20 surface.
+        token_ = address(new ERC20Wrapper(address(this), address(0), name_, symbol_, decimals_));
+        addLedger(token_, name_, symbol_, decimals_, true);
+
+        Store storage _s = store();
+        _s.wrapper[token_] = token_;
+        _s.flags[token_] = flags(address(0), true, false, true, false, true, true, 1);
+    }
+
+    function createWrapper(address token_) internal returns (address wrapper_) {
+        if (token_ == address(this) || root(token_) != token_) revert ILedger.InvalidAddress(token_);
+        if (wrapper(token_) != address(0)) revert ILedger.DuplicateWrapper(token_);
+
+        string memory name_ = name(token_);
+        string memory symbol_ = symbol(token_);
+        uint8 decimals_ = decimals(token_);
+        uint256 flags_ = flags(token_);
+
+        if (isInternal(flags_)) {
+            // Internal roots already carry canonical metadata, so their optional wrapper surface is exact.
+            wrapper_ = address(new ERC20Wrapper(address(this), token_, name_, symbol_, decimals_));
+        } else {
+            // External/native wrappers are explicitly branded surfaces over the registered root asset.
+            wrapper_ = address(
+                new ERC20Wrapper(
+                    address(this),
+                    token_,
+                    string(abi.encodePacked(name_, " | CavalRe")),
+                    string(abi.encodePacked(symbol_, ".cav")),
+                    decimals_
+                )
+            );
         }
-        addLedger(wrapper_, wrapper_, name_, symbol_, decimals_, true);
+
+        Store storage _s = store();
+        _s.wrapper[token_] = wrapper_;
+        _s.flags[token_] = flags(address(0), true, false, isInternal(flags_), isNative(flags_), true, true, 1);
     }
 
     function removeSubAccountGroup(address parent_, string memory name_) internal returns (address) {
@@ -587,6 +576,7 @@ library LedgerLib {
     }
 
     function wrap(address token_, uint256 amount_, address sourceParent_, address source_) internal {
+        if (root(token_) != token_) revert ILedger.InvalidAddress(token_);
         if (token_ == NATIVE_ADDRESS) {
             if (msg.value != amount_) {
                 revert ILedger.IncorrectAmount(msg.value, amount_);
@@ -595,22 +585,19 @@ library LedgerLib {
             // so no external transfer is needed.
         } else {
             if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
-            address _wrapper = wrapper(token_);
-            if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
             SafeERC20.safeTransferFrom(IERC20(token_), msg.sender, address(this), amount_);
         }
         transfer(sourceParent_, source_, token_, msg.sender, amount_);
     }
 
     function unwrap(address token_, uint256 amount_, address sourceParent_, address source_) internal {
+        if (root(token_) != token_) revert ILedger.InvalidAddress(token_);
         if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
         if (token_ == NATIVE_ADDRESS) {
             transfer(token_, msg.sender, sourceParent_, source_, amount_);
             (bool _success,) = payable(msg.sender).call{value: amount_}("");
             require(_success);
         } else {
-            address _wrapper = wrapper(token_);
-            if (_wrapper == address(0)) revert ILedger.InvalidAddress(token_);
             transfer(token_, msg.sender, sourceParent_, source_, amount_);
             SafeERC20.safeTransfer(IERC20(token_), msg.sender, amount_);
         }

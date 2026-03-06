@@ -103,29 +103,32 @@ function addSubAccount(address parent_, address addr_, string memory name_, bool
     returns (address);
 ```
 
-### createNativeWrapper
+### addNativeToken
 
 
 ```solidity
-function createNativeWrapper(string memory nativeTokenName_, string memory nativeTokenSymbol_)
-    external
-    returns (address);
+function addNativeToken(string memory nativeTokenName_, string memory nativeTokenSymbol_) external;
 ```
 
-### createWrappedToken
+### addExternalToken
 
 
 ```solidity
-function createWrappedToken(address token_) external;
+function addExternalToken(address token_) external;
 ```
 
-### createInternalToken
+### addInternalToken
 
 
 ```solidity
-function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
-    external
-    returns (address);
+function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address);
+```
+
+### createWrapper
+
+
+```solidity
+function createWrapper(address token_) external returns (address);
 ```
 
 ### removeSubAccountGroup

@@ -60,13 +60,13 @@ interface ILedger {
 
     function addSubAccount(address parent, address addr, string memory name, bool isInternal) external returns (address);
 
-    function createNativeWrapper(string memory nativeTokenName, string memory nativeTokenSymbol)
-        external
-        returns (address);
+    function addNativeToken(string memory nativeTokenName, string memory nativeTokenSymbol) external;
 
-    function createWrappedToken(address token) external;
+    function addExternalToken(address token) external;
 
-    function createInternalToken(string memory name, string memory symbol, uint8 decimals) external returns (address);
+    function addInternalToken(string memory name, string memory symbol, uint8 decimals) external returns (address);
+
+    function createWrapper(address token) external returns (address);
 
     function removeSubAccountGroup(address parent, string memory name) external returns (address);
 
@@ -100,6 +100,7 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     error DifferentRoots(address a, address b);
     error DuplicateToken(address token);
+    error DuplicateWrapper(address token);
     error HasBalance(address addr);
     error HasSubAccount(address addr);
     error IncorrectAmount(uint256 received, uint256 expected);

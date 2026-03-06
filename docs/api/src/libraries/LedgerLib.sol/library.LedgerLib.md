@@ -405,41 +405,35 @@ function addSubAccount(address parent_, address addr_, string memory name_, bool
 
 
 ```solidity
-function addLedger(
-    address root_,
-    address wrapper_,
-    string memory name_,
-    string memory symbol_,
-    uint8 decimals_,
-    bool isInternal_
-) internal;
+function addLedger(address root_, string memory name_, string memory symbol_, uint8 decimals_, bool isInternal_) internal;
 ```
 
-### createNativeWrapper
+### addNativeToken
 
 
 ```solidity
-function createNativeWrapper(string memory nativeTokenName_, string memory nativeTokenSymbol_)
-    internal
-    returns (address wrapper_);
+function addNativeToken(string memory nativeTokenName_, string memory nativeTokenSymbol_, uint8 decimals_) internal;
 ```
 
-### createWrappedToken
+### addExternalToken
 
 
 ```solidity
-function createWrappedToken(address token_)
-    internal
-    returns (address _wrapper, string memory _name, string memory _symbol, uint8 _decimals);
+function addExternalToken(address token_) internal;
 ```
 
-### createInternalToken
+### addInternalToken
 
 
 ```solidity
-function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
-    internal
-    returns (address wrapper_);
+function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_) internal returns (address token_);
+```
+
+### createWrapper
+
+
+```solidity
+function createWrapper(address token_) internal returns (address wrapper_);
 ```
 
 ### removeSubAccountGroup
@@ -517,4 +511,3 @@ struct Store {
     mapping(address => uint256) credits;
 }
 ```
-

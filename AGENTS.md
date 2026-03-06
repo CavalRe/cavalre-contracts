@@ -96,7 +96,7 @@ Special addresses (LedgerLib):
 - `NATIVE_ADDRESS` - native token (ETH)
 - `UNALLOCATED_ADDRESS` - unallocated for ops
 
-**ERC20Wrapper**: Creates ERC20-compatible wrappers for non-canonical roots. Delegates balance/allowance/transfers to Ledger via Router.
+**ERC20Wrapper**: Internal roots are self-wrapped at creation. Native/external roots may optionally get ERC20-compatible wrappers later via `createWrapper`. Wrapper surfaces delegate balance/allowance/transfers to Ledger via Router.
 
 **ERC20 Module**: `modules/ERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `ERC20Lib`.
 
