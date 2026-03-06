@@ -1,5 +1,5 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/13953448a47e3ffd759f78ef0deceeed9ecda8e4/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4104c9a5fb1b403d7a1bc8bdf3c0f7c85335ff70/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -196,11 +196,11 @@ function testLedgerInit() public;
 function testNativeWrapperNotCreatedDuringInit() public view;
 ```
 
-### testCreateNativeWrapperRegistersToken
+### testAddNativeTokenAndCreateWrapper
 
 
 ```solidity
-function testCreateNativeWrapperRegistersToken() public;
+function testAddNativeTokenAndCreateWrapper() public;
 ```
 
 ### testCreateInternalTokenDoesNotRegisterUnderRoot
@@ -224,18 +224,18 @@ function testLedgerRootFlagsByTokenType() public view;
 function testPackedParentAndWrapperMapping() public view;
 ```
 
-### testCreateNativeWrapperDuplicateReverts
+### testAddNativeTokenDuplicateReverts
 
 
 ```solidity
-function testCreateNativeWrapperDuplicateReverts() public;
+function testAddNativeTokenDuplicateReverts() public;
 ```
 
-### testCreateNativeWrapperInvalidString
+### testAddNativeTokenInvalidString
 
 
 ```solidity
-function testCreateNativeWrapperInvalidString() public;
+function testAddNativeTokenInvalidString() public;
 ```
 
 ### testLedgerAddSubAccountGroup

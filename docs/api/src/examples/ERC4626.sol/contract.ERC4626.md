@@ -1,5 +1,5 @@
 # ERC4626
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/13953448a47e3ffd759f78ef0deceeed9ecda8e4/examples/ERC4626.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4104c9a5fb1b403d7a1bc8bdf3c0f7c85335ff70/examples/ERC4626.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [ERC4626Upgradeable](/node_modules/@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol/abstract.ERC4626Upgradeable.md)

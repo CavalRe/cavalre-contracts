@@ -1,6 +1,8 @@
 # Summary
 - [Home](README.md)
 # examples
+  - [ERC20Lib](examples/ERC20.sol/library.ERC20Lib.md)
+  - [ERC20](examples/ERC20.sol/contract.ERC20.md)
   - [Lib](examples/ERC4626.sol/library.Lib.md)
   - [ERC4626](examples/ERC4626.sol/contract.ERC4626.md)
   - [Store](examples/Sentry.sol/struct.Store.md)
@@ -63,9 +65,9 @@
           - [ModePayload](node_modules/@openzeppelin/contracts/account/utils/draft-ERC7579Utils.sol/type.ModePayload.md)
           - [ERC7579Utils](node_modules/@openzeppelin/contracts/account/utils/draft-ERC7579Utils.sol/library.ERC7579Utils.md)
           - [eqCallType](node_modules/@openzeppelin/contracts/account/utils/draft-ERC7579Utils.sol/function.eqCallType.md)
+          - [eqModeSelector](node_modules/@openzeppelin/contracts/account/utils/draft-ERC7579Utils.sol/function.eqModeSelector.md)
           - [eqModePayload](node_modules/@openzeppelin/contracts/account/utils/draft-ERC7579Utils.sol/function.eqModePayload.md)
           - [eqExecType](node_modules/@openzeppelin/contracts/account/utils/draft-ERC7579Utils.sol/function.eqExecType.md)
-          - [eqModeSelector](node_modules/@openzeppelin/contracts/account/utils/draft-ERC7579Utils.sol/function.eqModeSelector.md)
         - [Account](node_modules/@openzeppelin/contracts/account/Account.sol/abstract.Account.md)
       - [❱ crosschain](node_modules/@openzeppelin/contracts/crosschain/README.md)
         - [ERC7786Recipient](node_modules/@openzeppelin/contracts/crosschain/ERC7786Recipient.sol/abstract.ERC7786Recipient.md)

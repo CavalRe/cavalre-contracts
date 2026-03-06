@@ -96,7 +96,7 @@ Changes:
 
 - update `reallocate(...)` to direct-root routing
 - update wrap/unwrap/mint/burn parent assumptions that previously used `TOTAL`
-- keep wrapper-facing behavior unchanged
+- preserve wrapper-facing behavior while separating root registration from optional native/external wrapper creation
 
 Exit criteria:
 

@@ -7,10 +7,12 @@ This repository contains the core smart contracts powering [CavalRe](https://cav
 ```txt
 cavalre-contracts/
 ├── modules/
+│   ├── ERC20.sol
 │   ├── Module.sol
 │   ├── Router.sol
 │   └── Ledger.sol
 ├── libraries/
+│   ├── ERC20Lib.sol
 │   ├── FloatLib.sol
 │   ├── FloatStrings.sol
 │   ├── LedgerLib.sol
@@ -40,8 +42,16 @@ cavalre-contracts/
 
 - **Module.sol**: Abstract base contract that all modules inherit, defining the shared interface and access to storage.
 - **Router.sol**: The immutable entrypoint that delegates calls to upgradeable modules via `delegatecall`.
-- **Ledger.sol**: A hierarchical double-entry accounting system where all token balances live under structured subaccounts.
+- **Ledger.sol**: A hierarchical double-entry accounting system with a canonical root at `address(this)` plus additional token roots registered in the same contract.
+- **ERC20.sol**: Optional canonical-root ERC20 surface layered over `LedgerLib` state via the Router.
 - **FloatLib.sol**: A custom fixed-point math library for precision arithmetic with dynamic scaling.
+
+## Ledger Model
+
+- Canonical root is always registered during `initializeLedger(...)`.
+- Internal roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
+- Native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`.
+- Canonical-root ERC20 exposure is optional and provided by `modules/ERC20.sol`.
 
 ## Installation
 
