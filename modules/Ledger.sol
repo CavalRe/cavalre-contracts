@@ -197,7 +197,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
         _selectors = new bytes4[](35);
-        _selectors[n++] = bytes4(keccak256("initializeLedger()"));
+        _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("createNativeWrapper(string,string)"));
@@ -236,14 +236,14 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         if (n != 35) revert InvalidCommandsLength(n);
     }
 
-    function initializeLedger_unchained() public onlyInitializing {
+    function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
         enforceIsOwner();
 
-        LedgerLib.addLedger(address(this), address(0), "Ledger", "LEDGER", 18, true);
+        LedgerLib.addLedger(address(this), address(0), name_, symbol_, 18, true);
     }
 
-    function initializeLedger() external initializer {
-        initializeLedger_unchained();
+    function initializeLedger(string memory name_, string memory symbol_) external initializer {
+        initializeLedger_unchained(name_, symbol_);
     }
 
     function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) external returns (address) {

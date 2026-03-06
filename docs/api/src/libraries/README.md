@@ -1,6 +1,7 @@
 
 
 # Contents
+- [ERC20Lib](ERC20Lib.sol/library.ERC20Lib.md)
 - [Float](FloatLib.sol/type.Float.md)
 - [FloatLib](FloatLib.sol/library.FloatLib.md)
 - [FloatStrings](FloatStrings.sol/library.FloatStrings.md)

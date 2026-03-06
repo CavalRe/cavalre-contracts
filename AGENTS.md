@@ -96,7 +96,9 @@ Special addresses (LedgerLib):
 - `NATIVE_ADDRESS` - native token (ETH)
 - `UNALLOCATED_ADDRESS` - unallocated for ops
 
-**ERC20Wrapper**: Creates ERC20-compatible wrappers per token. Delegates balance/allowance/transfers to Ledger via Router. Allows external contracts to treat ledger accounts as standard ERC20s.
+**ERC20Wrapper**: Creates ERC20-compatible wrappers for non-canonical roots. Delegates balance/allowance/transfers to Ledger via Router.
+
+**ERC20 Module**: `modules/ERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `ERC20Lib`.
 
 ### Storage Pattern
 
@@ -126,10 +128,12 @@ Enables precise arithmetic across decimal scales—critical for multi-decimal to
 ```
 cavalre-contracts/
 ├── modules/              # Core upgradeable modules
+│   ├── ERC20.sol         # Canonical-root ERC20 surface
 │   ├── Module.sol        # Abstract base for all modules
 │   ├── Router.sol        # Immutable delegatecall dispatcher
 │   └── Ledger.sol        # Hierarchical accounting + ERC20Wrapper
 ├── libraries/            # Stateless libraries and namespaced storage
+│   ├── ERC20Lib.sol      # Canonical-root ERC20 allowance storage/selectors
 │   ├── FloatLib.sol      # Fixed-point math with dynamic scaling
 │   ├── FloatStrings.sol  # Float to string conversion
 │   ├── ModuleLib.sol     # Module storage (owner mapping)

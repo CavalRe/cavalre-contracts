@@ -5,7 +5,7 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Initializers
     // ─────────────────────────────────────────────────────────────────────────────
-    function initializeLedger() external;
+    function initializeLedger(string memory name, string memory symbol) external;
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Metadata (by arbitrary address)
@@ -109,6 +109,7 @@ interface ILedger {
     error InvalidDecimals(uint8 decimals);
     error InvalidAccountGroup();
     error InvalidLedgerAccount(address ledgerAddress);
+    error LedgerUninitialized();
     error InvalidString(string symbol);
     error InvalidSubAccount(address addr, bool isCredit);
     error InvalidSubAccountGroup(string subName, bool isCredit);

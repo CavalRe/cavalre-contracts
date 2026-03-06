@@ -20,6 +20,9 @@ import {Test, console} from "forge-std/src/Test.sol";
 // Test module that exposes LedgerLib via external funcs for Router delegatecall
 // ─────────────────────────────────────────────────────────────────────────────
 contract TestLedger is Ledger {
+    string internal constant LEDGER_NAME = "Ledger";
+    string internal constant LEDGER_SYMBOL = "LEDGER";
+
     constructor(uint8 decimals_) Ledger(decimals_, "Ethereum", "ETH") {}
 
     // Keep command registry so Router can “register” the module (if you use it)
@@ -68,7 +71,7 @@ contract TestLedger is Ledger {
 
     function initializeTestLedger() external initializer {
         enforceIsOwner();
-        initializeLedger_unchained();
+        initializeLedger_unchained(LEDGER_NAME, LEDGER_SYMBOL);
     }
 
     function mint(address toParent_, address to_, uint256 amount_) external {
@@ -271,6 +274,8 @@ contract LedgerTest is Test {
         ledgers.initializeTestLedger(); // re-init should revert
 
         // Tree shape sanity
+        assertEq(ledgers.name(address(router)), "Ledger", "ledger name");
+        assertEq(ledgers.symbol(address(router)), "LEDGER", "ledger symbol");
         assertEq(ledgers.subAccounts(testLedger).length, 2, "Subaccounts (testLedger)");
         assertEq(ledgers.subAccounts(r1).length, 3, "Subaccounts (r1)");
         assertEq(ledgers.subAccounts(r10).length, 2, "Subaccounts (r10)");

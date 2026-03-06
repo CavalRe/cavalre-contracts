@@ -1,8 +1,6 @@
 # Summary
 - [Home](README.md)
 # examples
-  - [ERC20Lib](examples/ERC20.sol/library.ERC20Lib.md)
-  - [ERC20](examples/ERC20.sol/contract.ERC20.md)
   - [Lib](examples/ERC4626.sol/library.Lib.md)
   - [ERC4626](examples/ERC4626.sol/contract.ERC4626.md)
   - [Store](examples/Sentry.sol/struct.Store.md)
@@ -13,6 +11,7 @@
 # interfaces
   - [ILedger](interfaces/ILedger.sol/interface.ILedger.md)
 # libraries
+  - [ERC20Lib](libraries/ERC20Lib.sol/library.ERC20Lib.md)
   - [Float](libraries/FloatLib.sol/type.Float.md)
   - [FloatLib](libraries/FloatLib.sol/library.FloatLib.md)
   - [FloatStrings](libraries/FloatStrings.sol/library.FloatStrings.md)
@@ -22,6 +21,7 @@
   - [RouterLib](libraries/RouterLib.sol/library.RouterLib.md)
   - [TreeLib](libraries/TreeLib.sol/library.TreeLib.md)
 # modules
+  - [ERC20](modules/ERC20.sol/contract.ERC20.md)
   - [ERC20Wrapper](modules/Ledger.sol/contract.ERC20Wrapper.md)
   - [Ledger](modules/Ledger.sol/contract.Ledger.md)
   - [Module](modules/Module.sol/abstract.Module.md)
@@ -634,6 +634,8 @@
     - [FloatTest](tests/libraries/FloatLib.t.sol/contract.FloatTest.md)
     - [RandomLibTest](tests/libraries/RandomLib.t.sol/contract.RandomLibTest.md)
   - [❱ modules](tests/modules/README.md)
+    - [MintModule](tests/modules/ERC20.t.sol/contract.MintModule.md)
+    - [ERC20Test](tests/modules/ERC20.t.sol/contract.ERC20Test.md)
     - [ERC20WrapperTest](tests/modules/ERC20Wrapper.t.sol/contract.ERC20WrapperTest.md)
     - [TestLedger](tests/modules/Ledger.t.sol/contract.TestLedger.md)
     - [MockERC20](tests/modules/Ledger.t.sol/contract.MockERC20.md)

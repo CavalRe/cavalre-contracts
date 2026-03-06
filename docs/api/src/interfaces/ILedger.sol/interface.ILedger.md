@@ -7,7 +7,7 @@
 
 
 ```solidity
-function initializeLedger() external;
+function initializeLedger(string memory name, string memory symbol) external;
 ```
 
 ### name
@@ -380,6 +380,12 @@ error InvalidAccountGroup();
 error InvalidLedgerAccount(address ledgerAddress);
 ```
 
+### LedgerUninitialized
+
+```solidity
+error LedgerUninitialized();
+```
+
 ### InvalidString
 
 ```solidity
@@ -439,4 +445,3 @@ error Unauthorized(address user);
 ```solidity
 error ZeroAddress();
 ```
-

@@ -1,6 +1,8 @@
 
 
 # Contents
+- [MintModule](ERC20.t.sol/contract.MintModule.md)
+- [ERC20Test](ERC20.t.sol/contract.ERC20Test.md)
 - [ERC20WrapperTest](ERC20Wrapper.t.sol/contract.ERC20WrapperTest.md)
 - [TestLedger](Ledger.t.sol/contract.TestLedger.md)
 - [MockERC20](Ledger.t.sol/contract.MockERC20.md)

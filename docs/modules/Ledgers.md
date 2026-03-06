@@ -9,13 +9,16 @@
 - account flags (`isGroup`, `isCredit`, `isInternal`, `isNative`, `isWrapper`)
 - balances + routed transfers
 - wrapper-facing transfer hooks + wrap/unwrap flows
+- canonical-root ERC20 surface via `modules/ERC20.sol`
 
 ## Key Model
 
 - every token ledger has a root
+- canonical root is `address(this)`
 - subaccounts are deterministic addresses derived from parent + label/address
 - transfers walk upward through the tree with debit/credit semantics
-- wrappers (`ERC20Wrapper`) expose ERC20-like UX while delegating ledger state updates to `Ledger`
+- wrappers (`ERC20Wrapper`) expose ERC20-like UX for non-canonical roots while delegating ledger state updates to `Ledger`
+- canonical root ERC20 UX is handled by `modules/ERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `ERC20Lib`
 
 ## Storage
 
@@ -42,7 +45,7 @@ Primary ledger/accounting events:
 - `SubAccountRemoved`
 - `SubAccountGroupRemoved`
 
-ERC20-style wrapper events are emitted by wrapper contracts (`Transfer`, `Approval`).
+ERC20-style events are emitted by the canonical `ERC20` module or wrapper contracts (`Transfer`, `Approval`).
 
 ## Testing
 
@@ -50,6 +53,7 @@ Use Foundry tests under `tests/modules/`:
 
 ```bash
 forge test --match-path tests/modules/Ledger.t.sol
+forge test --match-path tests/modules/ERC20.t.sol
 forge test --match-path tests/modules/ERC20Wrapper.t.sol
 ```
 

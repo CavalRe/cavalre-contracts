@@ -77,14 +77,14 @@ function selectors() external pure virtual override returns (bytes4[] memory _se
 
 
 ```solidity
-function initializeLedger_unchained() public onlyInitializing;
+function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing;
 ```
 
 ### initializeLedger
 
 
 ```solidity
-function initializeLedger() external initializer;
+function initializeLedger(string memory name_, string memory symbol_) external initializer;
 ```
 
 ### addSubAccountGroup
@@ -345,4 +345,3 @@ function unwrap(address token_, uint256 amount_, address sourceParent_, address 
     payable
     nonReentrant;
 ```
-
