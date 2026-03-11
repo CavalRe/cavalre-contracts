@@ -3,6 +3,7 @@
 ## Scope Lock
 
 This is a historical implementation checklist for the balance-column refactor that has since landed. References to `TOTAL` describe the old model being removed.
+The final `transfer(...)` implementation ended up using a single coordinated tree walk with same-side early cancellation rather than permanently keeping split `credit(...)` + `debit(...)` legs.
 
 - no onchain income statement tracking
 - no onchain cashflow statement tracking
@@ -81,7 +82,7 @@ Changes:
   - operation polarity sets delta sign (`+`/`-`) on chosen side
   - walk ancestors and update root
   - underflow checks on decrements
-- keep `transfer(...)` shape (`credit leg` + `debit leg`) for initial correctness
+- initial correctness can be validated with split legs, but final implementation may consolidate both legs into one coordinated walk once invariants are covered
 
 Exit criteria:
 
@@ -137,7 +138,7 @@ Exit criteria:
 
 - 4-column onchain audit model
 - onchain IS/CF statement generation
-- LCA optimization for early-cancel propagation (can be follow-up)
+- additional transfer optimizations beyond same-side early cancellation
 - new external API for raw `debits`/`credits` columns
 
 ## Open Decision

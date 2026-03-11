@@ -16,7 +16,9 @@
 - every token ledger has a root
 - canonical root is `address(this)`
 - subaccounts are deterministic addresses derived from parent + label/address
-- transfers walk upward through the tree with debit/credit semantics
+- transfers perform a single coordinated upward walk from source and destination leaves
+- leaf polarity determines which balance column (`debits` or `credits`) each path mutates
+- when both paths converge on the same ancestor on the same side, remaining upward mutations cancel and the walk can stop early
 - internal roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
 - native/external roots can be registered first and optionally wrapped later via `createWrapper`
 - canonical root ERC20 UX is handled by `modules/ERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `ERC20Lib`
