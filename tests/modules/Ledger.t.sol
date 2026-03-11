@@ -832,6 +832,31 @@ contract LedgerTest is Test {
         // attempt: fromParent=routerRoot, toParent=testLedgerRoot (different root)
         ledgers.transfer(routerRoot, testLedgerRoot, bob, 100);
     }
+
+    function testLedgerTransferAcrossSiblingBranchesPreservesAncestorBalance() public {
+        vm.startPrank(alice);
+
+        ledgers.mint(r100, alice, 1000);
+        ledgers.transfer(r100, r101, bob, 400);
+
+        assertEq(ledgers.balanceOf(r100, alice), 600, "r100/alice debited");
+        assertEq(ledgers.balanceOf(r101, bob), 400, "r101/bob credited");
+        assertEq(ledgers.balanceOf(r10, "100"), 600, 'r10/"100" updated');
+        assertEq(ledgers.balanceOf(r10, "101"), 400, 'r10/"101" updated');
+        assertEq(ledgers.balanceOf(r1, "10"), 1000, 'r1/"10" unchanged above common ancestor');
+        assertEq(ledgers.totalSupply(r1), 1000, "total supply unchanged");
+    }
+
+    function testLedgerTransferInsufficientBalanceReportsDeepUnregisteredLeafContext() public {
+        vm.startPrank(alice);
+
+        ledgers.mint(r100, alice, 1000);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ILedger.InsufficientBalance.selector, r1, r100, LedgerLib.toAddress(r100, alice), 1001)
+        );
+        ledgers.transfer(r100, r101, bob, 1001);
+    }
 }
 
 // contract Bah {

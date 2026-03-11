@@ -234,12 +234,7 @@ contract ERC20WrapperTest is Test {
         vm.startPrank(alice);
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledgers), wrapAmount);
-        ledgers.wrap(
-            address(externalToken),
-            wrapAmount,
-            address(externalToken),
-            LedgerLib.SOURCE_ADDRESS
-        );
+        ledgers.wrap(address(externalToken), wrapAmount, address(externalToken), LedgerLib.SOURCE_ADDRESS);
         vm.stopPrank();
 
         assertEq(ledgers.totalSupply(address(externalToken)), wrapAmount, "ledger total supply after wrap");
@@ -263,12 +258,7 @@ contract ERC20WrapperTest is Test {
         if (isVerbose) console.log("Wrapping external token into wrapper");
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledgers), wrapAmount);
-        ledgers.wrap(
-            address(externalToken),
-            wrapAmount,
-            address(externalToken),
-            LedgerLib.SOURCE_ADDRESS
-        );
+        ledgers.wrap(address(externalToken), wrapAmount, address(externalToken), LedgerLib.SOURCE_ADDRESS);
         // vm.stopPrank();
 
         // vm.startPrank(alice);

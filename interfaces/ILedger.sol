@@ -120,6 +120,7 @@ interface ILedger {
     error SubAccountNotFound(address addr);
     error SubAccountGroupNotFound(string subName);
     error Unauthorized(address user);
+    error ZeroDepth();
     error ZeroAddress();
 
     // ─────────────────────────────────────────────────────────────────────────────
