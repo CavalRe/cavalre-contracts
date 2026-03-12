@@ -31,8 +31,6 @@ library LedgerLib {
     }
 
     uint8 internal constant MAX_DEPTH = 10;
-    // toNamedAddress("Reserve")
-    address internal constant RESERVE_ADDRESS = 0x3a9097D216F9D5859bE6b3918F997A8823E92984;
     // toAddress("Native")
     address internal constant NATIVE_ADDRESS = 0xE0092BfAe8c1A1d8CB953ed67bd42A4861E423F9;
     // toAddress("Unallocated")

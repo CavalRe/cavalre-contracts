@@ -18,13 +18,6 @@ uint8 internal constant MAX_DEPTH = 10
 ```
 
 
-### RESERVE_ADDRESS
-
-```solidity
-address internal constant RESERVE_ADDRESS = 0x3a9097D216F9D5859bE6b3918F997A8823E92984
-```
-
-
 ### NATIVE_ADDRESS
 
 ```solidity
@@ -515,4 +508,3 @@ struct Store {
     mapping(address => uint256) credits;
 }
 ```
-

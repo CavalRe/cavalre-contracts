@@ -37,7 +37,6 @@ Core fields include:
 
 Special addresses:
 
-- `RESERVE_ADDRESS`
 - `NATIVE_ADDRESS`
 - `SOURCE_ADDRESS`
 

@@ -92,7 +92,6 @@ forge clean
 
 Special addresses (LedgerLib):
 
-- `RESERVE_ADDRESS` - reserve account
 - `NATIVE_ADDRESS` - native token (ETH)
 - `SOURCE_ADDRESS` - source/unallocated minting account
 
