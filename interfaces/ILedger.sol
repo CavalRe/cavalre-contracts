@@ -117,6 +117,7 @@ interface ILedger {
     error InvalidSubAccountIndex(uint256 index);
     error InvalidToken(address token, string name, string symbol, uint8 decimals);
     error MaxDepthExceeded();
+    error NativeTransferFailed();
     error SubAccountNotFound(address addr);
     error SubAccountGroupNotFound(string subName);
     error Unauthorized(address user);
