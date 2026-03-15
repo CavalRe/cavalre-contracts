@@ -40,6 +40,13 @@ library FloatLib {
     Float constant TEN = Float.wrap(((ONE_EXPONENT + 1) << MANTISSA_BITS) | ONE_MANTISSA);
     Float constant HALF = Float.wrap(((ONE_EXPONENT - 1) << MANTISSA_BITS) | (5 * ONE_MANTISSA));
 
+    error FloatNegativeValue();
+    error LogNonPositive();
+    error PowBaseNotPositive();
+    error PowExponentTooSmall();
+    error PowZeroBase();
+    error ShiftMagnitudeTooLarge();
+
     //=================
     //   Conversions
     //=================
@@ -67,7 +74,7 @@ library FloatLib {
     //------------
     function toUInt(Float a_, uint8 decimals_) internal pure returns (uint256) {
         (int256 _m, int256 _e) = components(a_);
-        require(_m >= 0, "Value must be non-negative");
+        if (_m < 0) revert FloatNegativeValue();
         _e += int256(uint256(decimals_));
         if (_e >= 0) {
             return uint256(_m) * 10 ** uint256(_e);
@@ -189,7 +196,7 @@ library FloatLib {
             }
         } else {
             _shift = -_shift;
-            require(_shift <= int256(SIGNIFICANT_DIGITS), "shift: |i| too large");
+            if (_shift > int256(SIGNIFICANT_DIGITS)) revert ShiftMagnitudeTooLarge();
             while (_shift >= 16) {
                 _m *= 1e16;
                 _shift -= 16;
@@ -390,7 +397,7 @@ library FloatLib {
     function log(Float x_) internal pure returns (Float) {
         Float _x = normalize(x_);
         (int256 _m, int256 _e) = components(_x);
-        require(_m > 0, "log non-positive");
+        if (_m <= 0) revert LogNonPositive();
 
         int256 _lnWad = (_m * 1e18).lnWad() + _e * LOG10_WAD;
 
@@ -424,8 +431,8 @@ library FloatLib {
     function powInt(Float base_, int256 e_) internal pure returns (Float) {
         Float _base = normalize(base_);
         if (e_ >= 0) return powUint(_base, uint256(e_));
-        require(mantissa(_base) != 0, "pow: zero base");
-        require(e_ != type(int256).min, "pow: exponent too small");
+        if (mantissa(_base) == 0) revert PowZeroBase();
+        if (e_ == type(int256).min) revert PowExponentTooSmall();
         Float _pos = powUint(_base, uint256(-e_));
         return ONE.divide(_pos);
     }
@@ -435,7 +442,7 @@ library FloatLib {
         Float _base = normalize(base_);
         if (mantissa(e_) == 0) return ONE;
         if (_base.isEQ(ONE)) return ONE;
-        require(mantissa(_base) > 0, "pow: base must be positive");
+        if (mantissa(_base) <= 0) revert PowBaseNotPositive();
         return exp(log(_base).times(e_));
     }
 

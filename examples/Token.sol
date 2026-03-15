@@ -15,6 +15,8 @@ library TokenLib {
 }
 
 contract TestToken is ERC20 {
+    error WithdrawTransferFailed();
+
     event Deposit(address indexed dst, uint256 wad);
     event Withdrawal(address indexed src, uint256 wad);
 
@@ -62,7 +64,7 @@ contract TestToken is ERC20 {
         require(balanceOf(_msgSender()) >= wad);
         burn(wad);
         (bool success,) = payable(_msgSender()).call{value: wad}("");
-        require(success, "Transfer failed");
+        if (!success) revert WithdrawTransferFailed();
         emit Withdrawal(_msgSender(), wad);
     }
 }

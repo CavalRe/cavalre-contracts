@@ -18,6 +18,7 @@ contract Router is Module {
     // Errors
     error CommandAlreadySet(bytes4 _command, address _module);
     error CommandNotFound(bytes4 _command);
+    error GetCommandsFailed(address module);
     error ModuleNotFound(address _module);
 
     constructor(address owner_) {
@@ -50,7 +51,7 @@ contract Router is Module {
 
     function getCommands(address module_) public returns (bytes4[] memory) {
         (bool _success, bytes memory _data) = module_.call(abi.encodeWithSignature("selectors()"));
-        require(_success, "Command: getCommands failed");
+        if (!_success) revert GetCommandsFailed(module_);
         return abi.decode(_data, (bytes4[]));
     }
 
