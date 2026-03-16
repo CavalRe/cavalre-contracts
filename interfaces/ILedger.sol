@@ -60,7 +60,7 @@ interface ILedger {
 
     function addSubAccount(address parent, address addr, string memory name, bool isInternal) external returns (address);
 
-    function addNativeToken(string memory nativeTokenName, string memory nativeTokenSymbol) external;
+    function addNativeToken() external;
 
     function addExternalToken(address token) external;
 

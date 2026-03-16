@@ -200,7 +200,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("addNativeToken(string,string)"));
+        _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
         _selectors[n++] = bytes4(keccak256("addInternalToken(string,string,uint8)"));
         _selectors[n++] = bytes4(keccak256("createWrapper(address)"));
@@ -263,9 +263,15 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.addSubAccount(parent_, addr_, name_, isCredit_);
     }
 
-    function addNativeToken(string memory nativeTokenName_, string memory nativeTokenSymbol_) external {
+    function addNativeToken() external {
         enforceIsOwner();
-        LedgerLib.addNativeToken(nativeTokenName_, nativeTokenSymbol_, _decimals);
+        LedgerLib.addLedger(
+            LedgerLib.NATIVE_ADDRESS,
+            ShortStrings.toString(_nativeName),
+            ShortStrings.toString(_nativeSymbol),
+            18,
+            false
+        );
     }
 
     function addExternalToken(address token_) external {

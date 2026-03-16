@@ -358,15 +358,6 @@ library LedgerLib {
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
     }
 
-    function addNativeToken(string memory nativeTokenName_, string memory nativeTokenSymbol_, uint8 decimals_)
-        internal
-    {
-        if (NATIVE_ADDRESS == root(NATIVE_ADDRESS)) revert ILedger.DuplicateToken(NATIVE_ADDRESS);
-        if (!isValidString(nativeTokenName_)) revert ILedger.InvalidString(nativeTokenName_);
-        if (!isValidString(nativeTokenSymbol_)) revert ILedger.InvalidString(nativeTokenSymbol_);
-        addLedger(NATIVE_ADDRESS, nativeTokenName_, nativeTokenSymbol_, decimals_, false);
-    }
-
     function addExternalToken(address token_) internal {
         if (!isZeroAddress(token_) && token_ == root(token_)) {
             revert ILedger.DuplicateToken(token_);
@@ -693,8 +684,9 @@ library LedgerLib {
         while (_depth > 0) {
             // if (_current != _root && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
             if (depth(fromLeaf.flags) >= _depth) {
-                from.balance =
-                    _update(from, _root, isCredit(fromLeaf.flags) ? s.credits : s.debits, amount_, isCredit(fromLeaf.flags));
+                from.balance = _update(
+                    from, _root, isCredit(fromLeaf.flags) ? s.credits : s.debits, amount_, isCredit(fromLeaf.flags)
+                );
                 if (_depth > 1) {
                     from.current = parent(from.flags);
                     from.flags = flags(from.current);

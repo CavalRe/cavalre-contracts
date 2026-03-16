@@ -33,7 +33,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("addNativeToken(string,string)"));
+        _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
         _selectors[n++] = bytes4(keccak256("addInternalToken(string,string,uint8)"));
         _selectors[n++] = bytes4(keccak256("createWrapper(address)"));
@@ -300,14 +300,14 @@ contract LedgerTest is Test {
 
     function testAddNativeTokenAndCreateWrapper() public {
         vm.startPrank(alice);
-        ledgers.addNativeToken("Avalanche", "AVAX");
+        ledgers.addNativeToken();
         address wrapper = ledgers.createWrapper(native);
         vm.stopPrank();
 
         assertEq(ledgers.wrapper(native), wrapper, "wrapper set");
         assertEq(ledgers.root(native), native, "root native");
-        assertEq(ledgers.name(native), "Avalanche", "name");
-        assertEq(ledgers.symbol(native), "AVAX", "symbol");
+        assertEq(ledgers.name(native), "Ethereum", "name");
+        assertEq(ledgers.symbol(native), "ETH", "symbol");
         assertEq(ledgers.decimals(native), 18, "decimals");
         assertTrue((ledgers.flags(native) & LedgerLib.FLAG_IS_NATIVE) != 0, "native flag set");
         assertTrue((ledgers.flags(native) & LedgerLib.FLAG_IS_WRAPPER) != 0, "wrapper flag set");
@@ -349,19 +349,6 @@ contract LedgerTest is Test {
         assertEq(ledgers.wrapper(r10), address(0), "non-root wrapper unset");
         assertEq(ledgers.wrapper(r1), r1, "internal root wrapper");
         assertEq(ledgers.wrapper(address(externalToken)), externalWrapper, "external root wrapper");
-    }
-
-    function testAddNativeTokenDuplicateReverts() public {
-        vm.startPrank(alice);
-        ledgers.addNativeToken("Avalanche", "AVAX");
-        vm.expectRevert(abi.encodeWithSelector(ILedger.DuplicateToken.selector, native));
-        ledgers.addNativeToken("Avalanche", "AVAX");
-    }
-
-    function testAddNativeTokenInvalidString() public {
-        vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidString.selector, ""));
-        ledgers.addNativeToken("Avalanche", "");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -710,7 +697,7 @@ contract LedgerTest is Test {
     function testLedgerWrapNative() public {
         vm.deal(alice, 5 ether);
         vm.startPrank(alice);
-        ledgers.addNativeToken("Avalanche", "AVAX");
+        ledgers.addNativeToken();
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 2 ether;
@@ -743,7 +730,7 @@ contract LedgerTest is Test {
     function testLedgerWrapNativeIncorrectValue() public {
         vm.deal(alice, 5 ether);
         vm.startPrank(alice);
-        ledgers.addNativeToken("Avalanche", "AVAX");
+        ledgers.addNativeToken();
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 2 ether;
@@ -766,7 +753,7 @@ contract LedgerTest is Test {
     function testLedgerUnwrapNative() public {
         vm.deal(alice, 5 ether);
         vm.startPrank(alice);
-        ledgers.addNativeToken("Avalanche", "AVAX");
+        ledgers.addNativeToken();
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 3 ether;
@@ -787,7 +774,7 @@ contract LedgerTest is Test {
     function testLedgerUnwrapNativeRejectsValue() public {
         vm.deal(alice, 2 ether);
         vm.startPrank(alice);
-        ledgers.addNativeToken("Avalanche", "AVAX");
+        ledgers.addNativeToken();
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 1 ether;
@@ -853,7 +840,9 @@ contract LedgerTest is Test {
         ledgers.mint(r100, alice, 1000);
 
         vm.expectRevert(
-            abi.encodeWithSelector(ILedger.InsufficientBalance.selector, r1, r100, LedgerLib.toAddress(r100, alice), 1001)
+            abi.encodeWithSelector(
+                ILedger.InsufficientBalance.selector, r1, r100, LedgerLib.toAddress(r100, alice), 1001
+            )
         );
         ledgers.transfer(r100, r101, bob, 1001);
     }

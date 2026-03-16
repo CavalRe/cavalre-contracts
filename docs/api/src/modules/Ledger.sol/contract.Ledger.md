@@ -107,7 +107,7 @@ function addSubAccount(address parent_, address addr_, string memory name_, bool
 
 
 ```solidity
-function addNativeToken(string memory nativeTokenName_, string memory nativeTokenSymbol_) external;
+function addNativeToken() external;
 ```
 
 ### addExternalToken
@@ -348,4 +348,3 @@ function unwrap(address token_, uint256 amount_, address sourceParent_, address 
     payable
     nonReentrant;
 ```
-

@@ -168,7 +168,7 @@ function addSubAccount(address parent, address addr, string memory name, bool is
 
 
 ```solidity
-function addNativeToken(string memory nativeTokenName, string memory nativeTokenSymbol) external;
+function addNativeToken() external;
 ```
 
 ### addExternalToken
@@ -456,4 +456,3 @@ error Unauthorized(address user);
 ```solidity
 error ZeroAddress();
 ```
-

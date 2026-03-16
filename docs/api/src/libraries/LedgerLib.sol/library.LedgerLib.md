@@ -406,8 +406,7 @@ function addLedger(address root_, string memory name_, string memory symbol_, ui
 
 
 ```solidity
-function addNativeToken(string memory nativeTokenName_, string memory nativeTokenSymbol_, uint8 decimals_)
-    internal;
+function addNativeToken() internal;
 ```
 
 ### addExternalToken
