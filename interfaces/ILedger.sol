@@ -58,7 +58,8 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     function addSubAccountGroup(address parent, string memory name, bool isCredit) external returns (address);
 
-    function addSubAccount(address parent, address addr, string memory name, bool isInternal) external returns (address);
+    /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
+    function addSubAccount(address parent, address addr, string memory name, bool isCredit) external returns (address);
 
     function addNativeToken() external;
 
