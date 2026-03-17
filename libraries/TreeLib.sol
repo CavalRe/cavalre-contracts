@@ -52,7 +52,7 @@ library TreeLib {
 
         address[] memory subs = ledgers_.subAccounts(_root);
         for (uint256 i = 0; i < subs.length; i++) {
-            logTree(ledgers_, _root, LedgerLib.toAddress(_root, subs[i]), subPrefix, false, i == subs.length - 1);
+            logTree(ledgers_, _root, subs[i], subPrefix, false, i == subs.length - 1);
         }
     }
 
