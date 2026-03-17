@@ -160,12 +160,12 @@ contract ReenterToken is ERC20 {
     }
 }
 
-contract DummyWrapper {}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 contract LedgerTest is Test {
+    bool isVerbose;
+
     Router router;
     TestLedger ledgers;
 
@@ -199,7 +199,7 @@ contract LedgerTest is Test {
     address r111;
 
     function setUp() public {
-        bool isVerbose = false;
+        isVerbose = false;
 
         vm.startPrank(alice);
         if (isVerbose) console.log("Deploying TestLedger");
@@ -257,7 +257,7 @@ contract LedgerTest is Test {
     // Structure / initialization
     // ─────────────────────────────────────────────────────────────────────────
     function testLedgerInit() public {
-        bool isVerbose = true;
+        isVerbose = true;
 
         if (isVerbose) console.log("Display Account Hierarchy");
         if (isVerbose) console.log("--------------------");
@@ -390,7 +390,7 @@ contract LedgerTest is Test {
     // RemoveSubAccount
     // ─────────────────────────────────────────────────────────────────────────
     function testLedgerRemoveSubAccountHappyPath() public {
-        bool isVerbose = false;
+        isVerbose = false;
 
         vm.startPrank(alice);
 
@@ -499,15 +499,7 @@ contract LedgerTest is Test {
     // Mint / Burn
     // ─────────────────────────────────────────────────────────────────────────
     function testLedgerMint() public {
-        bool isVerbose = true;
-
-        if (isVerbose) {
-            console.log("--------------------");
-            TreeLib.debugTree(ledgers, address(router));
-            console.log("--------------------");
-            TreeLib.debugTree(ledgers, r1);
-            console.log("--------------------");
-        }
+        isVerbose = true;
 
         vm.startPrank(alice);
 
@@ -523,6 +515,14 @@ contract LedgerTest is Test {
         assertEq(ledgers.balanceOf(r10, "100"), 1000, 'balanceOf(r10, "100")');
         assertEq(ledgers.balanceOf(r1, "10"), 1000, 'balanceOf(r1, "10")');
         assertEq(ledgers.totalSupply(r1), 2000, "totalSupply(r1)");
+
+        if (isVerbose) {
+            console.log("--------------------");
+            TreeLib.debugTree(ledgers, address(router));
+            console.log("--------------------");
+            TreeLib.debugTree(ledgers, r1);
+            console.log("--------------------");
+        }
     }
 
     function testLedgerBurn() public {
@@ -544,7 +544,7 @@ contract LedgerTest is Test {
     }
 
     function testLedgerReallocate() public {
-        bool isVerbose = false;
+        isVerbose = false;
 
         vm.startPrank(alice);
 
@@ -578,7 +578,7 @@ contract LedgerTest is Test {
     }
 
     function testLedgerWrap() public {
-        bool isVerbose = false;
+        isVerbose = false;
 
         vm.startPrank(alice);
 
