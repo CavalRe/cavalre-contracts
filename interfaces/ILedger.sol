@@ -58,6 +58,13 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     function addSubAccountGroup(address parent, string memory name, bool isCredit) external returns (address);
 
+    function addSubAccountGroup(address parent, address addr, string memory name, bool isCredit)
+        external
+        returns (address);
+
+    /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
+    function addSubAccount(address parent, string memory name, bool isCredit) external returns (address);
+
     /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
     function addSubAccount(address parent, address addr, string memory name, bool isCredit) external returns (address);
 
@@ -70,6 +77,10 @@ interface ILedger {
     function createWrapper(address token) external returns (address);
 
     function removeSubAccountGroup(address parent, string memory name) external returns (address);
+
+    function removeSubAccountGroup(address parent, address addr) external returns (address);
+
+    function removeSubAccount(address parent, string memory name) external returns (address);
 
     function removeSubAccount(address parent, address child) external returns (address);
 
@@ -120,7 +131,7 @@ interface ILedger {
     error MaxDepthExceeded();
     error NativeTransferFailed();
     error SubAccountNotFound(address addr);
-    error SubAccountGroupNotFound(string subName);
+    error SubAccountGroupNotFound(address addr);
     error Unauthorized(address user);
     error ZeroDepth();
     error ZeroAddress();
@@ -140,7 +151,7 @@ interface ILedger {
     event SubAccountAdded(address indexed root, address indexed parent, address addr, bool isCredit);
     event SubAccountGroupAdded(address indexed root, address indexed parent, string subName, bool isCredit);
     event SubAccountRemoved(address indexed root, address indexed parent, address addr);
-    event SubAccountGroupRemoved(address indexed root, address indexed parent, string subName);
+    event SubAccountGroupRemoved(address indexed root, address indexed parent, address addr);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Standard ERC-20 events (emitted through library/wrapper)

@@ -196,15 +196,19 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](36);
+        _selectors = new bytes4[](40);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccount(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
         _selectors[n++] = bytes4(keccak256("addInternalToken(string,string,uint8)"));
         _selectors[n++] = bytes4(keccak256("createWrapper(address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
         _selectors[n++] = bytes4(keccak256("name(address)"));
         _selectors[n++] = bytes4(keccak256("symbol(address)"));
@@ -234,7 +238,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256,address,address)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256,address,address)"));
 
-        if (n != 36) revert InvalidCommandsLength(n);
+        if (n != 40) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
@@ -252,6 +256,21 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         enforceIsOwner();
 
         return LedgerLib.addSubAccountGroup(parent_, name_, isCredit_);
+    }
+
+    function addSubAccountGroup(address parent_, address addr_, string memory name_, bool isCredit_)
+        external
+        returns (address)
+    {
+        enforceIsOwner();
+
+        return LedgerLib.addSubAccountGroup(parent_, addr_, name_, isCredit_);
+    }
+
+    function addSubAccount(address parent_, string memory name_, bool isCredit_) external returns (address) {
+        enforceIsOwner();
+
+        return LedgerLib.addSubAccount(parent_, name_, isCredit_);
     }
 
     function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
@@ -293,6 +312,18 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         enforceIsOwner();
 
         return LedgerLib.removeSubAccountGroup(parent_, name_);
+    }
+
+    function removeSubAccountGroup(address parent_, address addr_) external returns (address) {
+        enforceIsOwner();
+
+        return LedgerLib.removeSubAccountGroup(parent_, addr_);
+    }
+
+    function removeSubAccount(address parent_, string memory name_) external returns (address) {
+        enforceIsOwner();
+
+        return LedgerLib.removeSubAccount(parent_, name_);
     }
 
     function removeSubAccount(address parent_, address addr_) external returns (address) {

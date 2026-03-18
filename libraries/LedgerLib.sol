@@ -261,10 +261,17 @@ library LedgerLib {
     //==================================================================
 
     function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) internal returns (address _sub) {
+        return addSubAccountGroup(parent_, toAddress(name_), name_, isCredit_);
+    }
+
+    function addSubAccountGroup(address parent_, address addr_, string memory name_, bool isCredit_)
+        internal
+        returns (address _sub)
+    {
         if (!isGroup(flags(parent_))) revert ILedger.InvalidAccountGroup();
         checkString(name_);
 
-        _sub = toAddress(parent_, name_);
+        _sub = toAddress(parent_, addr_);
 
         bool _isExistingParent = parent(_sub) == parent_;
         bool _isExistingName = keccak256(bytes(name(_sub))) == keccak256(bytes(name_));
@@ -286,10 +293,14 @@ library LedgerLib {
         Store storage s = store();
         s.name[_sub] = name_;
         s.root[_sub] = _root;
-        s.subs[parent_].push(toAddress(name_));
+        s.subs[parent_].push(addr_);
         s.subIndex[_sub] = uint32(s.subs[parent_].length);
         s.flags[_sub] = flags(parent_, true, isCredit_, true, false, false, true, _depth);
         emit ILedger.SubAccountGroupAdded(_root, parent_, name_, isCredit_);
+    }
+
+    function addSubAccount(address parent_, string memory name_, bool isCredit_) internal returns (address _sub) {
+        return addSubAccount(parent_, toAddress(name_), name_, isCredit_);
     }
 
     function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
@@ -420,13 +431,17 @@ library LedgerLib {
     }
 
     function removeSubAccountGroup(address parent_, string memory name_) internal returns (address) {
-        address _sub = toAddress(parent_, name_);
+        return removeSubAccountGroup(parent_, toAddress(name_));
+    }
+
+    function removeSubAccountGroup(address parent_, address addr_) internal returns (address) {
+        address _sub = toAddress(parent_, addr_);
         if (!isGroup(flags(parent_))) revert ILedger.InvalidAccountGroup();
         if (!isGroup(flags(_sub))) revert ILedger.InvalidAccountGroup();
 
         // Must exist and belong to this parent
         if (parent(_sub) != parent_) {
-            revert ILedger.SubAccountGroupNotFound(name_);
+            revert ILedger.SubAccountGroupNotFound(addr_);
         }
 
         if (hasSubAccount(_sub)) revert ILedger.HasSubAccount(_sub);
@@ -450,9 +465,13 @@ library LedgerLib {
         s.flags[_sub] = 0;
 
         address _root = root(parent_);
-        emit ILedger.SubAccountGroupRemoved(_root, parent_, name_);
+        emit ILedger.SubAccountGroupRemoved(_root, parent_, addr_);
 
         return _sub;
+    }
+
+    function removeSubAccount(address parent_, string memory name_) internal returns (address) {
+        return removeSubAccount(parent_, toAddress(name_));
     }
 
     function removeSubAccount(address parent_, address addr_) internal returns (address) {

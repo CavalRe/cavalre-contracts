@@ -28,17 +28,21 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](36);
+        _selectors = new bytes4[](40);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccount(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
         _selectors[n++] = bytes4(keccak256("addInternalToken(string,string,uint8)"));
         _selectors[n++] = bytes4(keccak256("createWrapper(address)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,string)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
         _selectors[n++] = bytes4(keccak256("name(address)"));
         _selectors[n++] = bytes4(keccak256("symbol(address)"));
         _selectors[n++] = bytes4(keccak256("decimals(address)"));
@@ -67,7 +71,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 36) revert InvalidCommandsLength(n);
+        if (n != 40) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -374,6 +378,16 @@ contract LedgerTest is Test {
         assertEq(idempotent, added, "expected same sub account address");
     }
 
+    function testLedgerAddSubAccountNameDelegatesToAddressForm() public {
+        vm.startPrank(alice);
+
+        address relative_ = LedgerLib.toAddress("leafSubAccount");
+        address added_ = ledgers.addSubAccount(r1, "leafSubAccount", false);
+
+        assertEq(added_, LedgerLib.toAddress(r1, relative_), "address mismatch");
+        assertEq(ledgers.subAccounts(r1)[ledgers.subAccounts(r1).length - 1], relative_, "relative addr stored");
+    }
+
     function testLedgerAddSubAccountZeroParentReverts() public {
         vm.startPrank(alice);
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, address(0)));
@@ -405,6 +419,30 @@ contract LedgerTest is Test {
         assertEq(ledgers.name(_100), "", "name cleared");
         if (isVerbose) console.log("Check hasSubAccount");
         assertFalse(ledgers.hasSubAccount(_100), "no children");
+    }
+
+    function testLedgerRemoveSubAccountGroupAddressForm() public {
+        vm.startPrank(alice);
+
+        address relative_ = LedgerLib.toAddress("groupByAddr");
+        address added_ = ledgers.addSubAccountGroup(r1, relative_, "groupByAddr", false);
+        ledgers.removeSubAccountGroup(r1, relative_);
+
+        assertEq(ledgers.parent(added_), address(0), "parent reset");
+        assertEq(ledgers.subAccountIndex(r1, relative_), 0, "index reset");
+        assertEq(ledgers.name(added_), "", "name cleared");
+    }
+
+    function testLedgerRemoveSubAccountNameDelegatesToAddressForm() public {
+        vm.startPrank(alice);
+
+        address relative_ = LedgerLib.toAddress("leafByName");
+        address added_ = ledgers.addSubAccount(r1, "leafByName", false);
+        ledgers.removeSubAccount(r1, "leafByName");
+
+        assertEq(ledgers.parent(added_), address(0), "parent reset");
+        assertEq(ledgers.subAccountIndex(r1, relative_), 0, "index reset");
+        assertEq(ledgers.name(added_), "", "name cleared");
     }
 
     function testLedgerRemoveSubAccountThatDoesNotExistReverts() public {
