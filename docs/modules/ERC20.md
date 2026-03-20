@@ -29,6 +29,7 @@ This keeps canonical-root ERC20 behavior out of `LedgerLib` while preserving `ad
 ## Relationship To ERC20Wrapper
 
 - canonical root uses `modules/ERC20.sol` if ERC20 exposure is desired
+- canonical root may also be wrapped explicitly via `createWrapper(...)`
 - internal roots are self-wrapped at creation
 - native and external roots may be wrapped later via `createWrapper(...)`
 

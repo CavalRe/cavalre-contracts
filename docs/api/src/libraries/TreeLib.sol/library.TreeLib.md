@@ -1,5 +1,5 @@
 # TreeLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4104c9a5fb1b403d7a1bc8bdf3c0f7c85335ff70/libraries/TreeLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d6e6c8bec73fd15a0c08c70187d6e2f4481e1b46/libraries/TreeLib.sol)
 
 
 ## Functions
@@ -7,7 +7,14 @@
 
 
 ```solidity
-function logTree(Ledger ledgers, address root, string memory prefix, bool isFirst, bool isLast) internal view;
+function logTree(
+    Ledger ledgers_,
+    address parent_,
+    address addr_,
+    string memory prefix_,
+    bool isFirst_,
+    bool isLast_
+) internal view;
 ```
 
 ### debugTree

@@ -7,7 +7,6 @@
 - [TestLedger](Ledger.t.sol/contract.TestLedger.md)
 - [MockERC20](Ledger.t.sol/contract.MockERC20.md)
 - [ReenterToken](Ledger.t.sol/contract.ReenterToken.md)
-- [DummyWrapper](Ledger.t.sol/contract.DummyWrapper.md)
 - [LedgerTest](Ledger.t.sol/contract.LedgerTest.md)
 - [ModuleTest](Module.t.sol/contract.ModuleTest.md)
 - [TestModuleLib](Router.t.sol/library.TestModuleLib.md)

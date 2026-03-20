@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4104c9a5fb1b403d7a1bc8bdf3c0f7c85335ff70/interfaces/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d6e6c8bec73fd15a0c08c70187d6e2f4481e1b46/interfaces/ILedger.sol)
 
 
 ## Functions
@@ -101,13 +101,6 @@ function isInternal(uint256 flags) external pure returns (bool);
 function isNative(uint256 flags) external pure returns (bool);
 ```
 
-### isWrapper
-
-
-```solidity
-function isWrapper(uint256 flags) external pure returns (bool);
-```
-
 ### isRegistered
 
 
@@ -154,15 +147,54 @@ function subAccountIndex(address parent, address addr) external view returns (ui
 
 
 ```solidity
-function addSubAccountGroup(address parent, string memory name, bool isCredit) external returns (address);
+function addSubAccountGroup(address parent, string memory name, bool isCredit)
+    external
+    returns (address addr, uint256 flags);
+```
+
+### addSubAccountGroup
+
+
+```solidity
+function addSubAccountGroup(address parent, address addr, string memory name, bool isCredit)
+    external
+    returns (address subAccount, uint256 flags);
 ```
 
 ### addSubAccount
 
 
 ```solidity
-function addSubAccount(address parent, address addr, string memory name, bool isCredit) external returns (address);
+function addSubAccount(address parent, string memory name, bool isCredit)
+    external
+    returns (address addr, uint256 flags);
 ```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`parent`|`address`||
+|`name`|`string`||
+|`isCredit`|`bool`|True for credit-side account, false for debit-side in the double-entry tree.|
+
+
+### addSubAccount
+
+
+```solidity
+function addSubAccount(address parent, address addr, string memory name, bool isCredit)
+    external
+    returns (address subAccount, uint256 flags);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`parent`|`address`||
+|`addr`|`address`||
+|`name`|`string`||
+|`isCredit`|`bool`|True for credit-side account, false for debit-side in the double-entry tree.|
+
 
 ### addNativeToken
 
@@ -197,6 +229,20 @@ function createWrapper(address token) external returns (address);
 
 ```solidity
 function removeSubAccountGroup(address parent, string memory name) external returns (address);
+```
+
+### removeSubAccountGroup
+
+
+```solidity
+function removeSubAccountGroup(address parent, address addr) external returns (address);
+```
+
+### removeSubAccount
+
+
+```solidity
+function removeSubAccount(address parent, string memory name) external returns (address);
 ```
 
 ### removeSubAccount
@@ -303,7 +349,7 @@ event SubAccountRemoved(address indexed root, address indexed parent, address ad
 ### SubAccountGroupRemoved
 
 ```solidity
-event SubAccountGroupRemoved(address indexed root, address indexed parent, string subName);
+event SubAccountGroupRemoved(address indexed root, address indexed parent, address addr);
 ```
 
 ### Transfer
@@ -427,10 +473,10 @@ error InvalidSubAccountIndex(uint256 index);
 error InvalidToken(address token, string name, string symbol, uint8 decimals);
 ```
 
-### MaxDepthExceeded
+### NativeTransferFailed
 
 ```solidity
-error MaxDepthExceeded();
+error NativeTransferFailed();
 ```
 
 ### SubAccountNotFound
@@ -442,7 +488,7 @@ error SubAccountNotFound(address addr);
 ### SubAccountGroupNotFound
 
 ```solidity
-error SubAccountGroupNotFound(string subName);
+error SubAccountGroupNotFound(address addr);
 ```
 
 ### Unauthorized
@@ -451,8 +497,15 @@ error SubAccountGroupNotFound(string subName);
 error Unauthorized(address user);
 ```
 
+### ZeroDepth
+
+```solidity
+error ZeroDepth();
+```
+
 ### ZeroAddress
 
 ```solidity
 error ZeroAddress();
 ```
+

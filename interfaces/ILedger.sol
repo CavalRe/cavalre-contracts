@@ -39,8 +39,6 @@ interface ILedger {
 
     function isNative(uint256 flags) external pure returns (bool);
 
-    function isWrapper(uint256 flags) external pure returns (bool);
-
     function isRegistered(uint256 flags) external pure returns (bool);
 
     function isExternal(uint256 flags) external pure returns (bool);
@@ -56,17 +54,23 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Tree Manipulation
     // ─────────────────────────────────────────────────────────────────────────────
-    function addSubAccountGroup(address parent, string memory name, bool isCredit) external returns (address);
+    function addSubAccountGroup(address parent, string memory name, bool isCredit)
+        external
+        returns (address addr, uint256 flags);
 
     function addSubAccountGroup(address parent, address addr, string memory name, bool isCredit)
         external
-        returns (address);
+        returns (address subAccount, uint256 flags);
 
     /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
-    function addSubAccount(address parent, string memory name, bool isCredit) external returns (address);
+    function addSubAccount(address parent, string memory name, bool isCredit)
+        external
+        returns (address addr, uint256 flags);
 
     /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
-    function addSubAccount(address parent, address addr, string memory name, bool isCredit) external returns (address);
+    function addSubAccount(address parent, address addr, string memory name, bool isCredit)
+        external
+        returns (address subAccount, uint256 flags);
 
     function addNativeToken() external;
 
@@ -128,7 +132,6 @@ interface ILedger {
     error InvalidSubAccountGroup(string subName, bool isCredit);
     error InvalidSubAccountIndex(uint256 index);
     error InvalidToken(address token, string name, string symbol, uint8 decimals);
-    error MaxDepthExceeded();
     error NativeTransferFailed();
     error SubAccountNotFound(address addr);
     error SubAccountGroupNotFound(address addr);

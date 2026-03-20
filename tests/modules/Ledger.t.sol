@@ -28,7 +28,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](40);
+        _selectors = new bytes4[](39);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -54,7 +54,6 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("isCredit(uint256)"));
         _selectors[n++] = bytes4(keccak256("isInternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
-        _selectors[n++] = bytes4(keccak256("isWrapper(uint256)"));
         _selectors[n++] = bytes4(keccak256("isExternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isRoot(uint256)"));
         _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
@@ -71,7 +70,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 40) revert InvalidCommandsLength(n);
+        if (n != 39) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -223,26 +222,26 @@ contract LedgerTest is Test {
         testLedger = ledgers.addInternalToken("Test Ledger", "TL", 18);
         ledgers.addSubAccount(testLedger, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-groups to Test Ledger");
-        ledgers.addSubAccountGroup(
-            ledgers.addSubAccountGroup(ledgers.addSubAccountGroup(testLedger, "1", false), "10", false), "100", false
-        );
+        (address testLedger_1_,) = ledgers.addSubAccountGroup(testLedger, "1", false);
+        (address testLedger_10_,) = ledgers.addSubAccountGroup(testLedger_1_, "10", false);
+        ledgers.addSubAccountGroup(testLedger_10_, "100", false);
 
         // Add token r1 and its sub-groups
         if (isVerbose) console.log("Creating root token '1'");
         r1 = ledgers.addInternalToken("1", "1", 18);
         ledgers.addSubAccount(r1, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-group '10' to root token '1'");
-        r10 = ledgers.addSubAccountGroup(r1, "10", false);
+        (r10,) = ledgers.addSubAccountGroup(r1, "10", false);
         if (isVerbose) console.log("Adding sub-group '11' to root token '1'");
-        r11 = ledgers.addSubAccountGroup(r1, "11", false);
+        (r11,) = ledgers.addSubAccountGroup(r1, "11", false);
         if (isVerbose) console.log("Adding sub-groups '100' to '10'");
-        r100 = ledgers.addSubAccountGroup(r10, "100", false);
+        (r100,) = ledgers.addSubAccountGroup(r10, "100", false);
         if (isVerbose) console.log("Adding sub-groups '101' to '10'");
-        r101 = ledgers.addSubAccountGroup(r10, "101", false);
+        (r101,) = ledgers.addSubAccountGroup(r10, "101", false);
         if (isVerbose) console.log("Adding sub-groups '110' to '11'");
-        r110 = ledgers.addSubAccountGroup(r11, "110", false);
+        (r110,) = ledgers.addSubAccountGroup(r11, "110", false);
         if (isVerbose) console.log("Adding sub-groups '111' to '11'");
-        r111 = ledgers.addSubAccountGroup(r11, "111", false);
+        (r111,) = ledgers.addSubAccountGroup(r11, "111", false);
 
         if (isVerbose) console.log("Creating external token and its wrapper");
         externalToken = new MockERC20("External Token", "EXT", 18);
@@ -302,24 +301,48 @@ contract LedgerTest is Test {
         assertEq(ledgers.symbol(native), "", "symbol empty");
     }
 
-    function testAddNativeTokenAndCreateWrapper() public {
+    function testLedgerAddNativeTokenAndCreateWrapper() public {
         vm.startPrank(alice);
         ledgers.addNativeToken();
         address wrapper = ledgers.createWrapper(native);
+        ledgers.addNativeToken();
+        address wrapperAgain = ledgers.createWrapper(native);
         vm.stopPrank();
 
         assertEq(ledgers.wrapper(native), wrapper, "wrapper set");
+        assertEq(wrapperAgain, wrapper, "wrapper idempotent");
         assertEq(ledgers.root(native), native, "root native");
         assertEq(ledgers.name(native), "Ethereum", "name");
         assertEq(ledgers.symbol(native), "ETH", "symbol");
         assertEq(ledgers.decimals(native), 18, "decimals");
         assertTrue((ledgers.flags(native) & LedgerLib.FLAG_IS_NATIVE) != 0, "native flag set");
-        assertTrue((ledgers.flags(native) & LedgerLib.FLAG_IS_WRAPPER) != 0, "wrapper flag set");
+        assertTrue(ledgers.wrapper(native) != address(0), "wrapper set");
         assertEq(ledgers.flags(native) & LedgerLib.FLAG_IS_INTERNAL, 0, "native not internal");
         assertFalse(LedgerLib.isExternal(ledgers.flags(native)), "native not external");
     }
 
-    function testCreateInternalTokenDoesNotRegisterUnderRoot() public {
+    function testLedgerCreateWrapperCanonicalRootIsIdempotent() public {
+        vm.startPrank(alice);
+        address wrapper_ = ledgers.createWrapper(address(ledgers));
+        address wrapperAgain_ = ledgers.createWrapper(address(ledgers));
+        vm.stopPrank();
+
+        assertEq(wrapperAgain_, wrapper_, "same wrapper");
+        assertEq(ledgers.wrapper(address(ledgers)), wrapper_, "wrapper stored");
+        assertEq(ledgers.root(address(ledgers)), address(ledgers), "root unchanged");
+    }
+
+    function testLedgerCreateWrapperInternalRootIsIdempotent() public {
+        vm.startPrank(alice);
+        address wrapper_ = ledgers.createWrapper(r1);
+        address wrapperAgain_ = ledgers.createWrapper(r1);
+        vm.stopPrank();
+
+        assertEq(wrapper_, r1, "internal self wrapper");
+        assertEq(wrapperAgain_, wrapper_, "same wrapper");
+    }
+
+    function testLedgerCreateInternalTokenDoesNotRegisterUnderRoot() public {
         vm.startPrank(alice);
         address token_ = ledgers.addInternalToken("Neutral Token", "NT", 18);
         vm.stopPrank();
@@ -328,17 +351,41 @@ contract LedgerTest is Test {
         assertEq(ledgers.flags(rootAccount_), 0, "not auto-registered under root");
     }
 
+    function testLedgerAddInternalTokenIsIdempotent() public {
+        vm.startPrank(alice);
+        address token_ = ledgers.addInternalToken("Neutral Token", "NT", 18);
+        address tokenAgain_ = ledgers.addInternalToken("Neutral Token", "NT", 18);
+        vm.stopPrank();
+
+        assertEq(tokenAgain_, token_, "same token");
+        assertEq(ledgers.root(token_), token_, "root registered");
+        assertEq(ledgers.wrapper(token_), token_, "self wrapped");
+    }
+
+    function testLedgerAddExternalTokenAndCreateWrapperAreIdempotent() public {
+        vm.startPrank(alice);
+        ledgers.addExternalToken(address(unlistedToken));
+        address wrapper_ = ledgers.createWrapper(address(unlistedToken));
+        ledgers.addExternalToken(address(unlistedToken));
+        address wrapperAgain_ = ledgers.createWrapper(address(unlistedToken));
+        vm.stopPrank();
+
+        assertEq(ledgers.root(address(unlistedToken)), address(unlistedToken), "root registered");
+        assertEq(wrapperAgain_, wrapper_, "wrapper idempotent");
+        assertEq(ledgers.wrapper(address(unlistedToken)), wrapper_, "wrapper unchanged");
+    }
+
     function testLedgerRootFlagsByTokenType() public view {
         uint256 internalFlags = ledgers.flags(r1);
         assertTrue((internalFlags & LedgerLib.FLAG_IS_INTERNAL) != 0, "internal token flag set");
-        assertTrue((internalFlags & LedgerLib.FLAG_IS_WRAPPER) != 0, "internal wrapper flag set");
+        assertTrue(ledgers.wrapper(r1) != address(0), "internal wrapper set");
         assertEq(internalFlags & LedgerLib.FLAG_IS_NATIVE, 0, "internal token not native");
         assertFalse(LedgerLib.isExternal(internalFlags), "internal token not external");
         assertTrue(ledgers.isRoot(internalFlags), "internal root");
 
         uint256 externalFlags = ledgers.flags(address(externalToken));
         assertEq(externalFlags & LedgerLib.FLAG_IS_INTERNAL, 0, "external token not internal");
-        assertTrue((externalFlags & LedgerLib.FLAG_IS_WRAPPER) != 0, "external wrapper flag set");
+        assertTrue(ledgers.wrapper(address(externalToken)) != address(0), "external wrapper set");
         assertTrue(LedgerLib.isExternal(externalFlags), "external flag set");
         assertEq(externalFlags & LedgerLib.FLAG_IS_NATIVE, 0, "external token not native");
         assertTrue(ledgers.isRoot(externalFlags), "external root");
@@ -362,7 +409,7 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
 
         // Add a fresh sub under r1
-        address added = ledgers.addSubAccountGroup(r1, "newSubAccount", false);
+        (address added,) = ledgers.addSubAccountGroup(r1, "newSubAccount", false);
         assertEq(added, LedgerLib.toAddress(r1, "newSubAccount"), "address mismatch");
         assertEq(ledgers.parent(added), r1, "parent mismatch");
         assertEq(
@@ -374,18 +421,41 @@ contract LedgerTest is Test {
 
         // Re-adding the same name with same flags should idempotently return same addr or revert by your rules.
         // Your lib currently treats “same name + same flags” as OK (returns existing). Verify:
-        address idempotent = ledgers.addSubAccountGroup(r1, "newSubAccount", false);
+        (address idempotent,) = ledgers.addSubAccountGroup(r1, "newSubAccount", false);
         assertEq(idempotent, added, "expected same sub account address");
+    }
+
+    function testLedgerAddSubAccountGroupAddressFormIsIdempotent() public {
+        vm.startPrank(alice);
+
+        address relative_ = LedgerLib.toAddress("groupByAddr");
+        (address added_, uint256 flags_) = ledgers.addSubAccountGroup(r1, relative_, "groupByAddr", false);
+        (address addedAgain_, uint256 flagsAgain_) = ledgers.addSubAccountGroup(r1, relative_, "groupByAddr", false);
+
+        assertEq(addedAgain_, added_, "same address");
+        assertEq(flagsAgain_, flags_, "same flags");
+        assertEq(ledgers.subAccounts(r1)[ledgers.subAccounts(r1).length - 1], relative_, "no duplicate child");
     }
 
     function testLedgerAddSubAccountNameDelegatesToAddressForm() public {
         vm.startPrank(alice);
 
         address relative_ = LedgerLib.toAddress("leafSubAccount");
-        address added_ = ledgers.addSubAccount(r1, "leafSubAccount", false);
+        (address added_,) = ledgers.addSubAccount(r1, "leafSubAccount", false);
 
         assertEq(added_, LedgerLib.toAddress(r1, relative_), "address mismatch");
         assertEq(ledgers.subAccounts(r1)[ledgers.subAccounts(r1).length - 1], relative_, "relative addr stored");
+    }
+
+    function testLedgerAddSubAccountIsIdempotent() public {
+        vm.startPrank(alice);
+
+        (address added_, uint256 flags_) = ledgers.addSubAccount(r1, "leafSubAccount", false);
+        (address addedAgain_, uint256 flagsAgain_) = ledgers.addSubAccount(r1, "leafSubAccount", false);
+
+        assertEq(addedAgain_, added_, "same address");
+        assertEq(flagsAgain_, flags_, "same flags");
+        assertEq(ledgers.subAccounts(r1)[ledgers.subAccounts(r1).length - 1], LedgerLib.toAddress("leafSubAccount"), "no duplicate child");
     }
 
     function testLedgerAddSubAccountZeroParentReverts() public {
@@ -421,11 +491,22 @@ contract LedgerTest is Test {
         assertFalse(ledgers.hasSubAccount(_100), "no children");
     }
 
+    function testLedgerRemoveSubAccountGroupIsIdempotent() public {
+        vm.startPrank(alice);
+
+        address removed_ = ledgers.removeSubAccountGroup(r10, "100");
+        address removedAgain_ = ledgers.removeSubAccountGroup(r10, "100");
+
+        assertEq(removedAgain_, removed_, "same address");
+        assertEq(ledgers.flags(removed_), 0, "cleared");
+        assertEq(ledgers.subAccountIndex(r10, _100), 0, "index reset");
+    }
+
     function testLedgerRemoveSubAccountGroupAddressForm() public {
         vm.startPrank(alice);
 
         address relative_ = LedgerLib.toAddress("groupByAddr");
-        address added_ = ledgers.addSubAccountGroup(r1, relative_, "groupByAddr", false);
+        (address added_,) = ledgers.addSubAccountGroup(r1, relative_, "groupByAddr", false);
         ledgers.removeSubAccountGroup(r1, relative_);
 
         assertEq(ledgers.parent(added_), address(0), "parent reset");
@@ -437,7 +518,7 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
 
         address relative_ = LedgerLib.toAddress("leafByName");
-        address added_ = ledgers.addSubAccount(r1, "leafByName", false);
+        (address added_,) = ledgers.addSubAccount(r1, "leafByName", false);
         ledgers.removeSubAccount(r1, "leafByName");
 
         assertEq(ledgers.parent(added_), address(0), "parent reset");
@@ -445,16 +526,37 @@ contract LedgerTest is Test {
         assertEq(ledgers.name(added_), "", "name cleared");
     }
 
-    function testLedgerRemoveSubAccountThatDoesNotExistReverts() public {
+    function testLedgerRemoveSubAccountIsIdempotent() public {
+        vm.startPrank(alice);
+
+        (address added_,) = ledgers.addSubAccount(r1, "leafToRemove", false);
+        address removed_ = ledgers.removeSubAccount(r1, "leafToRemove");
+        address removedAgain_ = ledgers.removeSubAccount(r1, "leafToRemove");
+
+        assertEq(removed_, added_, "removed address");
+        assertEq(removedAgain_, removed_, "same address");
+        assertEq(ledgers.flags(removed_), 0, "cleared");
+    }
+
+    function testLedgerRemoveSubAccountMissingGroupIsIdempotent() public {
         vm.startPrank(alice);
         address nonExistent = LedgerLib.toAddress(r1, "nope");
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, nonExistent));
-        ledgers.removeSubAccountGroup(r1, "nope");
+        address removed_ = ledgers.removeSubAccountGroup(r1, "nope");
+        assertEq(removed_, nonExistent, "same address");
+        assertEq(ledgers.flags(removed_), 0, "still absent");
+    }
+
+    function testLedgerRemoveSubAccountMissingLeafIsIdempotent() public {
+        vm.startPrank(alice);
+        address relative_ = LedgerLib.toAddress("missingLeaf");
+        address removed_ = ledgers.removeSubAccount(r1, "missingLeaf");
+        assertEq(removed_, LedgerLib.toAddress(r1, relative_), "same address");
+        assertEq(ledgers.flags(removed_), 0, "still absent");
     }
 
     function testLedgerRemoveSubAccountWithChildrenReverts() public {
         vm.startPrank(alice);
-        address parentWithChild = ledgers.addSubAccountGroup(r1, "parentWithChild", false);
+        (address parentWithChild,) = ledgers.addSubAccountGroup(r1, "parentWithChild", false);
         ledgers.addSubAccountGroup(parentWithChild, "sub", false);
         vm.expectRevert(abi.encodeWithSelector(ILedger.HasSubAccount.selector, parentWithChild));
         ledgers.removeSubAccountGroup(r1, "parentWithChild");
@@ -470,17 +572,15 @@ contract LedgerTest is Test {
 
     function testLedgerRemoveSubAccountInvalidAddresses() public {
         vm.startPrank(alice);
-        address _valid = ledgers.addSubAccountGroup(r1, "validSub", false);
+        (address _valid,) = ledgers.addSubAccountGroup(r1, "validSub", false);
+        address _missing = LedgerLib.toAddress(_valid, "validSub");
 
         // Zero parent
         vm.expectRevert(ILedger.ZeroAddress.selector);
         ledgers.removeSubAccountGroup(address(0), "validSub");
 
-        // Parent == child group (nonsense) => InvalidAccountGroup on computed subAddress
-        vm.expectRevert(
-            abi.encodeWithSelector(ILedger.InvalidAccountGroup.selector, LedgerLib.toAddress(_valid, "validSub"))
-        );
-        ledgers.removeSubAccountGroup(_valid, "validSub");
+        // Valid parent + absent child => idempotent no-op.
+        assertEq(ledgers.removeSubAccountGroup(_valid, "validSub"), _missing, "missing sub address");
     }
 
     function testLedgerRemoveUpdatesSiblingIndices() public {

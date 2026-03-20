@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4104c9a5fb1b403d7a1bc8bdf3c0f7c85335ff70/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d6e6c8bec73fd15a0c08c70187d6e2f4481e1b46/modules/Ledger.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [ILedger](/interfaces/ILedger.sol/interface.ILedger.md)
@@ -91,7 +91,25 @@ function initializeLedger(string memory name_, string memory symbol_) external i
 
 
 ```solidity
-function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) external returns (address);
+function addSubAccountGroup(address parent_, string memory name_, bool isCredit_)
+    external
+    returns (address, uint256);
+```
+
+### addSubAccountGroup
+
+
+```solidity
+function addSubAccountGroup(address parent_, address addr_, string memory name_, bool isCredit_)
+    external
+    returns (address, uint256);
+```
+
+### addSubAccount
+
+
+```solidity
+function addSubAccount(address parent_, string memory name_, bool isCredit_) external returns (address, uint256);
 ```
 
 ### addSubAccount
@@ -100,7 +118,7 @@ function addSubAccountGroup(address parent_, string memory name_, bool isCredit_
 ```solidity
 function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
     external
-    returns (address);
+    returns (address, uint256);
 ```
 
 ### addNativeToken
@@ -136,6 +154,20 @@ function createWrapper(address token_) external returns (address);
 
 ```solidity
 function removeSubAccountGroup(address parent_, string memory name_) external returns (address);
+```
+
+### removeSubAccountGroup
+
+
+```solidity
+function removeSubAccountGroup(address parent_, address addr_) external returns (address);
+```
+
+### removeSubAccount
+
+
+```solidity
+function removeSubAccount(address parent_, string memory name_) external returns (address);
 ```
 
 ### removeSubAccount
@@ -234,13 +266,6 @@ function isInternal(uint256 flags_) external pure returns (bool);
 
 ```solidity
 function isNative(uint256 flags_) external pure returns (bool);
-```
-
-### isWrapper
-
-
-```solidity
-function isWrapper(uint256 flags_) external pure returns (bool);
 ```
 
 ### isRegistered
@@ -348,3 +373,4 @@ function unwrap(address token_, uint256 amount_, address sourceParent_, address 
     payable
     nonReentrant;
 ```
+

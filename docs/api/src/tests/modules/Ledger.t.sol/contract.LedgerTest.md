@@ -1,11 +1,18 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4104c9a5fb1b403d7a1bc8bdf3c0f7c85335ff70/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d6e6c8bec73fd15a0c08c70187d6e2f4481e1b46/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
 
 
 ## State Variables
+### isVerbose
+
+```solidity
+bool isVerbose
+```
+
+
 ### router
 
 ```solidity
@@ -196,18 +203,46 @@ function testLedgerInit() public;
 function testNativeWrapperNotCreatedDuringInit() public view;
 ```
 
-### testAddNativeTokenAndCreateWrapper
+### testLedgerAddNativeTokenAndCreateWrapper
 
 
 ```solidity
-function testAddNativeTokenAndCreateWrapper() public;
+function testLedgerAddNativeTokenAndCreateWrapper() public;
 ```
 
-### testCreateInternalTokenDoesNotRegisterUnderRoot
+### testLedgerCreateWrapperCanonicalRootIsIdempotent
 
 
 ```solidity
-function testCreateInternalTokenDoesNotRegisterUnderRoot() public;
+function testLedgerCreateWrapperCanonicalRootIsIdempotent() public;
+```
+
+### testLedgerCreateWrapperInternalRootIsIdempotent
+
+
+```solidity
+function testLedgerCreateWrapperInternalRootIsIdempotent() public;
+```
+
+### testLedgerCreateInternalTokenDoesNotRegisterUnderRoot
+
+
+```solidity
+function testLedgerCreateInternalTokenDoesNotRegisterUnderRoot() public;
+```
+
+### testLedgerAddInternalTokenIsIdempotent
+
+
+```solidity
+function testLedgerAddInternalTokenIsIdempotent() public;
+```
+
+### testLedgerAddExternalTokenAndCreateWrapperAreIdempotent
+
+
+```solidity
+function testLedgerAddExternalTokenAndCreateWrapperAreIdempotent() public;
 ```
 
 ### testLedgerRootFlagsByTokenType
@@ -224,25 +259,32 @@ function testLedgerRootFlagsByTokenType() public view;
 function testPackedParentAndWrapperMapping() public view;
 ```
 
-### testAddNativeTokenDuplicateReverts
-
-
-```solidity
-function testAddNativeTokenDuplicateReverts() public;
-```
-
-### testAddNativeTokenInvalidString
-
-
-```solidity
-function testAddNativeTokenInvalidString() public;
-```
-
 ### testLedgerAddSubAccountGroup
 
 
 ```solidity
 function testLedgerAddSubAccountGroup() public;
+```
+
+### testLedgerAddSubAccountGroupAddressFormIsIdempotent
+
+
+```solidity
+function testLedgerAddSubAccountGroupAddressFormIsIdempotent() public;
+```
+
+### testLedgerAddSubAccountNameDelegatesToAddressForm
+
+
+```solidity
+function testLedgerAddSubAccountNameDelegatesToAddressForm() public;
+```
+
+### testLedgerAddSubAccountIsIdempotent
+
+
+```solidity
+function testLedgerAddSubAccountIsIdempotent() public;
 ```
 
 ### testLedgerAddSubAccountZeroParentReverts
@@ -266,11 +308,46 @@ function testLedgerAddSubAccountEmptyNameReverts() public;
 function testLedgerRemoveSubAccountHappyPath() public;
 ```
 
-### testLedgerRemoveSubAccountThatDoesNotExistReverts
+### testLedgerRemoveSubAccountGroupIsIdempotent
 
 
 ```solidity
-function testLedgerRemoveSubAccountThatDoesNotExistReverts() public;
+function testLedgerRemoveSubAccountGroupIsIdempotent() public;
+```
+
+### testLedgerRemoveSubAccountGroupAddressForm
+
+
+```solidity
+function testLedgerRemoveSubAccountGroupAddressForm() public;
+```
+
+### testLedgerRemoveSubAccountNameDelegatesToAddressForm
+
+
+```solidity
+function testLedgerRemoveSubAccountNameDelegatesToAddressForm() public;
+```
+
+### testLedgerRemoveSubAccountIsIdempotent
+
+
+```solidity
+function testLedgerRemoveSubAccountIsIdempotent() public;
+```
+
+### testLedgerRemoveSubAccountMissingGroupIsIdempotent
+
+
+```solidity
+function testLedgerRemoveSubAccountMissingGroupIsIdempotent() public;
+```
+
+### testLedgerRemoveSubAccountMissingLeafIsIdempotent
+
+
+```solidity
+function testLedgerRemoveSubAccountMissingLeafIsIdempotent() public;
 ```
 
 ### testLedgerRemoveSubAccountWithChildrenReverts
@@ -425,6 +502,20 @@ function testLedgerUnwrapNonNativeRejectsValue() public;
 
 ```solidity
 function testLedgerTransfer() public;
+```
+
+### testLedgerTransferAcrossSiblingBranchesPreservesAncestorBalance
+
+
+```solidity
+function testLedgerTransferAcrossSiblingBranchesPreservesAncestorBalance() public;
+```
+
+### testLedgerTransferInsufficientBalanceReportsDeepUnregisteredLeafContext
+
+
+```solidity
+function testLedgerTransferInsufficientBalanceReportsDeepUnregisteredLeafContext() public;
 ```
 
 ## Errors

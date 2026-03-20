@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/4104c9a5fb1b403d7a1bc8bdf3c0f7c85335ff70/libraries/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d6e6c8bec73fd15a0c08c70187d6e2f4481e1b46/libraries/LedgerLib.sol)
 
 
 ## State Variables
@@ -8,13 +8,6 @@
 ```solidity
 bytes32 private constant STORE_POSITION =
     keccak256(abi.encode(uint256(keccak256("cavalre.storage.Ledger")) - 1)) & ~bytes32(uint256(0xff))
-```
-
-
-### MAX_DEPTH
-
-```solidity
-uint8 internal constant MAX_DEPTH = 10
 ```
 
 
@@ -60,17 +53,10 @@ uint256 constant FLAG_IS_NATIVE = 1 << 3
 ```
 
 
-### FLAG_IS_WRAPPER
-
-```solidity
-uint256 constant FLAG_IS_WRAPPER = 1 << 4
-```
-
-
 ### FLAG_IS_REGISTERED
 
 ```solidity
-uint256 constant FLAG_IS_REGISTERED = 1 << 5
+uint256 constant FLAG_IS_REGISTERED = 1 << 4
 ```
 
 
@@ -100,7 +86,14 @@ uint256 constant PACK_ADDR_SHIFT = 96
 
 
 ```solidity
-function store() internal pure returns (Store storage _s);
+function store() internal pure returns (Store storage s);
+```
+
+### isZeroAddress
+
+
+```solidity
+function isZeroAddress(address addr_) internal pure returns (bool);
 ```
 
 ### checkZeroAddress
@@ -110,11 +103,25 @@ function store() internal pure returns (Store storage _s);
 function checkZeroAddress(address addr_) internal pure;
 ```
 
-### isZeroAddress
+### isValidString
 
 
 ```solidity
-function isZeroAddress(address addr_) internal pure returns (bool);
+function isValidString(string memory str_) internal pure returns (bool);
+```
+
+### checkString
+
+
+```solidity
+function checkString(string memory str_) internal pure;
+```
+
+### checkRoots
+
+
+```solidity
+function checkRoots(address a_, address b_) internal view returns (address);
 ```
 
 ### flags
@@ -127,7 +134,6 @@ function flags(
     bool isCredit_,
     bool isInternal_,
     bool isNative_,
-    bool isWrapper_,
     bool isRegistered_,
     uint8 depth_
 ) internal pure returns (uint256 _flags);
@@ -175,18 +181,18 @@ function isInternal(uint256 flags_) internal pure returns (bool);
 function isNative(uint256 flags_) internal pure returns (bool);
 ```
 
-### isWrapper
-
-
-```solidity
-function isWrapper(uint256 flags_) internal pure returns (bool);
-```
-
 ### isRegistered
 
 
 ```solidity
 function isRegistered(uint256 flags_) internal pure returns (bool);
+```
+
+### depth
+
+
+```solidity
+function depth(uint256 flags_) internal pure returns (uint8);
 ```
 
 ### isExternal
@@ -201,27 +207,6 @@ function isExternal(uint256 flags_) internal pure returns (bool);
 
 ```solidity
 function isRoot(uint256 flags_) internal pure returns (bool);
-```
-
-### depth
-
-
-```solidity
-function depth(uint256 flags_) internal pure returns (uint8);
-```
-
-### isValidString
-
-
-```solidity
-function isValidString(string memory str_) internal pure returns (bool);
-```
-
-### checkString
-
-
-```solidity
-function checkString(string memory str_) internal pure;
 ```
 
 ### toAddress
@@ -243,13 +228,6 @@ function toAddress(address parent_, address ledger_) internal pure returns (addr
 
 ```solidity
 function toAddress(address parent_, string memory name_) internal pure returns (address);
-```
-
-### checkRoots
-
-
-```solidity
-function checkRoots(address a_, address b_) internal view returns (address);
 ```
 
 ### name
@@ -382,7 +360,27 @@ function totalSupply(address token_) internal view returns (uint256 _supply);
 
 
 ```solidity
-function addSubAccountGroup(address parent_, string memory name_, bool isCredit_) internal returns (address _sub);
+function addSubAccountGroup(address parent_, string memory name_, bool isCredit_)
+    internal
+    returns (address _addr, uint256 _flags);
+```
+
+### addSubAccountGroup
+
+
+```solidity
+function addSubAccountGroup(address parent_, address addr_, string memory name_, bool isCredit_)
+    internal
+    returns (address _addr, uint256 _flags);
+```
+
+### addSubAccount
+
+
+```solidity
+function addSubAccount(address parent_, string memory name_, bool isCredit_)
+    internal
+    returns (address _addr, uint256 _flags);
 ```
 
 ### addSubAccount
@@ -391,7 +389,7 @@ function addSubAccountGroup(address parent_, string memory name_, bool isCredit_
 ```solidity
 function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
     internal
-    returns (address _sub);
+    returns (address _addr, uint256 _flags);
 ```
 
 ### addLedger
@@ -399,21 +397,15 @@ function addSubAccount(address parent_, address addr_, string memory name_, bool
 
 ```solidity
 function addLedger(address root_, string memory name_, string memory symbol_, uint8 decimals_, bool isInternal_)
-    internal;
-```
-
-### addNativeToken
-
-
-```solidity
-function addNativeToken() internal;
+    internal
+    returns (uint256 _flags);
 ```
 
 ### addExternalToken
 
 
 ```solidity
-function addExternalToken(address token_) internal;
+function addExternalToken(address token_) internal returns (uint256 _flags);
 ```
 
 ### addInternalToken
@@ -437,6 +429,20 @@ function createWrapper(address token_) internal returns (address wrapper_);
 
 ```solidity
 function removeSubAccountGroup(address parent_, string memory name_) internal returns (address);
+```
+
+### removeSubAccountGroup
+
+
+```solidity
+function removeSubAccountGroup(address parent_, address addr_) internal returns (address _addr);
+```
+
+### removeSubAccount
+
+
+```solidity
+function removeSubAccount(address parent_, string memory name_) internal returns (address);
 ```
 
 ### removeSubAccount
@@ -474,6 +480,19 @@ function wrap(address token_, uint256 amount_, address sourceParent_, address so
 function unwrap(address token_, uint256 amount_, address sourceParent_, address source_) internal;
 ```
 
+### _update
+
+
+```solidity
+function _update(
+    AccountCache memory acct_,
+    address root_,
+    mapping(address => uint256) storage balances_,
+    uint256 amount_,
+    bool isIncreased_
+) internal returns (uint256 _balance);
+```
+
 ### transfer
 
 
@@ -507,3 +526,14 @@ struct Store {
     mapping(address => uint256) credits;
 }
 ```
+
+### AccountCache
+
+```solidity
+struct AccountCache {
+    uint256 balance;
+    address current;
+    uint256 flags;
+}
+```
+
