@@ -380,47 +380,48 @@ library LedgerLib {
 
     function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
         internal
-        returns (address token_)
+        returns (address _token, uint256 _flags)
     {
         if (!isValidString(name_) || !isValidString(symbol_)) {
             revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
         }
 
-        bytes32 salt_ = keccak256(abi.encode(name_, symbol_, decimals_));
-        bytes memory creationCode_ = abi.encodePacked(
+        bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_));
+        bytes memory _creationCode = abi.encodePacked(
             type(ERC20Wrapper).creationCode, abi.encode(address(this), address(0), name_, symbol_, decimals_)
         );
-        token_ = Create2.computeAddress(salt_, keccak256(creationCode_));
+        _token = Create2.computeAddress(_salt, keccak256(_creationCode));
 
-        if (root(token_) == token_) {
-            uint256 flags_ = flags(address(0), true, false, true, false, true, 1);
-            bool sameFlags_ = flags_ == flags(token_);
-            bool sameWrapper_ = wrapper(token_) == token_;
-            if (sameFlags_ && sameWrapper_) return token_;
-            revert ILedger.InvalidToken(token_, name_, symbol_, decimals_);
+        if (root(_token) == _token) {
+            _flags = flags(address(0), true, false, true, false, true, 1);
+            bool _sameFlags = _flags == flags(_token);
+            bool _sameWrapper = wrapper(_token) == _token;
+            if (_sameFlags && _sameWrapper) return (_token, _flags);
+            revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
         }
 
-        if (token_.code.length != 0) revert ILedger.InvalidToken(token_, name_, symbol_, decimals_);
+        if (_token.code.length != 0) revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
 
         // Internal roots remain self-wrapped so the root address is immediately usable as an ERC20 surface.
-        token_ = address(new ERC20Wrapper{salt: salt_}(address(this), address(0), name_, symbol_, decimals_));
-        addLedger(token_, name_, symbol_, decimals_, true);
+        _token = address(new ERC20Wrapper{salt: _salt}(address(this), address(0), name_, symbol_, decimals_));
+        _flags = addLedger(_token, name_, symbol_, decimals_, true);
 
         Store storage s = store();
-        s.wrapper[token_] = token_;
+        s.wrapper[_token] = _token;
     }
 
-    function createWrapper(address token_) internal returns (address wrapper_) {
+    function createWrapper(address token_) internal returns (address wrapper_, uint256 _flags) {
         wrapper_ = wrapper(token_);
-        if (wrapper_ != address(0)) return wrapper_;
+        _flags = flags(token_);
+        if (wrapper_ != address(0)) return (wrapper_, _flags);
         if (root(token_) != token_) revert ILedger.InvalidAddress(token_);
 
         string memory name_ = name(token_);
         string memory symbol_ = symbol(token_);
         uint8 decimals_ = decimals(token_);
-        uint256 flags_ = flags(token_);
+        _flags = flags(token_);
 
-        if (isInternal(flags_)) {
+        if (isInternal(_flags)) {
             // Internal roots already carry canonical metadata, so their optional wrapper surface is exact.
             wrapper_ = address(new ERC20Wrapper(address(this), token_, name_, symbol_, decimals_));
         } else {

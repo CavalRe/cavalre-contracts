@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d6e6c8bec73fd15a0c08c70187d6e2f4481e1b46/interfaces/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8ab57ccf4ebba80abc32cfec03a231f5002d8446/interfaces/ILedger.sol)
 
 
 ## Functions
@@ -214,14 +214,16 @@ function addExternalToken(address token) external;
 
 
 ```solidity
-function addInternalToken(string memory name, string memory symbol, uint8 decimals) external returns (address);
+function addInternalToken(string memory name, string memory symbol, uint8 decimals)
+    external
+    returns (address token, uint256 flags);
 ```
 
 ### createWrapper
 
 
 ```solidity
-function createWrapper(address token) external returns (address);
+function createWrapper(address token) external returns (address wrapper, uint256 flags);
 ```
 
 ### removeSubAccountGroup

@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d6e6c8bec73fd15a0c08c70187d6e2f4481e1b46/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8ab57ccf4ebba80abc32cfec03a231f5002d8446/modules/Ledger.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [ILedger](/interfaces/ILedger.sol/interface.ILedger.md)
@@ -139,14 +139,16 @@ function addExternalToken(address token_) external;
 
 
 ```solidity
-function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address);
+function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
+    external
+    returns (address, uint256);
 ```
 
 ### createWrapper
 
 
 ```solidity
-function createWrapper(address token_) external returns (address);
+function createWrapper(address token_) external returns (address, uint256);
 ```
 
 ### removeSubAccountGroup

@@ -219,7 +219,7 @@ contract LedgerTest is Test {
         // Add a standalone ledger tree for misc checks
         // testLedger = LedgerLib.toAddress("Test Ledger");
         if (isVerbose) console.log("Creating Test Ledger token");
-        testLedger = ledgers.addInternalToken("Test Ledger", "TL", 18);
+        (testLedger,) = ledgers.addInternalToken("Test Ledger", "TL", 18);
         ledgers.addSubAccount(testLedger, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-groups to Test Ledger");
         (address testLedger_1_,) = ledgers.addSubAccountGroup(testLedger, "1", false);
@@ -228,7 +228,7 @@ contract LedgerTest is Test {
 
         // Add token r1 and its sub-groups
         if (isVerbose) console.log("Creating root token '1'");
-        r1 = ledgers.addInternalToken("1", "1", 18);
+        (r1,) = ledgers.addInternalToken("1", "1", 18);
         ledgers.addSubAccount(r1, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-group '10' to root token '1'");
         (r10,) = ledgers.addSubAccountGroup(r1, "10", false);
@@ -304,9 +304,9 @@ contract LedgerTest is Test {
     function testLedgerAddNativeTokenAndCreateWrapper() public {
         vm.startPrank(alice);
         ledgers.addNativeToken();
-        address wrapper = ledgers.createWrapper(native);
+        (address wrapper,) = ledgers.createWrapper(native);
         ledgers.addNativeToken();
-        address wrapperAgain = ledgers.createWrapper(native);
+        (address wrapperAgain,) = ledgers.createWrapper(native);
         vm.stopPrank();
 
         assertEq(ledgers.wrapper(native), wrapper, "wrapper set");
@@ -323,8 +323,8 @@ contract LedgerTest is Test {
 
     function testLedgerCreateWrapperCanonicalRootIsIdempotent() public {
         vm.startPrank(alice);
-        address wrapper_ = ledgers.createWrapper(address(ledgers));
-        address wrapperAgain_ = ledgers.createWrapper(address(ledgers));
+        (address wrapper_,) = ledgers.createWrapper(address(ledgers));
+        (address wrapperAgain_,) = ledgers.createWrapper(address(ledgers));
         vm.stopPrank();
 
         assertEq(wrapperAgain_, wrapper_, "same wrapper");
@@ -334,8 +334,8 @@ contract LedgerTest is Test {
 
     function testLedgerCreateWrapperInternalRootIsIdempotent() public {
         vm.startPrank(alice);
-        address wrapper_ = ledgers.createWrapper(r1);
-        address wrapperAgain_ = ledgers.createWrapper(r1);
+        (address wrapper_,) = ledgers.createWrapper(r1);
+        (address wrapperAgain_,) = ledgers.createWrapper(r1);
         vm.stopPrank();
 
         assertEq(wrapper_, r1, "internal self wrapper");
@@ -344,7 +344,7 @@ contract LedgerTest is Test {
 
     function testLedgerCreateInternalTokenDoesNotRegisterUnderRoot() public {
         vm.startPrank(alice);
-        address token_ = ledgers.addInternalToken("Neutral Token", "NT", 18);
+        (address token_,) = ledgers.addInternalToken("Neutral Token", "NT", 18);
         vm.stopPrank();
 
         address rootAccount_ = LedgerLib.toAddress(address(ledgers), token_);
@@ -353,8 +353,8 @@ contract LedgerTest is Test {
 
     function testLedgerAddInternalTokenIsIdempotent() public {
         vm.startPrank(alice);
-        address token_ = ledgers.addInternalToken("Neutral Token", "NT", 18);
-        address tokenAgain_ = ledgers.addInternalToken("Neutral Token", "NT", 18);
+        (address token_,) = ledgers.addInternalToken("Neutral Token", "NT", 18);
+        (address tokenAgain_,) = ledgers.addInternalToken("Neutral Token", "NT", 18);
         vm.stopPrank();
 
         assertEq(tokenAgain_, token_, "same token");
@@ -365,9 +365,9 @@ contract LedgerTest is Test {
     function testLedgerAddExternalTokenAndCreateWrapperAreIdempotent() public {
         vm.startPrank(alice);
         ledgers.addExternalToken(address(unlistedToken));
-        address wrapper_ = ledgers.createWrapper(address(unlistedToken));
+        (address wrapper_,) = ledgers.createWrapper(address(unlistedToken));
         ledgers.addExternalToken(address(unlistedToken));
-        address wrapperAgain_ = ledgers.createWrapper(address(unlistedToken));
+        (address wrapperAgain_,) = ledgers.createWrapper(address(unlistedToken));
         vm.stopPrank();
 
         assertEq(ledgers.root(address(unlistedToken)), address(unlistedToken), "root registered");
@@ -686,8 +686,8 @@ contract LedgerTest is Test {
 
         vm.startPrank(alice);
 
-        address tokenA = ledgers.addInternalToken("Realloc A", "REA", 18);
-        address tokenB = ledgers.addInternalToken("Realloc B", "REB", 18);
+        (address tokenA,) = ledgers.addInternalToken("Realloc A", "REA", 18);
+        (address tokenB,) = ledgers.addInternalToken("Realloc B", "REB", 18);
         ledgers.addSubAccount(address(ledgers), LedgerLib.SOURCE_ADDRESS, "Source", true);
         ledgers.addSubAccount(address(ledgers), tokenA, "Realloc A", false);
         ledgers.addSubAccount(address(ledgers), tokenB, "Realloc B", false);

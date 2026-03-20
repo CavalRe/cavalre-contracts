@@ -309,12 +309,15 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         LedgerLib.addExternalToken(token_);
     }
 
-    function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_) external returns (address) {
+    function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
+        external
+        returns (address, uint256)
+    {
         enforceIsOwner();
         return LedgerLib.addInternalToken(name_, symbol_, decimals_);
     }
 
-    function createWrapper(address token_) external returns (address) {
+    function createWrapper(address token_) external returns (address, uint256) {
         enforceIsOwner();
         return LedgerLib.createWrapper(token_);
     }
