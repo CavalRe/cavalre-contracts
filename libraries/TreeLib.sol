@@ -44,7 +44,7 @@ library TreeLib {
         c.isRoot = LedgerLib.isZeroAddress(parent_);
         c.addr = c.isRoot ? addr_ : LedgerLib.toAddress(parent_, addr_);
         c.flags = ledgers_.flags(c.addr);
-        c.balance = c.isRoot ? 0 : ledgers_.balanceOf(parent_, c.addr);
+        c.balance = c.isRoot ? 0 : ledgers_.balanceOf(parent_, addr_);
         string memory label = c.isRoot
             ? ledgers_.name(c.addr)
             : string(
