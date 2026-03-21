@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {FloatStrings} from "./FloatStrings.sol";
+import {Float, FloatLib, FloatStrings} from "./FloatStrings.sol";
 // // ─────────────────────────────────────────────────────────────────────────────
 // // Import split layout (interfaces + lib + module + infra)
 // // Adjust paths if your repo layout differs.
@@ -17,6 +17,20 @@ import {console} from "forge-std/src/Test.sol";
 // Tree helpers
 // ─────────────────────────────────────────────────────────────────────────────
 library TreeLib {
+    using FloatLib for uint256;
+    using FloatStrings for Float;
+
+    struct TreeCache {
+        bool isRoot;
+        address addr;
+        uint256 flags;
+        uint256 balance;
+        string label;
+        bool isGroup;
+        string subPrefix;
+        address[] subs;
+    }
+
     function logTree(
         Ledger ledgers_,
         address parent_,
@@ -25,37 +39,39 @@ library TreeLib {
         bool isFirst_,
         bool isLast_
     ) internal view {
-        bool _isRoot = LedgerLib.isZeroAddress(parent_);
-        address _addr = _isRoot ? addr_ : LedgerLib.toAddress(parent_, addr_);
-        uint256 _flags = ledgers_.flags(_addr);
-        uint256 _balance = _isRoot ? 0 : ledgers_.balanceOf(parent_, addr_);
-        string memory label = _isRoot
-            ? ledgers_.name(_addr)
+        TreeCache memory c;
+
+        c.isRoot = LedgerLib.isZeroAddress(parent_);
+        c.addr = c.isRoot ? addr_ : LedgerLib.toAddress(parent_, addr_);
+        c.flags = ledgers_.flags(c.addr);
+        c.balance = c.isRoot ? 0 : ledgers_.balanceOf(parent_, c.addr);
+        string memory label = c.isRoot
+            ? ledgers_.name(c.addr)
             : string(
                 abi.encodePacked(
-                    ledgers_.name(_addr),
+                    ledgers_.name(c.addr),
                     " (",
-                    LedgerLib.isCredit(_flags) ? "C: " : "D: ",
-                    FloatStrings.toString(_balance),
+                    LedgerLib.isCredit(c.flags) ? "C: " : "D: ",
+                    c.balance.toFloat(ledgers_.decimals(ledgers_.root(c.addr))).toString(),
                     ")"
                 )
             );
-        bool isGroup = LedgerLib.isGroup(_flags);
+        c.isGroup = LedgerLib.isGroup(c.flags);
         console.log(
             "%s%s%s",
             prefix_,
             isFirst_
                 ? ""
                 : (isLast_
-                        ? (isGroup ? unicode"└─ " : unicode"└● ")
-                        : (isGroup ? unicode"├─ " : unicode"├● ")),
+                        ? (c.isGroup ? unicode"└─ " : unicode"└● ")
+                        : (c.isGroup ? unicode"├─ " : unicode"├● ")),
             label
         );
-        string memory subPrefix = string(abi.encodePacked(prefix_, isFirst_ ? "" : (isLast_ ? "   " : unicode"│  ")));
+        c.subPrefix = string(abi.encodePacked(prefix_, isFirst_ ? "" : (isLast_ ? "   " : unicode"│  ")));
 
-        address[] memory subs = ledgers_.subAccounts(_addr);
-        for (uint256 i = 0; i < subs.length; i++) {
-            logTree(ledgers_, _addr, subs[i], subPrefix, false, i == subs.length - 1);
+        c.subs = ledgers_.subAccounts(c.addr);
+        for (uint256 i = 0; i < c.subs.length; i++) {
+            logTree(ledgers_, c.addr, c.subs[i], c.subPrefix, false, i == c.subs.length - 1);
         }
     }
 
