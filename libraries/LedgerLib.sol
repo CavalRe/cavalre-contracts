@@ -112,6 +112,23 @@ library LedgerLib {
         return (flags_ & FLAG_IS_CREDIT) != 0;
     }
 
+    function effectiveFlags(address parent_, address addr_)
+        internal
+        view
+        returns (address _current, uint256 _flags)
+    {
+        _current = toAddress(parent_, addr_);
+        _flags = flags(_current);
+        if (isRegistered(_flags)) return (_current, _flags);
+        if (_flags != 0) revert ILedger.InvalidAddress(addr_);
+
+        // Unregistered derived leaves inherit polarity and depth from their parent.
+        uint256 _parentFlags = flags(parent_);
+        _flags = uint256(uint160(parent_)) << PACK_ADDR_SHIFT;
+        if (isCredit(_parentFlags)) _flags |= FLAG_IS_CREDIT;
+        _flags |= uint256(depth(_parentFlags) + 1) << FLAG_DEPTH_SHIFT;
+    }
+
     function isInternal(uint256 flags_) internal pure returns (bool) {
         return (flags_ & FLAG_IS_INTERNAL) != 0;
     }
@@ -601,34 +618,6 @@ library LedgerLib {
         }
     }
 
-    function wrap(address token_, uint256 amount_, address sourceParent_, address source_) internal {
-        if (root(token_) != token_) revert ILedger.InvalidAddress(token_);
-        if (token_ == NATIVE_ADDRESS) {
-            if (msg.value != amount_) {
-                revert ILedger.IncorrectAmount(msg.value, amount_);
-            }
-            // Native value already sits on the router (this contract via delegatecall),
-            // so no external transfer is needed.
-        } else {
-            if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
-            SafeERC20.safeTransferFrom(IERC20(token_), msg.sender, address(this), amount_);
-        }
-        transfer(sourceParent_, source_, token_, msg.sender, amount_);
-    }
-
-    function unwrap(address token_, uint256 amount_, address sourceParent_, address source_) internal {
-        if (root(token_) != token_) revert ILedger.InvalidAddress(token_);
-        if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
-        if (token_ == NATIVE_ADDRESS) {
-            transfer(token_, msg.sender, sourceParent_, source_, amount_);
-            (bool _success,) = payable(msg.sender).call{value: amount_}("");
-            if (!_success) revert ILedger.NativeTransferFailed();
-        } else {
-            transfer(token_, msg.sender, sourceParent_, source_, amount_);
-            SafeERC20.safeTransfer(IERC20(token_), msg.sender, amount_);
-        }
-    }
-
     function _update(
         AccountCache memory acct_,
         address root_,
@@ -657,32 +646,16 @@ library LedgerLib {
 
     function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         internal
-        returns (bool)
+        returns (address _root)
     {
-        address _root = checkRoots(fromParent_, toParent_);
+        _root = checkRoots(fromParent_, toParent_);
         if (_root == address(0)) revert ILedger.ZeroAddress();
 
         AccountCache memory fromLeaf;
         AccountCache memory toLeaf;
-        fromLeaf.current = toAddress(fromParent_, from_);
-        toLeaf.current = toAddress(toParent_, to_);
-        if (fromLeaf.current == toLeaf.current) return true;
-
-        fromLeaf.flags = flags(fromLeaf.current);
-        if (!isRegistered(fromLeaf.flags)) {
-            // Unregistered accounts inherit credit/debit status from their parent but are always one level deeper.
-            fromLeaf.flags = uint256(uint160(fromParent_)) << 96;
-            if (isCredit(flags(fromParent_))) fromLeaf.flags |= FLAG_IS_CREDIT;
-            fromLeaf.flags |= uint256(depth(flags(fromParent_)) + 1) << FLAG_DEPTH_SHIFT;
-        }
-
-        toLeaf.flags = flags(toLeaf.current);
-        if (!isRegistered(toLeaf.flags)) {
-            // Unregistered accounts inherit credit/debit status from their parent but are always one level deeper.
-            toLeaf.flags = uint256(uint160(toParent_)) << 96;
-            if (isCredit(flags(toParent_))) toLeaf.flags |= FLAG_IS_CREDIT;
-            toLeaf.flags |= uint256(depth(flags(toParent_)) + 1) << FLAG_DEPTH_SHIFT;
-        }
+        (fromLeaf.current, fromLeaf.flags) = effectiveFlags(fromParent_, from_);
+        (toLeaf.current, toLeaf.flags) = effectiveFlags(toParent_, to_);
+        if (fromLeaf.current == toLeaf.current) return _root;
 
         bool _isSameSide = isCredit(fromLeaf.flags) == isCredit(toLeaf.flags);
 
@@ -726,16 +699,63 @@ library LedgerLib {
                 emit ILedger.Debit(_root, toParent_, toLeaf.current, amount_);
                 emit ILedger.BalanceUpdate(_root, fromParent_, fromLeaf.current, from.balance);
                 emit ILedger.BalanceUpdate(_root, toParent_, toLeaf.current, to.balance);
-                return true;
+                return _root;
             }
             _depth--;
         }
         revert ILedger.ZeroDepth();
     }
 
-    function reallocate(address fromToken_, address toToken_, uint256 amount_) internal {
-        if (amount_ == 0) return;
+    function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+        internal
+        returns (address _token)
+    {
+        _token = checkRoots(fromParent_, toParent_);
+        if (_token == address(0)) revert ILedger.ZeroAddress();
+        (, uint256 _fromFlags) = effectiveFlags(fromParent_, from_);
+        (, uint256 _toFlags) = effectiveFlags(toParent_, to_);
+        if (!isCredit(_fromFlags)) revert ILedger.InvalidSubAccount(from_, true);
+        if (isCredit(_toFlags)) revert ILedger.InvalidSubAccount(to_, false);
 
-        transfer(address(this), fromToken_, address(this), toToken_, amount_);
+        transfer(fromParent_, from_, toParent_, to_, amount_);
+        if (_token == NATIVE_ADDRESS) {
+            if (msg.value != amount_) {
+                revert ILedger.IncorrectAmount(msg.value, amount_);
+            }
+            // Native value already sits on the router (this contract via delegatecall),
+            // so no external transfer is needed.
+        } else {
+            if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
+            SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), amount_);
+        }
     }
+
+    function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+        internal
+        returns (address _token)
+    {
+        if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
+        _token = checkRoots(fromParent_, toParent_);
+        if (_token == address(0)) revert ILedger.ZeroAddress();
+        (, uint256 _fromFlags) = effectiveFlags(fromParent_, from_);
+        (, uint256 _toFlags) = effectiveFlags(toParent_, to_);
+        if (isCredit(_fromFlags)) revert ILedger.InvalidSubAccount(from_, false);
+        if (!isCredit(_toFlags)) revert ILedger.InvalidSubAccount(to_, true);
+
+        transfer(fromParent_, from_, toParent_, to_, amount_);
+        if (_token == NATIVE_ADDRESS) {
+            (bool _success,) = payable(msg.sender).call{value: amount_}("");
+            if (!_success) revert ILedger.NativeTransferFailed();
+        } else {
+            transfer(_token, msg.sender, fromParent_, from_, amount_);
+            SafeERC20.safeTransfer(IERC20(_token), msg.sender, amount_);
+        }
+    }
+
+    // TODO: Move to DepositLib
+    // function reallocate(address fromToken_, address toToken_, uint256 amount_) internal {
+    //     if (amount_ == 0) return;
+
+    //     transfer(address(this), fromToken_, address(this), toToken_, amount_);
+    // }
 }

@@ -35,6 +35,8 @@ interface ILedger {
 
     function isCredit(uint256 flags) external pure returns (bool);
 
+    function effectiveFlags(address parent, address addr) external view returns (address absoluteAddr, uint256 flags);
+
     function isInternal(uint256 flags) external pure returns (bool);
 
     function isNative(uint256 flags) external pure returns (bool);
@@ -104,14 +106,21 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     function transfer(address fromParent, address from, address toParent, address to, uint256 amount)
         external
-        returns (bool);
+        returns (address);
 
-    function transfer(address fromParent, address toParent, address to, uint256 amount) external returns (bool);
+    function transfer(address fromParent, address toParent, address to, uint256 amount) external returns (address);
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    function wrap(address token_, uint256 amount_, address sourceParent_, address source_) external payable;
+    // // ─────────────────────────────────────────────────────────────────────────────
+    // // TODO: Consider adding later.
+    // function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    //     external
+    //     payable
+    //     returns (address);
 
-    function unwrap(address token_, uint256 amount_, address sourceParent_, address source_) external payable;
+    // function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    //     external
+    //     payable
+    //     returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Custom errors

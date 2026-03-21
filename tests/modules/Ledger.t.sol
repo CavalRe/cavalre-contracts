@@ -28,7 +28,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](39);
+        _selectors = new bytes4[](37);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -52,6 +52,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("wrapper(address)"));
         _selectors[n++] = bytes4(keccak256("isGroup(uint256)"));
         _selectors[n++] = bytes4(keccak256("isCredit(uint256)"));
+        _selectors[n++] = bytes4(keccak256("effectiveFlags(address,address)"));
         _selectors[n++] = bytes4(keccak256("isInternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
         _selectors[n++] = bytes4(keccak256("isExternal(uint256)"));
@@ -64,13 +65,15 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("wrap(address,uint256,address,address)"));
-        _selectors[n++] = bytes4(keccak256("unwrap(address,uint256,address,address)"));
+        // TODO: Move to DepositLib
+        // _selectors[n++] = bytes4(keccak256("wrap(address,address,address,address,uint256)"));
+        // _selectors[n++] = bytes4(keccak256("unwrap(address,address,address,address,uint256)"));
         // Extra test-exposing commands
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 39) revert InvalidCommandsLength(n);
+        // TODO: Move to DepositLib
+        // _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
+        if (n != 37) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -80,10 +83,10 @@ contract TestLedger is Ledger {
 
     function mint(address toParent_, address to_, uint256 amount_) external {
         address _token = LedgerLib.root(toParent_);
-        bool ok = LedgerLib.transfer(_token, LedgerLib.SOURCE_ADDRESS, toParent_, to_, amount_);
+        LedgerLib.transfer(_token, LedgerLib.SOURCE_ADDRESS, toParent_, to_, amount_);
         uint256 _tokenFlags = LedgerLib.flags(_token);
         // Emit event from wrapper address
-        if (ok && LedgerLib.isInternal(_tokenFlags)) {
+        if (LedgerLib.isInternal(_tokenFlags)) {
             address _wrapper = LedgerLib.wrapper(_token);
             if (_wrapper != address(0)) {
                 ERC20Wrapper(_wrapper).mint(to_, amount_);
@@ -93,10 +96,10 @@ contract TestLedger is Ledger {
 
     function burn(address fromParent_, address from_, uint256 amount_) external {
         address _token = LedgerLib.root(fromParent_);
-        bool ok = LedgerLib.transfer(fromParent_, from_, _token, LedgerLib.SOURCE_ADDRESS, amount_);
+        LedgerLib.transfer(fromParent_, from_, _token, LedgerLib.SOURCE_ADDRESS, amount_);
         uint256 _tokenFlags = LedgerLib.flags(_token);
         // Emit event from wrapper address
-        if (ok && LedgerLib.isInternal(_tokenFlags)) {
+        if (LedgerLib.isInternal(_tokenFlags)) {
             address _wrapper = LedgerLib.wrapper(_token);
             if (_wrapper != address(0)) {
                 ERC20Wrapper(_wrapper).burn(from_, amount_);
@@ -104,9 +107,10 @@ contract TestLedger is Ledger {
         }
     }
 
-    function reallocate(address fromToken_, address toToken_, uint256 amount_) external {
-        LedgerLib.reallocate(fromToken_, toToken_, amount_);
-    }
+    // TODO: Move to DepositLib
+    // function reallocate(address fromToken_, address toToken_, uint256 amount_) external {
+    //     LedgerLib.reallocate(fromToken_, toToken_, amount_);
+    // }
 
     receive() external payable {}
 }
@@ -157,7 +161,8 @@ contract ReenterToken is ERC20 {
         bool ok = super.transferFrom(from_, to_, amount_);
         if (reenter) {
             reenter = false;
-            Ledger(target).wrap(address(this), 1, address(this), address(this));
+            // TODO: Move to DepositLib
+            // Ledger(target).wrap(address(this), LedgerLib.SOURCE_ADDRESS, address(this), address(this), 1);
         }
         return ok;
     }
@@ -390,6 +395,24 @@ contract LedgerTest is Test {
         assertEq(externalFlags & LedgerLib.FLAG_IS_NATIVE, 0, "external token not native");
         assertTrue(ledgers.isRoot(externalFlags), "external root");
         assertFalse(ledgers.isRoot(ledgers.flags(r10)), "child not root");
+    }
+
+    function testLedgerEffectiveFlags() public {
+        vm.startPrank(alice);
+        (address creditParent_,) = ledgers.addSubAccountGroup(r1, "creditParent", true);
+        (address debitAddr_, uint256 debitFlags_) = ledgers.effectiveFlags(r1, LedgerLib.toAddress("missingDebit"));
+
+        assertEq(debitAddr_, LedgerLib.toAddress(r1, LedgerLib.toAddress("missingDebit")), "absolute address");
+        assertFalse(ledgers.isCredit(debitFlags_), "inherits debit parent");
+        assertEq(LedgerLib.parent(debitFlags_), r1, "inherits parent");
+        ledgers.addSubAccount(r1, LedgerLib.SOURCE_ADDRESS, "Source", true);
+        (, uint256 sourceFlags_) = ledgers.effectiveFlags(r1, LedgerLib.SOURCE_ADDRESS);
+        assertTrue(ledgers.isCredit(sourceFlags_), "registered credit leaf");
+        (, uint256 missingCreditFlags_) = ledgers.effectiveFlags(creditParent_, LedgerLib.toAddress("missingCredit"));
+        assertTrue(
+            ledgers.isCredit(missingCreditFlags_),
+            "inherits credit parent"
+        );
     }
 
     function testPackedParentAndWrapperMapping() public view {
@@ -681,40 +704,42 @@ contract LedgerTest is Test {
         assertEq(ledgers.totalSupply(r1), 700, "totalSupply(r1)");
     }
 
-    function testLedgerReallocate() public {
-        isVerbose = false;
+    // TODO: Move to DepositLib
+    // function testLedgerReallocate() public {
+    //     isVerbose = false;
 
-        vm.startPrank(alice);
+    //     vm.startPrank(alice);
 
-        (address tokenA,) = ledgers.addInternalToken("Realloc A", "REA", 18);
-        (address tokenB,) = ledgers.addInternalToken("Realloc B", "REB", 18);
-        ledgers.addSubAccount(address(ledgers), LedgerLib.SOURCE_ADDRESS, "Source", true);
-        ledgers.addSubAccount(address(ledgers), tokenA, "Realloc A", false);
-        ledgers.addSubAccount(address(ledgers), tokenB, "Realloc B", false);
+    //     (address tokenA,) = ledgers.addInternalToken("Realloc A", "REA", 18);
+    //     (address tokenB,) = ledgers.addInternalToken("Realloc B", "REB", 18);
+    //     ledgers.addSubAccount(address(ledgers), LedgerLib.SOURCE_ADDRESS, "Source", true);
+    //     ledgers.addSubAccount(address(ledgers), tokenA, "Realloc A", false);
+    //     ledgers.addSubAccount(address(ledgers), tokenB, "Realloc B", false);
 
-        uint256 initialAmount = 1_000 ether;
-        uint256 shift = 400 ether;
+    //     uint256 initialAmount = 1_000 ether;
+    //     uint256 shift = 400 ether;
 
-        if (isVerbose) console.log("Minting initial amount to tokenA");
-        ledgers.mint(address(ledgers), tokenA, initialAmount);
-        assertEq(ledgers.totalSupply(address(ledgers)), initialAmount, "root supply after mint");
+    //     if (isVerbose) console.log("Minting initial amount to tokenA");
+    //     ledgers.mint(address(ledgers), tokenA, initialAmount);
+    //     assertEq(ledgers.totalSupply(address(ledgers)), initialAmount, "root supply after mint");
 
-        if (isVerbose) console.log("Reallocating from tokenA to tokenB");
-        ledgers.reallocate(tokenA, tokenB, shift);
-        assertEq(ledgers.totalSupply(address(ledgers)), initialAmount, "root supply invariant after reallocate");
-        assertEq(ledgers.balanceOf(address(ledgers), tokenA), initialAmount - shift, "tokenA debited");
-        assertEq(ledgers.balanceOf(address(ledgers), tokenB), shift, "tokenB credited");
+    //     if (isVerbose) console.log("Reallocating from tokenA to tokenB");
+    //     ledgers.reallocate(tokenA, tokenB, shift);
+    //     assertEq(ledgers.totalSupply(address(ledgers)), initialAmount, "root supply invariant after reallocate");
+    //     assertEq(ledgers.balanceOf(address(ledgers), tokenA), initialAmount - shift, "tokenA debited");
+    //     assertEq(ledgers.balanceOf(address(ledgers), tokenB), shift, "tokenB credited");
 
-        uint256 shiftBack = 125 ether;
-        if (isVerbose) console.log("Reallocating back from tokenB to tokenA");
-        ledgers.reallocate(tokenB, tokenA, shiftBack);
-        assertEq(ledgers.totalSupply(address(ledgers)), initialAmount, "root supply invariant after rebalance");
-        assertEq(
-            ledgers.balanceOf(address(ledgers), tokenA), initialAmount - shift + shiftBack, "tokenA after rebalancing"
-        );
-        assertEq(ledgers.balanceOf(address(ledgers), tokenB), shift - shiftBack, "tokenB after rebalancing");
-    }
+    //     uint256 shiftBack = 125 ether;
+    //     if (isVerbose) console.log("Reallocating back from tokenB to tokenA");
+    //     ledgers.reallocate(tokenB, tokenA, shiftBack);
+    //     assertEq(ledgers.totalSupply(address(ledgers)), initialAmount, "root supply invariant after rebalance");
+    //     assertEq(
+    //         ledgers.balanceOf(address(ledgers), tokenA), initialAmount - shift + shiftBack, "tokenA after rebalancing"
+    //     );
+    //     assertEq(ledgers.balanceOf(address(ledgers), tokenB), shift - shiftBack, "tokenB after rebalancing");
+    // }
 
+    /* TODO: Move to DepositLib
     function testLedgerWrap() public {
         isVerbose = false;
 
@@ -726,25 +751,25 @@ contract LedgerTest is Test {
         if (isVerbose) {
             console.log("Attempt wrap of unlisted token (should revert)");
         }
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, address(unlistedToken)));
-        ledgers.wrap(address(unlistedToken), unlistedAmount, address(unlistedToken), alice);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.ZeroAddress.selector));
+        ledgers.wrap(address(unlistedToken), alice, address(unlistedToken), alice, unlistedAmount);
 
         uint256 wrapAmount = 120;
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledgers), wrapAmount);
         if (isVerbose) console.log("Wrapping external token");
-        ledgers.wrap(address(externalToken), wrapAmount, address(externalToken), LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap(address(externalToken), LedgerLib.SOURCE_ADDRESS, address(externalToken), alice, wrapAmount);
 
         assertEq(externalToken.balanceOf(address(router)), wrapAmount, "router holds wrapped tokens");
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance consumed");
         assertEq(ledgers.balanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
         assertEq(ledgers.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
 
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, address(unlistedToken)));
-        ledgers.unwrap(address(unlistedToken), 10, address(unlistedToken), alice);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.ZeroAddress.selector));
+        ledgers.unwrap(address(unlistedToken), alice, address(unlistedToken), alice, 10);
 
         uint256 firstUnwrap = 45;
-        ledgers.unwrap(address(externalToken), firstUnwrap, address(externalToken), LedgerLib.SOURCE_ADDRESS);
+        ledgers.unwrap(address(externalToken), alice, address(externalToken), LedgerLib.SOURCE_ADDRESS, firstUnwrap);
         assertEq(
             externalToken.balanceOf(address(router)), wrapAmount - firstUnwrap, "router balance after partial unwrap"
         );
@@ -759,7 +784,7 @@ contract LedgerTest is Test {
         );
 
         uint256 remaining = wrapAmount - firstUnwrap;
-        ledgers.unwrap(address(externalToken), remaining, address(externalToken), LedgerLib.SOURCE_ADDRESS);
+        ledgers.unwrap(address(externalToken), alice, address(externalToken), LedgerLib.SOURCE_ADDRESS, remaining);
         assertEq(externalToken.balanceOf(address(router)), 0, "router drained after unwrap");
         assertEq(externalToken.balanceOf(alice), wrapAmount, "alice restored external balance");
         assertEq(ledgers.balanceOf(address(externalToken), alice), 0, "ledger balance cleared");
@@ -776,13 +801,13 @@ contract LedgerTest is Test {
         address totalParent = address(externalToken);
 
         // Caller is bob, but source accounting is unallocated.
-        ledgers.wrap(address(externalToken), wrapAmount, totalParent, LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap(totalParent, LedgerLib.SOURCE_ADDRESS, address(externalToken), bob, wrapAmount);
 
         assertEq(ledgers.balanceOf(address(externalToken), bob), wrapAmount, "caller received wrapped balance");
         assertEq(ledgers.balanceOf(totalParent, LedgerLib.SOURCE_ADDRESS), wrapAmount, "source ledger entry credited");
 
         // Unwrap using same source to close out source ledger entry.
-        ledgers.unwrap(address(externalToken), wrapAmount, totalParent, LedgerLib.SOURCE_ADDRESS);
+        ledgers.unwrap(address(externalToken), bob, totalParent, LedgerLib.SOURCE_ADDRESS, wrapAmount);
 
         assertEq(ledgers.balanceOf(address(externalToken), bob), 0, "wrapped caller balance cleared");
         assertEq(ledgers.balanceOf(totalParent, LedgerLib.SOURCE_ADDRESS), 0, "source ledger entry cleared");
@@ -797,7 +822,7 @@ contract LedgerTest is Test {
         externalToken.approve(address(ledgers), wrapAmount);
 
         vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, alice, address(externalToken)));
-        ledgers.wrap(address(externalToken), wrapAmount, alice, alice);
+        ledgers.wrap(alice, alice, address(externalToken), alice, wrapAmount);
         vm.stopPrank();
     }
 
@@ -810,25 +835,58 @@ contract LedgerTest is Test {
 
         // r1 belongs to a different root tree than externalToken.
         vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, r1, address(externalToken)));
-        ledgers.wrap(address(externalToken), wrapAmount, r1, alice);
+        ledgers.wrap(r1, alice, address(externalToken), alice, wrapAmount);
         vm.stopPrank();
     }
 
-    function testLedgerUnwrapWithDifferentSourceRoutesBalance() public {
+    function testLedgerWrapRequiresCreditSourceAndDebitDestination() public {
+        vm.startPrank(alice);
+
+        uint256 wrapAmount = 10;
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledgers), wrapAmount);
+
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidSubAccount.selector, alice, true));
+        ledgers.wrap(address(externalToken), alice, address(externalToken), alice, wrapAmount);
+        vm.stopPrank();
+    }
+
+    function testLedgerUnwrapToDifferentEmptyCreditSourceReverts() public {
         vm.startPrank(alice);
 
         uint256 wrapAmount = 50;
         address totalParent = address(externalToken);
+        address explicitSource_ = address(0x5150);
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledgers), wrapAmount);
+        ledgers.addSubAccount(totalParent, explicitSource_, "Explicit Source", true);
 
         // Wrap using unallocated source.
-        ledgers.wrap(address(externalToken), wrapAmount, totalParent, LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap(totalParent, LedgerLib.SOURCE_ADDRESS, address(externalToken), alice, wrapAmount);
 
-        // Unwrap to bob source entry; routing is explicit and valid.
-        ledgers.unwrap(address(externalToken), wrapAmount, totalParent, bob);
-        assertEq(ledgers.balanceOf(totalParent, bob), wrapAmount, "explicit source balance");
-        assertEq(ledgers.balanceOf(address(externalToken), alice), 0, "alice wrapped balance cleared");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILedger.InsufficientBalance.selector,
+                address(externalToken),
+                totalParent,
+                LedgerLib.toAddress(totalParent, explicitSource_),
+                wrapAmount
+            )
+        );
+        ledgers.unwrap(address(externalToken), alice, totalParent, explicitSource_, wrapAmount);
+        vm.stopPrank();
+    }
+
+    function testLedgerUnwrapRequiresDebitSourceAndCreditDestination() public {
+        vm.startPrank(alice);
+
+        uint256 wrapAmount = 10;
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledgers), wrapAmount);
+        ledgers.wrap(address(externalToken), LedgerLib.SOURCE_ADDRESS, address(externalToken), alice, wrapAmount);
+
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidSubAccount.selector, alice, true));
+        ledgers.unwrap(address(externalToken), alice, address(externalToken), alice, wrapAmount);
         vm.stopPrank();
     }
 
@@ -840,7 +898,7 @@ contract LedgerTest is Test {
 
         uint256 wrapAmount = 2 ether;
         uint256 routerBalanceBefore = address(router).balance;
-        ledgers.wrap{value: wrapAmount}(native, wrapAmount, native, LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap{value: wrapAmount}(native, LedgerLib.SOURCE_ADDRESS, native, alice, wrapAmount);
         vm.stopPrank();
 
         assertEq(address(router).balance, routerBalanceBefore + wrapAmount, "router holds native collateral");
@@ -861,7 +919,7 @@ contract LedgerTest is Test {
         reToken.approve(address(ledgers), 10);
         reToken.setReenter(true);
         vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
-        ledgers.wrap(address(reToken), 5, address(reToken), LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap(address(reToken), LedgerLib.SOURCE_ADDRESS, address(reToken), alice, 5);
         vm.stopPrank();
     }
 
@@ -873,7 +931,7 @@ contract LedgerTest is Test {
 
         uint256 wrapAmount = 2 ether;
         vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, wrapAmount - 1, wrapAmount));
-        ledgers.wrap{value: wrapAmount - 1}(native, wrapAmount, native, LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap{value: wrapAmount - 1}(native, LedgerLib.SOURCE_ADDRESS, native, alice, wrapAmount);
         vm.stopPrank();
     }
 
@@ -884,7 +942,7 @@ contract LedgerTest is Test {
         externalToken.approve(address(ledgers), wrapAmount);
         vm.deal(alice, 1 ether);
         vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
-        ledgers.wrap{value: 1}(address(externalToken), wrapAmount, address(externalToken), LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap{value: 1}(address(externalToken), LedgerLib.SOURCE_ADDRESS, address(externalToken), alice, wrapAmount);
         vm.stopPrank();
     }
 
@@ -895,12 +953,12 @@ contract LedgerTest is Test {
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 3 ether;
-        ledgers.wrap{value: wrapAmount}(native, wrapAmount, native, LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap{value: wrapAmount}(native, LedgerLib.SOURCE_ADDRESS, native, alice, wrapAmount);
         uint256 routerBalanceAfterWrap = address(router).balance;
         uint256 aliceBalanceAfterWrap = alice.balance;
 
         uint256 unwrapAmount = 1 ether;
-        ledgers.unwrap(native, unwrapAmount, native, LedgerLib.SOURCE_ADDRESS);
+        ledgers.unwrap(native, alice, native, LedgerLib.SOURCE_ADDRESS, unwrapAmount);
         vm.stopPrank();
 
         assertEq(address(router).balance, routerBalanceAfterWrap - unwrapAmount, "router native balance");
@@ -916,9 +974,9 @@ contract LedgerTest is Test {
         ledgers.addSubAccount(native, LedgerLib.SOURCE_ADDRESS, "Source", true);
 
         uint256 wrapAmount = 1 ether;
-        ledgers.wrap{value: wrapAmount}(native, wrapAmount, native, LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap{value: wrapAmount}(native, LedgerLib.SOURCE_ADDRESS, native, alice, wrapAmount);
         vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
-        ledgers.unwrap{value: 1}(native, 0.5 ether, native, alice);
+        ledgers.unwrap{value: 1}(native, alice, native, alice, 0.5 ether);
         vm.stopPrank();
     }
 
@@ -927,12 +985,13 @@ contract LedgerTest is Test {
         uint256 wrapAmount = 50;
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledgers), wrapAmount);
-        ledgers.wrap(address(externalToken), wrapAmount, address(externalToken), LedgerLib.SOURCE_ADDRESS);
+        ledgers.wrap(address(externalToken), LedgerLib.SOURCE_ADDRESS, address(externalToken), alice, wrapAmount);
         vm.deal(alice, 1 ether);
         vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
-        ledgers.unwrap{value: 1}(address(externalToken), 10, address(externalToken), alice);
+        ledgers.unwrap{value: 1}(address(externalToken), alice, address(externalToken), alice, 10);
         vm.stopPrank();
     }
+    */
 
     // ─────────────────────────────────────────────────────────────────────────
     // Transfers / approvals / allowance / transferFrom (routed)
@@ -970,6 +1029,14 @@ contract LedgerTest is Test {
         assertEq(ledgers.balanceOf(r10, "101"), 400, 'r10/"101" updated');
         assertEq(ledgers.balanceOf(r1, "10"), 1000, 'r1/"10" unchanged above common ancestor');
         assertEq(ledgers.totalSupply(r1), 1000, "total supply unchanged");
+    }
+
+    function testLedgerTransferRejectsCreditFromParent() public {
+        vm.startPrank(alice);
+        address sourceParent_ = LedgerLib.toAddress(r1, LedgerLib.SOURCE_ADDRESS);
+
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, sourceParent_));
+        ledgers.transfer(sourceParent_, r1, bob, 1);
     }
 
     function testLedgerTransferInsufficientBalanceReportsDeepUnregisteredLeafContext() public {

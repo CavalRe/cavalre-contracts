@@ -1,5 +1,5 @@
 # ERC20Lib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8ab57ccf4ebba80abc32cfec03a231f5002d8446/examples/ERC20.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/60feb3a156b5466ba1b6f8ec3f8f965b7f89c2de/examples/ERC20.sol)
 
 
 ## State Variables

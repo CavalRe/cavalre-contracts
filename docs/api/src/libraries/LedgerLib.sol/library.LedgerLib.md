@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8ab57ccf4ebba80abc32cfec03a231f5002d8446/libraries/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/60feb3a156b5466ba1b6f8ec3f8f965b7f89c2de/libraries/LedgerLib.sol)
 
 
 ## State Variables
@@ -165,6 +165,13 @@ function isGroup(uint256 flags_) internal pure returns (bool);
 
 ```solidity
 function isCredit(uint256 flags_) internal pure returns (bool);
+```
+
+### effectiveFlags
+
+
+```solidity
+function effectiveFlags(address parent_, address addr_) internal view returns (address _current, uint256 _flags);
 ```
 
 ### isInternal
@@ -466,20 +473,6 @@ function debit(address root_, address parent_, address addr_, uint256 amount_) i
 function credit(address root_, address parent_, address addr_, uint256 amount_) internal;
 ```
 
-### wrap
-
-
-```solidity
-function wrap(address token_, uint256 amount_, address sourceParent_, address source_) internal;
-```
-
-### unwrap
-
-
-```solidity
-function unwrap(address token_, uint256 amount_, address sourceParent_, address source_) internal;
-```
-
 ### _update
 
 
@@ -499,14 +492,25 @@ function _update(
 ```solidity
 function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
     internal
-    returns (bool);
+    returns (address _root);
 ```
 
-### reallocate
+### wrap
 
 
 ```solidity
-function reallocate(address fromToken_, address toToken_, uint256 amount_) internal;
+function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    internal
+    returns (address _token);
+```
+
+### unwrap
+
+
+```solidity
+function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    internal
+    returns (address _token);
 ```
 
 ## Structs

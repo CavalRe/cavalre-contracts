@@ -8,7 +8,8 @@
 - account tree management (`addSubAccount*`, `removeSubAccount*`)
 - account flags (`isGroup`, `isCredit`, `isInternal`, `isNative`, `isRegistered`)
 - balances + routed transfers
-- wrapper-facing transfer hooks + wrap/unwrap flows
+- wrapper-facing transfer hooks
+- library-level wrap/unwrap settlement flows
 - canonical-root ERC20 surface via `modules/ERC20.sol`
 
 ## Key Model
@@ -25,6 +26,8 @@
 - native/external roots can be registered first and optionally wrapped later via `createWrapper`
 - canonical root may also be wrapped via `createWrapper` when a separate wrapper surface is desired
 - canonical root ERC20 UX is handled by `modules/ERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `ERC20Lib`
+- `effectiveFlags(parent_, addr_)` resolves both absolute address and effective flags for possibly-unregistered derived leaves
+- `wrap(...)` / `unwrap(...)` currently live in `LedgerLib` only; external module exposure is deferred
 - tree/root mutators are intended to be idempotent: exact replays return the same result or become no-ops, while conflicting replays revert
 
 ## Storage

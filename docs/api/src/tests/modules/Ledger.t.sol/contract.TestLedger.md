@@ -1,5 +1,5 @@
 # TestLedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8ab57ccf4ebba80abc32cfec03a231f5002d8446/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/60feb3a156b5466ba1b6f8ec3f8f965b7f89c2de/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Ledger](/modules/Ledger.sol/contract.Ledger.md)
@@ -54,13 +54,6 @@ function mint(address toParent_, address to_, uint256 amount_) external;
 
 ```solidity
 function burn(address fromParent_, address from_, uint256 amount_) external;
-```
-
-### reallocate
-
-
-```solidity
-function reallocate(address fromToken_, address toToken_, uint256 amount_) external;
 ```
 
 ### receive

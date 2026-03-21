@@ -1,5 +1,5 @@
 # ERC20WrapperTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8ab57ccf4ebba80abc32cfec03a231f5002d8446/tests/modules/ERC20Wrapper.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/60feb3a156b5466ba1b6f8ec3f8f965b7f89c2de/tests/modules/ERC20Wrapper.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -117,20 +117,6 @@ function testERC20WrapperApproveTransferFromandAllowanceMutators() public;
 
 ```solidity
 function testERC20WrapperTransferFromExactAllowance() public;
-```
-
-### testERC20WrapperWrappedExternalSurfaceMatchesLedger
-
-
-```solidity
-function testERC20WrapperWrappedExternalSurfaceMatchesLedger() public;
-```
-
-### testERC20WrapperWrappedExternalTransferThroughSurface
-
-
-```solidity
-function testERC20WrapperWrappedExternalTransferThroughSurface() public;
 ```
 
 ### testERC20WrapperMintBurnEmitsTransfer

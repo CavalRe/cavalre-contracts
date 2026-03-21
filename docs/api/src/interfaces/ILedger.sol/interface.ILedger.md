@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8ab57ccf4ebba80abc32cfec03a231f5002d8446/interfaces/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/60feb3a156b5466ba1b6f8ec3f8f965b7f89c2de/interfaces/ILedger.sol)
 
 
 ## Functions
@@ -85,6 +85,13 @@ function isGroup(uint256 flags) external pure returns (bool);
 
 ```solidity
 function isCredit(uint256 flags) external pure returns (bool);
+```
+
+### effectiveFlags
+
+
+```solidity
+function effectiveFlags(address parent, address addr) external view returns (address absoluteAddr, uint256 flags);
 ```
 
 ### isInternal
@@ -281,28 +288,14 @@ function totalSupply(address token) external view returns (uint256);
 ```solidity
 function transfer(address fromParent, address from, address toParent, address to, uint256 amount)
     external
-    returns (bool);
+    returns (address);
 ```
 
 ### transfer
 
 
 ```solidity
-function transfer(address fromParent, address toParent, address to, uint256 amount) external returns (bool);
-```
-
-### wrap
-
-
-```solidity
-function wrap(address token_, uint256 amount_, address sourceParent_, address source_) external payable;
-```
-
-### unwrap
-
-
-```solidity
-function unwrap(address token_, uint256 amount_, address sourceParent_, address source_) external payable;
+function transfer(address fromParent, address toParent, address to, uint256 amount) external returns (address);
 ```
 
 ## Events

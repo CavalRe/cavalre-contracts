@@ -1,5 +1,5 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8ab57ccf4ebba80abc32cfec03a231f5002d8446/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/60feb3a156b5466ba1b6f8ec3f8f965b7f89c2de/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -252,6 +252,13 @@ function testLedgerAddExternalTokenAndCreateWrapperAreIdempotent() public;
 function testLedgerRootFlagsByTokenType() public view;
 ```
 
+### testLedgerEffectiveFlags
+
+
+```solidity
+function testLedgerEffectiveFlags() public;
+```
+
 ### testPackedParentAndWrapperMapping
 
 
@@ -406,97 +413,6 @@ function testLedgerMint() public;
 function testLedgerBurn() public;
 ```
 
-### testLedgerReallocate
-
-
-```solidity
-function testLedgerReallocate() public;
-```
-
-### testLedgerWrap
-
-
-```solidity
-function testLedgerWrap() public;
-```
-
-### testLedgerWrapUsesExplicitSourceNotCaller
-
-
-```solidity
-function testLedgerWrapUsesExplicitSourceNotCaller() public;
-```
-
-### testLedgerWrapInvalidSourceParentReverts
-
-
-```solidity
-function testLedgerWrapInvalidSourceParentReverts() public;
-```
-
-### testLedgerWrapCrossRootSourceRevertsDifferentRoots
-
-
-```solidity
-function testLedgerWrapCrossRootSourceRevertsDifferentRoots() public;
-```
-
-### testLedgerUnwrapWithDifferentSourceRoutesBalance
-
-
-```solidity
-function testLedgerUnwrapWithDifferentSourceRoutesBalance() public;
-```
-
-### testLedgerWrapNative
-
-
-```solidity
-function testLedgerWrapNative() public;
-```
-
-### testLedgerWrapReentrancyGuard
-
-
-```solidity
-function testLedgerWrapReentrancyGuard() public;
-```
-
-### testLedgerWrapNativeIncorrectValue
-
-
-```solidity
-function testLedgerWrapNativeIncorrectValue() public;
-```
-
-### testLedgerWrapNonNativeRejectsValue
-
-
-```solidity
-function testLedgerWrapNonNativeRejectsValue() public;
-```
-
-### testLedgerUnwrapNative
-
-
-```solidity
-function testLedgerUnwrapNative() public;
-```
-
-### testLedgerUnwrapNativeRejectsValue
-
-
-```solidity
-function testLedgerUnwrapNativeRejectsValue() public;
-```
-
-### testLedgerUnwrapNonNativeRejectsValue
-
-
-```solidity
-function testLedgerUnwrapNonNativeRejectsValue() public;
-```
-
 ### testLedgerTransfer
 
 
@@ -509,6 +425,13 @@ function testLedgerTransfer() public;
 
 ```solidity
 function testLedgerTransferAcrossSiblingBranchesPreservesAncestorBalance() public;
+```
+
+### testLedgerTransferRejectsCreditFromParent
+
+
+```solidity
+function testLedgerTransferRejectsCreditFromParent() public;
 ```
 
 ### testLedgerTransferInsufficientBalanceReportsDeepUnregisteredLeafContext

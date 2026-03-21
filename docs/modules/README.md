@@ -114,14 +114,16 @@ The `Ledger` module owns token-root registration, hierarchical account trees, an
 - internal root creation is deterministic and idempotent by `(name, symbol, decimals)`
 - native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`
 - canonical root may also be wrapped via `createWrapper(...)` if no `ERC20` module surface is present or a separate wrapper is desired
-- `wrap(...)` / `unwrap(...)` depend on registered roots, not wrapper existence
+- `LedgerLib.wrap(...)` / `LedgerLib.unwrap(...)` depend on registered roots, not wrapper existence
+- external `Ledger.wrap(...)` / `Ledger.unwrap(...)` are currently commented out and deferred
 
 ## Responsibilities
 
 - token metadata by root (`name`, `symbol`, `decimals`)
 - tree management (`addSubAccount*`, `removeSubAccount*`)
 - root discovery / flags / wrapper lookup
-- transfer posting, wrap/unwrap, and total supply accounting
+- transfer posting and total supply accounting
+- library-level wrap/unwrap settlement logic
 
 # ERC20.sol
 

@@ -134,7 +134,8 @@ contract ERC20Wrapper {
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
         emit Transfer(msg.sender, to_, amount_);
-        return ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_);
+        ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_);
+        return true;
     }
 
     function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
@@ -146,7 +147,8 @@ contract ERC20Wrapper {
             _allowances[from_][msg.sender] = current - amount_;
         }
         emit Transfer(from_, to_, amount_);
-        return ILedger(_router).transfer(_token, from_, _token, to_, amount_);
+        ILedger(_router).transfer(_token, from_, _token, to_, amount_);
+        return true;
     }
 
     // // -------------------------------------------------------------------------
@@ -196,7 +198,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](39);
+        _selectors = new bytes4[](38);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
@@ -221,6 +223,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("wrapper(address)"));
         _selectors[n++] = bytes4(keccak256("isGroup(uint256)"));
         _selectors[n++] = bytes4(keccak256("isCredit(uint256)"));
+        _selectors[n++] = bytes4(keccak256("effectiveFlags(address,address)"));
         _selectors[n++] = bytes4(keccak256("isInternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
         _selectors[n++] = bytes4(keccak256("isRegistered(uint256)"));
@@ -234,10 +237,10 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("wrap(address,uint256,address,address)"));
-        _selectors[n++] = bytes4(keccak256("unwrap(address,uint256,address,address)"));
+        // _selectors[n++] = bytes4(keccak256("wrap(address,address,address,address,uint256)"));
+        // _selectors[n++] = bytes4(keccak256("unwrap(address,address,address,address,uint256)"));
 
-        if (n != 39) revert InvalidCommandsLength(n);
+        if (n != 38) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
@@ -393,6 +396,10 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.isCredit(flags_);
     }
 
+    function effectiveFlags(address parent_, address addr_) external view returns (address, uint256) {
+        return LedgerLib.effectiveFlags(parent_, addr_);
+    }
+
     function isInternal(uint256 flags_) external pure returns (bool) {
         return LedgerLib.isInternal(flags_);
     }
@@ -456,29 +463,33 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         external
-        returns (bool)
+        returns (address)
     {
         _enforceWrapperCaller(fromParent_);
         return LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_);
     }
 
-    function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external returns (bool) {
+    function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external returns (address) {
+        if (LedgerLib.isCredit(LedgerLib.flags(fromParent_))) revert ILedger.InvalidLedgerAccount(fromParent_);
         return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
     }
 
-    function wrap(address token_, uint256 amount_, address sourceParent_, address source_)
-        external
-        payable
-        nonReentrant
-    {
-        LedgerLib.wrap(token_, amount_, sourceParent_, source_);
-    }
+    // // TODO: Consider adding later.
+    // function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    //     external
+    //     payable
+    //     nonReentrant
+    //     returns (address)
+    // {
+    //     return LedgerLib.wrap(fromParent_, from_, toParent_, to_, amount_);
+    // }
 
-    function unwrap(address token_, uint256 amount_, address sourceParent_, address source_)
-        external
-        payable
-        nonReentrant
-    {
-        LedgerLib.unwrap(token_, amount_, sourceParent_, source_);
-    }
+    // function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    //     external
+    //     payable
+    //     nonReentrant
+    //     returns (address)
+    // {
+    //     return LedgerLib.unwrap(fromParent_, from_, toParent_, to_, amount_);
+    // }
 }
