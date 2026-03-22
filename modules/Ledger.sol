@@ -237,10 +237,10 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
-        // _selectors[n++] = bytes4(keccak256("wrap(address,address,address,address,uint256)"));
-        // _selectors[n++] = bytes4(keccak256("unwrap(address,address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("wrap(address,address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("unwrap(address,address,address,address,uint256)"));
 
-        if (n != 38) revert InvalidCommandsLength(n);
+        if (n != 40) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
@@ -474,22 +474,23 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
     }
 
-    // // TODO: Consider adding later.
-    // function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
-    //     external
-    //     payable
-    //     nonReentrant
-    //     returns (address)
-    // {
-    //     return LedgerLib.wrap(fromParent_, from_, toParent_, to_, amount_);
-    // }
+    function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+        external
+        payable
+        nonReentrant
+        returns (address)
+    {
+        enforceIsOwner();
+        return LedgerLib.wrap(fromParent_, from_, toParent_, to_, amount_);
+    }
 
-    // function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
-    //     external
-    //     payable
-    //     nonReentrant
-    //     returns (address)
-    // {
-    //     return LedgerLib.unwrap(fromParent_, from_, toParent_, to_, amount_);
-    // }
+    function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+        external
+        payable
+        nonReentrant
+        returns (address)
+    {
+        enforceIsOwner();
+        return LedgerLib.unwrap(fromParent_, from_, toParent_, to_, amount_);
+    }
 }
