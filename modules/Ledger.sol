@@ -198,7 +198,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](38);
+        _selectors = new bytes4[](40);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
