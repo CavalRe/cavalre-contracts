@@ -337,6 +337,7 @@ contract LedgerTest is Test {
         assertEq(wrapperAgain_, wrapper_, "same wrapper");
         assertEq(ledger.wrapper(address(ledger)), wrapper_, "wrapper stored");
         assertEq(ledger.root(address(ledger)), address(ledger), "root unchanged");
+        assertEq(ledger.name(address(ledger)), "Ledger", "name stable");
     }
 
     function testLedgerCreateWrapperInternalRootIsIdempotent() public {
@@ -347,6 +348,8 @@ contract LedgerTest is Test {
 
         assertEq(wrapper_, r1, "internal self wrapper");
         assertEq(wrapperAgain_, wrapper_, "same wrapper");
+        assertEq(ledger.wrapper(r1), r1, "wrapper stable");
+        assertEq(ledger.root(r1), r1, "root stable");
     }
 
     function testLedgerCreateTokenDoesNotRegisterUnderRoot() public {
@@ -367,6 +370,9 @@ contract LedgerTest is Test {
         assertEq(tokenAgain_, token_, "same token");
         assertEq(ledger.root(token_), token_, "root registered");
         assertEq(ledger.wrapper(token_), token_, "self wrapped");
+        assertEq(ledger.name(token_), "Neutral Token", "name stable");
+        assertEq(ledger.symbol(token_), "NT", "symbol stable");
+        assertEq(ledger.decimals(token_), 18, "decimals stable");
     }
 
     function testLedgerAddExternalTokenAndCreateWrapperAreIdempotent() public {
@@ -380,6 +386,9 @@ contract LedgerTest is Test {
         assertEq(ledger.root(address(unlistedToken)), address(unlistedToken), "root registered");
         assertEq(wrapperAgain_, wrapper_, "wrapper idempotent");
         assertEq(ledger.wrapper(address(unlistedToken)), wrapper_, "wrapper unchanged");
+        assertEq(ledger.name(address(unlistedToken)), "Unlisted Token", "name stable");
+        assertEq(ledger.symbol(address(unlistedToken)), "UNL", "symbol stable");
+        assertEq(ledger.decimals(address(unlistedToken)), 18, "decimals stable");
     }
 
     function testLedgerRootFlagsByTokenType() public view {
@@ -431,20 +440,24 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
 
         // Add a fresh sub under r1
-        (address added,) = ledger.addSubAccountGroup(r1, "newSubAccount", false);
+        (address added, uint256 flags_) = ledger.addSubAccountGroup(r1, "newSubAccount", false);
+        address[] memory before_ = ledger.subAccounts(r1);
+        uint32 index_ = ledger.subAccountIndex(r1, LedgerLib.toAddress("newSubAccount"));
         assertEq(added, LedgerLib.toAddress(r1, "newSubAccount"), "address mismatch");
         assertEq(ledger.parent(added), r1, "parent mismatch");
-        assertEq(
-            ledger.subAccountIndex(r1, LedgerLib.toAddress("newSubAccount")),
-            ledger.subAccounts(r1).length,
-            "index should equal #subs"
-        );
+        assertEq(index_, before_.length, "index should equal #subs");
         assertTrue(ledger.hasSubAccount(r1), "r1 should have subs");
+        assertEq(ledger.flags(added), flags_, "flags stored");
+        assertEq(ledger.name(added), "newSubAccount", "name stored");
 
-        // Re-adding the same name with same flags should idempotently return same addr or revert by your rules.
-        // Your lib currently treats “same name + same flags” as OK (returns existing). Verify:
-        (address idempotent,) = ledger.addSubAccountGroup(r1, "newSubAccount", false);
+        (address idempotent, uint256 flagsAgain_) = ledger.addSubAccountGroup(r1, "newSubAccount", false);
+        address[] memory after_ = ledger.subAccounts(r1);
         assertEq(idempotent, added, "expected same sub account address");
+        assertEq(flagsAgain_, flags_, "same flags");
+        assertEq(after_.length, before_.length, "child count stable");
+        assertEq(after_[after_.length - 1], before_[before_.length - 1], "child ordering stable");
+        assertEq(ledger.subAccountIndex(r1, LedgerLib.toAddress("newSubAccount")), index_, "index stable");
+        assertEq(ledger.name(added), "newSubAccount", "name stable");
     }
 
     function testLedgerAddSubAccountGroupAddressFormIsIdempotent() public {
@@ -452,11 +465,17 @@ contract LedgerTest is Test {
 
         address relative_ = LedgerLib.toAddress("groupByAddr");
         (address added_, uint256 flags_) = ledger.addSubAccountGroup(r1, relative_, "groupByAddr", false);
+        address[] memory before_ = ledger.subAccounts(r1);
+        uint32 index_ = ledger.subAccountIndex(r1, relative_);
         (address addedAgain_, uint256 flagsAgain_) = ledger.addSubAccountGroup(r1, relative_, "groupByAddr", false);
+        address[] memory after_ = ledger.subAccounts(r1);
 
         assertEq(addedAgain_, added_, "same address");
         assertEq(flagsAgain_, flags_, "same flags");
-        assertEq(ledger.subAccounts(r1)[ledger.subAccounts(r1).length - 1], relative_, "no duplicate child");
+        assertEq(after_.length, before_.length, "child count stable");
+        assertEq(after_[after_.length - 1], relative_, "no duplicate child");
+        assertEq(ledger.subAccountIndex(r1, relative_), index_, "index stable");
+        assertEq(ledger.name(added_), "groupByAddr", "name stable");
     }
 
     function testLedgerAddSubAccountNameDelegatesToAddressForm() public {
@@ -473,15 +492,18 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
 
         (address added_, uint256 flags_) = ledger.addSubAccount(r1, "leafSubAccount", false);
+        address relative_ = LedgerLib.toAddress("leafSubAccount");
+        address[] memory before_ = ledger.subAccounts(r1);
+        uint32 index_ = ledger.subAccountIndex(r1, relative_);
         (address addedAgain_, uint256 flagsAgain_) = ledger.addSubAccount(r1, "leafSubAccount", false);
+        address[] memory after_ = ledger.subAccounts(r1);
 
         assertEq(addedAgain_, added_, "same address");
         assertEq(flagsAgain_, flags_, "same flags");
-        assertEq(
-            ledger.subAccounts(r1)[ledger.subAccounts(r1).length - 1],
-            LedgerLib.toAddress("leafSubAccount"),
-            "no duplicate child"
-        );
+        assertEq(after_.length, before_.length, "child count stable");
+        assertEq(after_[after_.length - 1], relative_, "no duplicate child");
+        assertEq(ledger.subAccountIndex(r1, relative_), index_, "index stable");
+        assertEq(ledger.name(added_), "leafSubAccount", "name stable");
     }
 
     function testLedgerAddSubAccountZeroParentReverts() public {
@@ -526,6 +548,7 @@ contract LedgerTest is Test {
         assertEq(removedAgain_, removed_, "same address");
         assertEq(ledger.flags(removed_), 0, "cleared");
         assertEq(ledger.subAccountIndex(r10, _100), 0, "index reset");
+        assertEq(ledger.subAccounts(r10).length, 1, "child count stable");
     }
 
     function testLedgerRemoveSubAccountGroupAddressForm() public {
@@ -562,6 +585,7 @@ contract LedgerTest is Test {
         assertEq(removed_, added_, "removed address");
         assertEq(removedAgain_, removed_, "same address");
         assertEq(ledger.flags(removed_), 0, "cleared");
+        assertEq(ledger.subAccounts(r1).length, 3, "child count stable");
     }
 
     function testLedgerRemoveSubAccountMissingGroupIsIdempotent() public {
