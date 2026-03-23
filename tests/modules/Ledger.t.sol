@@ -28,7 +28,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](37);
+        _selectors = new bytes4[](42);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -37,7 +37,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
-        _selectors[n++] = bytes4(keccak256("addInternalToken(string,string,uint8)"));
+        _selectors[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
         _selectors[n++] = bytes4(keccak256("createWrapper(address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address)"));
@@ -46,6 +46,8 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("name(address)"));
         _selectors[n++] = bytes4(keccak256("symbol(address)"));
         _selectors[n++] = bytes4(keccak256("decimals(address)"));
+        _selectors[n++] = bytes4(keccak256("nativeName()"));
+        _selectors[n++] = bytes4(keccak256("nativeSymbol()"));
         _selectors[n++] = bytes4(keccak256("root(address)"));
         _selectors[n++] = bytes4(keccak256("parent(address)"));
         _selectors[n++] = bytes4(keccak256("flags(address)"));
@@ -55,6 +57,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("effectiveFlags(address,address)"));
         _selectors[n++] = bytes4(keccak256("isInternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isRegistered(uint256)"));
         _selectors[n++] = bytes4(keccak256("isExternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isRoot(uint256)"));
         _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
@@ -65,15 +68,14 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
-        // TODO: Move to DepositLib
-        // _selectors[n++] = bytes4(keccak256("wrap(address,address,address,address,uint256)"));
-        // _selectors[n++] = bytes4(keccak256("unwrap(address,address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("wrap(address,address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("unwrap(address,address,address,address,uint256)"));
         // Extra test-exposing commands
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         // TODO: Move to DepositLib
         // _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 37) revert InvalidCommandsLength(n);
+        if (n != 42) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -224,7 +226,7 @@ contract LedgerTest is Test {
         // Add a standalone ledger tree for misc checks
         // testLedger = LedgerLib.toAddress("Test Ledger");
         if (isVerbose) console.log("Creating Test Ledger token");
-        (testLedger,) = ledger.addInternalToken("Test Ledger", "TL", 18);
+        (testLedger,) = ledger.createToken("Test Ledger", "TL", 18);
         ledger.addSubAccount(testLedger, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-groups to Test Ledger");
         (address testLedger_1_,) = ledger.addSubAccountGroup(testLedger, "1", false);
@@ -233,7 +235,7 @@ contract LedgerTest is Test {
 
         // Add token r1 and its sub-groups
         if (isVerbose) console.log("Creating root token '1'");
-        (r1,) = ledger.addInternalToken("1", "1", 18);
+        (r1,) = ledger.createToken("1", "1", 18);
         ledger.addSubAccount(r1, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-group '10' to root token '1'");
         (r10,) = ledger.addSubAccountGroup(r1, "10", false);
@@ -347,19 +349,19 @@ contract LedgerTest is Test {
         assertEq(wrapperAgain_, wrapper_, "same wrapper");
     }
 
-    function testLedgerCreateInternalTokenDoesNotRegisterUnderRoot() public {
+    function testLedgerCreateTokenDoesNotRegisterUnderRoot() public {
         vm.startPrank(alice);
-        (address token_,) = ledger.addInternalToken("Neutral Token", "NT", 18);
+        (address token_,) = ledger.createToken("Neutral Token", "NT", 18);
         vm.stopPrank();
 
         address rootAccount_ = LedgerLib.toAddress(address(ledger), token_);
         assertEq(ledger.flags(rootAccount_), 0, "not auto-registered under root");
     }
 
-    function testLedgerAddInternalTokenIsIdempotent() public {
+    function testLedgerCreateTokenIsIdempotent() public {
         vm.startPrank(alice);
-        (address token_,) = ledger.addInternalToken("Neutral Token", "NT", 18);
-        (address tokenAgain_,) = ledger.addInternalToken("Neutral Token", "NT", 18);
+        (address token_,) = ledger.createToken("Neutral Token", "NT", 18);
+        (address tokenAgain_,) = ledger.createToken("Neutral Token", "NT", 18);
         vm.stopPrank();
 
         assertEq(tokenAgain_, token_, "same token");
@@ -714,8 +716,8 @@ contract LedgerTest is Test {
 
     //     vm.startPrank(alice);
 
-    //     (address tokenA,) = ledger.addInternalToken("Realloc A", "REA", 18);
-    //     (address tokenB,) = ledger.addInternalToken("Realloc B", "REB", 18);
+    //     (address tokenA,) = ledger.createToken("Realloc A", "REA", 18);
+    //     (address tokenB,) = ledger.createToken("Realloc B", "REB", 18);
     //     ledger.addSubAccount(address(ledger), LedgerLib.SOURCE_ADDRESS, "Source", true);
     //     ledger.addSubAccount(address(ledger), tokenA, "Realloc A", false);
     //     ledger.addSubAccount(address(ledger), tokenB, "Realloc B", false);

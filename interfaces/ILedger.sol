@@ -74,11 +74,11 @@ interface ILedger {
         external
         returns (address subAccount, uint256 flags);
 
-    function addNativeToken() external;
+    function addNativeToken() external returns (uint256 flags);
 
-    function addExternalToken(address token) external;
+    function addExternalToken(address token) external returns (uint256 flags);
 
-    function addInternalToken(string memory name, string memory symbol, uint8 decimals)
+    function createToken(string memory name, string memory symbol, uint8 decimals)
         external
         returns (address token, uint256 flags);
 

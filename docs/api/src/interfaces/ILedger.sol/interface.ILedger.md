@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/60feb3a156b5466ba1b6f8ec3f8f965b7f89c2de/interfaces/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/716535f21df26e2431fe11fe8288f267361b03c3/interfaces/ILedger.sol)
 
 
 ## Functions
@@ -207,21 +207,21 @@ function addSubAccount(address parent, address addr, string memory name, bool is
 
 
 ```solidity
-function addNativeToken() external;
+function addNativeToken() external returns (uint256 flags);
 ```
 
 ### addExternalToken
 
 
 ```solidity
-function addExternalToken(address token) external;
+function addExternalToken(address token) external returns (uint256 flags);
 ```
 
-### addInternalToken
+### createToken
 
 
 ```solidity
-function addInternalToken(string memory name, string memory symbol, uint8 decimals)
+function createToken(string memory name, string memory symbol, uint8 decimals)
     external
     returns (address token, uint256 flags);
 ```
@@ -296,6 +296,26 @@ function transfer(address fromParent, address from, address toParent, address to
 
 ```solidity
 function transfer(address fromParent, address toParent, address to, uint256 amount) external returns (address);
+```
+
+### wrap
+
+
+```solidity
+function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    external
+    payable
+    returns (address);
+```
+
+### unwrap
+
+
+```solidity
+function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    external
+    payable
+    returns (address);
 ```
 
 ## Events

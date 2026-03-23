@@ -112,11 +112,7 @@ library LedgerLib {
         return (flags_ & FLAG_IS_CREDIT) != 0;
     }
 
-    function effectiveFlags(address parent_, address addr_)
-        internal
-        view
-        returns (address _current, uint256 _flags)
-    {
+    function effectiveFlags(address parent_, address addr_) internal view returns (address _current, uint256 _flags) {
         _current = toAddress(parent_, addr_);
         _flags = flags(_current);
         if (isRegistered(_flags)) return (_current, _flags);
@@ -383,6 +379,16 @@ library LedgerLib {
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
     }
 
+    function addNativeToken() internal returns (uint256 _flags) {
+        return addLedger(
+            LedgerLib.NATIVE_ADDRESS,
+            ILedger(address(this)).nativeName(),
+            ILedger(address(this)).nativeSymbol(),
+            18,
+            false
+        );
+    }
+
     function addExternalToken(address token_) internal returns (uint256 _flags) {
         IERC20Metadata _meta = IERC20Metadata(token_);
         string memory _name = _meta.name();
@@ -395,7 +401,7 @@ library LedgerLib {
         return addLedger(token_, _name, _symbol, _decimals, false);
     }
 
-    function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
+    function createToken(string memory name_, string memory symbol_, uint8 decimals_)
         internal
         returns (address _token, uint256 _flags)
     {

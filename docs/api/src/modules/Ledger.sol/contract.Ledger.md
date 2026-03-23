@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/60feb3a156b5466ba1b6f8ec3f8f965b7f89c2de/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/716535f21df26e2431fe11fe8288f267361b03c3/modules/Ledger.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [ILedger](/interfaces/ILedger.sol/interface.ILedger.md)
@@ -125,30 +125,30 @@ function addSubAccount(address parent_, address addr_, string memory name_, bool
 
 
 ```solidity
-function addNativeToken() external;
+function addNativeToken() external returns (uint256 _flags);
 ```
 
 ### addExternalToken
 
 
 ```solidity
-function addExternalToken(address token_) external;
+function addExternalToken(address token_) external returns (uint256 _flags);
 ```
 
-### addInternalToken
+### createToken
 
 
 ```solidity
-function addInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
+function createToken(string memory name_, string memory symbol_, uint8 decimals_)
     external
-    returns (address, uint256);
+    returns (address _token, uint256 _flags);
 ```
 
 ### createWrapper
 
 
 ```solidity
-function createWrapper(address token_) external returns (address, uint256);
+function createWrapper(address token_) external returns (address _wrapper, uint256 _flags);
 ```
 
 ### removeSubAccountGroup
@@ -361,5 +361,27 @@ function transfer(address fromParent_, address from_, address toParent_, address
 
 ```solidity
 function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external returns (address);
+```
+
+### wrap
+
+
+```solidity
+function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    external
+    payable
+    nonReentrant
+    returns (address);
+```
+
+### unwrap
+
+
+```solidity
+function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    external
+    payable
+    nonReentrant
+    returns (address);
 ```
 
