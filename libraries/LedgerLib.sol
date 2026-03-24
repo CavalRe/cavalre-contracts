@@ -652,7 +652,7 @@ library LedgerLib {
 
     function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         internal
-        returns (address _root)
+        returns (address _root, uint256 _fromFlags, uint256 _toFlags)
     {
         _root = checkRoots(fromParent_, toParent_);
         if (_root == address(0)) revert ILedger.ZeroAddress();
@@ -661,7 +661,7 @@ library LedgerLib {
         AccountCache memory toLeaf;
         (fromLeaf.current, fromLeaf.flags) = effectiveFlags(fromParent_, from_);
         (toLeaf.current, toLeaf.flags) = effectiveFlags(toParent_, to_);
-        if (fromLeaf.current == toLeaf.current) return _root;
+        if (fromLeaf.current == toLeaf.current) return (_root, fromLeaf.flags, toLeaf.flags);
 
         bool _isSameSide = isCredit(fromLeaf.flags) == isCredit(toLeaf.flags);
 
@@ -705,7 +705,7 @@ library LedgerLib {
                 emit ILedger.Debit(_root, toParent_, toLeaf.current, amount_);
                 emit ILedger.BalanceUpdate(_root, fromParent_, fromLeaf.current, from.balance);
                 emit ILedger.BalanceUpdate(_root, toParent_, toLeaf.current, to.balance);
-                return _root;
+                return (_root, fromLeaf.flags, toLeaf.flags);
             }
             _depth--;
         }
@@ -714,16 +714,12 @@ library LedgerLib {
 
     function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         internal
-        returns (address _token)
+        returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
-        _token = checkRoots(fromParent_, toParent_);
-        if (_token == address(0)) revert ILedger.ZeroAddress();
-        (, uint256 _fromFlags) = effectiveFlags(fromParent_, from_);
-        (, uint256 _toFlags) = effectiveFlags(toParent_, to_);
+        (_token, _fromFlags, _toFlags) = transfer(fromParent_, from_, toParent_, to_, amount_);
+        if (isInternal(flags(_token))) revert ILedger.InvalidAddress(_token);
         if (!isCredit(_fromFlags)) revert ILedger.InvalidSubAccount(from_, true);
         if (isCredit(_toFlags)) revert ILedger.InvalidSubAccount(to_, false);
-
-        transfer(fromParent_, from_, toParent_, to_, amount_);
         if (_token == NATIVE_ADDRESS) {
             if (msg.value != amount_) {
                 revert ILedger.IncorrectAmount(msg.value, amount_);
@@ -738,17 +734,13 @@ library LedgerLib {
 
     function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         internal
-        returns (address _token)
+        returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
         if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
-        _token = checkRoots(fromParent_, toParent_);
-        if (_token == address(0)) revert ILedger.ZeroAddress();
-        (, uint256 _fromFlags) = effectiveFlags(fromParent_, from_);
-        (, uint256 _toFlags) = effectiveFlags(toParent_, to_);
+        (_token, _fromFlags, _toFlags) = transfer(fromParent_, from_, toParent_, to_, amount_);
+        if (isInternal(flags(_token))) revert ILedger.InvalidAddress(_token);
         if (isCredit(_fromFlags)) revert ILedger.InvalidSubAccount(from_, false);
         if (!isCredit(_toFlags)) revert ILedger.InvalidSubAccount(to_, true);
-
-        transfer(fromParent_, from_, toParent_, to_, amount_);
         if (_token == NATIVE_ADDRESS) {
             (bool _success,) = payable(msg.sender).call{value: amount_}("");
             if (!_success) revert ILedger.NativeTransferFailed();

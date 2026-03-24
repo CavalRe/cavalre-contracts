@@ -448,13 +448,16 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         external
-        returns (address)
+        returns (address _root, uint256 _fromFlags, uint256 _toFlags)
     {
         _enforceWrapperCaller(fromParent_);
         return LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_);
     }
 
-    function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external returns (address) {
+    function transfer(address fromParent_, address toParent_, address to_, uint256 amount_)
+        external
+        returns (address _root, uint256 _fromFlags, uint256 _toFlags)
+    {
         if (LedgerLib.isCredit(LedgerLib.flags(fromParent_))) revert ILedger.InvalidLedgerAccount(fromParent_);
         return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
     }
@@ -463,7 +466,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         external
         payable
         nonReentrant
-        returns (address)
+        returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
         enforceIsOwner();
         return LedgerLib.wrap(fromParent_, from_, toParent_, to_, amount_);
@@ -473,7 +476,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         external
         payable
         nonReentrant
-        returns (address)
+        returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
         enforceIsOwner();
         return LedgerLib.unwrap(fromParent_, from_, toParent_, to_, amount_);

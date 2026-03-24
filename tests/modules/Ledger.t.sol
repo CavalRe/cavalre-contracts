@@ -784,6 +784,9 @@ contract LedgerTest is Test {
         vm.expectRevert(abi.encodeWithSelector(ILedger.ZeroAddress.selector));
         ledger.wrap(address(unlistedToken), alice, address(unlistedToken), alice, unlistedAmount);
 
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, r1));
+        ledger.wrap(r1, LedgerLib.SOURCE_ADDRESS, r1, alice, 1);
+
         uint256 wrapAmount = 120;
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledger), wrapAmount);
@@ -797,6 +800,9 @@ contract LedgerTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(ILedger.ZeroAddress.selector));
         ledger.unwrap(address(unlistedToken), alice, address(unlistedToken), alice, 10);
+
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidAddress.selector, r1));
+        ledger.unwrap(r1, alice, r1, LedgerLib.SOURCE_ADDRESS, 1);
 
         uint256 firstUnwrap = 45;
         ledger.unwrap(address(externalToken), alice, address(externalToken), LedgerLib.SOURCE_ADDRESS, firstUnwrap);

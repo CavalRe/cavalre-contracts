@@ -106,20 +106,22 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     function transfer(address fromParent, address from, address toParent, address to, uint256 amount)
         external
-        returns (address);
+        returns (address root, uint256 fromFlags, uint256 toFlags);
 
-    function transfer(address fromParent, address toParent, address to, uint256 amount) external returns (address);
+    function transfer(address fromParent, address toParent, address to, uint256 amount)
+        external
+        returns (address root, uint256 fromFlags, uint256 toFlags);
 
     // ─────────────────────────────────────────────────────────────────────────────
     function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         external
         payable
-        returns (address);
+        returns (address token, uint256 fromFlags, uint256 toFlags);
 
     function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         external
         payable
-        returns (address);
+        returns (address token, uint256 fromFlags, uint256 toFlags);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Custom errors
