@@ -1,5 +1,5 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/e9b2f507f0b2f5b63f28b4ef324f0d8c853d1aa9/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/3a4fcfc9619f01f0afd3feb42acd82ec72eed095/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -257,6 +257,13 @@ function testLedgerRootFlagsByTokenType() public view;
 
 ```solidity
 function testLedgerEffectiveFlags() public;
+```
+
+### testLedgerBalanceOfUsesEffectivePolarity
+
+
+```solidity
+function testLedgerBalanceOfUsesEffectivePolarity() public;
 ```
 
 ### testPackedParentAndWrapperMapping

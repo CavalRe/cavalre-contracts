@@ -99,6 +99,8 @@ interface ILedger {
 
     function creditBalanceOf(address parent, address owner) external view returns (uint256);
 
+    function balanceOf(address parent, address owner) external view returns (uint256);
+
     function totalSupply(address token) external view returns (uint256);
 
     // ─────────────────────────────────────────────────────────────────────────────

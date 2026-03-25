@@ -28,7 +28,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](42);
+        _selectors = new bytes4[](43);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -65,6 +65,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
         _selectors[n++] = bytes4(keccak256("debitBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("creditBalanceOf(address,address)"));
+        _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
@@ -75,7 +76,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         // TODO: Move to DepositLib
         // _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 42) revert InvalidCommandsLength(n);
+        if (n != 43) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -421,6 +422,15 @@ contract LedgerTest is Test {
         assertTrue(ledger.isCredit(sourceFlags_), "registered credit leaf");
         (, uint256 missingCreditFlags_) = ledger.effectiveFlags(creditParent_, LedgerLib.toAddress("missingCredit"));
         assertTrue(ledger.isCredit(missingCreditFlags_), "inherits credit parent");
+    }
+
+    function testLedgerBalanceOfUsesEffectivePolarity() public {
+        vm.startPrank(alice);
+        address missingDebit_ = LedgerLib.toAddress("missingDebit");
+        ledger.mint(r1, missingDebit_, 100);
+
+        assertEq(ledger.balanceOf(r1, missingDebit_), 100, "unregistered debit leaf");
+        assertEq(ledger.balanceOf(r1, LedgerLib.SOURCE_ADDRESS), 100, "registered credit source leaf");
     }
 
     function testPackedParentAndWrapperMapping() public view {

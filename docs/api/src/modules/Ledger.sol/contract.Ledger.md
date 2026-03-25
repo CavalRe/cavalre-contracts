@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/e9b2f507f0b2f5b63f28b4ef324f0d8c853d1aa9/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/3a4fcfc9619f01f0afd3feb42acd82ec72eed095/modules/Ledger.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [ILedger](/interfaces/ILedger.sol/interface.ILedger.md)
@@ -331,6 +331,13 @@ function debitBalanceOf(address parent_, address owner_) external view returns (
 
 ```solidity
 function creditBalanceOf(address parent_, address owner_) external view returns (uint256);
+```
+
+### balanceOf
+
+
+```solidity
+function balanceOf(address parent_, address owner_) external view returns (uint256);
 ```
 
 ### totalSupply

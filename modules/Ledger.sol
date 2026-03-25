@@ -198,7 +198,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](40);
+        _selectors = new bytes4[](41);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
@@ -234,13 +234,14 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
         _selectors[n++] = bytes4(keccak256("debitBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("creditBalanceOf(address,address)"));
+        _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,address,address,address,uint256)"));
 
-        if (n != 40) revert InvalidCommandsLength(n);
+        if (n != 41) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
@@ -429,6 +430,15 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     function creditBalanceOf(address parent_, address owner_) external view returns (uint256) {
         address _account = LedgerLib.toAddress(parent_, owner_);
         return LedgerLib.creditBalanceOf(_account);
+    }
+
+    function balanceOf(address parent_, address owner_) external view returns (uint256) {
+        (address _account, uint256 _flags) = LedgerLib.effectiveFlags(parent_, owner_);
+        if (LedgerLib.isCredit(_flags)) {
+            return LedgerLib.creditBalanceOf(_account) - LedgerLib.debitBalanceOf(_account);
+        } else {
+            return LedgerLib.debitBalanceOf(_account) - LedgerLib.creditBalanceOf(_account);
+        }
     }
 
     function totalSupply(address token_) external view returns (uint256) {

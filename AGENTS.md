@@ -25,6 +25,7 @@ Apply this throughout responses—explanations, status updates, error descriptio
 - Local variable naming: underscore suffix by default. Exception allowed for `*Context memory ctx` / `*Cache memory c`.
 - Style target: minimalist, consistent patterns, minimal locals/helpers, avoid redundant recomputation.
 - Section comment style: `// -- Section Name --` (avoid boxed multi-line separators).
+- For commit msg/body requests: first inspect current diff with `git diff --stat HEAD` and `git diff --unified=0 HEAD`; include only changes present in that diff, never prior commits or broader session history.
 
 ## Updating This File
 
