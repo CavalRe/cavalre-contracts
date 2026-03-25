@@ -247,6 +247,14 @@ library LedgerLib {
         return store().credits[addr_];
     }
 
+    function balanceOf(address parent_, address addr_) internal view returns (uint256 _balance) {
+        (address _account, uint256 _flags) = effectiveFlags(parent_, addr_);
+        if (isCredit(_flags)) {
+            return creditBalanceOf(_account) - debitBalanceOf(_account);
+        }
+        return debitBalanceOf(_account) - creditBalanceOf(_account);
+    }
+
     function totalSupply(address token_) internal view returns (uint256 _supply) {
         return debitBalanceOf(token_);
     }

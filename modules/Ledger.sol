@@ -433,12 +433,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     }
 
     function balanceOf(address parent_, address owner_) external view returns (uint256) {
-        (address _account, uint256 _flags) = LedgerLib.effectiveFlags(parent_, owner_);
-        if (LedgerLib.isCredit(_flags)) {
-            return LedgerLib.creditBalanceOf(_account) - LedgerLib.debitBalanceOf(_account);
-        } else {
-            return LedgerLib.debitBalanceOf(_account) - LedgerLib.creditBalanceOf(_account);
-        }
+        return LedgerLib.balanceOf(parent_, owner_);
     }
 
     function totalSupply(address token_) external view returns (uint256) {
