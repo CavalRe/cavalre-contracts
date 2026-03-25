@@ -247,12 +247,11 @@ library LedgerLib {
         return store().credits[addr_];
     }
 
-    function balanceOf(address parent_, address addr_, bool isCredit_) internal view returns (uint256 _balance) {
-        address _account = toAddress(parent_, addr_);
+    function balanceOf(address addr_, bool isCredit_) internal view returns (uint256 _balance) {
         if (isCredit_) {
-            return creditBalanceOf(_account) - debitBalanceOf(_account);
+            return creditBalanceOf(addr_) - debitBalanceOf(addr_);
         }
-        return debitBalanceOf(_account) - creditBalanceOf(_account);
+        return debitBalanceOf(addr_) - creditBalanceOf(addr_);
     }
 
     function totalSupply(address token_) internal view returns (uint256 _supply) {
