@@ -247,18 +247,6 @@ library LedgerLib {
         return store().credits[addr_];
     }
 
-    function balanceOf(address addr_) internal view returns (uint256) {
-        Store storage s = store();
-        uint256 _debitBalance = s.debits[addr_];
-        uint256 _creditBalance = s.credits[addr_];
-        bool _isCredit = isCredit(flags(addr_));
-        return _isCredit ? _creditBalance - _debitBalance : _debitBalance - _creditBalance;
-    }
-
-    function hasBalance(address addr_) internal view returns (bool) {
-        return debitBalanceOf(addr_) > 0 || creditBalanceOf(addr_) > 0;
-    }
-
     function totalSupply(address token_) internal view returns (uint256 _supply) {
         return debitBalanceOf(token_);
     }
@@ -480,7 +468,7 @@ library LedgerLib {
         if (!isGroup(_flags)) revert ILedger.InvalidAccountGroup();
 
         if (hasSubAccount(_addr)) revert ILedger.HasSubAccount(_addr);
-        if (hasBalance(_addr)) revert ILedger.HasBalance(_addr);
+        if (debitBalanceOf(_addr) > 0 || creditBalanceOf(_addr) > 0) revert ILedger.HasBalance(_addr);
 
         Store storage s = store();
 
@@ -518,7 +506,7 @@ library LedgerLib {
         if (isGroup(_flags)) revert ILedger.InvalidLedgerAccount(_addr);
 
         if (hasSubAccount(_addr)) revert ILedger.HasSubAccount(addr_);
-        if (hasBalance(_addr)) revert ILedger.HasBalance(addr_);
+        if (debitBalanceOf(_addr) > 0 || creditBalanceOf(_addr) > 0) revert ILedger.HasBalance(addr_);
 
         Store storage s = store();
 

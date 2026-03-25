@@ -241,7 +241,9 @@ contract ERC20WrapperTest is Test {
 
         assertEq(ledgers.totalSupply(address(externalToken)), wrapAmount, "ledger total supply after wrap");
         assertEq(
-            ledgers.balanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap (alice holdings)"
+            ledgers.debitBalanceOf(address(externalToken), alice),
+            wrapAmount,
+            "ledger debit balance after wrap (alice holdings)"
         );
 
         // ERC-20 surface should mirror ledger state.

@@ -65,7 +65,7 @@ contract ERC20 is Module, Initializable {
     }
 
     function balanceOf(address owner_) external view returns (uint256) {
-        return LedgerLib.balanceOf(LedgerLib.toAddress(address(this), owner_));
+        return LedgerLib.debitBalanceOf(LedgerLib.toAddress(address(this), owner_));
     }
 
     // -- Allowance --

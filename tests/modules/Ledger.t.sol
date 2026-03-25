@@ -63,8 +63,8 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
         _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
         _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
-        _selectors[n++] = bytes4(keccak256("balanceOf(address,string)"));
-        _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
+        _selectors[n++] = bytes4(keccak256("debitBalanceOf(address,address)"));
+        _selectors[n++] = bytes4(keccak256("creditBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
@@ -694,14 +694,14 @@ contract LedgerTest is Test {
         if (isVerbose) console.log("Initial mint r1: Alice");
         ledger.mint(r1, alice, 1000e18);
 
-        assertEq(ledger.balanceOf(r1, alice), 1000e18, "balanceOf(alice)");
+        assertEq(ledger.debitBalanceOf(r1, alice), 1000e18, "debitBalanceOf(alice)");
         assertEq(ledger.totalSupply(r1), 1000e18, "totalSupply");
 
         if (isVerbose) console.log("Mint token 1: Alice");
         ledger.mint(r100, alice, 1000e18);
-        assertEq(ledger.balanceOf(r100, alice), 1000e18, "balanceOf(r100, alice)");
-        assertEq(ledger.balanceOf(r10, "100"), 1000e18, 'balanceOf(r10, "100")');
-        assertEq(ledger.balanceOf(r1, "10"), 1000e18, 'balanceOf(r1, "10")');
+        assertEq(ledger.debitBalanceOf(r100, alice), 1000e18, "debitBalanceOf(r100, alice)");
+        assertEq(ledger.debitBalanceOf(r10, LedgerLib.toAddress("100")), 1000e18, 'debitBalanceOf(r10, "100")');
+        assertEq(ledger.debitBalanceOf(r1, LedgerLib.toAddress("10")), 1000e18, 'debitBalanceOf(r1, "10")');
         assertEq(ledger.totalSupply(r1), 2000e18, "totalSupply(r1)");
 
         if (isVerbose) console.log("Display Account Hierarchy");
@@ -722,15 +722,15 @@ contract LedgerTest is Test {
         ledger.mint(r1, alice, 1000e18);
         ledger.burn(r1, alice, 700e18);
 
-        assertEq(ledger.balanceOf(r1, alice), 300e18, "balanceOf(alice)");
+        assertEq(ledger.debitBalanceOf(r1, alice), 300e18, "debitBalanceOf(alice)");
         assertEq(ledger.totalSupply(r1), 300e18, "totalSupply");
 
         ledger.mint(r100, alice, 1000e18);
         ledger.burn(r100, alice, 600e18);
 
-        assertEq(ledger.balanceOf(r100, alice), 400e18, "balanceOf(r100, alice)");
-        assertEq(ledger.balanceOf(r10, "100"), 400e18, 'balanceOf(r10, "100")');
-        assertEq(ledger.balanceOf(r1, "10"), 400e18, 'balanceOf(r1, "10")');
+        assertEq(ledger.debitBalanceOf(r100, alice), 400e18, "debitBalanceOf(r100, alice)");
+        assertEq(ledger.debitBalanceOf(r10, LedgerLib.toAddress("100")), 400e18, 'debitBalanceOf(r10, "100")');
+        assertEq(ledger.debitBalanceOf(r1, LedgerLib.toAddress("10")), 400e18, 'debitBalanceOf(r1, "10")');
         assertEq(ledger.totalSupply(r1), 700e18, "totalSupply(r1)");
     }
 
@@ -795,7 +795,7 @@ contract LedgerTest is Test {
 
         assertEq(externalToken.balanceOf(address(router)), wrapAmount, "router holds wrapped tokens");
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance consumed");
-        assertEq(ledger.balanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
+        assertEq(ledger.debitBalanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
         assertEq(ledger.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
 
         vm.expectRevert(abi.encodeWithSelector(ILedger.ZeroAddress.selector));
@@ -811,7 +811,7 @@ contract LedgerTest is Test {
         );
         assertEq(externalToken.balanceOf(alice), firstUnwrap, "alice external balance after partial unwrap");
         assertEq(
-            ledger.balanceOf(address(externalToken), alice),
+            ledger.debitBalanceOf(address(externalToken), alice),
             wrapAmount - firstUnwrap,
             "ledger balance after partial unwrap"
         );
@@ -823,7 +823,7 @@ contract LedgerTest is Test {
         ledger.unwrap(address(externalToken), alice, address(externalToken), LedgerLib.SOURCE_ADDRESS, remaining);
         assertEq(externalToken.balanceOf(address(router)), 0, "router drained after unwrap");
         assertEq(externalToken.balanceOf(alice), wrapAmount, "alice restored external balance");
-        assertEq(ledger.balanceOf(address(externalToken), alice), 0, "ledger balance cleared");
+        assertEq(ledger.debitBalanceOf(address(externalToken), alice), 0, "ledger balance cleared");
         assertEq(ledger.totalSupply(address(externalToken)), 0, "total supply cleared");
     }
 
@@ -839,14 +839,14 @@ contract LedgerTest is Test {
         // Caller is bob, but source accounting is unallocated.
         ledger.wrap(totalParent, LedgerLib.SOURCE_ADDRESS, address(externalToken), bob, wrapAmount);
 
-        assertEq(ledger.balanceOf(address(externalToken), bob), wrapAmount, "caller received wrapped balance");
-        assertEq(ledger.balanceOf(totalParent, LedgerLib.SOURCE_ADDRESS), wrapAmount, "source ledger entry credited");
+        assertEq(ledger.debitBalanceOf(address(externalToken), bob), wrapAmount, "caller received wrapped balance");
+        assertEq(ledger.creditBalanceOf(totalParent, LedgerLib.SOURCE_ADDRESS), wrapAmount, "source ledger entry credited");
 
         // Unwrap using same source to close out source ledger entry.
         ledger.unwrap(address(externalToken), bob, totalParent, LedgerLib.SOURCE_ADDRESS, wrapAmount);
 
-        assertEq(ledger.balanceOf(address(externalToken), bob), 0, "wrapped caller balance cleared");
-        assertEq(ledger.balanceOf(totalParent, LedgerLib.SOURCE_ADDRESS), 0, "source ledger entry cleared");
+        assertEq(ledger.debitBalanceOf(address(externalToken), bob), 0, "wrapped caller balance cleared");
+        assertEq(ledger.creditBalanceOf(totalParent, LedgerLib.SOURCE_ADDRESS), 0, "source ledger entry cleared");
         vm.stopPrank();
     }
 
@@ -938,7 +938,7 @@ contract LedgerTest is Test {
         vm.stopPrank();
 
         assertEq(address(router).balance, routerBalanceBefore + wrapAmount, "router holds native collateral");
-        assertEq(ledger.balanceOf(native, alice), wrapAmount, "ledger native balance");
+        assertEq(ledger.debitBalanceOf(native, alice), wrapAmount, "ledger native balance");
         assertEq(ledger.totalSupply(native), wrapAmount, "native total supply");
     }
 
@@ -999,7 +999,7 @@ contract LedgerTest is Test {
 
         assertEq(address(router).balance, routerBalanceAfterWrap - unwrapAmount, "router native balance");
         assertEq(alice.balance, aliceBalanceAfterWrap + unwrapAmount, "alice native balance");
-        assertEq(ledger.balanceOf(native, alice), wrapAmount - unwrapAmount, "ledger native balance");
+        assertEq(ledger.debitBalanceOf(native, alice), wrapAmount - unwrapAmount, "ledger native balance");
         assertEq(ledger.totalSupply(native), wrapAmount - unwrapAmount, "native total supply");
     }
 
@@ -1043,8 +1043,8 @@ contract LedgerTest is Test {
         // elm: fromParent = routerRoot, toParent = routerRoot, to = bob
         ledger.transfer(routerRoot, routerRoot, bob, 700);
 
-        assertEq(ledger.balanceOf(routerRoot, alice), 300, "alice");
-        assertEq(ledger.balanceOf(routerRoot, bob), 700, "bob");
+        assertEq(ledger.debitBalanceOf(routerRoot, alice), 300, "alice");
+        assertEq(ledger.debitBalanceOf(routerRoot, bob), 700, "bob");
         assertEq(ledger.totalSupply(routerRoot), 1000, "supply");
 
         // Different roots should revert
@@ -1059,11 +1059,11 @@ contract LedgerTest is Test {
         ledger.mint(r100, alice, 1000);
         ledger.transfer(r100, r101, bob, 400);
 
-        assertEq(ledger.balanceOf(r100, alice), 600, "r100/alice debited");
-        assertEq(ledger.balanceOf(r101, bob), 400, "r101/bob credited");
-        assertEq(ledger.balanceOf(r10, "100"), 600, 'r10/"100" updated');
-        assertEq(ledger.balanceOf(r10, "101"), 400, 'r10/"101" updated');
-        assertEq(ledger.balanceOf(r1, "10"), 1000, 'r1/"10" unchanged above common ancestor');
+        assertEq(ledger.debitBalanceOf(r100, alice), 600, "r100/alice debited");
+        assertEq(ledger.debitBalanceOf(r101, bob), 400, "r101/bob credited");
+        assertEq(ledger.debitBalanceOf(r10, LedgerLib.toAddress("100")), 600, 'r10/"100" updated');
+        assertEq(ledger.debitBalanceOf(r10, LedgerLib.toAddress("101")), 400, 'r10/"101" updated');
+        assertEq(ledger.debitBalanceOf(r1, LedgerLib.toAddress("10")), 1000, 'r1/"10" unchanged above common ancestor');
         assertEq(ledger.totalSupply(r1), 1000, "total supply unchanged");
     }
 

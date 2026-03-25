@@ -78,7 +78,7 @@ contract ERC20Wrapper {
     }
 
     function balanceOf(address account_) public view returns (uint256) {
-        return ILedger(_router).balanceOf(_token, account_);
+        return ILedger(_router).debitBalanceOf(_token, account_);
     }
 
     // -------------------------------------------------------------------------
@@ -232,8 +232,8 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
         _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
         _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
-        _selectors[n++] = bytes4(keccak256("balanceOf(address,string)"));
-        _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
+        _selectors[n++] = bytes4(keccak256("debitBalanceOf(address,address)"));
+        _selectors[n++] = bytes4(keccak256("creditBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
@@ -421,15 +421,14 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     // Balances & Valuations
     //=========================
     // Subaccount balances
-    function balanceOf(address parent_, string memory subName_) external view returns (uint256) {
-        address _account = LedgerLib.toAddress(parent_, subName_);
-        return LedgerLib.balanceOf(_account);
+    function debitBalanceOf(address parent_, address owner_) external view returns (uint256) {
+        address _account = LedgerLib.toAddress(parent_, owner_);
+        return LedgerLib.debitBalanceOf(_account);
     }
 
-    // Ledger account balances
-    function balanceOf(address parent_, address owner_) external view returns (uint256) {
+    function creditBalanceOf(address parent_, address owner_) external view returns (uint256) {
         address _account = LedgerLib.toAddress(parent_, owner_);
-        return LedgerLib.balanceOf(_account);
+        return LedgerLib.creditBalanceOf(_account);
     }
 
     function totalSupply(address token_) external view returns (uint256) {
