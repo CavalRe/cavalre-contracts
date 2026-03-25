@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/716535f21df26e2431fe11fe8288f267361b03c3/interfaces/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/df3844c9f1ae77a79f53c275e50e3d3e12c811a6/interfaces/ILedger.sol)
 
 
 ## Functions
@@ -288,14 +288,16 @@ function totalSupply(address token) external view returns (uint256);
 ```solidity
 function transfer(address fromParent, address from, address toParent, address to, uint256 amount)
     external
-    returns (address);
+    returns (address root, uint256 fromFlags, uint256 toFlags);
 ```
 
 ### transfer
 
 
 ```solidity
-function transfer(address fromParent, address toParent, address to, uint256 amount) external returns (address);
+function transfer(address fromParent, address toParent, address to, uint256 amount)
+    external
+    returns (address root, uint256 fromFlags, uint256 toFlags);
 ```
 
 ### wrap
@@ -305,7 +307,7 @@ function transfer(address fromParent, address toParent, address to, uint256 amou
 function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
     external
     payable
-    returns (address);
+    returns (address token, uint256 fromFlags, uint256 toFlags);
 ```
 
 ### unwrap
@@ -315,7 +317,7 @@ function wrap(address fromParent_, address from_, address toParent_, address to_
 function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
     external
     payable
-    returns (address);
+    returns (address token, uint256 fromFlags, uint256 toFlags);
 ```
 
 ## Events

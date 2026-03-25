@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/716535f21df26e2431fe11fe8288f267361b03c3/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/df3844c9f1ae77a79f53c275e50e3d3e12c811a6/modules/Ledger.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [ILedger](/interfaces/ILedger.sol/interface.ILedger.md)
@@ -353,14 +353,16 @@ function _enforceWrapperCaller(address parent_) private view;
 ```solidity
 function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
     external
-    returns (address);
+    returns (address _root, uint256 _fromFlags, uint256 _toFlags);
 ```
 
 ### transfer
 
 
 ```solidity
-function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external returns (address);
+function transfer(address fromParent_, address toParent_, address to_, uint256 amount_)
+    external
+    returns (address _root, uint256 _fromFlags, uint256 _toFlags);
 ```
 
 ### wrap
@@ -371,7 +373,7 @@ function wrap(address fromParent_, address from_, address toParent_, address to_
     external
     payable
     nonReentrant
-    returns (address);
+    returns (address _token, uint256 _fromFlags, uint256 _toFlags);
 ```
 
 ### unwrap
@@ -382,6 +384,6 @@ function unwrap(address fromParent_, address from_, address toParent_, address t
     external
     payable
     nonReentrant
-    returns (address);
+    returns (address _token, uint256 _fromFlags, uint256 _toFlags);
 ```
 

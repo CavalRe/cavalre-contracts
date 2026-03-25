@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/716535f21df26e2431fe11fe8288f267361b03c3/libraries/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/df3844c9f1ae77a79f53c275e50e3d3e12c811a6/libraries/LedgerLib.sol)
 
 
 ## State Variables
@@ -328,18 +328,18 @@ function hasSubAccount(address addr_) internal view returns (bool);
 function subAccountIndex(address parent_, address addr_) internal view returns (uint32);
 ```
 
-### debitOf
+### debitBalanceOf
 
 
 ```solidity
-function debitOf(address addr_) internal view returns (uint256);
+function debitBalanceOf(address addr_) internal view returns (uint256);
 ```
 
-### creditOf
+### creditBalanceOf
 
 
 ```solidity
-function creditOf(address addr_) internal view returns (uint256);
+function creditBalanceOf(address addr_) internal view returns (uint256);
 ```
 
 ### balanceOf
@@ -499,7 +499,7 @@ function _update(
 ```solidity
 function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
     internal
-    returns (address _root);
+    returns (address _root, uint256 _fromFlags, uint256 _toFlags);
 ```
 
 ### wrap
@@ -508,7 +508,7 @@ function transfer(address fromParent_, address from_, address toParent_, address
 ```solidity
 function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
     internal
-    returns (address _token);
+    returns (address _token, uint256 _fromFlags, uint256 _toFlags);
 ```
 
 ### unwrap
@@ -517,7 +517,7 @@ function wrap(address fromParent_, address from_, address toParent_, address to_
 ```solidity
 function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
     internal
-    returns (address _token);
+    returns (address _token, uint256 _fromFlags, uint256 _toFlags);
 ```
 
 ## Structs

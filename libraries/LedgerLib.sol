@@ -239,11 +239,11 @@ library LedgerLib {
     //==================================================================
     //                        Balance & Valuation
     //==================================================================
-    function debitOf(address addr_) internal view returns (uint256) {
+    function debitBalanceOf(address addr_) internal view returns (uint256) {
         return store().debits[addr_];
     }
 
-    function creditOf(address addr_) internal view returns (uint256) {
+    function creditBalanceOf(address addr_) internal view returns (uint256) {
         return store().credits[addr_];
     }
 
@@ -251,15 +251,16 @@ library LedgerLib {
         Store storage s = store();
         uint256 _debitBalance = s.debits[addr_];
         uint256 _creditBalance = s.credits[addr_];
-        return _debitBalance > _creditBalance ? _debitBalance - _creditBalance : _creditBalance - _debitBalance;
+        bool _isCredit = isCredit(flags(addr_));
+        return _isCredit ? _creditBalance - _debitBalance : _debitBalance - _creditBalance;
     }
 
     function hasBalance(address addr_) internal view returns (bool) {
-        return debitOf(addr_) > 0 || creditOf(addr_) > 0;
+        return debitBalanceOf(addr_) > 0 || creditBalanceOf(addr_) > 0;
     }
 
     function totalSupply(address token_) internal view returns (uint256 _supply) {
-        return debitOf(token_);
+        return debitBalanceOf(token_);
     }
 
     //==================================================================
