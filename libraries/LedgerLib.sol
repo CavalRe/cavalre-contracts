@@ -741,7 +741,6 @@ library LedgerLib {
             (bool _success,) = payable(msg.sender).call{value: amount_}("");
             if (!_success) revert ILedger.NativeTransferFailed();
         } else {
-            transfer(_token, msg.sender, fromParent_, from_, amount_);
             SafeERC20.safeTransfer(IERC20(_token), msg.sender, amount_);
         }
     }

@@ -936,6 +936,24 @@ contract LedgerTest is Test {
         vm.stopPrank();
     }
 
+    function testLedgerUnwrapDoesNotRequireCallerLedgerBalance() public {
+        vm.startPrank(alice);
+
+        uint256 wrapAmount = 25;
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledger), wrapAmount);
+        ledger.wrap(address(externalToken), LedgerLib.SOURCE_ADDRESS, address(externalToken), bob, wrapAmount);
+
+        assertEq(ledger.debitBalanceOf(address(externalToken), alice), 0, "caller has no wrapped ledger balance");
+        assertEq(ledger.debitBalanceOf(address(externalToken), bob), wrapAmount, "bob received wrapped balance");
+
+        ledger.unwrap(address(externalToken), bob, address(externalToken), LedgerLib.SOURCE_ADDRESS, wrapAmount);
+
+        assertEq(ledger.debitBalanceOf(address(externalToken), bob), 0, "bob wrapped balance cleared");
+        assertEq(externalToken.balanceOf(alice), wrapAmount, "caller receives external tokens");
+        vm.stopPrank();
+    }
+
     function testLedgerWrapNative() public {
         vm.deal(alice, 5 ether);
         vm.startPrank(alice);
