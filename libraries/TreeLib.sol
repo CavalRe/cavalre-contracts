@@ -48,8 +48,9 @@ library TreeLib {
             c.balance = 0;
         } else {
             (, uint256 _flags) = ledgers_.effectiveFlags(parent_, addr_);
-            c.balance =
-                ledgers_.isCredit(_flags) ? ledgers_.creditBalanceOf(parent_, addr_) : ledgers_.debitBalanceOf(parent_, addr_);
+            c.balance = ledgers_.isCredit(_flags)
+                ? ledgers_.creditBalanceOf(parent_, addr_)
+                : ledgers_.debitBalanceOf(parent_, addr_);
         }
         string memory label = c.isRoot
             ? ledgers_.name(c.addr)
@@ -83,5 +84,12 @@ library TreeLib {
 
     function debugTree(Ledger ledgers, address root) internal view {
         logTree(ledgers, address(0), root, "", true, true);
+    }
+
+    function debugTrees(Ledger ledgers, address[] memory roots) internal view {
+        for (uint256 i = 0; i < roots.length; i++) {
+            logTree(ledgers, address(0), roots[i], "", true, true);
+            console.log("---------------------------------");
+        }
     }
 }
