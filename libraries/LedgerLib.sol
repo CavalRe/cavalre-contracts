@@ -542,7 +542,7 @@ library LedgerLib {
     //                         Transfers
     //==================================================================
 
-    function debit(address root_, address parent_, address addr_, uint256 amount_) internal {
+    function debit(address root_, address parent_, address addr_, uint256 amount_) private {
         if (root_ == address(0)) revert ILedger.ZeroAddress();
         address _current = toAddress(parent_, addr_);
         uint256 _currentFlags = flags(_current);
@@ -581,7 +581,7 @@ library LedgerLib {
         }
     }
 
-    function credit(address root_, address parent_, address addr_, uint256 amount_) internal {
+    function credit(address root_, address parent_, address addr_, uint256 amount_) private {
         if (root_ == address(0)) revert ILedger.ZeroAddress();
         address _current = toAddress(parent_, addr_);
         uint256 _currentFlags = flags(_current);
