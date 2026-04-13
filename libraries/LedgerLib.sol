@@ -341,16 +341,20 @@ library LedgerLib {
         emit ILedger.SubAccountAdded(_root, parent_, addr_, isCredit_);
     }
 
-    function addLedger(address root_, string memory name_, string memory symbol_, uint8 decimals_, bool isInternal_)
-        internal
-        returns (uint256 _flags)
-    {
+    function addLedger(
+        address root_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        bool isInternal_,
+        bool isCredit_
+    ) internal returns (uint256 _flags) {
         if (isZeroAddress(root_) || !isValidString(name_) || !isValidString(symbol_)) {
             revert ILedger.InvalidToken(root_, name_, symbol_, decimals_);
         }
 
         bool _isNative = root_ == NATIVE_ADDRESS;
-        _flags = flags(address(0), true, false, isInternal_, _isNative, true, 1);
+        _flags = flags(address(0), true, isCredit_, isInternal_, _isNative, true, 1);
 
         Store storage s = store();
         // Check if token already exists
@@ -381,6 +385,7 @@ library LedgerLib {
             ILedger(address(this)).nativeName(),
             ILedger(address(this)).nativeSymbol(),
             18,
+            false,
             false
         );
     }
@@ -394,10 +399,10 @@ library LedgerLib {
             revert ILedger.InvalidToken(token_, _name, _symbol, _decimals);
         }
 
-        return addLedger(token_, _name, _symbol, _decimals, false);
+        return addLedger(token_, _name, _symbol, _decimals, false, false);
     }
 
-    function createToken(string memory name_, string memory symbol_, uint8 decimals_)
+    function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
         internal
         returns (address _token, uint256 _flags)
     {
@@ -407,12 +412,12 @@ library LedgerLib {
 
         bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_));
         bytes memory _creationCode = abi.encodePacked(
-            type(ERC20Wrapper).creationCode, abi.encode(address(this), address(0), name_, symbol_, decimals_)
+            type(ERC20Wrapper).creationCode, abi.encode(address(this), address(0), name_, symbol_, decimals_, isCredit_)
         );
         _token = Create2.computeAddress(_salt, keccak256(_creationCode));
 
         if (root(_token) == _token) {
-            _flags = flags(address(0), true, false, true, false, true, 1);
+            _flags = flags(address(0), true, isCredit_, true, false, true, 1);
             bool _sameFlags = _flags == flags(_token);
             bool _sameWrapper = wrapper(_token) == _token;
             if (_sameFlags && _sameWrapper) return (_token, _flags);
@@ -422,8 +427,8 @@ library LedgerLib {
         if (_token.code.length != 0) revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
 
         // Internal roots remain self-wrapped so the root address is immediately usable as an ERC20 surface.
-        _token = address(new ERC20Wrapper{salt: _salt}(address(this), address(0), name_, symbol_, decimals_));
-        _flags = addLedger(_token, name_, symbol_, decimals_, true);
+        _token = address(new ERC20Wrapper{salt: _salt}(address(this), address(0), name_, symbol_, decimals_, isCredit_));
+        _flags = addLedger(_token, name_, symbol_, decimals_, true, isCredit_);
 
         Store storage s = store();
         s.wrapper[_token] = _token;
@@ -442,7 +447,7 @@ library LedgerLib {
 
         if (isInternal(_flags)) {
             // Internal roots already carry canonical metadata, so their optional wrapper surface is exact.
-            wrapper_ = address(new ERC20Wrapper(address(this), token_, name_, symbol_, decimals_));
+            wrapper_ = address(new ERC20Wrapper(address(this), token_, name_, symbol_, decimals_, isCredit(_flags)));
         } else {
             // External/native wrappers are explicitly branded surfaces over the registered root asset.
             wrapper_ = address(
@@ -451,7 +456,8 @@ library LedgerLib {
                     token_,
                     string(abi.encodePacked(name_, " | CavalRe")),
                     string(abi.encodePacked(symbol_, ".cav")),
-                    decimals_
+                    decimals_,
+                    false
                 )
             );
         }

@@ -37,7 +37,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
-        _selectors[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
+        _selectors[n++] = bytes4(keccak256("createToken(string,string,uint8,bool)"));
         _selectors[n++] = bytes4(keccak256("createWrapper(address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address)"));
@@ -86,8 +86,12 @@ contract TestLedger is Ledger {
 
     function mint(address toParent_, address to_, uint256 amount_) external {
         address _token = LedgerLib.root(toParent_);
-        LedgerLib.transfer(_token, LedgerLib.SOURCE_ADDRESS, toParent_, to_, amount_);
         uint256 _tokenFlags = LedgerLib.flags(_token);
+        if (LedgerLib.isCredit(_tokenFlags)) {
+            LedgerLib.transfer(toParent_, to_, _token, LedgerLib.SOURCE_ADDRESS, amount_);
+        } else {
+            LedgerLib.transfer(_token, LedgerLib.SOURCE_ADDRESS, toParent_, to_, amount_);
+        }
         // Emit event from wrapper address
         if (LedgerLib.isInternal(_tokenFlags)) {
             address _wrapper = LedgerLib.wrapper(_token);
@@ -99,8 +103,12 @@ contract TestLedger is Ledger {
 
     function burn(address fromParent_, address from_, uint256 amount_) external {
         address _token = LedgerLib.root(fromParent_);
-        LedgerLib.transfer(fromParent_, from_, _token, LedgerLib.SOURCE_ADDRESS, amount_);
         uint256 _tokenFlags = LedgerLib.flags(_token);
+        if (LedgerLib.isCredit(_tokenFlags)) {
+            LedgerLib.transfer(_token, LedgerLib.SOURCE_ADDRESS, fromParent_, from_, amount_);
+        } else {
+            LedgerLib.transfer(fromParent_, from_, _token, LedgerLib.SOURCE_ADDRESS, amount_);
+        }
         // Emit event from wrapper address
         if (LedgerLib.isInternal(_tokenFlags)) {
             address _wrapper = LedgerLib.wrapper(_token);
@@ -227,7 +235,7 @@ contract LedgerTest is Test {
         // Add a standalone ledger tree for misc checks
         // testLedger = LedgerLib.toAddress("Test Ledger");
         if (isVerbose) console.log("Creating Test Ledger token");
-        (testLedger,) = ledger.createToken("Test Ledger", "TL", 18);
+        (testLedger,) = ledger.createToken("Test Ledger", "TL", 18, false);
         ledger.addSubAccount(testLedger, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-groups to Test Ledger");
         (address testLedger_1_,) = ledger.addSubAccountGroup(testLedger, "1", false);
@@ -236,7 +244,7 @@ contract LedgerTest is Test {
 
         // Add token r1 and its sub-groups
         if (isVerbose) console.log("Creating root token '1'");
-        (r1,) = ledger.createToken("1", "1", 18);
+        (r1,) = ledger.createToken("1", "1", 18, false);
         ledger.addSubAccount(r1, LedgerLib.SOURCE_ADDRESS, "Source", true);
         if (isVerbose) console.log("Adding sub-group '10' to root token '1'");
         (r10,) = ledger.addSubAccountGroup(r1, "10", false);
@@ -355,7 +363,7 @@ contract LedgerTest is Test {
 
     function testLedgerCreateTokenDoesNotRegisterUnderRoot() public {
         vm.startPrank(alice);
-        (address token_,) = ledger.createToken("Neutral Token", "NT", 18);
+        (address token_,) = ledger.createToken("Neutral Token", "NT", 18, false);
         vm.stopPrank();
 
         address rootAccount_ = LedgerLib.toAddress(address(ledger), token_);
@@ -364,8 +372,8 @@ contract LedgerTest is Test {
 
     function testLedgerCreateTokenIsIdempotent() public {
         vm.startPrank(alice);
-        (address token_,) = ledger.createToken("Neutral Token", "NT", 18);
-        (address tokenAgain_,) = ledger.createToken("Neutral Token", "NT", 18);
+        (address token_,) = ledger.createToken("Neutral Token", "NT", 18, false);
+        (address tokenAgain_,) = ledger.createToken("Neutral Token", "NT", 18, false);
         vm.stopPrank();
 
         assertEq(tokenAgain_, token_, "same token");
@@ -374,6 +382,19 @@ contract LedgerTest is Test {
         assertEq(ledger.name(token_), "Neutral Token", "name stable");
         assertEq(ledger.symbol(token_), "NT", "symbol stable");
         assertEq(ledger.decimals(token_), 18, "decimals stable");
+    }
+
+    function testLedgerCreateCreditTokenIsIdempotent() public {
+        vm.startPrank(alice);
+        (address token_, uint256 flags_) = ledger.createToken("Claim Token", "CLM", 18, true);
+        (address tokenAgain_, uint256 flagsAgain_) = ledger.createToken("Claim Token", "CLM", 18, true);
+        vm.stopPrank();
+
+        assertEq(tokenAgain_, token_, "same token");
+        assertEq(flagsAgain_, flags_, "same flags");
+        assertTrue(ledger.isCredit(flags_), "credit root");
+        assertEq(ledger.root(token_), token_, "root registered");
+        assertEq(ledger.wrapper(token_), token_, "self wrapped");
     }
 
     function testLedgerAddExternalTokenAndCreateWrapperAreIdempotent() public {

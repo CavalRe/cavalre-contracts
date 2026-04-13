@@ -78,7 +78,7 @@ interface ILedger {
 
     function addExternalToken(address token) external returns (uint256 flags);
 
-    function createToken(string memory name, string memory symbol, uint8 decimals)
+    function createToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
         external
         returns (address token, uint256 flags);
 

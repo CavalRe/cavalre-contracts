@@ -16,6 +16,7 @@ contract ERC20Wrapper {
 
     address private immutable _router;
     address private immutable _token;
+    bool private immutable _isCredit;
     string private _name;
     string private _symbol;
     uint8 public immutable _decimals;
@@ -32,9 +33,17 @@ contract ERC20Wrapper {
     // Init
     // -------------------------------------------------------------------------
 
-    constructor(address router_, address token_, string memory name_, string memory symbol_, uint8 decimals_) {
+    constructor(
+        address router_,
+        address token_,
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        bool isCredit_
+    ) {
         _router = router_;
         _token = token_ == address(0) ? address(this) : token_;
+        _isCredit = isCredit_;
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
@@ -69,6 +78,10 @@ contract ERC20Wrapper {
         return _token;
     }
 
+    function isCredit() public view returns (bool) {
+        return _isCredit;
+    }
+
     // -------------------------------------------------------------------------
     // Supply / Balances (delegated to Ledger)
     // -------------------------------------------------------------------------
@@ -78,7 +91,7 @@ contract ERC20Wrapper {
     }
 
     function balanceOf(address account_) public view returns (uint256) {
-        return ILedger(_router).debitBalanceOf(_token, account_);
+        return ILedger(_router).balanceOf(_token, account_);
     }
 
     // -------------------------------------------------------------------------
@@ -134,7 +147,11 @@ contract ERC20Wrapper {
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
         emit Transfer(msg.sender, to_, amount_);
-        ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_);
+        if (_isCredit) {
+            ILedger(_router).transfer(_token, to_, _token, msg.sender, amount_);
+        } else {
+            ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_);
+        }
         return true;
     }
 
@@ -147,7 +164,11 @@ contract ERC20Wrapper {
             _allowances[from_][msg.sender] = current - amount_;
         }
         emit Transfer(from_, to_, amount_);
-        ILedger(_router).transfer(_token, from_, _token, to_, amount_);
+        if (_isCredit) {
+            ILedger(_router).transfer(_token, to_, _token, from_, amount_);
+        } else {
+            ILedger(_router).transfer(_token, from_, _token, to_, amount_);
+        }
         return true;
     }
 
@@ -206,7 +227,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
-        _selectors[n++] = bytes4(keccak256("createToken(string,string,uint8)"));
+        _selectors[n++] = bytes4(keccak256("createToken(string,string,uint8,bool)"));
         _selectors[n++] = bytes4(keccak256("createWrapper(address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address)"));
@@ -248,7 +269,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         enforceIsOwner();
 
         // Canonical root is always registered at the router address; ERC20 exposure remains an optional module.
-        LedgerLib.addLedger(address(this), name_, symbol_, 18, true);
+        LedgerLib.addLedger(address(this), name_, symbol_, 18, true, false);
     }
 
     function initializeLedger(string memory name_, string memory symbol_) external initializer {
@@ -298,12 +319,12 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.addExternalToken(token_);
     }
 
-    function createToken(string memory name_, string memory symbol_, uint8 decimals_)
+    function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
         external
         returns (address _token, uint256 _flags)
     {
         enforceIsOwner();
-        return LedgerLib.createToken(name_, symbol_, decimals_);
+        return LedgerLib.createToken(name_, symbol_, decimals_, isCredit_);
     }
 
     function createWrapper(address token_) external returns (address _wrapper, uint256 _flags) {

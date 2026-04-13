@@ -41,7 +41,7 @@ contract ERC20WrapperTest is Test {
         ledgers.initializeTestLedger();
 
         if (isVerbose) console.log("Adding new token to ledger");
-        (address token_,) = ledgers.createToken("Internal Test Token", "ITT", 18);
+        (address token_,) = ledgers.createToken("Internal Test Token", "ITT", 18, false);
         token = ERC20Wrapper(token_);
         ledgers.addSubAccount(address(token), LedgerLib.SOURCE_ADDRESS, "Source", true);
 
@@ -93,7 +93,7 @@ contract ERC20WrapperTest is Test {
     function testERC20WrapperCreateToken() public {
         vm.startPrank(owner);
 
-        (address _newRoot,) = ledgers.createToken("New Test Token", "NTT", 18);
+        (address _newRoot,) = ledgers.createToken("New Test Token", "NTT", 18, false);
         address _newToken = _newRoot;
         assertEq(ERC20Wrapper(_newToken).name(), "New Test Token");
         assertEq(ERC20Wrapper(_newToken).symbol(), "NTT");
@@ -103,6 +103,34 @@ contract ERC20WrapperTest is Test {
         assertEq(ledgers.name(_newRoot), "New Test Token");
         assertEq(ledgers.symbol(_newRoot), "NTT");
         assertEq(ledgers.decimals(_newRoot), 18);
+    }
+
+    function testERC20WrapperCreditRootMintTransferBurn() public {
+        vm.startPrank(owner);
+        (address claimToken_,) = ledgers.createToken("Claim Token", "CLM", 18, true);
+        ledgers.addSubAccount(claimToken_, LedgerLib.SOURCE_ADDRESS, "Source", false);
+        vm.stopPrank();
+
+        ERC20Wrapper claim = ERC20Wrapper(claimToken_);
+
+        vm.prank(owner);
+        ledgers.mint(claimToken_, alice, 1_000);
+
+        assertEq(claim.totalSupply(), 1_000);
+        assertEq(claim.balanceOf(alice), 1_000);
+
+        vm.prank(alice);
+        assertTrue(claim.transfer(bob, 400));
+
+        assertEq(claim.balanceOf(alice), 600);
+        assertEq(claim.balanceOf(bob), 400);
+        assertEq(claim.totalSupply(), 1_000);
+
+        vm.prank(owner);
+        ledgers.burn(claimToken_, bob, 150);
+
+        assertEq(claim.balanceOf(bob), 250);
+        assertEq(claim.totalSupply(), 850);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
