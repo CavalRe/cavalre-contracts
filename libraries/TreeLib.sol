@@ -52,17 +52,15 @@ library TreeLib {
                 ? ledgers_.creditBalanceOf(parent_, addr_)
                 : ledgers_.debitBalanceOf(parent_, addr_);
         }
-        string memory label = c.isRoot
-            ? ledgers_.name(c.addr)
-            : string(
-                abi.encodePacked(
-                    ledgers_.name(c.addr),
-                    " (",
-                    LedgerLib.isCredit(c.flags) ? "C: " : "D: ",
-                    c.balance.toFloat(ledgers_.decimals(ledgers_.root(c.addr))).toString(),
-                    ")"
-                )
-            );
+        string memory label = string(
+            abi.encodePacked(
+                ledgers_.name(c.addr),
+                " (",
+                LedgerLib.isCredit(c.flags) ? "C: " : "D: ",
+                c.balance.toFloat(ledgers_.decimals(ledgers_.root(c.addr))).toString(),
+                ")"
+            )
+        );
         c.isGroup = LedgerLib.isGroup(c.flags);
         console.log(
             "%s%s%s",
