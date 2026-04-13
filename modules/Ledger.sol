@@ -147,11 +147,11 @@ contract ERC20Wrapper {
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
         emit Transfer(msg.sender, to_, amount_);
+        address from_ = msg.sender;
         if (_isCredit) {
-            ILedger(_router).transfer(_token, to_, _token, msg.sender, amount_);
-        } else {
-            ILedger(_router).transfer(_token, msg.sender, _token, to_, amount_);
+            (from_, to_) = (to_, from_);
         }
+        ILedger(_router).transfer(_token, from_, _token, to_, amount_);
         return true;
     }
 
@@ -165,10 +165,9 @@ contract ERC20Wrapper {
         }
         emit Transfer(from_, to_, amount_);
         if (_isCredit) {
-            ILedger(_router).transfer(_token, to_, _token, from_, amount_);
-        } else {
-            ILedger(_router).transfer(_token, from_, _token, to_, amount_);
+            (from_, to_) = (to_, from_);
         }
+        ILedger(_router).transfer(_token, from_, _token, to_, amount_);
         return true;
     }
 
