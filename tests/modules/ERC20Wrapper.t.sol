@@ -10,6 +10,7 @@ import {TreeLib} from "../../libraries/TreeLib.sol";
 import {TestLedger, MockERC20} from "./Ledger.t.sol";
 
 contract ERC20WrapperTest is Test {
+    address internal constant DEFAULT_SOURCE_ADDRESS = 0x245f14e61ecde591FD8B445DC8e2bF76da4505E6;
     Router internal router;
     TestLedger internal ledgers; // will point to Router after module add
     ERC20Wrapper internal token;
@@ -20,6 +21,7 @@ contract ERC20WrapperTest is Test {
     address internal alice = address(0xB0B);
     address internal bob = address(0xCA11);
     address internal carol = address(0xD00D);
+    address internal source_;
 
     function setUp() public {
         bool isVerbose = false;
@@ -39,17 +41,18 @@ contract ERC20WrapperTest is Test {
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledgers.initializeTestLedger();
+        source_ = DEFAULT_SOURCE_ADDRESS;
 
         if (isVerbose) console.log("Adding new token to ledger");
         (address token_,) = ledgers.createToken("Internal Test Token", "ITT", 18, false);
         token = ERC20Wrapper(token_);
-        ledgers.addSubAccount(address(token), LedgerLib.SOURCE_ADDRESS, "Source", true);
+        ledgers.addSubAccount(address(token), source_, "Source", true);
 
         if (isVerbose) console.log("Creating external token + wrapper");
         externalToken = new MockERC20("External Token", "EXT", 18);
         ledgers.addExternalToken(address(externalToken));
         ledgers.createWrapper(address(externalToken));
-        ledgers.addSubAccount(address(externalToken), LedgerLib.SOURCE_ADDRESS, "Source", true);
+        ledgers.addSubAccount(address(externalToken), source_, "Source", true);
         externalWrapper = ERC20Wrapper(ledgers.wrapper(address(externalToken)));
 
         if (isVerbose) console.log("Token added");
@@ -108,7 +111,7 @@ contract ERC20WrapperTest is Test {
     function testERC20WrapperCreditRootMintTransferBurn() public {
         vm.startPrank(owner);
         (address claimToken_,) = ledgers.createToken("Claim Token", "CLM", 18, true);
-        ledgers.addSubAccount(claimToken_, LedgerLib.SOURCE_ADDRESS, "Source", false);
+        ledgers.addSubAccount(claimToken_, source_, "Source", false);
         vm.stopPrank();
 
         ERC20Wrapper claim = ERC20Wrapper(claimToken_);
@@ -264,7 +267,7 @@ contract ERC20WrapperTest is Test {
         vm.startPrank(alice);
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledgers), wrapAmount);
-        ledgers.wrap(address(externalToken), LedgerLib.SOURCE_ADDRESS, address(externalToken), alice, wrapAmount);
+        ledgers.wrap(address(externalToken), source_, address(externalToken), alice, wrapAmount);
         vm.stopPrank();
 
         assertEq(ledgers.totalSupply(address(externalToken)), wrapAmount, "ledger total supply after wrap");
@@ -290,7 +293,7 @@ contract ERC20WrapperTest is Test {
         if (isVerbose) console.log("Wrapping external token into wrapper");
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledgers), wrapAmount);
-        ledgers.wrap(address(externalToken), LedgerLib.SOURCE_ADDRESS, address(externalToken), alice, wrapAmount);
+        ledgers.wrap(address(externalToken), source_, address(externalToken), alice, wrapAmount);
         // vm.stopPrank();
 
         // vm.startPrank(alice);

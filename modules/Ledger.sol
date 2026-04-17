@@ -187,8 +187,10 @@ contract ERC20Wrapper {
 contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     using ShortStrings for string;
 
-    constructor(uint8 decimals_, string memory nativeName_, string memory nativeSymbol_) {
+    constructor(uint8 decimals_, string memory nativeName_, string memory nativeSymbol_, address defaultSourceAddress_) {
         _decimals = decimals_;
+        if (defaultSourceAddress_ == address(0)) revert ILedger.ZeroAddress();
+        _defaultSourceAddress = defaultSourceAddress_;
         bytes memory nativeNameRaw_ = bytes(nativeName_);
         if (nativeNameRaw_.length == 0 || nativeNameRaw_.length > 31) revert ILedger.InvalidString(nativeName_);
         _nativeName = nativeName_.toShortString();
@@ -199,6 +201,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     }
 
     uint8 internal immutable _decimals;
+    address internal immutable _defaultSourceAddress;
     ShortString internal immutable _nativeName;
     ShortString internal immutable _nativeSymbol;
     bytes32 private constant REENTRANCY_GUARD_STORAGE = keccak256(

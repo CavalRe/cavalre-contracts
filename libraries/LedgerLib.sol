@@ -33,8 +33,6 @@ library LedgerLib {
 
     // toAddress("Native")
     address internal constant NATIVE_ADDRESS = 0xE0092BfAe8c1A1d8CB953ed67bd42A4861E423F9;
-    // toAddress("Unallocated")
-    address internal constant SOURCE_ADDRESS = 0x245f14e61ecde591FD8B445DC8e2bF76da4505E6;
     uint256 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
     uint256 constant FLAG_IS_CREDIT = 1 << 1; // 1 = credit account, 0 = debit
     uint256 constant FLAG_IS_INTERNAL = 1 << 2; // 1 = internal token, 0 = external token
