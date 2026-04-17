@@ -276,10 +276,9 @@ library LedgerLib {
 
         _addr = toAddress(parent_, addr_);
         _flags = flags(parent_, true, isCredit_, true, false, true, depth(flags(parent_)) + 1);
-
-        bool _isExisting = parent(_addr) == parent_;
-        if (_isExisting) {
-            if (keccak256(bytes(name(_addr))) == keccak256(bytes(name_)) && _flags == flags(_addr)) {
+        uint256 _existingFlags = flags(_addr);
+        if (isRegistered(_existingFlags)) {
+            if (_flags == _existingFlags && keccak256(bytes(name(_addr))) == keccak256(bytes(name_))) {
                 // SubAccount already exists with the same name and same flags
                 return (_addr, _flags);
             } else {
@@ -287,6 +286,7 @@ library LedgerLib {
                 revert ILedger.InvalidSubAccountGroup(name_, isCredit_);
             }
         }
+        if (debitBalanceOf(_addr) > 0 || creditBalanceOf(_addr) > 0) revert ILedger.InvalidSubAccountGroup(name_, isCredit_);
 
         address _root = root(parent_);
 
@@ -316,16 +316,20 @@ library LedgerLib {
 
         _addr = toAddress(parent_, addr_);
         _flags = flags(parent_, false, isCredit_, true, false, true, depth(flags(parent_)) + 1);
-
-        bool _isExisting = parent(_addr) == parent_;
-        if (_isExisting) {
-            if (keccak256(bytes(name(_addr))) == keccak256(bytes(name_)) && _flags == flags(_addr)) {
+        uint256 _existingFlags = flags(_addr);
+        if (isRegistered(_existingFlags)) {
+            if (_flags == _existingFlags && keccak256(bytes(name(_addr))) == keccak256(bytes(name_))) {
                 // SubAccount already exists with the same name and same flags
                 return (_addr, _flags);
             } else {
                 // SubAccount already exists with the same name but different flags
                 revert ILedger.InvalidSubAccount(addr_, isCredit_);
             }
+        }
+        if ((isCredit_ && debitBalanceOf(_addr) > creditBalanceOf(_addr))
+            || (!isCredit_ && creditBalanceOf(_addr) > debitBalanceOf(_addr)))
+        {
+            revert ILedger.InvalidSubAccount(addr_, isCredit_);
         }
 
         address _root = root(parent_);

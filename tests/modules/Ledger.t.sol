@@ -513,6 +513,28 @@ contract LedgerTest is Test {
         assertEq(ledger.name(added_), "groupByAddr", "name stable");
     }
 
+    function testLedgerAddSubAccountGroupRejectsFundedDebitLeaf() public {
+        vm.startPrank(alice);
+
+        address relative_ = LedgerLib.toAddress("fundedGroupDebit");
+        ledger.mint(r1, relative_, 100);
+
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidSubAccountGroup.selector, "fundedGroupDebit", false));
+        ledger.addSubAccountGroup(r1, relative_, "fundedGroupDebit", false);
+    }
+
+    function testLedgerAddSubAccountGroupRejectsFundedCreditLeaf() public {
+        vm.startPrank(alice);
+
+        (address creditRoot_,) = ledger.createToken("Credit Group Root", "CGR", 18, true);
+        ledger.addSubAccount(creditRoot_, source_, "Source", false);
+        address relative_ = LedgerLib.toAddress("fundedGroupCredit");
+        ledger.mint(creditRoot_, relative_, 100);
+
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidSubAccountGroup.selector, "fundedGroupCredit", true));
+        ledger.addSubAccountGroup(creditRoot_, relative_, "fundedGroupCredit", true);
+    }
+
     function testLedgerAddSubAccountNameDelegatesToAddressForm() public {
         vm.startPrank(alice);
 
@@ -539,6 +561,41 @@ contract LedgerTest is Test {
         assertEq(after_[after_.length - 1], relative_, "no duplicate child");
         assertEq(ledger.subAccountIndex(r1, relative_), index_, "index stable");
         assertEq(ledger.name(added_), "leafSubAccount", "name stable");
+    }
+
+    function testLedgerAddSubAccountRegistersFundedDebitLeaf() public {
+        vm.startPrank(alice);
+
+        address relative_ = LedgerLib.toAddress("fundedDebit");
+        ledger.mint(r1, relative_, 100);
+
+        (address added_, uint256 flags_) = ledger.addSubAccount(r1, relative_, "fundedDebit", false);
+
+        assertEq(added_, LedgerLib.toAddress(r1, relative_), "registered addr");
+        assertFalse(ledger.isCredit(flags_), "registered debit");
+        assertEq(ledger.balanceOf(r1, relative_), 100, "balance preserved");
+    }
+
+    function testLedgerAddSubAccountRejectsFundedDebitLeafAsCredit() public {
+        vm.startPrank(alice);
+
+        address relative_ = LedgerLib.toAddress("fundedDebit");
+        ledger.mint(r1, relative_, 100);
+
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidSubAccount.selector, relative_, true));
+        ledger.addSubAccount(r1, relative_, "fundedDebit", true);
+    }
+
+    function testLedgerAddSubAccountRejectsFundedCreditLeafAsDebit() public {
+        vm.startPrank(alice);
+
+        (address creditRoot_,) = ledger.createToken("Credit Root", "CRT", 18, true);
+        ledger.addSubAccount(creditRoot_, source_, "Source", false);
+        address relative_ = LedgerLib.toAddress("fundedCredit");
+        ledger.mint(creditRoot_, relative_, 100);
+
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidSubAccount.selector, relative_, false));
+        ledger.addSubAccount(creditRoot_, relative_, "fundedCredit", false);
     }
 
     function testLedgerAddSubAccountZeroParentReverts() public {
