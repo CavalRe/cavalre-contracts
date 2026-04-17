@@ -25,7 +25,7 @@ Apply this throughout responses—explanations, status updates, error descriptio
 - Local variable naming: underscore suffix by default. Exception allowed for `*Context memory ctx` / `*Cache memory c`.
 - Style target: minimalist, consistent patterns, minimal locals/helpers, avoid redundant recomputation.
 - Section comment style: `// -- Section Name --` (avoid boxed multi-line separators).
-- For commit msg/body requests: first inspect current changes with `git status --short`, `git diff --stat HEAD`, and `git diff --unified=0 HEAD`; `git diff HEAD` excludes untracked files, so include relevant untracked files shown by status and inspect their contents before drafting. Include only changes present in current tracked diff + relevant untracked files, never prior commits or broader session history.
+- For commit msg/body requests: first inspect current changes with `git status --short`, `git diff --stat HEAD`, and `git diff --unified=0 HEAD`; `git diff HEAD` excludes untracked files, so include relevant untracked files shown by status and inspect their contents before drafting. Include only changes present in current tracked diff + relevant untracked files, never prior commits or broader session history. Return commit message + body in one single copy-pasteable fenced `text` block by default.
 
 ## Updating This File
 
