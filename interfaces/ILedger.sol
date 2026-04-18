@@ -21,39 +21,6 @@ interface ILedger {
     function nativeSymbol() external view returns (string memory);
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Tree navigation
-    // ─────────────────────────────────────────────────────────────────────────────
-    function root(address addr) external view returns (address);
-
-    function parent(address addr) external view returns (address);
-
-    function flags(address addr) external view returns (uint256);
-
-    function wrapper(address token) external view returns (address);
-
-    function isGroup(uint256 flags) external pure returns (bool);
-
-    function isCredit(uint256 flags) external pure returns (bool);
-
-    function effectiveFlags(address parent, address addr) external view returns (address absoluteAddr, uint256 flags);
-
-    function isInternal(uint256 flags) external pure returns (bool);
-
-    function isNative(uint256 flags) external pure returns (bool);
-
-    function isRegistered(uint256 flags) external pure returns (bool);
-
-    function isExternal(uint256 flags) external pure returns (bool);
-
-    function isRoot(uint256 flags) external pure returns (bool);
-
-    function subAccounts(address parent) external view returns (address[] memory);
-
-    function hasSubAccount(address parent) external view returns (bool);
-
-    function subAccountIndex(address parent, address addr) external view returns (uint32);
-
-    // ─────────────────────────────────────────────────────────────────────────────
     // Tree Manipulation
     // ─────────────────────────────────────────────────────────────────────────────
     function addSubAccountGroup(address parent, string memory name, bool isCredit)
@@ -115,12 +82,12 @@ interface ILedger {
         returns (address root, uint256 fromFlags, uint256 toFlags);
 
     // ─────────────────────────────────────────────────────────────────────────────
-    function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    function wrap(address token_, uint256 amount_)
         external
         payable
         returns (address token, uint256 fromFlags, uint256 toFlags);
 
-    function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    function unwrap(address token_, uint256 amount_)
         external
         payable
         returns (address token, uint256 fromFlags, uint256 toFlags);

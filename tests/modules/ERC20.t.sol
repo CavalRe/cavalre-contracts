@@ -11,7 +11,7 @@ import {Router} from "../../modules/Router.sol";
 import {LedgerLib} from "../../libraries/LedgerLib.sol";
 
 contract MintModule is Module {
-    address internal constant DEFAULT_SOURCE_ADDRESS = 0x245f14e61ecde591FD8B445DC8e2bF76da4505E6;
+    string internal constant DEFAULT_SOURCE_NAME = "Source";
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](1);
         _selectors[0] = bytes4(keccak256("mintCanonical(address,uint256)"));
@@ -19,12 +19,12 @@ contract MintModule is Module {
 
     function mintCanonical(address to_, uint256 amount_) external {
         enforceIsOwner();
-        LedgerLib.transfer(address(this), DEFAULT_SOURCE_ADDRESS, address(this), to_, amount_);
+        LedgerLib.transfer(address(this), LedgerLib.toAddress(DEFAULT_SOURCE_NAME), address(this), to_, amount_);
     }
 }
 
 contract ERC20Test is Test {
-    address internal constant DEFAULT_SOURCE_ADDRESS = 0x245f14e61ecde591FD8B445DC8e2bF76da4505E6;
+    string internal constant DEFAULT_SOURCE_NAME = "Source";
     Router router;
     Ledger ledgers;
     ERC20 token;
@@ -40,7 +40,7 @@ contract ERC20Test is Test {
     function setUp() public {
         vm.startPrank(alice);
 
-        ledgers = new Ledger(18, "Ethereum", "ETH", address(0x245f14e61ecde591FD8B445DC8e2bF76da4505E6));
+        ledgers = new Ledger(18, "Ethereum", "ETH", DEFAULT_SOURCE_NAME);
         token = new ERC20();
         minter = new MintModule();
         router = new Router(alice);
@@ -54,7 +54,7 @@ contract ERC20Test is Test {
         minter = MintModule(payable(router));
 
         ledgers.initializeLedger("Canonical Root", "ROOT");
-        source_ = DEFAULT_SOURCE_ADDRESS;
+        source_ = LedgerLib.toAddress(DEFAULT_SOURCE_NAME);
         ledgers.addSubAccount(address(router), source_, "Source", true);
         token.initializeERC20();
     }

@@ -2,14 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Float, FloatLib, FloatStrings} from "./FloatStrings.sol";
-// // ─────────────────────────────────────────────────────────────────────────────
-// // Import split layout (interfaces + lib + module + infra)
-// // Adjust paths if your repo layout differs.
-// // ─────────────────────────────────────────────────────────────────────────────
-// import {ILedger} from "../../interfaces/ILedger.sol";
-import {Ledger, LedgerLib} from "../modules/Ledger.sol";
-// import {Module} from "../../modules/Module.sol";
-// import {Router} from "../../modules/Router.sol";
+import {LedgerLib} from "./LedgerLib.sol";
 
 import {console} from "forge-std/src/Test.sol";
 
@@ -32,7 +25,6 @@ library TreeLib {
     }
 
     function logTree(
-        Ledger ledgers_,
         address parent_,
         address addr_,
         string memory prefix_,
@@ -43,21 +35,21 @@ library TreeLib {
 
         c.isRoot = LedgerLib.isZeroAddress(parent_);
         c.addr = c.isRoot ? addr_ : LedgerLib.toAddress(parent_, addr_);
-        c.flags = ledgers_.flags(c.addr);
+        c.flags = LedgerLib.flags(c.addr);
         if (c.isRoot) {
             c.balance = 0;
         } else {
-            (, uint256 _flags) = ledgers_.effectiveFlags(parent_, addr_);
-            c.balance = ledgers_.isCredit(_flags)
-                ? ledgers_.creditBalanceOf(parent_, addr_)
-                : ledgers_.debitBalanceOf(parent_, addr_);
+            (, uint256 _flags) = LedgerLib.effectiveFlags(parent_, addr_);
+            c.balance = LedgerLib.isCredit(_flags)
+                ? LedgerLib.creditBalanceOf(c.addr)
+                : LedgerLib.debitBalanceOf(c.addr);
         }
         string memory label = string(
             abi.encodePacked(
-                ledgers_.name(c.addr),
+                LedgerLib.name(c.addr),
                 " (",
                 LedgerLib.isCredit(c.flags) ? "C: " : "D: ",
-                c.balance.toFloat(ledgers_.decimals(ledgers_.root(c.addr))).toString(),
+                c.balance.toFloat(LedgerLib.decimals(LedgerLib.root(c.addr))).toString(),
                 ")"
             )
         );
@@ -74,19 +66,19 @@ library TreeLib {
         );
         c.subPrefix = string(abi.encodePacked(prefix_, isFirst_ ? "" : (isLast_ ? "   " : unicode"│  ")));
 
-        c.subs = ledgers_.subAccounts(c.addr);
+        c.subs = LedgerLib.subAccounts(c.addr);
         for (uint256 i = 0; i < c.subs.length; i++) {
-            logTree(ledgers_, c.addr, c.subs[i], c.subPrefix, false, i == c.subs.length - 1);
+            logTree(c.addr, c.subs[i], c.subPrefix, false, i == c.subs.length - 1);
         }
     }
 
-    function debugTree(Ledger ledgers, address root) internal view {
-        logTree(ledgers, address(0), root, "", true, true);
+    function debugTree(address root_) internal view {
+        logTree(address(0), root_, "", true, true);
     }
 
-    function debugTrees(Ledger ledgers, address[] memory roots) internal view {
-        for (uint256 i = 0; i < roots.length; i++) {
-            logTree(ledgers, address(0), roots[i], "", true, true);
+    function debugTrees(address[] memory roots_) internal view {
+        for (uint256 i = 0; i < roots_.length; i++) {
+            logTree(address(0), roots_[i], "", true, true);
             console.log("---------------------------------");
         }
     }

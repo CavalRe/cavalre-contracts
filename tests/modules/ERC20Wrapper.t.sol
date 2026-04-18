@@ -5,14 +5,15 @@ import {Test, console} from "forge-std/src/Test.sol";
 
 import {Router} from "../../modules/Router.sol";
 import {ILedger, Ledger, ERC20Wrapper, LedgerLib} from "../../modules/Ledger.sol";
-import {TreeLib} from "../../libraries/TreeLib.sol";
+import {Tree} from "../../modules/Tree.sol";
 
 import {TestLedger, MockERC20} from "./Ledger.t.sol";
 
 contract ERC20WrapperTest is Test {
-    address internal constant DEFAULT_SOURCE_ADDRESS = 0x245f14e61ecde591FD8B445DC8e2bF76da4505E6;
+    string internal constant DEFAULT_SOURCE_NAME = "Source";
     Router internal router;
     TestLedger internal ledgers; // will point to Router after module add
+    Tree internal tree;
     ERC20Wrapper internal token;
     MockERC20 internal externalToken;
     ERC20Wrapper internal externalWrapper;
@@ -32,16 +33,19 @@ contract ERC20WrapperTest is Test {
         // Deploy Ledger impl, register in Router, then speak to it at Router address
         if (isVerbose) console.log("Deploying Ledger impl");
         TestLedger impl = new TestLedger(18);
+        Tree treeImpl = new Tree();
         if (isVerbose) console.log("Deploying Router");
         router = new Router(owner);
         if (isVerbose) console.log("Registering Ledger impl");
         router.addModule(address(impl));
+        router.addModule(address(treeImpl));
         if (isVerbose) console.log("Instantiating Test Ledger");
         ledgers = TestLedger(payable(address(router)));
+        tree = Tree(payable(address(router)));
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledgers.initializeTestLedger();
-        source_ = DEFAULT_SOURCE_ADDRESS;
+        source_ = LedgerLib.toAddress(DEFAULT_SOURCE_NAME);
 
         if (isVerbose) console.log("Adding new token to ledger");
         (address token_,) = ledgers.createToken("Internal Test Token", "ITT", 18, false);
@@ -53,7 +57,7 @@ contract ERC20WrapperTest is Test {
         ledgers.addExternalToken(address(externalToken));
         ledgers.createWrapper(address(externalToken));
         ledgers.addSubAccount(address(externalToken), source_, "Source", true);
-        externalWrapper = ERC20Wrapper(ledgers.wrapper(address(externalToken)));
+        externalWrapper = ERC20Wrapper(tree.wrapper(address(externalToken)));
 
         if (isVerbose) console.log("Token added");
 
@@ -68,11 +72,11 @@ contract ERC20WrapperTest is Test {
 
         if (isVerbose) console.log("Display Account Hierarchy");
         if (isVerbose) console.log("--------------------");
-        if (isVerbose) TreeLib.debugTree(ledgers, address(router));
+        if (isVerbose) tree.debugTree(address(router));
         if (isVerbose) console.log("--------------------");
-        if (isVerbose) TreeLib.debugTree(ledgers, address(token));
+        if (isVerbose) tree.debugTree(address(token));
         if (isVerbose) console.log("--------------------");
-        if (isVerbose) TreeLib.debugTree(ledgers, address(externalToken));
+        if (isVerbose) tree.debugTree(address(externalToken));
         if (isVerbose) console.log("--------------------");
 
         assertEq(token.totalSupply(), 0);

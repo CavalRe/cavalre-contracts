@@ -187,10 +187,13 @@ contract ERC20Wrapper {
 contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     using ShortStrings for string;
 
-    constructor(uint8 decimals_, string memory nativeName_, string memory nativeSymbol_, address defaultSourceAddress_) {
+    constructor(
+        uint8 decimals_,
+        string memory nativeName_,
+        string memory nativeSymbol_,
+        string memory defaultSourceName_
+    ) {
         _decimals = decimals_;
-        if (defaultSourceAddress_ == address(0)) revert ILedger.ZeroAddress();
-        _defaultSourceAddress = defaultSourceAddress_;
         bytes memory nativeNameRaw_ = bytes(nativeName_);
         if (nativeNameRaw_.length == 0 || nativeNameRaw_.length > 31) revert ILedger.InvalidString(nativeName_);
         _nativeName = nativeName_.toShortString();
@@ -198,10 +201,18 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         bytes memory nativeSymbolRaw_ = bytes(nativeSymbol_);
         if (nativeSymbolRaw_.length == 0 || nativeSymbolRaw_.length > 31) revert ILedger.InvalidString(nativeSymbol_);
         _nativeSymbol = nativeSymbol_.toShortString();
+
+        bytes memory defaultSourceNameRaw_ = bytes(defaultSourceName_);
+        if (defaultSourceNameRaw_.length == 0 || defaultSourceNameRaw_.length > 31) {
+            revert ILedger.InvalidString(defaultSourceName_);
+        }
+        _defaultSourceName = defaultSourceName_.toShortString();
+        _defaultSourceAddress = LedgerLib.toAddress(defaultSourceName_);
     }
 
     uint8 internal immutable _decimals;
     address internal immutable _defaultSourceAddress;
+    ShortString internal immutable _defaultSourceName;
     ShortString internal immutable _nativeName;
     ShortString internal immutable _nativeSymbol;
     bytes32 private constant REENTRANCY_GUARD_STORAGE = keccak256(
@@ -221,7 +232,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](41);
+        _selectors = new bytes4[](26);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
@@ -240,38 +251,32 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("decimals(address)"));
         _selectors[n++] = bytes4(keccak256("nativeName()"));
         _selectors[n++] = bytes4(keccak256("nativeSymbol()"));
-        _selectors[n++] = bytes4(keccak256("root(address)"));
-        _selectors[n++] = bytes4(keccak256("parent(address)"));
-        _selectors[n++] = bytes4(keccak256("flags(address)"));
-        _selectors[n++] = bytes4(keccak256("wrapper(address)"));
-        _selectors[n++] = bytes4(keccak256("isGroup(uint256)"));
-        _selectors[n++] = bytes4(keccak256("isCredit(uint256)"));
-        _selectors[n++] = bytes4(keccak256("effectiveFlags(address,address)"));
-        _selectors[n++] = bytes4(keccak256("isInternal(uint256)"));
-        _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
-        _selectors[n++] = bytes4(keccak256("isRegistered(uint256)"));
-        _selectors[n++] = bytes4(keccak256("isExternal(uint256)"));
-        _selectors[n++] = bytes4(keccak256("isRoot(uint256)"));
-        _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
-        _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
-        _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
         _selectors[n++] = bytes4(keccak256("debitBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("creditBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("wrap(address,address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("unwrap(address,address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
 
-        if (n != 41) revert InvalidCommandsLength(n);
+        if (n != 26) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
         enforceIsOwner();
 
         // Canonical root is always registered at the router address; ERC20 exposure remains an optional module.
-        LedgerLib.addLedger(address(this), name_, symbol_, 18, true, false);
+        LedgerLib.addLedger(
+            address(this),
+            name_,
+            symbol_,
+            18,
+            true,
+            false,
+            _defaultSourceAddress,
+            ShortStrings.toString(_defaultSourceName)
+        );
     }
 
     function initializeLedger(string memory name_, string memory symbol_) external initializer {
@@ -313,12 +318,12 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function addNativeToken() external returns (uint256 _flags) {
         enforceIsOwner();
-        return LedgerLib.addNativeToken();
+        return LedgerLib.addNativeToken(_defaultSourceAddress, ShortStrings.toString(_defaultSourceName));
     }
 
     function addExternalToken(address token_) external returns (uint256 _flags) {
         enforceIsOwner();
-        return LedgerLib.addExternalToken(token_);
+        return LedgerLib.addExternalToken(token_, _defaultSourceAddress, ShortStrings.toString(_defaultSourceName));
     }
 
     function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
@@ -326,7 +331,9 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         returns (address _token, uint256 _flags)
     {
         enforceIsOwner();
-        return LedgerLib.createToken(name_, symbol_, decimals_, isCredit_);
+        return LedgerLib.createToken(
+            name_, symbol_, decimals_, isCredit_, _defaultSourceAddress, ShortStrings.toString(_defaultSourceName)
+        );
     }
 
     function createWrapper(address token_) external returns (address _wrapper, uint256 _flags) {
@@ -381,66 +388,6 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return ShortStrings.toString(_nativeSymbol);
     }
 
-    function root(address addr_) external view returns (address) {
-        return LedgerLib.root(addr_);
-    }
-
-    function parent(address addr_) external view returns (address) {
-        return LedgerLib.parent(addr_);
-    }
-
-    function flags(address addr_) external view returns (uint256) {
-        return LedgerLib.flags(addr_);
-    }
-
-    function wrapper(address token_) external view returns (address) {
-        return LedgerLib.wrapper(token_);
-    }
-
-    function isGroup(uint256 flags_) external pure returns (bool) {
-        return LedgerLib.isGroup(flags_);
-    }
-
-    function isCredit(uint256 flags_) external pure returns (bool) {
-        return LedgerLib.isCredit(flags_);
-    }
-
-    function effectiveFlags(address parent_, address addr_) external view returns (address, uint256) {
-        return LedgerLib.effectiveFlags(parent_, addr_);
-    }
-
-    function isInternal(uint256 flags_) external pure returns (bool) {
-        return LedgerLib.isInternal(flags_);
-    }
-
-    function isNative(uint256 flags_) external pure returns (bool) {
-        return LedgerLib.isNative(flags_);
-    }
-
-    function isRegistered(uint256 flags_) external pure returns (bool) {
-        return LedgerLib.isRegistered(flags_);
-    }
-
-    function isExternal(uint256 flags_) external pure returns (bool) {
-        return LedgerLib.isExternal(flags_);
-    }
-
-    function isRoot(uint256 flags_) external pure returns (bool) {
-        return LedgerLib.isRoot(flags_);
-    }
-
-    function subAccounts(address parent_) external view returns (address[] memory) {
-        return LedgerLib.subAccounts(parent_);
-    }
-
-    function hasSubAccount(address parent_) external view returns (bool) {
-        return LedgerLib.hasSubAccount(parent_);
-    }
-
-    function subAccountIndex(address parent_, address addr_) external view returns (uint32) {
-        return LedgerLib.subAccountIndex(parent_, addr_);
-    }
-
     //=========================
     // Balances & Valuations
     //=========================
@@ -490,23 +437,26 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
     }
 
-    function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    function wrap(address token_, uint256 amount_)
         external
         payable
         nonReentrant
         returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
-        enforceIsOwner();
-        return LedgerLib.wrap(fromParent_, from_, toParent_, to_, amount_);
+        address _from = _defaultSourceAddress;
+        address _to = msg.sender;
+        if (LedgerLib.isCredit(LedgerLib.flags(token_))) {
+            (_from, _to) = (_to, _from);
+        }
+        return LedgerLib.wrap(token_, _from, token_, _to, amount_);
     }
 
-    function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    function unwrap(address token_, uint256 amount_)
         external
         payable
         nonReentrant
         returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
-        enforceIsOwner();
-        return LedgerLib.unwrap(fromParent_, from_, toParent_, to_, amount_);
+        return LedgerLib.unwrap(token_, msg.sender, token_, _defaultSourceAddress, amount_);
     }
 }

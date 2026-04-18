@@ -162,7 +162,7 @@ cavalre-contracts/
 - Inherit `forge-std/Test.sol`
 - Test modules wrap actual modules (e.g., `TestLedger is Ledger`) for test-specific functions
 - Must implement `selectors()` for Router registration
-- Visualize ledger trees: `TreeLib.debugTree(ledgers, root)`
+- Visualize ledger trees via `Tree` module: `tree.debugTree(root)`
 - When running Forge, note EIP-3860 initcode size warnings: expected in tests sometimes; flag if non-test deployable contracts hit warning.
 
 ## Dependencies

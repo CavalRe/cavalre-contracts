@@ -286,7 +286,9 @@ library LedgerLib {
                 revert ILedger.InvalidSubAccountGroup(name_, isCredit_);
             }
         }
-        if (debitBalanceOf(_addr) > 0 || creditBalanceOf(_addr) > 0) revert ILedger.InvalidSubAccountGroup(name_, isCredit_);
+        if (debitBalanceOf(_addr) > 0 || creditBalanceOf(_addr) > 0) {
+            revert ILedger.InvalidSubAccountGroup(name_, isCredit_);
+        }
 
         address _root = root(parent_);
 
@@ -326,9 +328,10 @@ library LedgerLib {
                 revert ILedger.InvalidSubAccount(addr_, isCredit_);
             }
         }
-        if ((isCredit_ && debitBalanceOf(_addr) > creditBalanceOf(_addr))
-            || (!isCredit_ && creditBalanceOf(_addr) > debitBalanceOf(_addr)))
-        {
+        if (
+            (isCredit_ && debitBalanceOf(_addr) > creditBalanceOf(_addr))
+                || (!isCredit_ && creditBalanceOf(_addr) > debitBalanceOf(_addr))
+        ) {
             revert ILedger.InvalidSubAccount(addr_, isCredit_);
         }
 
@@ -349,7 +352,9 @@ library LedgerLib {
         string memory symbol_,
         uint8 decimals_,
         bool isInternal_,
-        bool isCredit_
+        bool isCredit_,
+        address defaultSourceAddress_,
+        string memory defaultSourceName_
     ) internal returns (uint256 _flags) {
         if (isZeroAddress(root_) || !isValidString(name_) || !isValidString(symbol_)) {
             revert ILedger.InvalidToken(root_, name_, symbol_, decimals_);
@@ -378,21 +383,30 @@ library LedgerLib {
         s.root[root_] = root_;
         s.flags[root_] = _flags;
 
+        addSubAccount(root_, defaultSourceAddress_, defaultSourceName_, !isCredit_);
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
     }
 
-    function addNativeToken() internal returns (uint256 _flags) {
+    function addNativeToken(address defaultSourceAddress_, string memory defaultSourceName_)
+        internal
+        returns (uint256 _flags)
+    {
         return addLedger(
             LedgerLib.NATIVE_ADDRESS,
             ILedger(address(this)).nativeName(),
             ILedger(address(this)).nativeSymbol(),
             18,
             false,
-            false
+            false,
+            defaultSourceAddress_,
+            defaultSourceName_
         );
     }
 
-    function addExternalToken(address token_) internal returns (uint256 _flags) {
+    function addExternalToken(address token_, address defaultSourceAddress_, string memory defaultSourceName_)
+        internal
+        returns (uint256 _flags)
+    {
         IERC20Metadata _meta = IERC20Metadata(token_);
         string memory _name = _meta.name();
         string memory _symbol = _meta.symbol();
@@ -401,10 +415,17 @@ library LedgerLib {
             revert ILedger.InvalidToken(token_, _name, _symbol, _decimals);
         }
 
-        return addLedger(token_, _name, _symbol, _decimals, false, false);
+        return addLedger(token_, _name, _symbol, _decimals, false, false, defaultSourceAddress_, defaultSourceName_);
     }
 
-    function createToken(string memory name_, string memory symbol_, uint8 decimals_, bool isCredit_)
+    function createToken(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        bool isCredit_,
+        address defaultSourceAddress_,
+        string memory defaultSourceName_
+    )
         internal
         returns (address _token, uint256 _flags)
     {
@@ -430,7 +451,7 @@ library LedgerLib {
 
         // Internal roots remain self-wrapped so the root address is immediately usable as an ERC20 surface.
         _token = address(new ERC20Wrapper{salt: _salt}(address(this), address(0), name_, symbol_, decimals_, isCredit_));
-        _flags = addLedger(_token, name_, symbol_, decimals_, true, isCredit_);
+        _flags = addLedger(_token, name_, symbol_, decimals_, true, isCredit_, defaultSourceAddress_, defaultSourceName_);
 
         Store storage s = store();
         s.wrapper[_token] = _token;
@@ -721,9 +742,11 @@ library LedgerLib {
         returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
         (_token, _fromFlags, _toFlags) = transfer(fromParent_, from_, toParent_, to_, amount_);
-        if (isInternal(flags(_token))) revert ILedger.InvalidAddress(_token);
-        if (!isCredit(_fromFlags)) revert ILedger.InvalidSubAccount(from_, true);
-        if (isCredit(_toFlags)) revert ILedger.InvalidSubAccount(to_, false);
+        uint256 _tokenFlags = flags(_token);
+        if (isInternal(_tokenFlags)) revert ILedger.InvalidAddress(_token);
+        if (isCredit(_tokenFlags) == isCredit(_fromFlags) || isCredit(_tokenFlags) == !isCredit(_toFlags)) {
+            revert ILedger.InvalidSubAccount(_token, isCredit(_tokenFlags));
+        }
         if (_token == NATIVE_ADDRESS) {
             if (msg.value != amount_) {
                 revert ILedger.IncorrectAmount(msg.value, amount_);
