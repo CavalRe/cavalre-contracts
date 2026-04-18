@@ -107,7 +107,7 @@ contract ERC20 is Module, Initializable {
 
     function transfer(address to_, uint256 amount_) external returns (bool) {
         emit ILedger.Transfer(msg.sender, to_, amount_);
-        LedgerLib.transfer(address(this), msg.sender, address(this), to_, amount_);
+        ILedger(address(this)).transfer(address(this), msg.sender, address(this), to_, amount_);
         return true;
     }
 
@@ -120,7 +120,7 @@ contract ERC20 is Module, Initializable {
             ERC20Lib.store().allowances[from_][msg.sender] = current_ - amount_;
         }
         emit ILedger.Transfer(from_, to_, amount_);
-        LedgerLib.transfer(address(this), from_, address(this), to_, amount_);
+        ILedger(address(this)).transfer(address(this), from_, address(this), to_, amount_);
         return true;
     }
 

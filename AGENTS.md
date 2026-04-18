@@ -91,14 +91,16 @@ forge clean
 - **Registration**: Roots/subaccounts carry `FLAG_IS_REGISTERED`
 - **Address encoding**: `keccak256(abi.encodePacked(parent, child))` via `LedgerLib.toAddress()`
 
-Special addresses (LedgerLib):
+Special addresses / roots:
 
 - `NATIVE_ADDRESS` - native token (ETH)
-- `SOURCE_ADDRESS` - source/unallocated minting account
+- each root auto-registers a default source leaf whose address is derived from the configured source name
 
 **ERC20Wrapper**: Internal roots are self-wrapped at creation. Native/external roots may optionally get ERC20-compatible wrappers later via `createWrapper`. Wrapper surfaces delegate balance/allowance/transfers to Ledger via Router.
 
-**ERC20 Module**: `modules/ERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `ERC20Lib`.
+**ERC20 Module**: `modules/ERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `ERC20Lib`; transfers route through `Ledger.transfer(...)`.
+
+**Tree Module**: `modules/Tree.sol` owns topology/debug reads (`root`, `parent`, `flags`, `effectiveFlags`, `subAccounts`, `debugTree(s)`) so `Ledger` can stay focused on accounting state and mutations.
 
 ### Storage Pattern
 
@@ -131,7 +133,8 @@ cavalre-contracts/
 │   ├── ERC20.sol         # Canonical-root ERC20 surface
 │   ├── Module.sol        # Abstract base for all modules
 │   ├── Router.sol        # Immutable delegatecall dispatcher
-│   └── Ledger.sol        # Hierarchical accounting + ERC20Wrapper
+│   ├── Ledger.sol        # Hierarchical accounting + ERC20Wrapper
+│   └── Tree.sol          # Topology/debug surface
 ├── libraries/            # Stateless libraries and namespaced storage
 │   ├── ERC20Lib.sol      # Canonical-root ERC20 allowance storage/selectors
 │   ├── FloatLib.sol      # Fixed-point math with dynamic scaling

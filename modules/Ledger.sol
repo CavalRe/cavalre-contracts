@@ -415,26 +415,34 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     // Transfers
     //===========
 
-    function _enforceWrapperCaller(address parent_) private view {
-        if (msg.sender != LedgerLib.wrapper(LedgerLib.root(parent_))) {
-            revert ILedger.Unauthorized(msg.sender);
-        }
-    }
-
     function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         external
         returns (address _root, uint256 _fromFlags, uint256 _toFlags)
     {
-        _enforceWrapperCaller(fromParent_);
-        return LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_);
+        // Resolve roots/flags through core transfer path before enforcing caller policy.
+        (_root, _fromFlags, _toFlags) = LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_);
+        // Wrapper calls must come from the root wrapper; canonical ERC20 may call via address(this).
+        if (msg.sender != LedgerLib.wrapper(_root) && (msg.sender != address(this) || _root != address(this))) {
+            revert ILedger.Unauthorized(msg.sender);
+        }
+        uint256 _rootFlags = LedgerLib.flags(_root);
+        // User-facing transfer surfaces may only spend from the token's canonical polarity.
+        if (LedgerLib.isCredit(_rootFlags) != LedgerLib.isCredit(_fromFlags)) {
+            revert ILedger.InvalidLedgerAccount(fromParent_);
+        }
     }
 
     function transfer(address fromParent_, address toParent_, address to_, uint256 amount_)
         external
         returns (address _root, uint256 _fromFlags, uint256 _toFlags)
     {
-        if (LedgerLib.isCredit(LedgerLib.flags(fromParent_))) revert ILedger.InvalidLedgerAccount(fromParent_);
-        return LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
+        // Direct user transfer uses msg.sender as source leaf under fromParent_.
+        (_root, _fromFlags, _toFlags) = LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
+        uint256 _rootFlags = LedgerLib.flags(_root);
+        // Public transfers must spend from the token's canonical polarity.
+        if (LedgerLib.isCredit(_rootFlags) != LedgerLib.isCredit(_fromFlags)) {
+            revert ILedger.InvalidLedgerAccount(fromParent_);
+        }
     }
 
     function wrap(address token_, uint256 amount_)
@@ -443,6 +451,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         nonReentrant
         returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
+        // Wrap mints from the per-root default source into msg.sender.
         return LedgerLib.wrap(token_, _defaultSourceAddress, token_, msg.sender, amount_);
     }
 
@@ -452,6 +461,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         nonReentrant
         returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
+        // Unwrap burns from msg.sender back into the per-root default source.
         return LedgerLib.unwrap(token_, msg.sender, token_, _defaultSourceAddress, amount_);
     }
 }

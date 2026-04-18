@@ -114,4 +114,29 @@ contract ERC20Test is Test {
         assertTrue(token.forceApprove(bob, 200));
         assertEq(token.allowance(alice, bob), 200);
     }
+
+    function testERC20TransferRejectsCanonicalCreditLeafSender() public {
+        vm.startPrank(alice);
+        minter.mintCanonical(alice, 1000);
+        vm.stopPrank();
+
+        vm.startPrank(source_);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, address(router)));
+        token.transfer(bob, 1);
+        vm.stopPrank();
+    }
+
+    function testERC20TransferFromRejectsCanonicalCreditLeafSender() public {
+        vm.startPrank(alice);
+        minter.mintCanonical(alice, 1000);
+        vm.stopPrank();
+
+        vm.prank(source_);
+        token.approve(bob, 10);
+
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, address(router)));
+        token.transferFrom(source_, charlie, 1);
+        vm.stopPrank();
+    }
 }

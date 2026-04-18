@@ -6,11 +6,12 @@
 
 - token/account metadata (`name`, `symbol`, `decimals`)
 - account tree management (`addSubAccount*`, `removeSubAccount*`)
-- account flags (`isGroup`, `isCredit`, `isInternal`, `isNative`, `isRegistered`)
 - balances + routed transfers
 - wrapper-facing transfer hooks
+- default-source registration per root
 - library-level wrap/unwrap settlement flows
 - canonical-root ERC20 surface via `modules/ERC20.sol`
+- topology/debug surface via `modules/Tree.sol`
 
 ## Key Model
 
@@ -26,9 +27,14 @@
 - native/external roots can be registered first and optionally wrapped later via `createWrapper`
 - canonical root may also be wrapped via `createWrapper` when a separate wrapper surface is desired
 - canonical root ERC20 UX is handled by `modules/ERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `ERC20Lib`
+- every root also auto-registers a default source leaf; its address is derived once from the configured source name during `Ledger` construction and its polarity is opposite the root
 - `effectiveFlags(parent_, addr_)` resolves both absolute address and effective flags for possibly-unregistered derived leaves
 - `transfer(...)` returns the resolved root plus effective from/to flags
-- `wrap(...)` / `unwrap(...)` are exposed on `Ledger` and return the resolved token plus effective from/to flags
+- 5-arg `transfer(...)` is wrapper/canonical-ERC20 plumbing; 4-arg `transfer(...)` is direct user path
+- both transfer paths reject wrong-polarity sources after `LedgerLib.transfer(...)` resolves effective flags
+- `wrap(token_, amount_)` mints from the default source into `msg.sender`
+- `unwrap(token_, amount_)` burns from `msg.sender` back into the default source
+- `LedgerLib.wrap(...)` / `unwrap(...)` only apply to external/native debit roots; credit or internal roots revert
 - tree/root mutators are intended to be idempotent: exact replays return the same result or become no-ops, while conflicting replays revert
 
 ## Storage
@@ -46,7 +52,7 @@ Core fields include:
 Special addresses:
 
 - `NATIVE_ADDRESS`
-- `SOURCE_ADDRESS`
+- per-root default source leaf at `toAddress(defaultSourceName_)`
 
 ## Events
 
@@ -71,6 +77,13 @@ Use Foundry tests under `tests/modules/`:
 forge test --match-path tests/modules/Ledger.t.sol
 forge test --match-path tests/modules/ERC20.t.sol
 forge test --match-path tests/modules/ERC20Wrapper.t.sol
+```
+
+Use `Tree` for visualization/debug:
+
+```solidity
+tree.debugTree(root_);
+tree.debugTrees(roots_);
 ```
 
 For authoritative API details, use generated docs in `docs/api/`.

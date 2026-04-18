@@ -115,15 +115,30 @@ The `Ledger` module owns token-root registration, hierarchical account trees, an
 - native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`
 - canonical root may also be wrapped via `createWrapper(...)` if no `ERC20` module surface is present or a separate wrapper is desired
 - `LedgerLib.wrap(...)` / `LedgerLib.unwrap(...)` depend on registered roots, not wrapper existence
-- external `Ledger.wrap(...)` / `Ledger.unwrap(...)` are owner-gated and return token plus effective from/to flags
+- external `Ledger.wrap(token_, amount_)` / `Ledger.unwrap(token_, amount_)` route through the per-root default source leaf
+- wrap/unwrap are valid only for external/native debit roots; credit or internal roots revert
+- direct/user and wrapper/ERC20 transfer paths both enforce canonical source polarity after `LedgerLib.transfer(...)`
 
 ## Responsibilities
 
 - token metadata by root (`name`, `symbol`, `decimals`)
 - tree management (`addSubAccount*`, `removeSubAccount*`)
-- root discovery / flags / wrapper lookup
+- root registration + per-root default source registration
 - transfer posting and total supply accounting
 - wrap/unwrap settlement logic
+
+# Tree.sol
+
+The `Tree` module owns topology/debug reads for ledger trees.
+
+## Responsibilities
+
+- root / parent / flags / wrapper lookup
+- effective flag resolution for possibly-unregistered leaves
+- child enumeration (`subAccounts`, `hasSubAccount`, `subAccountIndex`)
+- tree visualization via `debugTree(root_)` and `debugTrees(roots_)`
+
+`TreeLib` now reads directly from `LedgerLib`; callers no longer pass a `Ledger` handle into `debugTree(s)`.
 
 # ERC20.sol
 

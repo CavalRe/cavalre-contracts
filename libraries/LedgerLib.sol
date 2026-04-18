@@ -741,10 +741,12 @@ library LedgerLib {
     {
         _token = root(fromParent_);
         uint256 _tokenFlags = flags(_token);
+        // Wrap only applies to external/native debit roots with real asset custody.
         if (isCredit(_tokenFlags) || isInternal(_tokenFlags)) {
             revert ILedger.InvalidLedgerAccount(_token);
         }
         (_token, _fromFlags, _toFlags) = transfer(fromParent_, from_, toParent_, to_, amount_);
+        // Debit-root wrap must move value from credit source into debit holder balance.
         if (!isCredit(_fromFlags)) revert ILedger.InvalidSubAccount(from_);
         if (isCredit(_toFlags)) revert ILedger.InvalidSubAccount(to_);
         if (_token == NATIVE_ADDRESS) {
@@ -766,10 +768,12 @@ library LedgerLib {
         if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
         _token = root(fromParent_);
         uint256 _tokenFlags = flags(_token);
+        // Unwrap only applies to external/native debit roots with real asset custody.
         if (isCredit(_tokenFlags) || isInternal(_tokenFlags)) {
             revert ILedger.InvalidLedgerAccount(_token);
         }
         (_token, _fromFlags, _toFlags) = transfer(fromParent_, from_, toParent_, to_, amount_);
+        // Debit-root unwrap burns from debit holder balance back into credit source.
         if (isCredit(_fromFlags)) revert ILedger.InvalidSubAccount(from_);
         if (!isCredit(_toFlags)) revert ILedger.InvalidSubAccount(to_);
         if (_token == NATIVE_ADDRESS) {

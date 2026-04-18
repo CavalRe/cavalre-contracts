@@ -13,9 +13,11 @@
 
 - runtime address is the Router address via `delegatecall`
 - canonical root must already be registered via `initializeLedger(...)`
-- metadata, balances, total supply, and transfer posting come from `LedgerLib`
+- metadata, balances, and total supply come from `LedgerLib`
+- transfers route through `Ledger.transfer(...)`, not raw `LedgerLib.transfer(...)`
 - allowance state lives in `ERC20Lib`
 - ERC20 events are emitted through `ILedger.Transfer` / `ILedger.Approval`
+- canonical ERC20 transfers therefore inherit the same source-polarity gate as other user-facing transfer paths
 
 ## Relationship To Ledger
 
