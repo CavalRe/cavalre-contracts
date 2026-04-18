@@ -851,6 +851,58 @@ contract LedgerTest is Test {
     //     assertEq(ledger.balanceOf(address(ledger), tokenB), shift - shiftBack, "tokenB after rebalancing");
     // }
 
+    function testLedgerWrapExternalToken() public {
+        uint256 wrapAmount = 120;
+
+        vm.startPrank(alice);
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledger), wrapAmount);
+        ledger.wrap(address(externalToken), wrapAmount);
+        vm.stopPrank();
+
+        assertEq(externalToken.balanceOf(address(router)), wrapAmount, "router holds wrapped tokens");
+        assertEq(externalToken.balanceOf(alice), 0, "alice external balance consumed");
+        assertEq(ledger.debitBalanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
+        assertEq(ledger.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
+    }
+
+    function testLedgerUnwrapExternalToken() public {
+        uint256 wrapAmount = 120;
+        uint256 unwrapAmount = 45;
+
+        vm.startPrank(alice);
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledger), wrapAmount);
+        ledger.wrap(address(externalToken), wrapAmount);
+        ledger.unwrap(address(externalToken), unwrapAmount);
+        vm.stopPrank();
+
+        assertEq(externalToken.balanceOf(address(router)), wrapAmount - unwrapAmount, "router balance after unwrap");
+        assertEq(externalToken.balanceOf(alice), unwrapAmount, "alice external balance after unwrap");
+        assertEq(
+            ledger.debitBalanceOf(address(externalToken), alice),
+            wrapAmount - unwrapAmount,
+            "ledger balance after unwrap"
+        );
+        assertEq(ledger.totalSupply(address(externalToken)), wrapAmount - unwrapAmount, "total supply after unwrap");
+    }
+
+    function testLedgerWrapCreditRootReverts() public {
+        vm.startPrank(alice);
+        (address creditRoot_,) = ledger.createToken("Claim Token", "CLM", 18, true);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, creditRoot_));
+        ledger.wrap(creditRoot_, 1);
+        vm.stopPrank();
+    }
+
+    function testLedgerUnwrapCreditRootReverts() public {
+        vm.startPrank(alice);
+        (address creditRoot_,) = ledger.createToken("Claim Token", "CLM", 18, true);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, creditRoot_));
+        ledger.unwrap(creditRoot_, 1);
+        vm.stopPrank();
+    }
+
     /* TODO: Move to DepositLib
     function testLedgerWrap() public {
         isVerbose = false;

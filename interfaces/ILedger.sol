@@ -109,7 +109,7 @@ interface ILedger {
     error InvalidLedgerAccount(address ledgerAddress);
     error LedgerUninitialized();
     error InvalidString(string symbol);
-    error InvalidSubAccount(address addr, bool isCredit);
+    error InvalidSubAccount(address addr);
     error InvalidSubAccountGroup(string subName, bool isCredit);
     error InvalidSubAccountIndex(uint256 index);
     error InvalidToken(address token, string name, string symbol, uint8 decimals);

@@ -443,12 +443,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         nonReentrant
         returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
-        address _from = _defaultSourceAddress;
-        address _to = msg.sender;
-        if (LedgerLib.isCredit(LedgerLib.flags(token_))) {
-            (_from, _to) = (_to, _from);
-        }
-        return LedgerLib.wrap(token_, _from, token_, _to, amount_);
+        return LedgerLib.wrap(token_, _defaultSourceAddress, token_, msg.sender, amount_);
     }
 
     function unwrap(address token_, uint256 amount_)
