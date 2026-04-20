@@ -48,7 +48,7 @@ library TreeLib {
             abi.encodePacked(
                 LedgerLib.name(c.addr),
                 " (",
-                c.isRoot ? "Supply: " : (LedgerLib.isCredit(c.flags) ? "C: " : "D: "),
+                LedgerLib.isCredit(c.flags) ? "C: " : "D: ",
                 c.balance.toFloat(LedgerLib.decimals(LedgerLib.root(c.addr))).toString(),
                 ")"
             )
