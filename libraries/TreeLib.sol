@@ -37,7 +37,7 @@ library TreeLib {
         c.addr = c.isRoot ? addr_ : LedgerLib.toAddress(parent_, addr_);
         c.flags = LedgerLib.flags(c.addr);
         if (c.isRoot) {
-            c.balance = 0;
+            c.balance = LedgerLib.totalSupply(c.addr);
         } else {
             (, uint256 _flags) = LedgerLib.effectiveFlags(parent_, addr_);
             c.balance = LedgerLib.isCredit(_flags)
@@ -48,7 +48,7 @@ library TreeLib {
             abi.encodePacked(
                 LedgerLib.name(c.addr),
                 " (",
-                LedgerLib.isCredit(c.flags) ? "C: " : "D: ",
+                c.isRoot ? "Supply: " : (LedgerLib.isCredit(c.flags) ? "C: " : "D: "),
                 c.balance.toFloat(LedgerLib.decimals(LedgerLib.root(c.addr))).toString(),
                 ")"
             )
