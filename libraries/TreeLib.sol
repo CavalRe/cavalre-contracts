@@ -24,6 +24,38 @@ library TreeLib {
         address[] subs;
     }
 
+    struct TreeNode {
+        address addr;
+        address parent;
+        address root;
+        string name;
+        string symbol;
+        uint8 decimals;
+        uint256 flags;
+        uint256 balance;
+        address[] subs;
+    }
+
+    function node(address parent_, address addr_) internal view returns (TreeNode memory _node) {
+        bool _isRoot = LedgerLib.isZeroAddress(parent_);
+        _node.addr = _isRoot ? addr_ : LedgerLib.toAddress(parent_, addr_);
+        _node.parent = parent_;
+        _node.root = LedgerLib.root(_node.addr);
+        _node.name = LedgerLib.name(_node.addr);
+        _node.symbol = LedgerLib.symbol(_node.addr);
+        _node.decimals = LedgerLib.decimals(_node.root);
+        _node.flags = LedgerLib.flags(_node.addr);
+        if (_isRoot) {
+            _node.balance = LedgerLib.totalSupply(_node.addr);
+        } else {
+            (, uint256 _flags) = LedgerLib.effectiveFlags(parent_, addr_);
+            _node.balance = LedgerLib.isCredit(_flags)
+                ? LedgerLib.creditBalanceOf(_node.addr)
+                : LedgerLib.debitBalanceOf(_node.addr);
+        }
+        _node.subs = LedgerLib.subAccounts(_node.addr);
+    }
+
     function logTree(
         address parent_,
         address addr_,
