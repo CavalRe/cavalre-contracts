@@ -121,16 +121,15 @@ interface ILedger {
     error ZeroAddress();
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Events (Double-entry journal)
-    // Walks up from (parent, addr) to the root without updating the root.
-    // Emits once on success with (token=root, parent, addr, amount).
-    //  - token  : actual token root (for fast indexing/filtering)
-    //  - parent : fixed parent group of ledger account
-    //  - account: exact ledger account (no children by design)
-    // ─────────────────────────────────────────────────────────────────────────────
-    event BalanceUpdate(address indexed token, address indexed parent, address indexed account, uint256 newBalance);
-    event Credit(address indexed token, address indexed parent, address indexed account, uint256 value);
-    event Debit(address indexed token, address indexed parent, address indexed account, uint256 value);
+    // Events
+    event LedgerTransfer(
+        address indexed token,
+        address indexed debitAccount,
+        address indexed creditAccount,
+        uint256 amount,
+        uint256 debitBalance,
+        uint256 creditBalance
+    );
     event LedgerAdded(address indexed tokenAddress, string name, string symbol, uint8 decimals);
     event SubAccountAdded(address indexed root, address indexed parent, address addr, bool isCredit);
     event SubAccountGroupAdded(address indexed root, address indexed parent, string subName, bool isCredit);

@@ -569,84 +569,6 @@ library LedgerLib {
     //                         Transfers
     //==================================================================
 
-    function debit(address root_, address parent_, address addr_, uint256 amount_) private {
-        if (root_ == address(0)) revert ILedger.ZeroAddress();
-        address _current = toAddress(parent_, addr_);
-        uint256 _currentFlags = flags(_current);
-        if (isGroup(_currentFlags)) revert ILedger.InvalidLedgerAccount(_current);
-        uint256 _parentFlags = flags(parent_);
-        bool _isRegistered = isRegistered(_currentFlags);
-        bool _isCreditSide = _isRegistered ? isCredit(_currentFlags) : isCredit(_parentFlags);
-
-        Store storage s = store();
-        uint256 _balance;
-        address _parent = parent_;
-        while (true) {
-            if (_current != root_ && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
-            if (_isCreditSide) {
-                _balance = s.credits[_current];
-                if (_balance < amount_) {
-                    revert ILedger.InsufficientBalance(root_, parent_, addr_, amount_);
-                }
-                _balance -= amount_;
-                s.credits[_current] = _balance;
-            } else {
-                _balance = s.debits[_current] + amount_;
-                s.debits[_current] = _balance;
-            }
-            if (_current == root_) {
-                // Root found
-                // Emits once after a successful full walk.
-                // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
-                emit ILedger.Debit(root_, parent_, addr_, amount_);
-                emit ILedger.BalanceUpdate(root_, parent_, addr_, _balance);
-                return;
-            }
-            _current = _parent;
-            _parent = parent(_parentFlags);
-            _parentFlags = flags(_parent);
-        }
-    }
-
-    function credit(address root_, address parent_, address addr_, uint256 amount_) private {
-        if (root_ == address(0)) revert ILedger.ZeroAddress();
-        address _current = toAddress(parent_, addr_);
-        uint256 _currentFlags = flags(_current);
-        if (isGroup(_currentFlags)) revert ILedger.InvalidLedgerAccount(_current);
-        uint256 _parentFlags = flags(parent_);
-        bool _isRegistered = isRegistered(_currentFlags);
-        bool _isCreditSide = _isRegistered ? isCredit(_currentFlags) : isCredit(_parentFlags);
-
-        Store storage s = store();
-        uint256 _balance;
-        address _parent = parent_;
-        while (true) {
-            if (_current != root_ && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
-            if (_isCreditSide) {
-                _balance = s.credits[_current] + amount_;
-                s.credits[_current] = _balance;
-            } else {
-                _balance = s.debits[_current];
-                if (_balance < amount_) {
-                    revert ILedger.InsufficientBalance(root_, parent_, addr_, amount_);
-                }
-                _balance -= amount_;
-                s.debits[_current] = _balance;
-            }
-            if (_current == root_) {
-                // Root found
-                // Emits once after a successful full walk.
-                // root = actual token root; (parent_, addr_) = exact leaf address on the tree.
-                emit ILedger.Credit(root_, parent_, addr_, amount_);
-                emit ILedger.BalanceUpdate(root_, parent_, addr_, _balance);
-                return;
-            }
-            _current = _parent;
-            _parent = parent(_parentFlags);
-            _parentFlags = flags(_parent);
-        }
-    }
-
     function _update(
         AccountCache memory acct_,
         address root_,
@@ -723,11 +645,7 @@ library LedgerLib {
             // Once both walks reach the same ancestor on the same side, remaining upward mutations are identical,
             // so no further net balance changes occur above this point. Depth 1 is the root completion case.
             if (_depth == 1 || (from.current == to.current && _isSameSide)) {
-                // Emits once after a successful full walk.
-                emit ILedger.Credit(_root, fromParent_, fromLeaf.current, amount_);
-                emit ILedger.Debit(_root, toParent_, toLeaf.current, amount_);
-                emit ILedger.BalanceUpdate(_root, fromParent_, fromLeaf.current, from.balance);
-                emit ILedger.BalanceUpdate(_root, toParent_, toLeaf.current, to.balance);
+                emit ILedger.LedgerTransfer(_root, toLeaf.current, fromLeaf.current, amount_, to.balance, from.balance);
                 return (_root, fromLeaf.flags, toLeaf.flags);
             }
             _depth--;
