@@ -8,11 +8,12 @@ import {TreeLib} from "../libraries/TreeLib.sol";
 contract Tree is Module {
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](19);
+        _selectors = new bytes4[](20);
         _selectors[n++] = bytes4(keccak256("root(address)"));
         _selectors[n++] = bytes4(keccak256("parent(address)"));
         _selectors[n++] = bytes4(keccak256("flags(address)"));
         _selectors[n++] = bytes4(keccak256("wrapper(address)"));
+        _selectors[n++] = bytes4(keccak256("tree(address)"));
         _selectors[n++] = bytes4(keccak256("treeNode(address)"));
         _selectors[n++] = bytes4(keccak256("treeNode(address,address)"));
         _selectors[n++] = bytes4(keccak256("isGroup(uint256)"));
@@ -29,7 +30,7 @@ contract Tree is Module {
         _selectors[n++] = bytes4(keccak256("debugTree(address)"));
         _selectors[n++] = bytes4(keccak256("debugTrees(address[])"));
 
-        if (n != 19) revert InvalidCommandsLength(n);
+        if (n != 20) revert InvalidCommandsLength(n);
     }
 
     function root(address addr_) external view returns (address) {
@@ -46,6 +47,10 @@ contract Tree is Module {
 
     function wrapper(address token_) external view returns (address) {
         return LedgerLib.wrapper(token_);
+    }
+
+    function tree(address root_) external view returns (TreeLib.TreeNode[] memory) {
+        return TreeLib.tree(root_);
     }
 
     function treeNode(address root_) external view returns (TreeLib.TreeNode memory) {

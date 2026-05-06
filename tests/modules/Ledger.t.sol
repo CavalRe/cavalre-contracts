@@ -297,23 +297,27 @@ contract LedgerTest is Test {
         assertEq(tree.subAccounts(r11).length, 2, "Subaccounts (r11)");
 
         TreeLib.TreeNode memory rootNode_ = tree.treeNode(r1);
-        assertEq(rootNode_.addr, r1, "node root addr");
         assertEq(rootNode_.parent, address(0), "node root parent");
-        assertEq(rootNode_.root, r1, "node root");
+        assertEq(rootNode_.addr, r1, "node root addr");
         assertEq(rootNode_.name, "1", "node root name");
-        assertEq(rootNode_.symbol, "1", "node root symbol");
-        assertEq(rootNode_.decimals, 18, "node root decimals");
-        assertEq(rootNode_.flags, tree.flags(r1), "node root flags");
-        assertEq(rootNode_.subs.length, 3, "node root subs");
+        assertFalse(rootNode_.isCredit, "node root debit");
+        assertEq(rootNode_.debit, 0, "node root debit balance");
+        assertEq(rootNode_.credit, 0, "node root credit balance");
 
         TreeLib.TreeNode memory childNode_ = tree.treeNode(r1, _10);
-        assertEq(childNode_.addr, r10, "node child addr");
         assertEq(childNode_.parent, r1, "node child parent");
-        assertEq(childNode_.root, r1, "node child root");
+        assertEq(childNode_.addr, _10, "node child addr");
         assertEq(childNode_.name, "10", "node child name");
-        assertEq(childNode_.decimals, 18, "node child decimals");
-        assertEq(childNode_.flags, tree.flags(r10), "node child flags");
-        assertEq(childNode_.subs.length, 2, "node child subs");
+        assertFalse(childNode_.isCredit, "node child debit");
+        assertEq(childNode_.debit, 0, "node child debit balance");
+        assertEq(childNode_.credit, 0, "node child credit balance");
+
+        TreeLib.TreeNode[] memory treeNodes_ = tree.tree(r1);
+        assertEq(treeNodes_.length, 8, "tree node count");
+        assertEq(treeNodes_[0].addr, r1, "tree root first");
+        assertEq(treeNodes_[0].parent, address(0), "tree root parent");
+        assertEq(treeNodes_[2].addr, _10, "tree preorder child");
+        assertEq(treeNodes_[2].parent, r1, "tree preorder child parent");
 
         assertEq(tree.subAccountIndex(r1, _10), 2, "idx(r10)");
         assertEq(tree.subAccountIndex(r1, _11), 3, "idx(r11)");
