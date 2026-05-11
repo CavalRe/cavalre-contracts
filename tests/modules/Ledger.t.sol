@@ -30,7 +30,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](29);
+        _selectors = new bytes4[](30);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -62,9 +62,10 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrapThenUnwrap(address,uint256,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("wrapThenWrap(address,uint256,address,uint256)"));
         // TODO: Move to DepositLib
         // _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 29) revert InvalidCommandsLength(n);
+        if (n != 30) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -112,6 +113,14 @@ contract TestLedger is Ledger {
     {
         LedgerLib.wrap(payToken_, _defaultSourceAddress, payToken_, msg.sender, payAmount_);
         LedgerLib.unwrap(recToken_, msg.sender, recToken_, _defaultSourceAddress, recAmount_);
+    }
+
+    function wrapThenWrap(address nativeToken_, uint256 nativeAmount_, address externalToken_, uint256 externalAmount_)
+        external
+        payable
+    {
+        LedgerLib.wrap(nativeToken_, _defaultSourceAddress, nativeToken_, msg.sender, nativeAmount_);
+        LedgerLib.wrap(externalToken_, _defaultSourceAddress, externalToken_, msg.sender, externalAmount_);
     }
 
     // TODO: Move to DepositLib
@@ -898,6 +907,18 @@ contract LedgerTest is Test {
         assertEq(ledger.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
     }
 
+    function testLedgerWrapExternalTokenRejectsDirectValue() public {
+        uint256 wrapAmount = 120;
+
+        vm.startPrank(alice);
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledger), wrapAmount);
+        vm.deal(alice, 1 ether);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
+        ledger.wrap{value: 1}(address(externalToken), wrapAmount);
+        vm.stopPrank();
+    }
+
     function testLedgerUnwrapExternalToken() public {
         uint256 wrapAmount = 120;
         uint256 unwrapAmount = 45;
@@ -952,6 +973,24 @@ contract LedgerTest is Test {
         assertEq(externalToken.balanceOf(address(router)), 0, "router external balance after unwrap");
         assertEq(ledger.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
         assertEq(ledger.debitBalanceOf(address(externalToken), alice), 0, "external ledger balance after unwrap");
+    }
+
+    function testLedgerWrapExternalTokenAfterNativeWrapAllowsCallValue() public {
+        uint256 nativeWrapAmount = 1 ether;
+        uint256 externalWrapAmount = 45;
+
+        vm.startPrank(alice);
+        externalToken.mint(alice, externalWrapAmount);
+        externalToken.approve(address(ledger), externalWrapAmount);
+        vm.deal(alice, nativeWrapAmount);
+        ledger.addNativeToken();
+        ledger.wrapThenWrap{value: nativeWrapAmount}(native, nativeWrapAmount, address(externalToken), externalWrapAmount);
+        vm.stopPrank();
+
+        assertEq(externalToken.balanceOf(alice), 0, "alice external balance after wrap");
+        assertEq(externalToken.balanceOf(address(router)), externalWrapAmount, "router external balance after wrap");
+        assertEq(ledger.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
+        assertEq(ledger.debitBalanceOf(address(externalToken), alice), externalWrapAmount, "external ledger balance after wrap");
     }
 
     function testLedgerWrapCreditRootReverts() public {

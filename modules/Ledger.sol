@@ -451,6 +451,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         nonReentrant
         returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
+        if (token_ != LedgerLib.NATIVE_ADDRESS && msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
         // Wrap mints from the per-root default source into msg.sender.
         return LedgerLib.wrap(token_, _defaultSourceAddress, token_, msg.sender, amount_);
     }
