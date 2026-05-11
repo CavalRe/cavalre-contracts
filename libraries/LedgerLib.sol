@@ -683,7 +683,6 @@ library LedgerLib {
         internal
         returns (address _token, uint256 _fromFlags, uint256 _toFlags)
     {
-        if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
         _token = root(fromParent_);
         uint256 _tokenFlags = flags(_token);
         // Unwrap only applies to external/native debit roots with real asset custody.

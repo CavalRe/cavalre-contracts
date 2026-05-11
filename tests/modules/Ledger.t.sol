@@ -30,7 +30,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](28);
+        _selectors = new bytes4[](29);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -61,9 +61,10 @@ contract TestLedger is Ledger {
         // Extra test-exposing commands
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("wrapThenUnwrap(address,uint256,address,uint256)"));
         // TODO: Move to DepositLib
         // _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 28) revert InvalidCommandsLength(n);
+        if (n != 29) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -103,6 +104,14 @@ contract TestLedger is Ledger {
                 ERC20Wrapper(_wrapper).burn(from_, amount_);
             }
         }
+    }
+
+    function wrapThenUnwrap(address payToken_, uint256 payAmount_, address recToken_, uint256 recAmount_)
+        external
+        payable
+    {
+        LedgerLib.wrap(payToken_, _defaultSourceAddress, payToken_, msg.sender, payAmount_);
+        LedgerLib.unwrap(recToken_, msg.sender, recToken_, _defaultSourceAddress, recAmount_);
     }
 
     // TODO: Move to DepositLib
@@ -908,6 +917,41 @@ contract LedgerTest is Test {
             "ledger balance after unwrap"
         );
         assertEq(ledger.totalSupply(address(externalToken)), wrapAmount - unwrapAmount, "total supply after unwrap");
+    }
+
+    function testLedgerUnwrapExternalTokenRejectsDirectValue() public {
+        uint256 wrapAmount = 120;
+        uint256 unwrapAmount = 45;
+
+        vm.startPrank(alice);
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledger), wrapAmount);
+        ledger.wrap(address(externalToken), wrapAmount);
+        vm.deal(alice, 1 ether);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
+        ledger.unwrap{value: 1}(address(externalToken), unwrapAmount);
+        vm.stopPrank();
+    }
+
+    function testLedgerUnwrapExternalTokenAfterNativeWrapAllowsCallValue() public {
+        uint256 nativeWrapAmount = 1 ether;
+        uint256 externalUnwrapAmount = 45;
+
+        vm.startPrank(alice);
+        externalToken.mint(alice, externalUnwrapAmount);
+        externalToken.approve(address(ledger), externalUnwrapAmount);
+        ledger.wrap(address(externalToken), externalUnwrapAmount);
+        vm.deal(alice, nativeWrapAmount);
+        ledger.addNativeToken();
+        ledger.wrapThenUnwrap{value: nativeWrapAmount}(
+            native, nativeWrapAmount, address(externalToken), externalUnwrapAmount
+        );
+        vm.stopPrank();
+
+        assertEq(externalToken.balanceOf(alice), externalUnwrapAmount, "alice external balance after unwrap");
+        assertEq(externalToken.balanceOf(address(router)), 0, "router external balance after unwrap");
+        assertEq(ledger.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
+        assertEq(ledger.debitBalanceOf(address(externalToken), alice), 0, "external ledger balance after unwrap");
     }
 
     function testLedgerWrapCreditRootReverts() public {
