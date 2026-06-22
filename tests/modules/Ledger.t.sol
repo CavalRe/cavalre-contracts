@@ -25,12 +25,14 @@ contract TestLedger is Ledger {
     string internal constant LEDGER_SYMBOL = "LEDGER";
     string internal constant DEFAULT_SOURCE_NAME = "Source";
 
-    constructor(uint8 decimals_) Ledger(decimals_, "Ethereum", "ETH", DEFAULT_SOURCE_NAME) {}
+    constructor(uint8 decimals_, uint8 nativeDecimals_)
+        Ledger(decimals_, "Ethereum", "ETH", nativeDecimals_, DEFAULT_SOURCE_NAME)
+    {}
 
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](34);
+        _selectors = new bytes4[](35);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -51,6 +53,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("decimals(address)"));
         _selectors[n++] = bytes4(keccak256("nativeName()"));
         _selectors[n++] = bytes4(keccak256("nativeSymbol()"));
+        _selectors[n++] = bytes4(keccak256("nativeDecimals()"));
         _selectors[n++] = bytes4(keccak256("debitBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("creditBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
@@ -69,7 +72,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("wrapThenWrap(address,uint256,address,uint256)"));
         // TODO: Move to DepositLib
         // _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 34) revert InvalidCommandsLength(n);
+        if (n != 35) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -238,7 +241,7 @@ contract LedgerTest is Test {
 
         vm.startPrank(alice);
         if (isVerbose) console.log("Deploying TestLedger");
-        ledger = new TestLedger(18);
+        ledger = new TestLedger(18, 18);
         Tree treeImpl = new Tree();
         if (isVerbose) console.log("Deploying Router");
         router = new Router(alice);
@@ -373,6 +376,7 @@ contract LedgerTest is Test {
         assertEq(tree.root(native), native, "root native");
         assertEq(ledger.name(native), "Ethereum", "name");
         assertEq(ledger.symbol(native), "ETH", "symbol");
+        assertEq(ledger.nativeDecimals(), 18, "native decimals");
         assertEq(ledger.decimals(native), 18, "decimals");
         uint256 nativeFlags_ = tree.flags(native);
         assertEq(
@@ -382,6 +386,21 @@ contract LedgerTest is Test {
         assertTrue(tree.wrapper(native) != address(0), "wrapper set");
         assertFalse(tree.isInternal(nativeFlags_), "native not internal");
         assertFalse(tree.isExternal(nativeFlags_), "native not external");
+    }
+
+    function testLedgerAddNativeTokenUsesConfiguredNativeDecimals() public {
+        TestLedger ledgerImpl_ = new TestLedger(18, 6);
+        Tree treeImpl_ = new Tree();
+        Router router_ = new Router(alice);
+        router_.addModule(address(ledgerImpl_));
+        router_.addModule(address(treeImpl_));
+
+        TestLedger ledger_ = TestLedger(payable(address(router_)));
+        ledger_.initializeTestLedger();
+        ledger_.addNativeToken();
+
+        assertEq(ledger_.nativeDecimals(), 6, "native decimals");
+        assertEq(ledger_.decimals(native), 6, "registered native decimals");
     }
 
     function testLedgerCreateWrapperCanonicalRootIsIdempotent() public {

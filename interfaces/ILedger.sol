@@ -20,6 +20,8 @@ interface ILedger {
 
     function nativeSymbol() external view returns (string memory);
 
+    function nativeDecimals() external view returns (uint8);
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Tree Manipulation
     // ─────────────────────────────────────────────────────────────────────────────

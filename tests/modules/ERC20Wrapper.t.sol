@@ -32,7 +32,7 @@ contract ERC20WrapperTest is Test {
 
         // Deploy Ledger impl, register in Router, then speak to it at Router address
         if (isVerbose) console.log("Deploying Ledger impl");
-        TestLedger impl = new TestLedger(18);
+        TestLedger impl = new TestLedger(18, 18);
         Tree treeImpl = new Tree();
         if (isVerbose) console.log("Deploying Router");
         router = new Router(owner);

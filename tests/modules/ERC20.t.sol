@@ -12,6 +12,7 @@ import {LedgerLib} from "../../libraries/LedgerLib.sol";
 
 contract MintModule is Module {
     string internal constant DEFAULT_SOURCE_NAME = "Source";
+
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](1);
         _selectors[0] = bytes4(keccak256("mintCanonical(address,uint256)"));
@@ -40,7 +41,7 @@ contract ERC20Test is Test {
     function setUp() public {
         vm.startPrank(alice);
 
-        ledgers = new Ledger(18, "Ethereum", "ETH", DEFAULT_SOURCE_NAME);
+        ledgers = new Ledger(18, "Ethereum", "ETH", 18, DEFAULT_SOURCE_NAME);
         token = new ERC20();
         minter = new MintModule();
         router = new Router(alice);

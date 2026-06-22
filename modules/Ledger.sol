@@ -191,6 +191,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         uint8 decimals_,
         string memory nativeName_,
         string memory nativeSymbol_,
+        uint8 nativeDecimals_,
         string memory defaultSourceName_
     ) {
         _decimals = decimals_;
@@ -201,6 +202,9 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         bytes memory nativeSymbolRaw_ = bytes(nativeSymbol_);
         if (nativeSymbolRaw_.length == 0 || nativeSymbolRaw_.length > 31) revert ILedger.InvalidString(nativeSymbol_);
         _nativeSymbol = nativeSymbol_.toShortString();
+
+        if (nativeDecimals_ == 0) revert ILedger.InvalidDecimals(nativeDecimals_);
+        _nativeDecimals = nativeDecimals_;
 
         bytes memory defaultSourceNameRaw_ = bytes(defaultSourceName_);
         if (defaultSourceNameRaw_.length == 0 || defaultSourceNameRaw_.length > 31) {
@@ -215,6 +219,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
     ShortString internal immutable _defaultSourceName;
     ShortString internal immutable _nativeName;
     ShortString internal immutable _nativeSymbol;
+    uint8 internal immutable _nativeDecimals;
     bytes32 private constant REENTRANCY_GUARD_STORAGE = keccak256(
         abi.encode(uint256(keccak256("cavalre.storage.Ledger.ReentrancyGuard")) - 1)
     ) & ~bytes32(uint256(0xff));
@@ -232,7 +237,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](29);
+        _selectors = new bytes4[](30);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
@@ -252,6 +257,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("decimals(address)"));
         _selectors[n++] = bytes4(keccak256("nativeName()"));
         _selectors[n++] = bytes4(keccak256("nativeSymbol()"));
+        _selectors[n++] = bytes4(keccak256("nativeDecimals()"));
         _selectors[n++] = bytes4(keccak256("debitBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("creditBalanceOf(address,address)"));
         _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
@@ -263,7 +269,7 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
 
-        if (n != 29) revert InvalidCommandsLength(n);
+        if (n != 30) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
@@ -402,6 +408,10 @@ contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
 
     function nativeSymbol() external view returns (string memory) {
         return ShortStrings.toString(_nativeSymbol);
+    }
+
+    function nativeDecimals() external view returns (uint8) {
+        return _nativeDecimals;
     }
 
     //=========================

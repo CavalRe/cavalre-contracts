@@ -464,7 +464,7 @@ library LedgerLib {
             LedgerLib.NATIVE_ADDRESS,
             ILedger(address(this)).nativeName(),
             ILedger(address(this)).nativeSymbol(),
-            18,
+            ILedger(address(this)).nativeDecimals(),
             TokenKind.Native,
             address(0),
             defaultSourceAddress_,
