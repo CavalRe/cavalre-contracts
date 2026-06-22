@@ -78,6 +78,10 @@ library LedgerLib {
         if (!isValidString(str_)) revert ILedger.InvalidString(str_);
     }
 
+    function enforceNativeValue(uint256 expected_) internal view {
+        if (msg.value != expected_) revert ILedger.IncorrectAmount(msg.value, expected_);
+    }
+
     // Transfers can only occur within the same tree
     function checkRoots(address a_, address b_) internal view returns (address) {
         address rootA = root(a_);

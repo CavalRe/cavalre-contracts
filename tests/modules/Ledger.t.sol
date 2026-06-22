@@ -30,7 +30,7 @@ contract TestLedger is Ledger {
     // Keep command registry so Router can “register” the module (if you use it)
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](33);
+        _selectors = new bytes4[](34);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -64,11 +64,12 @@ contract TestLedger is Ledger {
         // Extra test-exposing commands
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("enforceNativeValue(uint256)"));
         _selectors[n++] = bytes4(keccak256("wrapThenUnwrap(address,uint256,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrapThenWrap(address,uint256,address,uint256)"));
         // TODO: Move to DepositLib
         // _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 33) revert InvalidCommandsLength(n);
+        if (n != 34) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -108,6 +109,10 @@ contract TestLedger is Ledger {
                 ERC20Wrapper(_wrapper).burn(from_, amount_);
             }
         }
+    }
+
+    function enforceNativeValue(uint256 expected_) external payable {
+        LedgerLib.enforceNativeValue(expected_);
     }
 
     function wrapThenUnwrap(address payToken_, uint256 payAmount_, address recToken_, uint256 recAmount_)
@@ -962,6 +967,16 @@ contract LedgerTest is Test {
         vm.deal(alice, 1 ether);
         vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
         ledger.wrap{value: 1}(address(externalToken), wrapAmount);
+        vm.stopPrank();
+    }
+
+    function testLedgerEnforceNativeValue() public {
+        vm.deal(alice, 5 ether);
+
+        vm.startPrank(alice);
+        ledger.enforceNativeValue{value: 2 ether}(2 ether);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1 ether, 2 ether));
+        ledger.enforceNativeValue{value: 1 ether}(2 ether);
         vm.stopPrank();
     }
 
