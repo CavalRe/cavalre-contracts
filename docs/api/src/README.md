@@ -10,7 +10,8 @@ cavalre-contracts/
 │   ├── ERC20.sol
 │   ├── Module.sol
 │   ├── Router.sol
-│   └── Ledger.sol
+│   ├── Ledger.sol
+│   └── Tree.sol
 ├── libraries/
 │   ├── ERC20Lib.sol
 │   ├── FloatLib.sol
@@ -42,18 +43,23 @@ cavalre-contracts/
 
 - **Module.sol**: Abstract base contract that all modules inherit, defining the shared interface and access to storage.
 - **Router.sol**: The immutable entrypoint that delegates calls to upgradeable modules via `delegatecall`.
-- **Ledger.sol**: A hierarchical double-entry accounting system with a canonical root at `address(this)` plus additional token roots registered in the same contract.
+- **Ledger.sol**: Hierarchical double-entry accounting, token-root registration, claim-token registration, transfer routing, and external/native wrap settlement.
 - **ERC20.sol**: Optional canonical-root ERC20 surface layered over `LedgerLib` state via the Router.
+- **Tree.sol**: Topology/debug surface for account-tree introspection and `debugTree(s)`.
 - **FloatLib.sol**: A custom fixed-point math library for precision arithmetic with dynamic scaling.
 
 ## Ledger Model
 
 - Canonical root is always registered during `initializeLedger(...)`.
-- Internal roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
+- All registered roots are debit groups.
+- Root token kind is encoded as `Native`, `External`, `Internal`, or `Claim`.
+- Internal and claim roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
 - Native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`.
-- Internal root creation is deterministic and idempotent: the same `(name, symbol, decimals)` maps to the same root.
+- Internal root creation uses `createInternalToken(...)` and is deterministic/idempotent: the same `(name, symbol, decimals)` maps to the same root.
+- Claim root creation uses `createClaimToken(...)`; each claim root references one registered non-claim Ledger leaf account and is deterministic by `(name, symbol, decimals, claimAccount)`.
 - Canonical-root ERC20 exposure is optional and provided by `modules/ERC20.sol`.
-- Account/root flags include `isGroup`, `isCredit`, `isInternal`, `isNative`, and `isRegistered`.
+- Each root auto-registers a default source leaf derived from the configured source name.
+- Account flags are decoded through `LedgerLib.AccountKind` and `LedgerLib.TokenKind`; use helpers such as `isGroup`, `isLedger`, `isCredit`, `isInternal`, `isNative`, `isExternal`, `isClaim`, and `isRegistered`.
 
 ## Installation
 

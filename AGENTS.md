@@ -85,18 +85,20 @@ forge clean
 `modules/Ledger.sol` - Hierarchical double-entry accounting:
 
 - **Account hierarchy**: Tree structure, parent-child via `LedgerLib.Store`
-- **Debit vs Credit**: Flagged via FLAG_IS_CREDIT
+- **Debit vs Credit**: Encoded in `LedgerLib.AccountKind`
 - **Group vs Leaf**: Groups (containers) or leaves (actual balances)
-- **Internal vs External**: Internal (created) or external (wrapped ERC20s)
-- **Registration**: Roots/subaccounts carry `FLAG_IS_REGISTERED`
-- **Address encoding**: `keccak256(abi.encodePacked(parent, child))` via `LedgerLib.toAddress()`
+- **Token kind**: Root type encoded in `LedgerLib.TokenKind` (`Native`, `External`, `Internal`, `Claim`)
+- **Registration**: Registered accounts have non-`Unregistered` `AccountKind`
+- **Address encoding**: Absolute account = `keccak256(abi.encodePacked(parentAbsolute, childRelative))` via `LedgerLib.toAddress()`
 
 Special addresses / roots:
 
 - `NATIVE_ADDRESS` - native token (ETH)
+- all registered roots are debit groups
 - each root auto-registers a default source leaf whose address is derived from the configured source name
+- claim-token roots store the referenced absolute claim account in the packed root address slot
 
-**ERC20Wrapper**: Internal roots are self-wrapped at creation. Native/external roots may optionally get ERC20-compatible wrappers later via `createWrapper`. Wrapper surfaces delegate balance/allowance/transfers to Ledger via Router.
+**ERC20Wrapper**: Internal and claim roots are self-wrapped at creation. Native/external roots may optionally get ERC20-compatible wrappers later via `createWrapper`. Wrapper surfaces delegate balance/allowance/transfers to Ledger via Router.
 
 **ERC20 Module**: `modules/ERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `ERC20Lib`; transfers route through `Ledger.transfer(...)`.
 

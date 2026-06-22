@@ -1,5 +1,5 @@
 # ERC20Wrapper
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/3a4fcfc9619f01f0afd3feb42acd82ec72eed095/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/modules/Ledger.sol)
 
 
 ## State Variables
@@ -14,6 +14,13 @@ address private immutable _router
 
 ```solidity
 address private immutable _token
+```
+
+
+### _isCredit
+
+```solidity
+bool private immutable _isCredit
 ```
 
 
@@ -50,7 +57,14 @@ mapping(address => mapping(address => uint256)) private _allowances
 
 
 ```solidity
-constructor(address router_, address token_, string memory name_, string memory symbol_, uint8 decimals_) ;
+constructor(
+    address router_,
+    address token_,
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_,
+    bool isCredit_
+) ;
 ```
 
 ### routerOnly
@@ -93,6 +107,13 @@ function router() public view returns (address);
 
 ```solidity
 function token() public view returns (address);
+```
+
+### isCredit
+
+
+```solidity
+function isCredit() public view returns (bool);
 ```
 
 ### totalSupply

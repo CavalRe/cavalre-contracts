@@ -1,8 +1,16 @@
 # MintModule
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/3a4fcfc9619f01f0afd3feb42acd82ec72eed095/tests/modules/ERC20.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/tests/modules/ERC20.t.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md)
+
+
+## State Variables
+### DEFAULT_SOURCE_NAME
+
+```solidity
+string internal constant DEFAULT_SOURCE_NAME = "Source"
+```
 
 
 ## Functions

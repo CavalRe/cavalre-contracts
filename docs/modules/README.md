@@ -111,12 +111,14 @@ The `Ledger` module owns token-root registration, hierarchical account trees, an
 
 - canonical root is always registered at `address(this)` during `initializeLedger(...)`
 - internal roots are self-wrapped at creation, so the returned root address is immediately an ERC20 surface
-- internal root creation happens through `createToken(...)` and is deterministic/idempotent by `(name, symbol, decimals)`
+- claim roots are also self-wrapped at creation and reference one registered non-claim Ledger leaf account
+- internal root creation happens through `createInternalToken(...)` and is deterministic/idempotent by `(name, symbol, decimals)`
+- claim root creation happens through `createClaimToken(...)` and is deterministic/idempotent by `(name, symbol, decimals, claimAccount)`
 - native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`
 - canonical root may also be wrapped via `createWrapper(...)` if no `ERC20` module surface is present or a separate wrapper is desired
 - `LedgerLib.wrap(...)` / `LedgerLib.unwrap(...)` depend on registered roots, not wrapper existence
 - external `Ledger.wrap(token_, amount_)` / `Ledger.unwrap(token_, amount_)` route through the per-root default source leaf
-- wrap/unwrap are valid only for external/native debit roots; credit or internal roots revert
+- wrap/unwrap are valid only for external/native debit roots; internal and claim roots revert
 - direct/user and wrapper/ERC20 transfer paths both enforce canonical source polarity after `LedgerLib.transfer(...)`
 
 ## Responsibilities
@@ -124,6 +126,7 @@ The `Ledger` module owns token-root registration, hierarchical account trees, an
 - token metadata by root (`name`, `symbol`, `decimals`)
 - tree management (`addSubAccount*`, `removeSubAccount*`)
 - root registration + per-root default source registration
+- claim-token reference registration
 - transfer posting and total supply accounting
 - wrap/unwrap settlement logic
 
@@ -134,6 +137,7 @@ The `Tree` module owns topology/debug reads for ledger trees.
 ## Responsibilities
 
 - root / parent / flags / wrapper lookup
+- enum flag decoding (`AccountKind`, `TokenKind`, packed address, claim account)
 - effective flag resolution for possibly-unregistered leaves
 - child enumeration (`subAccounts`, `hasSubAccount`, `subAccountIndex`)
 - tree visualization via `debugTree(root_)` and `debugTrees(roots_)`
@@ -154,4 +158,5 @@ The `ERC20` module is the optional ERC20 surface for the canonical root.
 ## Further Reading
 
 - [Ledger Notes](Ledgers.md)
+- [Claim Token Notes](ClaimTokens.md)
 - [ERC20 Notes](ERC20.md)

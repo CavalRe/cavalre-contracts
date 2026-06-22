@@ -45,7 +45,11 @@ interface ILedger {
 
     function addExternalToken(address token) external returns (uint256 flags);
 
-    function createToken(string memory name, string memory symbol, uint8 decimals, bool isCredit)
+    function createInternalToken(string memory name, string memory symbol, uint8 decimals)
+        external
+        returns (address token, uint256 flags);
+
+    function createClaimToken(string memory name, string memory symbol, uint8 decimals, address parent, address addr)
         external
         returns (address token, uint256 flags);
 
@@ -69,6 +73,10 @@ interface ILedger {
     function balanceOf(address parent, address owner) external view returns (uint256);
 
     function totalSupply(address token) external view returns (uint256);
+
+    function isClaim(address token) external view returns (bool);
+
+    function claimAccountOf(address token) external view returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)

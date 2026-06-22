@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/3a4fcfc9619f01f0afd3feb42acd82ec72eed095/libraries/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/libraries/LedgerLib.sol)
 
 
 ## State Variables
@@ -18,45 +18,31 @@ address internal constant NATIVE_ADDRESS = 0xE0092BfAe8c1A1d8CB953ed67bd42A4861E
 ```
 
 
-### SOURCE_ADDRESS
+### ACCOUNT_KIND_SHIFT
 
 ```solidity
-address internal constant SOURCE_ADDRESS = 0x245f14e61ecde591FD8B445DC8e2bF76da4505E6
+uint256 constant ACCOUNT_KIND_SHIFT = 0
 ```
 
 
-### FLAG_IS_GROUP
+### ACCOUNT_KIND_MASK
 
 ```solidity
-uint256 constant FLAG_IS_GROUP = 1 << 0
+uint256 constant ACCOUNT_KIND_MASK = uint256(0x07) << ACCOUNT_KIND_SHIFT
 ```
 
 
-### FLAG_IS_CREDIT
+### TOKEN_KIND_SHIFT
 
 ```solidity
-uint256 constant FLAG_IS_CREDIT = 1 << 1
+uint256 constant TOKEN_KIND_SHIFT = 3
 ```
 
 
-### FLAG_IS_INTERNAL
+### TOKEN_KIND_MASK
 
 ```solidity
-uint256 constant FLAG_IS_INTERNAL = 1 << 2
-```
-
-
-### FLAG_IS_NATIVE
-
-```solidity
-uint256 constant FLAG_IS_NATIVE = 1 << 3
-```
-
-
-### FLAG_IS_REGISTERED
-
-```solidity
-uint256 constant FLAG_IS_REGISTERED = 1 << 4
+uint256 constant TOKEN_KIND_MASK = uint256(0x07) << TOKEN_KIND_SHIFT
 ```
 
 
@@ -128,15 +114,10 @@ function checkRoots(address a_, address b_) internal view returns (address);
 
 
 ```solidity
-function flags(
-    address parent_,
-    bool isGroup_,
-    bool isCredit_,
-    bool isInternal_,
-    bool isNative_,
-    bool isRegistered_,
-    uint8 depth_
-) internal pure returns (uint256 _flags);
+function flags(address packedAddress_, AccountKind accountKind_, TokenKind tokenKind_, uint8 depth_)
+    internal
+    pure
+    returns (uint256 _flags);
 ```
 
 ### flags
@@ -144,6 +125,27 @@ function flags(
 
 ```solidity
 function flags(address addr_) internal view returns (uint256);
+```
+
+### accountKind
+
+
+```solidity
+function accountKind(uint256 flags_) internal pure returns (AccountKind);
+```
+
+### tokenKind
+
+
+```solidity
+function tokenKind(uint256 flags_) internal pure returns (TokenKind);
+```
+
+### packedAddress
+
+
+```solidity
+function packedAddress(uint256 flags_) internal pure returns (address);
 ```
 
 ### parent
@@ -158,6 +160,13 @@ function parent(uint256 flags_) internal pure returns (address);
 
 ```solidity
 function isGroup(uint256 flags_) internal pure returns (bool);
+```
+
+### isLedger
+
+
+```solidity
+function isLedger(uint256 flags_) internal pure returns (bool);
 ```
 
 ### isCredit
@@ -214,6 +223,37 @@ function isExternal(uint256 flags_) internal pure returns (bool);
 
 ```solidity
 function isRoot(uint256 flags_) internal pure returns (bool);
+```
+
+### isClaim
+
+
+```solidity
+function isClaim(uint256 flags_) internal pure returns (bool);
+```
+
+### claimAccount
+
+
+```solidity
+function claimAccount(uint256 flags_) internal pure returns (address);
+```
+
+### claimAccount
+
+
+```solidity
+function claimAccount(address token_) internal view returns (address);
+```
+
+### checkClaimAccount
+
+
+```solidity
+function checkClaimAccount(address token_, address parent_, address addr_)
+    internal
+    view
+    returns (address _claimAccount);
 ```
 
 ### toAddress
@@ -342,6 +382,13 @@ function debitBalanceOf(address addr_) internal view returns (uint256);
 function creditBalanceOf(address addr_) internal view returns (uint256);
 ```
 
+### balanceOf
+
+
+```solidity
+function balanceOf(address addr_, bool isCredit_) internal view returns (uint256 _balance);
+```
+
 ### totalSupply
 
 
@@ -389,32 +436,75 @@ function addSubAccount(address parent_, address addr_, string memory name_, bool
 
 
 ```solidity
-function addLedger(address root_, string memory name_, string memory symbol_, uint8 decimals_, bool isInternal_)
-    internal
-    returns (uint256 _flags);
+function addLedger(
+    address root_,
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_,
+    TokenKind tokenKind_,
+    address packedAddress_,
+    address defaultSourceAddress_,
+    string memory defaultSourceName_
+) internal returns (uint256 _flags);
 ```
 
 ### addNativeToken
 
 
 ```solidity
-function addNativeToken() internal returns (uint256 _flags);
+function addNativeToken(address defaultSourceAddress_, string memory defaultSourceName_)
+    internal
+    returns (uint256 _flags);
 ```
 
 ### addExternalToken
 
 
 ```solidity
-function addExternalToken(address token_) internal returns (uint256 _flags);
+function addExternalToken(address token_, address defaultSourceAddress_, string memory defaultSourceName_)
+    internal
+    returns (uint256 _flags);
 ```
 
-### createToken
+### createInternalToken
 
 
 ```solidity
-function createToken(string memory name_, string memory symbol_, uint8 decimals_)
-    internal
-    returns (address _token, uint256 _flags);
+function createInternalToken(
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_,
+    address defaultSourceAddress_,
+    string memory defaultSourceName_
+) internal returns (address _token, uint256 _flags);
+```
+
+### addClaimToken
+
+
+```solidity
+function addClaimToken(
+    address token_,
+    address parent_,
+    address addr_,
+    address defaultSourceAddress_,
+    string memory defaultSourceName_
+) internal returns (uint256 _flags);
+```
+
+### createClaimToken
+
+
+```solidity
+function createClaimToken(
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_,
+    address parent_,
+    address addr_,
+    address defaultSourceAddress_,
+    string memory defaultSourceName_
+) internal returns (address _token, uint256 _flags);
 ```
 
 ### createWrapper
@@ -450,20 +540,6 @@ function removeSubAccount(address parent_, string memory name_) internal returns
 
 ```solidity
 function removeSubAccount(address parent_, address addr_) internal returns (address);
-```
-
-### debit
-
-
-```solidity
-function debit(address root_, address parent_, address addr_, uint256 amount_) internal;
-```
-
-### credit
-
-
-```solidity
-function credit(address root_, address parent_, address addr_, uint256 amount_) internal;
 ```
 
 ### _update
@@ -531,6 +607,31 @@ struct AccountCache {
     uint256 balance;
     address current;
     uint256 flags;
+}
+```
+
+## Enums
+### AccountKind
+
+```solidity
+enum AccountKind {
+    Unregistered,
+    DebitGroup,
+    CreditGroup,
+    DebitLedger,
+    CreditLedger
+}
+```
+
+### TokenKind
+
+```solidity
+enum TokenKind {
+    Unregistered,
+    Native,
+    External,
+    Internal,
+    Claim
 }
 ```
 

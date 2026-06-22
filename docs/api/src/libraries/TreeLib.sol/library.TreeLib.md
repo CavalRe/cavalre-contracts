@@ -1,27 +1,58 @@
 # TreeLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/3a4fcfc9619f01f0afd3feb42acd82ec72eed095/libraries/TreeLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/libraries/TreeLib.sol)
 
 
 ## Functions
+### node
+
+
+```solidity
+function node(address parent_, address addr_) internal view returns (TreeNode memory _node);
+```
+
+### tree
+
+
+```solidity
+function tree(address root_) internal view returns (TreeNode[] memory _nodes);
+```
+
+### count
+
+
+```solidity
+function count(address addr_) internal view returns (uint256 _count);
+```
+
+### fill
+
+
+```solidity
+function fill(address parent_, address addr_, TreeNode[] memory nodes_, uint256 n_)
+    internal
+    view
+    returns (uint256 _n);
+```
+
 ### logTree
 
 
 ```solidity
-function logTree(
-    Ledger ledgers_,
-    address parent_,
-    address addr_,
-    string memory prefix_,
-    bool isFirst_,
-    bool isLast_
-) internal view;
+function logTree(address parent_, address addr_, string memory prefix_, bool isFirst_, bool isLast_) internal view;
 ```
 
 ### debugTree
 
 
 ```solidity
-function debugTree(Ledger ledgers, address root) internal view;
+function debugTree(address root_) internal view;
+```
+
+### debugTrees
+
+
+```solidity
+function debugTrees(address[] memory roots_) internal view;
 ```
 
 ## Structs
@@ -37,6 +68,19 @@ struct TreeCache {
     bool isGroup;
     string subPrefix;
     address[] subs;
+}
+```
+
+### TreeNode
+
+```solidity
+struct TreeNode {
+    address parent;
+    address addr;
+    string name;
+    bool isCredit;
+    uint256 debit;
+    uint256 credit;
 }
 ```
 

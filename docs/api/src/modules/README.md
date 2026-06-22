@@ -7,3 +7,4 @@
 - [Module](Module.sol/abstract.Module.md)
 - [INativeHandler](Router.sol/interface.INativeHandler.md)
 - [Router](Router.sol/contract.Router.md)
+- [Tree](Tree.sol/contract.Tree.md)

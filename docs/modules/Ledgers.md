@@ -17,14 +17,18 @@
 
 - every token ledger has a root
 - canonical root is `address(this)`
+- every registered root is a debit group
+- root token type is encoded as `LedgerLib.TokenKind`: `Native`, `External`, `Internal`, or `Claim`
+- account shape and polarity are encoded as `LedgerLib.AccountKind`: `DebitGroup`, `CreditGroup`, `DebitLedger`, or `CreditLedger`
 - subaccounts are deterministic addresses derived from parent + label/address
 - name-form `addSubAccount*` helpers delegate to addr-form overloads using `toAddress(name_)`
 - transfers perform a single coordinated upward walk from source and destination leaves
 - leaf polarity determines which balance column (`debits` or `credits`) each path mutates
 - when both paths converge on the same ancestor on the same side, remaining upward mutations cancel and the walk can stop early
-- internal roots are created deterministically with `CREATE2` via `createToken(...)`, so `(name, symbol, decimals)` uniquely identifies the root and repeated calls are idempotent
-- internal roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
+- internal roots are created deterministically with `CREATE2` via `createInternalToken(...)`, so `(name, symbol, decimals)` uniquely identifies the root and repeated calls are idempotent
+- internal and claim roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
 - native/external roots can be registered first and optionally wrapped later via `createWrapper`
+- claim roots are created with `createClaimToken(...)`, reference one registered non-claim Ledger leaf account, and are deterministic by `(name, symbol, decimals, claimAccount)`
 - canonical root may also be wrapped via `createWrapper` when a separate wrapper surface is desired
 - canonical root ERC20 UX is handled by `modules/ERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `ERC20Lib`
 - every root also auto-registers a default source leaf; its address is derived once from the configured source name during `Ledger` construction and its polarity is opposite the root
@@ -34,7 +38,7 @@
 - both transfer paths reject wrong-polarity sources after `LedgerLib.transfer(...)` resolves effective flags
 - `wrap(token_, amount_)` mints from the default source into `msg.sender`
 - `unwrap(token_, amount_)` burns from `msg.sender` back into the default source
-- `LedgerLib.wrap(...)` / `unwrap(...)` only apply to external/native debit roots; credit or internal roots revert
+- `LedgerLib.wrap(...)` / `unwrap(...)` only apply to external/native debit roots; internal and claim roots revert
 - tree/root mutators are intended to be idempotent: exact replays return the same result or become no-ops, while conflicting replays revert
 
 ## Storage
@@ -46,13 +50,14 @@ Core fields include:
 - metadata maps (`name`, `symbol`, `decimals`)
 - tree maps (`root`, `subs`, `subIndex`)
 - wrapper map (`wrapper`) for token roots
-- flags map (`flags`)
+- flags map (`flags`) containing `AccountKind`, `TokenKind`, depth, and a packed address slot
 - balances maps (`debits`, `credits`)
 
 Special addresses:
 
 - `NATIVE_ADDRESS`
 - per-root default source leaf at `toAddress(defaultSourceName_)`
+- claim root packed address slot stores the referenced absolute claim account
 
 ## Events
 

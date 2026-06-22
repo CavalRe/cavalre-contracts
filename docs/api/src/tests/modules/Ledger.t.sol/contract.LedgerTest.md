@@ -1,5 +1,5 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/3a4fcfc9619f01f0afd3feb42acd82ec72eed095/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -10,6 +10,13 @@
 
 ```solidity
 bool isVerbose
+```
+
+
+### DEFAULT_SOURCE_NAME
+
+```solidity
+string internal constant DEFAULT_SOURCE_NAME = "Source"
 ```
 
 
@@ -24,6 +31,13 @@ Router router
 
 ```solidity
 TestLedger ledger
+```
+
+
+### tree
+
+```solidity
+Tree tree
 ```
 
 
@@ -181,6 +195,13 @@ address r111
 ```
 
 
+### source_
+
+```solidity
+address source_
+```
+
+
 ## Functions
 ### setUp
 
@@ -224,18 +245,46 @@ function testLedgerCreateWrapperCanonicalRootIsIdempotent() public;
 function testLedgerCreateWrapperInternalRootIsIdempotent() public;
 ```
 
-### testLedgerCreateTokenDoesNotRegisterUnderRoot
+### testLedgerCreateInternalTokenDoesNotRegisterUnderRoot
 
 
 ```solidity
-function testLedgerCreateTokenDoesNotRegisterUnderRoot() public;
+function testLedgerCreateInternalTokenDoesNotRegisterUnderRoot() public;
 ```
 
-### testLedgerCreateTokenIsIdempotent
+### testLedgerCreateInternalTokenIsIdempotent
 
 
 ```solidity
-function testLedgerCreateTokenIsIdempotent() public;
+function testLedgerCreateInternalTokenIsIdempotent() public;
+```
+
+### testLedgerCreateClaimTokenIsIdempotent
+
+
+```solidity
+function testLedgerCreateClaimTokenIsIdempotent() public;
+```
+
+### testLedgerCreateClaimTokenRejectsUnregisteredClaimAccount
+
+
+```solidity
+function testLedgerCreateClaimTokenRejectsUnregisteredClaimAccount() public;
+```
+
+### testLedgerCreateClaimTokenRejectsGroupClaimAccount
+
+
+```solidity
+function testLedgerCreateClaimTokenRejectsGroupClaimAccount() public;
+```
+
+### testLedgerCreateClaimTokenRejectsNestedClaimRoot
+
+
+```solidity
+function testLedgerCreateClaimTokenRejectsNestedClaimRoot() public;
 ```
 
 ### testLedgerAddExternalTokenAndCreateWrapperAreIdempotent
@@ -287,6 +336,20 @@ function testLedgerAddSubAccountGroup() public;
 function testLedgerAddSubAccountGroupAddressFormIsIdempotent() public;
 ```
 
+### testLedgerAddSubAccountGroupRejectsFundedDebitLeaf
+
+
+```solidity
+function testLedgerAddSubAccountGroupRejectsFundedDebitLeaf() public;
+```
+
+### testLedgerAddSubAccountGroupRejectsFundedCreditLeaf
+
+
+```solidity
+function testLedgerAddSubAccountGroupRejectsFundedCreditLeaf() public;
+```
+
 ### testLedgerAddSubAccountNameDelegatesToAddressForm
 
 
@@ -299,6 +362,27 @@ function testLedgerAddSubAccountNameDelegatesToAddressForm() public;
 
 ```solidity
 function testLedgerAddSubAccountIsIdempotent() public;
+```
+
+### testLedgerAddSubAccountRegistersFundedDebitLeaf
+
+
+```solidity
+function testLedgerAddSubAccountRegistersFundedDebitLeaf() public;
+```
+
+### testLedgerAddSubAccountRejectsFundedDebitLeafAsCredit
+
+
+```solidity
+function testLedgerAddSubAccountRejectsFundedDebitLeafAsCredit() public;
+```
+
+### testLedgerAddSubAccountRejectsFundedCreditLeafAsDebit
+
+
+```solidity
+function testLedgerAddSubAccountRejectsFundedCreditLeafAsDebit() public;
 ```
 
 ### testLedgerAddSubAccountZeroParentReverts
@@ -418,6 +502,62 @@ function testLedgerMint() public;
 
 ```solidity
 function testLedgerBurn() public;
+```
+
+### testLedgerWrapExternalToken
+
+
+```solidity
+function testLedgerWrapExternalToken() public;
+```
+
+### testLedgerWrapExternalTokenRejectsDirectValue
+
+
+```solidity
+function testLedgerWrapExternalTokenRejectsDirectValue() public;
+```
+
+### testLedgerUnwrapExternalToken
+
+
+```solidity
+function testLedgerUnwrapExternalToken() public;
+```
+
+### testLedgerUnwrapExternalTokenRejectsDirectValue
+
+
+```solidity
+function testLedgerUnwrapExternalTokenRejectsDirectValue() public;
+```
+
+### testLedgerUnwrapExternalTokenAfterNativeWrapAllowsCallValue
+
+
+```solidity
+function testLedgerUnwrapExternalTokenAfterNativeWrapAllowsCallValue() public;
+```
+
+### testLedgerWrapExternalTokenAfterNativeWrapAllowsCallValue
+
+
+```solidity
+function testLedgerWrapExternalTokenAfterNativeWrapAllowsCallValue() public;
+```
+
+### testLedgerWrapClaimRootReverts
+
+
+```solidity
+function testLedgerWrapClaimRootReverts() public;
+```
+
+### testLedgerUnwrapClaimRootReverts
+
+
+```solidity
+function testLedgerUnwrapClaimRootReverts() public;
 ```
 
 ### testLedgerTransfer

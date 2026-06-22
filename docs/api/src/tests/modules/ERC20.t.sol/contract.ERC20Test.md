@@ -1,11 +1,18 @@
 # ERC20Test
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/3a4fcfc9619f01f0afd3feb42acd82ec72eed095/tests/modules/ERC20.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/tests/modules/ERC20.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
 
 
 ## State Variables
+### DEFAULT_SOURCE_NAME
+
+```solidity
+string internal constant DEFAULT_SOURCE_NAME = "Source"
+```
+
+
 ### router
 
 ```solidity
@@ -55,6 +62,13 @@ address charlie = address(0xCA11)
 ```
 
 
+### source_
+
+```solidity
+address source_
+```
+
+
 ## Functions
 ### setUp
 
@@ -82,6 +96,20 @@ function testERC20Transfer() public;
 
 ```solidity
 function testERC20ApproveTransferFromAndAllowanceMutators() public;
+```
+
+### testERC20TransferRejectsCanonicalCreditLeafSender
+
+
+```solidity
+function testERC20TransferRejectsCanonicalCreditLeafSender() public;
+```
+
+### testERC20TransferFromRejectsCanonicalCreditLeafSender
+
+
+```solidity
+function testERC20TransferFromRejectsCanonicalCreditLeafSender() public;
 ```
 
 ## Errors

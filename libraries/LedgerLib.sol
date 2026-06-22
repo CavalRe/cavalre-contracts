@@ -8,6 +8,22 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 library LedgerLib {
+    enum AccountKind {
+        Unregistered,
+        DebitGroup,
+        CreditGroup,
+        DebitLedger,
+        CreditLedger
+    }
+
+    enum TokenKind {
+        Unregistered,
+        Native,
+        External,
+        Internal,
+        Claim
+    }
+
     struct Store {
         mapping(address => string) name;
         mapping(address => string) symbol;
@@ -33,11 +49,10 @@ library LedgerLib {
 
     // toAddress("Native")
     address internal constant NATIVE_ADDRESS = 0xE0092BfAe8c1A1d8CB953ed67bd42A4861E423F9;
-    uint256 constant FLAG_IS_GROUP = 1 << 0; // 1 = group node, 0 = leaf/ledger
-    uint256 constant FLAG_IS_CREDIT = 1 << 1; // 1 = credit account, 0 = debit
-    uint256 constant FLAG_IS_INTERNAL = 1 << 2; // 1 = internal token, 0 = external token
-    uint256 constant FLAG_IS_NATIVE = 1 << 3; // 1 = native token root
-    uint256 constant FLAG_IS_REGISTERED = 1 << 4; // 1 = account registered via addSubAccount*()
+    uint256 constant ACCOUNT_KIND_SHIFT = 0;
+    uint256 constant ACCOUNT_KIND_MASK = uint256(0x07) << ACCOUNT_KIND_SHIFT;
+    uint256 constant TOKEN_KIND_SHIFT = 3;
+    uint256 constant TOKEN_KIND_MASK = uint256(0x07) << TOKEN_KIND_SHIFT;
     uint256 constant FLAG_DEPTH_SHIFT = 8;
     uint256 constant FLAG_DEPTH_MASK = uint256(0xff) << FLAG_DEPTH_SHIFT;
     uint256 constant PACK_ADDR_SHIFT = 96; // store address in high 160 bits
@@ -76,38 +91,51 @@ library LedgerLib {
     //                            Flags
     //==================================================================
 
-    function flags(
-        address parent_,
-        bool isGroup_,
-        bool isCredit_,
-        bool isInternal_,
-        bool isNative_,
-        bool isRegistered_,
-        uint8 depth_
-    ) internal pure returns (uint256 _flags) {
-        if (isGroup_) _flags |= FLAG_IS_GROUP;
-        if (isCredit_) _flags |= FLAG_IS_CREDIT;
-        if (isInternal_) _flags |= FLAG_IS_INTERNAL;
-        if (isNative_) _flags |= FLAG_IS_NATIVE;
-        if (isRegistered_) _flags |= FLAG_IS_REGISTERED;
+    function flags(address packedAddress_, AccountKind accountKind_, TokenKind tokenKind_, uint8 depth_)
+        internal
+        pure
+        returns (uint256 _flags)
+    {
+        _flags |= uint256(accountKind_) << ACCOUNT_KIND_SHIFT;
+        _flags |= uint256(tokenKind_) << TOKEN_KIND_SHIFT;
         _flags |= (uint256(depth_) << FLAG_DEPTH_SHIFT);
-        _flags |= (uint256(uint160(parent_)) << PACK_ADDR_SHIFT);
+        _flags |= (uint256(uint160(packedAddress_)) << PACK_ADDR_SHIFT);
     }
 
     function flags(address addr_) internal view returns (uint256) {
         return store().flags[addr_];
     }
 
-    function parent(uint256 flags_) internal pure returns (address) {
+    function accountKind(uint256 flags_) internal pure returns (AccountKind) {
+        return AccountKind((flags_ & ACCOUNT_KIND_MASK) >> ACCOUNT_KIND_SHIFT);
+    }
+
+    function tokenKind(uint256 flags_) internal pure returns (TokenKind) {
+        return TokenKind((flags_ & TOKEN_KIND_MASK) >> TOKEN_KIND_SHIFT);
+    }
+
+    function packedAddress(uint256 flags_) internal pure returns (address) {
         return address(uint160(flags_ >> PACK_ADDR_SHIFT));
     }
 
+    function parent(uint256 flags_) internal pure returns (address) {
+        if (isRoot(flags_)) return address(0);
+        return packedAddress(flags_);
+    }
+
     function isGroup(uint256 flags_) internal pure returns (bool) {
-        return (flags_ & FLAG_IS_GROUP) != 0;
+        AccountKind _kind = accountKind(flags_);
+        return _kind == AccountKind.DebitGroup || _kind == AccountKind.CreditGroup;
+    }
+
+    function isLedger(uint256 flags_) internal pure returns (bool) {
+        AccountKind _kind = accountKind(flags_);
+        return _kind == AccountKind.DebitLedger || _kind == AccountKind.CreditLedger;
     }
 
     function isCredit(uint256 flags_) internal pure returns (bool) {
-        return (flags_ & FLAG_IS_CREDIT) != 0;
+        AccountKind _kind = accountKind(flags_);
+        return _kind == AccountKind.CreditGroup || _kind == AccountKind.CreditLedger;
     }
 
     function effectiveFlags(address parent_, address addr_) internal view returns (address _current, uint256 _flags) {
@@ -118,21 +146,25 @@ library LedgerLib {
 
         // Unregistered derived leaves inherit polarity and depth from their parent.
         uint256 _parentFlags = flags(parent_);
-        _flags = uint256(uint160(parent_)) << PACK_ADDR_SHIFT;
-        if (isCredit(_parentFlags)) _flags |= FLAG_IS_CREDIT;
-        _flags |= uint256(depth(_parentFlags) + 1) << FLAG_DEPTH_SHIFT;
+        _flags = flags(
+            parent_,
+            isCredit(_parentFlags) ? AccountKind.CreditLedger : AccountKind.DebitLedger,
+            TokenKind.Unregistered,
+            depth(_parentFlags) + 1
+        );
     }
 
     function isInternal(uint256 flags_) internal pure returns (bool) {
-        return (flags_ & FLAG_IS_INTERNAL) != 0;
+        TokenKind _kind = tokenKind(flags_);
+        return _kind == TokenKind.Internal || _kind == TokenKind.Claim;
     }
 
     function isNative(uint256 flags_) internal pure returns (bool) {
-        return (flags_ & FLAG_IS_NATIVE) != 0;
+        return tokenKind(flags_) == TokenKind.Native;
     }
 
     function isRegistered(uint256 flags_) internal pure returns (bool) {
-        return (flags_ & FLAG_IS_REGISTERED) != 0;
+        return accountKind(flags_) != AccountKind.Unregistered;
     }
 
     function depth(uint256 flags_) internal pure returns (uint8) {
@@ -140,11 +172,35 @@ library LedgerLib {
     }
 
     function isExternal(uint256 flags_) internal pure returns (bool) {
-        return !isInternal(flags_) && !isNative(flags_);
+        return tokenKind(flags_) == TokenKind.External;
     }
 
     function isRoot(uint256 flags_) internal pure returns (bool) {
-        return depth(flags_) == 1 && isGroup(flags_) && isRegistered(flags_) && parent(flags_) == address(0);
+        return depth(flags_) == 1 && isGroup(flags_);
+    }
+
+    function isClaim(uint256 flags_) internal pure returns (bool) {
+        return tokenKind(flags_) == TokenKind.Claim;
+    }
+
+    function claimAccount(uint256 flags_) internal pure returns (address) {
+        if (!isRoot(flags_) || !isClaim(flags_)) return address(0);
+        return packedAddress(flags_);
+    }
+
+    function claimAccount(address token_) internal view returns (address) {
+        return claimAccount(flags(token_));
+    }
+
+    function checkClaimAccount(address token_, address parent_, address addr_)
+        internal
+        view
+        returns (address _claimAccount)
+    {
+        _claimAccount = toAddress(parent_, addr_);
+        if (!isLedger(flags(_claimAccount))) revert ILedger.InvalidLedgerAccount(_claimAccount);
+        address _claimedRoot = root(_claimAccount);
+        if (_claimedRoot == token_ || isClaim(flags(_claimedRoot))) revert ILedger.InvalidLedgerAccount(_claimAccount);
     }
 
     //==================================================================
@@ -275,7 +331,12 @@ library LedgerLib {
         checkString(name_);
 
         _addr = toAddress(parent_, addr_);
-        _flags = flags(parent_, true, isCredit_, true, false, true, depth(flags(parent_)) + 1);
+        _flags = flags(
+            parent_,
+            isCredit_ ? AccountKind.CreditGroup : AccountKind.DebitGroup,
+            TokenKind.Unregistered,
+            depth(flags(parent_)) + 1
+        );
         uint256 _existingFlags = flags(_addr);
         if (isRegistered(_existingFlags)) {
             if (_flags == _existingFlags && keccak256(bytes(name(_addr))) == keccak256(bytes(name_))) {
@@ -317,7 +378,12 @@ library LedgerLib {
         }
 
         _addr = toAddress(parent_, addr_);
-        _flags = flags(parent_, false, isCredit_, true, false, true, depth(flags(parent_)) + 1);
+        _flags = flags(
+            parent_,
+            isCredit_ ? AccountKind.CreditLedger : AccountKind.DebitLedger,
+            TokenKind.Unregistered,
+            depth(flags(parent_)) + 1
+        );
         uint256 _existingFlags = flags(_addr);
         if (isRegistered(_existingFlags)) {
             if (_flags == _existingFlags && keccak256(bytes(name(_addr))) == keccak256(bytes(name_))) {
@@ -351,8 +417,8 @@ library LedgerLib {
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        bool isInternal_,
-        bool isCredit_,
+        TokenKind tokenKind_,
+        address packedAddress_,
         address defaultSourceAddress_,
         string memory defaultSourceName_
     ) internal returns (uint256 _flags) {
@@ -360,8 +426,7 @@ library LedgerLib {
             revert ILedger.InvalidToken(root_, name_, symbol_, decimals_);
         }
 
-        bool _isNative = root_ == NATIVE_ADDRESS;
-        _flags = flags(address(0), true, isCredit_, isInternal_, _isNative, true, 1);
+        _flags = flags(packedAddress_, AccountKind.DebitGroup, tokenKind_, 1);
 
         Store storage s = store();
         // Check if token already exists
@@ -383,7 +448,7 @@ library LedgerLib {
         s.root[root_] = root_;
         s.flags[root_] = _flags;
 
-        addSubAccount(root_, defaultSourceAddress_, defaultSourceName_, !isCredit_);
+        addSubAccount(root_, defaultSourceAddress_, defaultSourceName_, true);
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
     }
 
@@ -396,8 +461,8 @@ library LedgerLib {
             ILedger(address(this)).nativeName(),
             ILedger(address(this)).nativeSymbol(),
             18,
-            false,
-            false,
+            TokenKind.Native,
+            address(0),
             defaultSourceAddress_,
             defaultSourceName_
         );
@@ -415,14 +480,15 @@ library LedgerLib {
             revert ILedger.InvalidToken(token_, _name, _symbol, _decimals);
         }
 
-        return addLedger(token_, _name, _symbol, _decimals, false, false, defaultSourceAddress_, defaultSourceName_);
+        return addLedger(
+            token_, _name, _symbol, _decimals, TokenKind.External, address(0), defaultSourceAddress_, defaultSourceName_
+        );
     }
 
-    function createToken(
+    function createInternalToken(
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        bool isCredit_,
         address defaultSourceAddress_,
         string memory defaultSourceName_
     ) internal returns (address _token, uint256 _flags) {
@@ -432,12 +498,12 @@ library LedgerLib {
 
         bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_));
         bytes memory _creationCode = abi.encodePacked(
-            type(ERC20Wrapper).creationCode, abi.encode(address(this), address(0), name_, symbol_, decimals_, isCredit_)
+            type(ERC20Wrapper).creationCode, abi.encode(address(this), address(0), name_, symbol_, decimals_, false)
         );
         _token = Create2.computeAddress(_salt, keccak256(_creationCode));
 
         if (root(_token) == _token) {
-            _flags = flags(address(0), true, isCredit_, true, false, true, 1);
+            _flags = flags(address(0), AccountKind.DebitGroup, TokenKind.Internal, 1);
             bool _sameFlags = _flags == flags(_token);
             bool _sameWrapper = wrapper(_token) == _token;
             if (_sameFlags && _sameWrapper) return (_token, _flags);
@@ -447,9 +513,75 @@ library LedgerLib {
         if (_token.code.length != 0) revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
 
         // Internal roots remain self-wrapped so the root address is immediately usable as an ERC20 surface.
-        _token = address(new ERC20Wrapper{salt: _salt}(address(this), address(0), name_, symbol_, decimals_, isCredit_));
-        _flags =
-            addLedger(_token, name_, symbol_, decimals_, true, isCredit_, defaultSourceAddress_, defaultSourceName_);
+        _token = address(new ERC20Wrapper{salt: _salt}(address(this), address(0), name_, symbol_, decimals_, false));
+        _flags = addLedger(
+            _token, name_, symbol_, decimals_, TokenKind.Internal, address(0), defaultSourceAddress_, defaultSourceName_
+        );
+
+        Store storage s = store();
+        s.wrapper[_token] = _token;
+    }
+
+    function addClaimToken(
+        address token_,
+        address parent_,
+        address addr_,
+        address defaultSourceAddress_,
+        string memory defaultSourceName_
+    ) internal returns (uint256 _flags) {
+        address _claimAccount = checkClaimAccount(token_, parent_, addr_);
+
+        IERC20Metadata _meta = IERC20Metadata(token_);
+        string memory _name = _meta.name();
+        string memory _symbol = _meta.symbol();
+        uint8 _decimals = _meta.decimals();
+        if (!isValidString(_name) || !isValidString(_symbol)) {
+            revert ILedger.InvalidToken(token_, _name, _symbol, _decimals);
+        }
+
+        return addLedger(
+            token_, _name, _symbol, _decimals, TokenKind.Claim, _claimAccount, defaultSourceAddress_, defaultSourceName_
+        );
+    }
+
+    function createClaimToken(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        address parent_,
+        address addr_,
+        address defaultSourceAddress_,
+        string memory defaultSourceName_
+    ) internal returns (address _token, uint256 _flags) {
+        if (!isValidString(name_) || !isValidString(symbol_)) {
+            revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
+        }
+        address _claimAccount = checkClaimAccount(address(0), parent_, addr_);
+
+        bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_, _claimAccount));
+        _token = Create2.computeAddress(
+            _salt,
+            keccak256(
+                abi.encodePacked(
+                    type(ERC20Wrapper).creationCode,
+                    abi.encode(address(this), address(0), name_, symbol_, decimals_, false)
+                )
+            )
+        );
+
+        if (root(_token) == _token) {
+            _flags = flags(_claimAccount, AccountKind.DebitGroup, TokenKind.Claim, 1);
+            if (_flags == flags(_token) && wrapper(_token) == _token) return (_token, _flags);
+            revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
+        }
+
+        if (_token.code.length != 0) revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
+
+        _token = address(new ERC20Wrapper{salt: _salt}(address(this), address(0), name_, symbol_, decimals_, false));
+        if (root(_claimAccount) == _token) revert ILedger.InvalidLedgerAccount(_claimAccount);
+        _flags = addLedger(
+            _token, name_, symbol_, decimals_, TokenKind.Claim, _claimAccount, defaultSourceAddress_, defaultSourceName_
+        );
 
         Store storage s = store();
         s.wrapper[_token] = _token;
