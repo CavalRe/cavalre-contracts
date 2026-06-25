@@ -4,6 +4,10 @@ pragma solidity ^0.8.26;
 import {Float, FloatLib} from "./FloatLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
+/// @dev Testing/debug formatting helper. Do not use this library in production
+/// deployable contracts unless an external linked-library deployment is
+/// intentional. Public library functions here can force Foundry/Solidity to
+/// deploy and link `FloatStrings`.
 library FloatStrings {
     using FixedPointMathLib for int256;
     using FloatLib for Float;
