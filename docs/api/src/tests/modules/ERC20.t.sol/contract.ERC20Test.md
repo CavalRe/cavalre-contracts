@@ -1,5 +1,5 @@
 # ERC20Test
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/tests/modules/ERC20.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/tests/modules/ERC20.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)

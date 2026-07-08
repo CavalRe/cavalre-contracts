@@ -1,5 +1,5 @@
 # Tree
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/modules/Tree.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/modules/Tree.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md)
@@ -83,6 +83,41 @@ function tokenKind(uint256 flags_) external pure returns (LedgerLib.TokenKind);
 function packedAddress(uint256 flags_) external pure returns (address);
 ```
 
+### isUnregisteredAccount
+
+
+```solidity
+function isUnregisteredAccount(uint256 flags_) external pure returns (bool);
+```
+
+### isDebitGroup
+
+
+```solidity
+function isDebitGroup(uint256 flags_) external pure returns (bool);
+```
+
+### isCreditGroup
+
+
+```solidity
+function isCreditGroup(uint256 flags_) external pure returns (bool);
+```
+
+### isDebitLedger
+
+
+```solidity
+function isDebitLedger(uint256 flags_) external pure returns (bool);
+```
+
+### isCreditLedger
+
+
+```solidity
+function isCreditLedger(uint256 flags_) external pure returns (bool);
+```
+
 ### isGroup
 
 
@@ -111,6 +146,13 @@ function isCredit(uint256 flags_) external pure returns (bool);
 function effectiveFlags(address parent_, address addr_) external view returns (address, uint256);
 ```
 
+### isUnregisteredToken
+
+
+```solidity
+function isUnregisteredToken(uint256 flags_) external pure returns (bool);
+```
+
 ### isInternal
 
 
@@ -123,13 +165,6 @@ function isInternal(uint256 flags_) external pure returns (bool);
 
 ```solidity
 function isNative(uint256 flags_) external pure returns (bool);
-```
-
-### isRegistered
-
-
-```solidity
-function isRegistered(uint256 flags_) external pure returns (bool);
 ```
 
 ### isExternal

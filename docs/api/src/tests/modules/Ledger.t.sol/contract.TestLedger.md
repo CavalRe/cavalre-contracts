@@ -1,5 +1,5 @@
 # TestLedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Ledger](/modules/Ledger.sol/contract.Ledger.md)
@@ -32,7 +32,8 @@ string internal constant DEFAULT_SOURCE_NAME = "Source"
 
 
 ```solidity
-constructor(uint8 decimals_) Ledger(decimals_, "Ethereum", "ETH", DEFAULT_SOURCE_NAME);
+constructor(uint8 decimals_, uint8 nativeDecimals_)
+    Ledger(decimals_, "Ethereum", "ETH", nativeDecimals_, DEFAULT_SOURCE_NAME);
 ```
 
 ### selectors
@@ -61,6 +62,13 @@ function mint(address toParent_, address to_, uint256 amount_) external;
 
 ```solidity
 function burn(address fromParent_, address from_, uint256 amount_) external;
+```
+
+### enforceNativeValue
+
+
+```solidity
+function enforceNativeValue(uint256 expected_) external payable;
 ```
 
 ### wrapThenUnwrap

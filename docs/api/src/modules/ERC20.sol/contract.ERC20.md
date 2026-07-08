@@ -1,5 +1,5 @@
 # ERC20
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/modules/ERC20.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/modules/ERC20.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md)

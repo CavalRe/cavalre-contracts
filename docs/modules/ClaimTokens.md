@@ -35,7 +35,7 @@ claimAccount = LedgerLib.toAddress(parent_, addr_);
 - claim accounts must be registered Ledger leaves
 - group-account and root-account claims are rejected
 - nested claims are rejected
-- claim tokens are internal-like for custody checks
+- claim tokens have exact `TokenKind.Claim` classification and are not `isInternal`
 - claim tokens cannot be wrapped or unwrapped as external custody assets
 - root token creation does not accept root credit polarity
 - old boolean flag constants are removed
@@ -125,11 +125,12 @@ function packedAddress(uint256 flags_) internal pure returns (address);
 Compatibility helpers are defined over the enums:
 
 ```solidity
-isRegistered(flags) -> accountKind(flags) != AccountKind.Unregistered
 isGroup(flags)      -> DebitGroup or CreditGroup
 isLedger(flags)     -> DebitLedger or CreditLedger
 isCredit(flags)     -> CreditGroup or CreditLedger
-isInternal(flags)   -> TokenKind.Internal or TokenKind.Claim
+isInternal(flags)   -> TokenKind.Internal
+isUnregisteredAccount(flags) -> AccountKind.Unregistered
+isUnregisteredToken(flags)   -> TokenKind.Unregistered
 isNative(flags)     -> TokenKind.Native
 isExternal(flags)   -> TokenKind.External
 isClaim(flags)      -> TokenKind.Claim
@@ -138,7 +139,7 @@ parent(flags)       -> address(0) for roots, packedAddress(flags) otherwise
 claimAccount(flags) -> packedAddress(flags) for claim roots, address(0) otherwise
 ```
 
-`isInternal(flags)` intentionally returns true for `TokenKind.Claim`. In custody logic, internal tokens and claim tokens both represent Ledger-internal supply rather than externally wrapped assets.
+`isInternal(flags)` is exact to `TokenKind.Internal`. Claim tokens are classified by `isClaim(flags)`, and custody logic that needs externally wrapped assets should test `isExternal(flags) || isNative(flags)` explicitly.
 
 ## Claim Token Model
 
@@ -254,7 +255,7 @@ packedAddress(rootFlags) == claimAccount
 - `createClaimToken(...)` creates debit roots only.
 - claim root address derivation includes `(name, symbol, decimals, claimAccount)`.
 - claim roots are self-wrapped.
-- claim roots are treated as internal by `isInternal(flags)`.
+- claim roots are classified by `isClaim(flags)` and are not internal by `isInternal(flags)`.
 - `wrap` and `unwrap` reject claim roots.
 - Ledger records the reference account only; protocol economics live above Ledger.
 
@@ -329,7 +330,14 @@ function claimAccountOf(address token_) external view returns (address);
 function accountKind(uint256 flags_) external pure returns (LedgerLib.AccountKind);
 function tokenKind(uint256 flags_) external pure returns (LedgerLib.TokenKind);
 function packedAddress(uint256 flags_) external pure returns (address);
+function isUnregisteredAccount(uint256 flags_) external pure returns (bool);
+function isDebitGroup(uint256 flags_) external pure returns (bool);
+function isCreditGroup(uint256 flags_) external pure returns (bool);
+function isDebitLedger(uint256 flags_) external pure returns (bool);
+function isCreditLedger(uint256 flags_) external pure returns (bool);
 function isLedger(uint256 flags_) external pure returns (bool);
+function isUnregisteredToken(uint256 flags_) external pure returns (bool);
+function isInternal(uint256 flags_) external pure returns (bool);
 function isClaim(uint256 flags_) external pure returns (bool);
 function claimAccount(uint256 flags_) external pure returns (address);
 ```

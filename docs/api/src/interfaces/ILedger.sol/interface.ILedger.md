@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/interfaces/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/interfaces/ILedger.sol)
 
 
 ## Functions
@@ -43,6 +43,13 @@ function nativeName() external view returns (string memory);
 
 ```solidity
 function nativeSymbol() external view returns (string memory);
+```
+
+### nativeDecimals
+
+
+```solidity
+function nativeDecimals() external view returns (uint8);
 ```
 
 ### addSubAccountGroup

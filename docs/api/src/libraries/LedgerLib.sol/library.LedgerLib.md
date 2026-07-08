@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/libraries/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/libraries/LedgerLib.sol)
 
 
 ## State Variables
@@ -103,6 +103,13 @@ function isValidString(string memory str_) internal pure returns (bool);
 function checkString(string memory str_) internal pure;
 ```
 
+### enforceNativeValue
+
+
+```solidity
+function enforceNativeValue(uint256 expected_) internal view;
+```
+
 ### checkRoots
 
 
@@ -155,6 +162,41 @@ function packedAddress(uint256 flags_) internal pure returns (address);
 function parent(uint256 flags_) internal pure returns (address);
 ```
 
+### isUnregisteredAccount
+
+
+```solidity
+function isUnregisteredAccount(uint256 flags_) internal pure returns (bool);
+```
+
+### isDebitGroup
+
+
+```solidity
+function isDebitGroup(uint256 flags_) internal pure returns (bool);
+```
+
+### isCreditGroup
+
+
+```solidity
+function isCreditGroup(uint256 flags_) internal pure returns (bool);
+```
+
+### isDebitLedger
+
+
+```solidity
+function isDebitLedger(uint256 flags_) internal pure returns (bool);
+```
+
+### isCreditLedger
+
+
+```solidity
+function isCreditLedger(uint256 flags_) internal pure returns (bool);
+```
+
 ### isGroup
 
 
@@ -183,6 +225,13 @@ function isCredit(uint256 flags_) internal pure returns (bool);
 function effectiveFlags(address parent_, address addr_) internal view returns (address _current, uint256 _flags);
 ```
 
+### isUnregisteredToken
+
+
+```solidity
+function isUnregisteredToken(uint256 flags_) internal pure returns (bool);
+```
+
 ### isInternal
 
 
@@ -195,13 +244,6 @@ function isInternal(uint256 flags_) internal pure returns (bool);
 
 ```solidity
 function isNative(uint256 flags_) internal pure returns (bool);
-```
-
-### isRegistered
-
-
-```solidity
-function isRegistered(uint256 flags_) internal pure returns (bool);
 ```
 
 ### depth

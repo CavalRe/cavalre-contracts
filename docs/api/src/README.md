@@ -59,7 +59,7 @@ cavalre-contracts/
 - Claim root creation uses `createClaimToken(...)`; each claim root references one registered non-claim Ledger leaf account and is deterministic by `(name, symbol, decimals, claimAccount)`.
 - Canonical-root ERC20 exposure is optional and provided by `modules/ERC20.sol`.
 - Each root auto-registers a default source leaf derived from the configured source name.
-- Account flags are decoded through `LedgerLib.AccountKind` and `LedgerLib.TokenKind`; use helpers such as `isGroup`, `isLedger`, `isCredit`, `isInternal`, `isNative`, `isExternal`, `isClaim`, and `isRegistered`.
+- Account flags are decoded through `LedgerLib.AccountKind` and `LedgerLib.TokenKind`; use helpers such as `isUnregisteredAccount`, `isGroup`, `isLedger`, `isCredit`, `isUnregisteredToken`, `isInternal`, `isNative`, `isExternal`, and `isClaim`.
 
 ## Installation
 

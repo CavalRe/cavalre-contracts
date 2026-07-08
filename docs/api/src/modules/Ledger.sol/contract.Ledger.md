@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/modules/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/modules/Ledger.sol)
 
 **Inherits:**
 [Module](/modules/Module.sol/abstract.Module.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [ILedger](/interfaces/ILedger.sol/interface.ILedger.md)
@@ -41,6 +41,13 @@ ShortString internal immutable _nativeSymbol
 ```
 
 
+### _nativeDecimals
+
+```solidity
+uint8 internal immutable _nativeDecimals
+```
+
+
 ### REENTRANCY_GUARD_STORAGE
 
 ```solidity
@@ -67,6 +74,7 @@ constructor(
     uint8 decimals_,
     string memory nativeName_,
     string memory nativeSymbol_,
+    uint8 nativeDecimals_,
     string memory defaultSourceName_
 ) ;
 ```
@@ -244,6 +252,13 @@ function nativeName() external view returns (string memory);
 
 ```solidity
 function nativeSymbol() external view returns (string memory);
+```
+
+### nativeDecimals
+
+
+```solidity
+function nativeDecimals() external view returns (uint8);
 ```
 
 ### debitBalanceOf

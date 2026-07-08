@@ -1,5 +1,10 @@
 # FloatStrings
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/864c40b9986bd124ebb2cf2fd60ea0a56f3c0024/libraries/FloatStrings.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/libraries/FloatStrings.sol)
+
+Testing/debug formatting helper. Do not use this library in production
+deployable contracts unless an external linked-library deployment is
+intentional. Public library functions here can force Foundry/Solidity to
+deploy and link `FloatStrings`.
 
 
 ## Functions
