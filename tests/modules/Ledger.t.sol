@@ -89,7 +89,7 @@ contract TestLedger is Ledger {
             LedgerLib.transfer(_token, LedgerLib.toAddress(DEFAULT_SOURCE_NAME), toParent_, to_, amount_);
         }
         // Emit event from wrapper address
-        if (LedgerLib.isInternal(_tokenFlags)) {
+        if (LedgerLib.isInternal(_tokenFlags) || LedgerLib.isClaim(_tokenFlags)) {
             address _wrapper = LedgerLib.wrapper(_token);
             if (_wrapper != address(0)) {
                 ERC20Wrapper(_wrapper).mint(to_, amount_);
@@ -106,7 +106,7 @@ contract TestLedger is Ledger {
             LedgerLib.transfer(fromParent_, from_, _token, LedgerLib.toAddress(DEFAULT_SOURCE_NAME), amount_);
         }
         // Emit event from wrapper address
-        if (LedgerLib.isInternal(_tokenFlags)) {
+        if (LedgerLib.isInternal(_tokenFlags) || LedgerLib.isClaim(_tokenFlags)) {
             address _wrapper = LedgerLib.wrapper(_token);
             if (_wrapper != address(0)) {
                 ERC20Wrapper(_wrapper).burn(from_, amount_);
@@ -384,8 +384,10 @@ contract LedgerTest is Test {
         );
         assertEq(uint256(tree.tokenKind(nativeFlags_)), uint256(LedgerLib.TokenKind.Native), "native flag set");
         assertTrue(tree.wrapper(native) != address(0), "wrapper set");
+        assertTrue(tree.isNative(nativeFlags_), "native flag set");
         assertFalse(tree.isInternal(nativeFlags_), "native not internal");
         assertFalse(tree.isExternal(nativeFlags_), "native not external");
+        assertFalse(tree.isClaim(nativeFlags_), "native not claim");
     }
 
     function testLedgerAddNativeTokenUsesConfiguredNativeDecimals() public {
@@ -460,11 +462,28 @@ contract LedgerTest is Test {
         assertEq(flagsAgain_, flags_, "same flags");
         assertFalse(tree.isCredit(flags_), "claim root debit");
         assertTrue(tree.isClaim(flags_), "claim root");
-        assertEq(tree.claimAccount(flags_), LedgerLib.toAddress(r1, source_), "claim account");
         assertTrue(ledger.isClaim(token_), "ledger claim view");
+        assertFalse(tree.isInternal(flags_), "claim root not internal");
+        assertEq(tree.claimAccount(flags_), LedgerLib.toAddress(r1, source_), "claim account");
         assertEq(ledger.claimAccountOf(token_), LedgerLib.toAddress(r1, source_), "ledger claim account view");
         assertEq(tree.root(token_), token_, "root registered");
         assertEq(tree.wrapper(token_), token_, "self wrapped");
+    }
+
+    function testLedgerWrapRejectsClaimRoot() public {
+        vm.startPrank(alice);
+        (address token_,) = ledger.createClaimToken("Claim Token", "CLM", 18, r1, source_);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, token_));
+        ledger.wrap(token_, 1);
+        vm.stopPrank();
+    }
+
+    function testLedgerUnwrapRejectsClaimRoot() public {
+        vm.startPrank(alice);
+        (address token_,) = ledger.createClaimToken("Claim Token", "CLM", 18, r1, source_);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, token_));
+        ledger.unwrap(token_, 1);
+        vm.stopPrank();
     }
 
     function testLedgerCreateClaimTokenRejectsUnregisteredClaimAccount() public {
@@ -518,8 +537,14 @@ contract LedgerTest is Test {
             uint256(tree.tokenKind(internalFlags)), uint256(LedgerLib.TokenKind.Internal), "internal token flag set"
         );
         assertTrue(tree.wrapper(r1) != address(0), "internal wrapper set");
+        assertTrue(tree.isDebitGroup(internalFlags), "internal debit group");
+        assertFalse(tree.isUnregisteredAccount(internalFlags), "internal account registered");
+        assertFalse(tree.isCreditGroup(internalFlags), "internal not credit group");
+        assertTrue(tree.isInternal(internalFlags), "internal flag set");
+        assertFalse(tree.isUnregisteredToken(internalFlags), "internal token registered");
         assertFalse(tree.isNative(internalFlags), "internal token not native");
         assertFalse(tree.isExternal(internalFlags), "internal token not external");
+        assertFalse(tree.isClaim(internalFlags), "internal token not claim");
         assertTrue(tree.isRoot(internalFlags), "internal root");
 
         uint256 externalFlags = tree.flags(address(externalToken));
@@ -533,8 +558,16 @@ contract LedgerTest is Test {
         assertTrue(tree.wrapper(address(externalToken)) != address(0), "external wrapper set");
         assertTrue(tree.isExternal(externalFlags), "external flag set");
         assertFalse(tree.isNative(externalFlags), "external token not native");
+        assertFalse(tree.isClaim(externalFlags), "external token not claim");
         assertTrue(tree.isRoot(externalFlags), "external root");
-        assertFalse(tree.isRoot(tree.flags(r10)), "child not root");
+
+        uint256 emptyFlags;
+        assertTrue(tree.isUnregisteredAccount(emptyFlags), "zero account unregistered");
+        assertTrue(tree.isUnregisteredToken(emptyFlags), "zero token unregistered");
+
+        uint256 childFlags = tree.flags(r10);
+        assertTrue(tree.isDebitGroup(childFlags), "child debit group");
+        assertFalse(tree.isRoot(childFlags), "child not root");
     }
 
     function testLedgerEffectiveFlags() public {

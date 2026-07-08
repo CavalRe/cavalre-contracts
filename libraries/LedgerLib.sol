@@ -127,25 +127,42 @@ library LedgerLib {
         return packedAddress(flags_);
     }
 
+    function isUnregisteredAccount(uint256 flags_) internal pure returns (bool) {
+        return accountKind(flags_) == AccountKind.Unregistered;
+    }
+
+    function isDebitGroup(uint256 flags_) internal pure returns (bool) {
+        return accountKind(flags_) == AccountKind.DebitGroup;
+    }
+
+    function isCreditGroup(uint256 flags_) internal pure returns (bool) {
+        return accountKind(flags_) == AccountKind.CreditGroup;
+    }
+
+    function isDebitLedger(uint256 flags_) internal pure returns (bool) {
+        return accountKind(flags_) == AccountKind.DebitLedger;
+    }
+
+    function isCreditLedger(uint256 flags_) internal pure returns (bool) {
+        return accountKind(flags_) == AccountKind.CreditLedger;
+    }
+
     function isGroup(uint256 flags_) internal pure returns (bool) {
-        AccountKind _kind = accountKind(flags_);
-        return _kind == AccountKind.DebitGroup || _kind == AccountKind.CreditGroup;
+        return isDebitGroup(flags_) || isCreditGroup(flags_);
     }
 
     function isLedger(uint256 flags_) internal pure returns (bool) {
-        AccountKind _kind = accountKind(flags_);
-        return _kind == AccountKind.DebitLedger || _kind == AccountKind.CreditLedger;
+        return isDebitLedger(flags_) || isCreditLedger(flags_);
     }
 
     function isCredit(uint256 flags_) internal pure returns (bool) {
-        AccountKind _kind = accountKind(flags_);
-        return _kind == AccountKind.CreditGroup || _kind == AccountKind.CreditLedger;
+        return isCreditGroup(flags_) || isCreditLedger(flags_);
     }
 
     function effectiveFlags(address parent_, address addr_) internal view returns (address _current, uint256 _flags) {
         _current = toAddress(parent_, addr_);
         _flags = flags(_current);
-        if (isRegistered(_flags)) return (_current, _flags);
+        if (!isUnregisteredAccount(_flags)) return (_current, _flags);
         if (_flags != 0) revert ILedger.InvalidAddress(addr_);
 
         // Unregistered derived leaves inherit polarity and depth from their parent.
@@ -158,17 +175,16 @@ library LedgerLib {
         );
     }
 
+    function isUnregisteredToken(uint256 flags_) internal pure returns (bool) {
+        return tokenKind(flags_) == TokenKind.Unregistered;
+    }
+
     function isInternal(uint256 flags_) internal pure returns (bool) {
-        TokenKind _kind = tokenKind(flags_);
-        return _kind == TokenKind.Internal || _kind == TokenKind.Claim;
+        return tokenKind(flags_) == TokenKind.Internal;
     }
 
     function isNative(uint256 flags_) internal pure returns (bool) {
         return tokenKind(flags_) == TokenKind.Native;
-    }
-
-    function isRegistered(uint256 flags_) internal pure returns (bool) {
-        return accountKind(flags_) != AccountKind.Unregistered;
     }
 
     function depth(uint256 flags_) internal pure returns (uint8) {
@@ -342,7 +358,7 @@ library LedgerLib {
             depth(flags(parent_)) + 1
         );
         uint256 _existingFlags = flags(_addr);
-        if (isRegistered(_existingFlags)) {
+        if (!isUnregisteredAccount(_existingFlags)) {
             if (_flags == _existingFlags && keccak256(bytes(name(_addr))) == keccak256(bytes(name_))) {
                 // SubAccount already exists with the same name and same flags
                 return (_addr, _flags);
@@ -389,7 +405,7 @@ library LedgerLib {
             depth(flags(parent_)) + 1
         );
         uint256 _existingFlags = flags(_addr);
-        if (isRegistered(_existingFlags)) {
+        if (!isUnregisteredAccount(_existingFlags)) {
             if (_flags == _existingFlags && keccak256(bytes(name(_addr))) == keccak256(bytes(name_))) {
                 // SubAccount already exists with the same name and same flags
                 return (_addr, _flags);
@@ -602,8 +618,8 @@ library LedgerLib {
         uint8 decimals_ = decimals(token_);
         _flags = flags(token_);
 
-        if (isInternal(_flags)) {
-            // Internal roots already carry canonical metadata, so their optional wrapper surface is exact.
+        if (isInternal(_flags) || isClaim(_flags)) {
+            // Internal and claim roots already carry canonical metadata, so their optional wrapper surface is exact.
             wrapper_ = address(new ERC20Wrapper(address(this), token_, name_, symbol_, decimals_, isCredit(_flags)));
         } else {
             // External/native wrappers are explicitly branded surfaces over the registered root asset.
@@ -633,7 +649,7 @@ library LedgerLib {
         uint256 _flags = flags(_addr);
 
         // Must exist and belong to this parent
-        if (!isRegistered(_flags)) return _addr;
+        if (isUnregisteredAccount(_flags)) return _addr;
         if (parent(_flags) != parent_) revert ILedger.SubAccountGroupNotFound(addr_);
         if (!isGroup(_flags)) revert ILedger.InvalidAccountGroup();
 
@@ -671,7 +687,7 @@ library LedgerLib {
         uint256 _flags = flags(_addr);
 
         // Must exist and belong to this parent
-        if (!isRegistered(_flags)) return _addr;
+        if (isUnregisteredAccount(_flags)) return _addr;
         if (parent(_flags) != parent_) revert ILedger.SubAccountNotFound(addr_);
         if (isGroup(_flags)) revert ILedger.InvalidLedgerAccount(_addr);
 
@@ -796,7 +812,7 @@ library LedgerLib {
         _token = root(fromParent_);
         uint256 _tokenFlags = flags(_token);
         // Wrap only applies to external/native debit roots with real asset custody.
-        if (isCredit(_tokenFlags) || isInternal(_tokenFlags)) {
+        if (isCredit(_tokenFlags) || (!isExternal(_tokenFlags) && !isNative(_tokenFlags))) {
             revert ILedger.InvalidLedgerAccount(_token);
         }
         (_token, _fromFlags, _toFlags) = transfer(fromParent_, from_, toParent_, to_, amount_);
@@ -821,7 +837,7 @@ library LedgerLib {
         _token = root(fromParent_);
         uint256 _tokenFlags = flags(_token);
         // Unwrap only applies to external/native debit roots with real asset custody.
-        if (isCredit(_tokenFlags) || isInternal(_tokenFlags)) {
+        if (isCredit(_tokenFlags) || (!isExternal(_tokenFlags) && !isNative(_tokenFlags))) {
             revert ILedger.InvalidLedgerAccount(_token);
         }
         (_token, _fromFlags, _toFlags) = transfer(fromParent_, from_, toParent_, to_, amount_);

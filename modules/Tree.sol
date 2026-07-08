@@ -8,7 +8,7 @@ import {TreeLib} from "../libraries/TreeLib.sol";
 contract Tree is Module {
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](26);
+        _selectors = new bytes4[](31);
         _selectors[n++] = bytes4(keccak256("root(address)"));
         _selectors[n++] = bytes4(keccak256("parent(address)"));
         _selectors[n++] = bytes4(keccak256("flags(address)"));
@@ -19,13 +19,18 @@ contract Tree is Module {
         _selectors[n++] = bytes4(keccak256("accountKind(uint256)"));
         _selectors[n++] = bytes4(keccak256("tokenKind(uint256)"));
         _selectors[n++] = bytes4(keccak256("packedAddress(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isUnregisteredAccount(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isDebitGroup(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isCreditGroup(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isDebitLedger(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isCreditLedger(uint256)"));
         _selectors[n++] = bytes4(keccak256("isGroup(uint256)"));
         _selectors[n++] = bytes4(keccak256("isLedger(uint256)"));
         _selectors[n++] = bytes4(keccak256("isCredit(uint256)"));
         _selectors[n++] = bytes4(keccak256("effectiveFlags(address,address)"));
+        _selectors[n++] = bytes4(keccak256("isUnregisteredToken(uint256)"));
         _selectors[n++] = bytes4(keccak256("isInternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
-        _selectors[n++] = bytes4(keccak256("isRegistered(uint256)"));
         _selectors[n++] = bytes4(keccak256("isExternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isRoot(uint256)"));
         _selectors[n++] = bytes4(keccak256("isClaim(uint256)"));
@@ -36,7 +41,7 @@ contract Tree is Module {
         _selectors[n++] = bytes4(keccak256("debugTree(address)"));
         _selectors[n++] = bytes4(keccak256("debugTrees(address[])"));
 
-        if (n != 26) revert InvalidCommandsLength(n);
+        if (n != 31) revert InvalidCommandsLength(n);
     }
 
     function root(address addr_) external view returns (address) {
@@ -79,6 +84,26 @@ contract Tree is Module {
         return LedgerLib.packedAddress(flags_);
     }
 
+    function isUnregisteredAccount(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isUnregisteredAccount(flags_);
+    }
+
+    function isDebitGroup(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isDebitGroup(flags_);
+    }
+
+    function isCreditGroup(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isCreditGroup(flags_);
+    }
+
+    function isDebitLedger(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isDebitLedger(flags_);
+    }
+
+    function isCreditLedger(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isCreditLedger(flags_);
+    }
+
     function isGroup(uint256 flags_) external pure returns (bool) {
         return LedgerLib.isGroup(flags_);
     }
@@ -95,16 +120,16 @@ contract Tree is Module {
         return LedgerLib.effectiveFlags(parent_, addr_);
     }
 
+    function isUnregisteredToken(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isUnregisteredToken(flags_);
+    }
+
     function isInternal(uint256 flags_) external pure returns (bool) {
         return LedgerLib.isInternal(flags_);
     }
 
     function isNative(uint256 flags_) external pure returns (bool) {
         return LedgerLib.isNative(flags_);
-    }
-
-    function isRegistered(uint256 flags_) external pure returns (bool) {
-        return LedgerLib.isRegistered(flags_);
     }
 
     function isExternal(uint256 flags_) external pure returns (bool) {
