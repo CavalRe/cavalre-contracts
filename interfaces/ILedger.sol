@@ -55,8 +55,6 @@ interface ILedger {
         external
         returns (address token, uint256 flags);
 
-    function createWrapper(address token) external returns (address wrapper, uint256 flags);
-
     function removeSubAccountGroup(address parent, string memory name) external returns (address);
 
     function removeSubAccountGroup(address parent, address addr) external returns (address);
@@ -83,24 +81,20 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
     // ─────────────────────────────────────────────────────────────────────────────
-    function transfer(address fromParent, address from, address toParent, address to, uint256 amount)
-        external
-        returns (address root, uint256 fromFlags, uint256 toFlags);
+    function transfer(address fromParent, address from, address toParent, address to, uint256 amount) external;
 
-    function transfer(address fromParent, address toParent, address to, uint256 amount)
-        external
-        returns (address root, uint256 fromFlags, uint256 toFlags);
+    function transfer(address fromParent, address toParent, address to, uint256 amount) external;
 
     // ─────────────────────────────────────────────────────────────────────────────
     function wrap(address token_, uint256 amount_)
         external
         payable
-        returns (address token, uint256 fromFlags, uint256 toFlags);
+        returns (address token, bool fromIsCredit, bool toIsCredit);
 
     function unwrap(address token_, uint256 amount_)
         external
         payable
-        returns (address token, uint256 fromFlags, uint256 toFlags);
+        returns (address token, bool fromIsCredit, bool toIsCredit);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Custom errors
@@ -132,14 +126,6 @@ interface ILedger {
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Events
-    event LedgerTransfer(
-        address indexed token,
-        address indexed debitAccount,
-        address indexed creditAccount,
-        uint256 amount,
-        uint256 debitBalance,
-        uint256 creditBalance
-    );
     event LedgerAdded(address indexed tokenAddress, string name, string symbol, uint8 decimals);
     event SubAccountAdded(address indexed root, address indexed parent, address addr, bool isCredit);
     event SubAccountGroupAdded(address indexed root, address indexed parent, string subName, bool isCredit);
