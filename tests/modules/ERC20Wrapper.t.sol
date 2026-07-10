@@ -10,13 +10,11 @@ import {Tree} from "../../modules/Tree.sol";
 import {TestLedger, MockERC20} from "./Ledger.t.sol";
 
 contract ERC20WrapperTest is Test {
-    string internal constant DEFAULT_SOURCE_NAME = "Source";
     Router internal router;
     TestLedger internal ledgers; // will point to Router after module add
     Tree internal tree;
     ERC20Wrapper internal token;
     MockERC20 internal externalToken;
-    ERC20Wrapper internal externalWrapper;
 
     address internal owner = address(0xA11CE);
     address internal alice = address(0xB0B);
@@ -45,19 +43,17 @@ contract ERC20WrapperTest is Test {
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledgers.initializeTestLedger();
-        source_ = LedgerLib.toAddress(DEFAULT_SOURCE_NAME);
+        source_ = address(0);
 
         if (isVerbose) console.log("Adding new token to ledger");
         (address token_,) = ledgers.createInternalToken("Internal Test Token", "ITT", 18);
         token = ERC20Wrapper(token_);
-        ledgers.addSubAccount(address(token), source_, "Source", true);
+        ledgers.addSubAccount(address(token), source_, "Zero Address", true);
 
-        if (isVerbose) console.log("Creating external token + wrapper");
+        if (isVerbose) console.log("Creating external token");
         externalToken = new MockERC20("External Token", "EXT", 18);
         ledgers.addExternalToken(address(externalToken));
-        ledgers.createWrapper(address(externalToken));
-        ledgers.addSubAccount(address(externalToken), source_, "Source", true);
-        externalWrapper = ERC20Wrapper(tree.wrapper(address(externalToken)));
+        ledgers.addSubAccount(address(externalToken), source_, "Zero Address", true);
 
         if (isVerbose) console.log("Token added");
 
@@ -80,7 +76,6 @@ contract ERC20WrapperTest is Test {
         if (isVerbose) console.log("--------------------");
 
         assertEq(token.totalSupply(), 0);
-        assertEq(externalWrapper.totalSupply(), 0);
     }
 
     function testERC20WrapperMetadata() public view {
@@ -152,6 +147,7 @@ contract ERC20WrapperTest is Test {
 
         if (isVerbose) console.log("totalSupply()");
         assertEq(token.totalSupply(), 1_000);
+        assertEq(token.balanceOf(address(0)), 1_000);
 
         if (isVerbose) console.log("balanceOf(alice)");
         assertEq(token.balanceOf(alice), 1_000);
@@ -164,6 +160,7 @@ contract ERC20WrapperTest is Test {
         assertEq(token.balanceOf(alice), 300);
         assertEq(token.balanceOf(bob), 700);
         assertEq(token.totalSupply(), 1_000);
+        assertEq(token.balanceOf(address(0)), 1_000);
 
         if (isVerbose) console.log("Burn -> ERC20 Transfer(bob, 0x0, 200)");
         vm.stopPrank();
@@ -173,6 +170,34 @@ contract ERC20WrapperTest is Test {
 
         assertEq(token.balanceOf(bob), 500);
         assertEq(token.totalSupply(), 800);
+        assertEq(token.balanceOf(address(0)), 800);
+    }
+
+    function testERC20WrapperTransferToSelfEmitsTransfer() public {
+        vm.prank(owner);
+        ledgers.mint(address(token), alice, 1_000);
+
+        vm.startPrank(alice);
+        vm.expectEmit(true, true, true, true, address(token));
+        emit ERC20Wrapper.Transfer(alice, alice, 250);
+        assertTrue(token.transfer(alice, 250));
+
+        assertEq(token.balanceOf(alice), 1_000);
+        assertEq(token.totalSupply(), 1_000);
+    }
+
+    function testERC20WrapperZeroTransferEmitsTransfer() public {
+        vm.prank(owner);
+        ledgers.mint(address(token), alice, 1_000);
+
+        vm.startPrank(alice);
+        vm.expectEmit(true, true, true, true, address(token));
+        emit ERC20Wrapper.Transfer(alice, bob, 0);
+        assertTrue(token.transfer(bob, 0));
+
+        assertEq(token.balanceOf(alice), 1_000);
+        assertEq(token.balanceOf(bob), 0);
+        assertEq(token.totalSupply(), 1_000);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -262,55 +287,6 @@ contract ERC20WrapperTest is Test {
         assertEq(token.balanceOf(bob), 250);
         assertEq(token.allowance(alice, bob), 0);
     }
-
-    /* TODO: Move to DepositLib
-    function testERC20WrapperWrappedExternalSurfaceMatchesLedger() public {
-        uint256 wrapAmount = 250;
-
-        vm.startPrank(alice);
-        externalToken.mint(alice, wrapAmount);
-        externalToken.approve(address(ledgers), wrapAmount);
-        ledgers.wrap(address(externalToken), source_, address(externalToken), alice, wrapAmount);
-        vm.stopPrank();
-
-        assertEq(ledgers.totalSupply(address(externalToken)), wrapAmount, "ledger total supply after wrap");
-        assertEq(
-            ledgers.debitBalanceOf(address(externalToken), alice),
-            wrapAmount,
-            "ledger debit balance after wrap (alice holdings)"
-        );
-
-        // ERC-20 surface should mirror ledger state.
-        assertEq(externalWrapper.totalSupply(), wrapAmount, "external wrapper total supply after wrap");
-        assertEq(externalWrapper.balanceOf(alice), wrapAmount, "external wrapper balance after wrap");
-        assertEq(externalWrapper.router(), address(router), "external router");
-        assertEq(externalWrapper.token(), address(externalToken), "external wrapped token");
-    }
-
-    function testERC20WrapperWrappedExternalTransferThroughSurface() public {
-        bool isVerbose = false;
-
-        uint256 wrapAmount = 100;
-
-        vm.startPrank(alice);
-        if (isVerbose) console.log("Wrapping external token into wrapper");
-        externalToken.mint(alice, wrapAmount);
-        externalToken.approve(address(ledgers), wrapAmount);
-        ledgers.wrap(address(externalToken), source_, address(externalToken), alice, wrapAmount);
-        // vm.stopPrank();
-
-        // vm.startPrank(alice);
-        if (isVerbose) {
-            console.log("Transferring 40 from alice to bob through external wrapper");
-        }
-        // Should succeed and update balances if wrapper is wired correctly.
-        externalWrapper.transfer(bob, 40);
-        vm.stopPrank();
-
-        assertEq(externalWrapper.balanceOf(alice), wrapAmount - 40, "external wrapper balance after transfer");
-        assertEq(externalWrapper.balanceOf(bob), 40, "external wrapper recipient balance");
-    }
-    */
 
     // ─────────────────────────────────────────────────────────────────────────
     // Mint/Burn emit ERC20 Transfer events

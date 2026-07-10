@@ -4,15 +4,13 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/src/Test.sol";
 
 import {ILedger} from "../../interfaces/ILedger.sol";
-import {ERC20} from "../../modules/ERC20.sol";
+import {ERC20} from "../../examples/LedgerERC20.sol";
 import {Ledger} from "../../modules/Ledger.sol";
 import {Module} from "../../modules/Module.sol";
 import {Router} from "../../modules/Router.sol";
 import {LedgerLib} from "../../libraries/LedgerLib.sol";
 
 contract MintModule is Module {
-    string internal constant DEFAULT_SOURCE_NAME = "Source";
-
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](1);
         _selectors[0] = bytes4(keccak256("mintCanonical(address,uint256)"));
@@ -20,12 +18,11 @@ contract MintModule is Module {
 
     function mintCanonical(address to_, uint256 amount_) external {
         enforceIsOwner();
-        LedgerLib.transfer(address(this), LedgerLib.toAddress(DEFAULT_SOURCE_NAME), address(this), to_, amount_);
+        LedgerLib.transfer(address(this), address(0), address(this), to_, amount_);
     }
 }
 
-contract ERC20Test is Test {
-    string internal constant DEFAULT_SOURCE_NAME = "Source";
+contract LedgerERC20Test is Test {
     Router router;
     Ledger ledgers;
     ERC20 token;
@@ -41,7 +38,7 @@ contract ERC20Test is Test {
     function setUp() public {
         vm.startPrank(alice);
 
-        ledgers = new Ledger(18, "Ethereum", "ETH", 18, DEFAULT_SOURCE_NAME);
+        ledgers = new Ledger(18, "Ethereum", "ETH", 18);
         token = new ERC20();
         minter = new MintModule();
         router = new Router(alice);
@@ -55,8 +52,8 @@ contract ERC20Test is Test {
         minter = MintModule(payable(router));
 
         ledgers.initializeLedger("Canonical Root", "ROOT");
-        source_ = LedgerLib.toAddress(DEFAULT_SOURCE_NAME);
-        ledgers.addSubAccount(address(router), source_, "Source", true);
+        source_ = address(0);
+        ledgers.addSubAccount(address(router), source_, "Zero Address", true);
         token.initializeERC20();
     }
 
@@ -79,11 +76,38 @@ contract ERC20Test is Test {
         minter.mintCanonical(alice, 1000);
         assertEq(token.balanceOf(alice), 1000);
         assertEq(token.totalSupply(), 1000);
+        assertEq(token.balanceOf(address(0)), 1000);
 
         assertTrue(token.transfer(bob, 700));
 
         assertEq(token.balanceOf(alice), 300);
         assertEq(token.balanceOf(bob), 700);
+        assertEq(token.totalSupply(), 1000);
+        assertEq(token.balanceOf(address(0)), 1000);
+    }
+
+    function testERC20TransferToSelfEmitsTransfer() public {
+        vm.startPrank(alice);
+        minter.mintCanonical(alice, 1000);
+
+        vm.expectEmit(true, true, true, true, address(router));
+        emit ILedger.Transfer(alice, alice, 250);
+        assertTrue(token.transfer(alice, 250));
+
+        assertEq(token.balanceOf(alice), 1000);
+        assertEq(token.totalSupply(), 1000);
+    }
+
+    function testERC20ZeroTransferEmitsTransfer() public {
+        vm.startPrank(alice);
+        minter.mintCanonical(alice, 1000);
+
+        vm.expectEmit(true, true, true, true, address(router));
+        emit ILedger.Transfer(alice, bob, 0);
+        assertTrue(token.transfer(bob, 0));
+
+        assertEq(token.balanceOf(alice), 1000);
+        assertEq(token.balanceOf(bob), 0);
         assertEq(token.totalSupply(), 1000);
     }
 

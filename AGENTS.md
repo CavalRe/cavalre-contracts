@@ -98,7 +98,7 @@ Special addresses / roots:
 - each root auto-registers a default source leaf whose address is derived from the configured source name
 - claim-token roots store the referenced absolute claim account in the packed root address slot
 
-**ERC20Wrapper**: Internal and claim roots are self-wrapped at creation. Native/external roots may optionally get ERC20-compatible wrappers later via `createWrapper`. Wrapper surfaces delegate balance/allowance/transfers to Ledger via Router.
+**ERC20Wrapper**: Internal and claim roots are self-wrapped at creation. If a root has a wrapper, the wrapper address is the root address. Native/external roots do not get separate wrapper surfaces.
 
 **ERC20 Module**: `modules/ERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `ERC20Lib`; transfers route through `Ledger.transfer(...)`.
 

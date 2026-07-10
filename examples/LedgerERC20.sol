@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Module} from "./Module.sol";
+import {Module} from "../modules/Module.sol";
 import {Initializable} from "../utilities/Initializable.sol";
 import {LedgerLib} from "../libraries/LedgerLib.sol";
-import {ERC20Lib} from "../libraries/ERC20Lib.sol";
+import {ERC20Lib} from "./LedgerERC20Lib.sol";
 import {ILedger} from "../interfaces/ILedger.sol";
 
 contract ERC20 is Module, Initializable {
@@ -65,7 +65,8 @@ contract ERC20 is Module, Initializable {
     }
 
     function balanceOf(address owner_) external view returns (uint256) {
-        return LedgerLib.debitBalanceOf(LedgerLib.toAddress(address(this), owner_));
+        (address _account, uint256 _flags) = LedgerLib.effectiveFlags(address(this), owner_);
+        return LedgerLib.balanceOf(_account, LedgerLib.isCredit(_flags));
     }
 
     // -- Allowance --
@@ -106,7 +107,6 @@ contract ERC20 is Module, Initializable {
     // -- Transfers --
 
     function transfer(address to_, uint256 amount_) external returns (bool) {
-        emit ILedger.Transfer(msg.sender, to_, amount_);
         ILedger(address(this)).transfer(address(this), msg.sender, address(this), to_, amount_);
         return true;
     }
@@ -119,7 +119,6 @@ contract ERC20 is Module, Initializable {
         if (current_ != type(uint256).max) {
             ERC20Lib.store().allowances[from_][msg.sender] = current_ - amount_;
         }
-        emit ILedger.Transfer(from_, to_, amount_);
         ILedger(address(this)).transfer(address(this), from_, address(this), to_, amount_);
         return true;
     }

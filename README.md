@@ -54,7 +54,7 @@ cavalre-contracts/
 - All registered roots are debit groups.
 - Root token kind is encoded as `Native`, `External`, `Internal`, or `Claim`.
 - Internal and claim roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
-- Native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`.
+- Native and external roots do not get separate wrapper surfaces.
 - Internal root creation uses `createInternalToken(...)` and is deterministic/idempotent: the same `(name, symbol, decimals)` maps to the same root.
 - Claim root creation uses `createClaimToken(...)`; each claim root references one registered non-claim Ledger leaf account and is deterministic by `(name, symbol, decimals, claimAccount)`.
 - Canonical-root ERC20 exposure is optional and provided by `modules/ERC20.sol`.
