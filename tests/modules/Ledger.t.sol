@@ -8,7 +8,7 @@ pragma solidity ^0.8.26;
 import {ILedger} from "../../interfaces/ILedger.sol";
 import {LedgerLib} from "../../libraries/LedgerLib.sol";
 import {Ledger} from "../../modules/Ledger.sol";
-import {Module} from "../../modules/Module.sol";
+import {Dispatchable} from "../../modules/Dispatchable.sol";
 import {Router} from "../../modules/Router.sol";
 import {Tree} from "../../modules/Tree.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";

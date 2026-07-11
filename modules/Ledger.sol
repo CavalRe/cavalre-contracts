@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Module} from "./Module.sol";
+import {Dispatchable} from "./Dispatchable.sol";
 import {Initializable} from "../utilities/Initializable.sol";
 import {ReentrancyGuard} from "../utilities/ReentrancyGuard.sol";
 import {LedgerLib} from "../libraries/LedgerLib.sol";
@@ -174,7 +174,7 @@ contract ERC20Wrapper {
     }
 }
 
-contract Ledger is Module, Initializable, ReentrancyGuard, ILedger {
+contract Ledger is Dispatchable, Initializable, ReentrancyGuard, ILedger {
     using ShortStrings for string;
 
     constructor(uint8 decimals_, string memory nativeName_, string memory nativeSymbol_, uint8 nativeDecimals_) {

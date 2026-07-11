@@ -6,11 +6,11 @@ import {Test} from "forge-std/src/Test.sol";
 import {ILedger} from "../../interfaces/ILedger.sol";
 import {ERC20} from "../../examples/LedgerERC20.sol";
 import {Ledger} from "../../modules/Ledger.sol";
-import {Module} from "../../modules/Module.sol";
+import {Dispatchable} from "../../modules/Dispatchable.sol";
 import {Router} from "../../modules/Router.sol";
 import {LedgerLib} from "../../libraries/LedgerLib.sol";
 
-contract MintModule is Module {
+contract MintModule is Dispatchable {
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](1);
         _selectors[0] = bytes4(keccak256("mintCanonical(address,uint256)"));

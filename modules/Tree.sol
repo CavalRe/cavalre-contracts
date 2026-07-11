@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Module} from "./Module.sol";
+import {Dispatchable} from "./Dispatchable.sol";
 import {LedgerLib} from "../libraries/LedgerLib.sol";
 import {TreeLib} from "../libraries/TreeLib.sol";
 
-contract Tree is Module {
+contract Tree is Dispatchable {
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         uint256 n;
         _selectors = new bytes4[](31);

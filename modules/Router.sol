@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Module, ModuleLib} from "./Module.sol";
+import {Dispatchable, DispatchableLib} from "./Dispatchable.sol";
 import {RouterLib} from "../libraries/RouterLib.sol";
 
 interface INativeHandler {
     function handleNative() external payable;
 }
 
-contract Router is Module {
+contract Router is Dispatchable {
     // Events
     event CommandSet(bytes4 indexed command, address indexed module);
     event ModuleAdded(address indexed module);
@@ -22,7 +22,7 @@ contract Router is Module {
     error ModuleNotFound(address _module);
 
     constructor(address owner_) {
-        ModuleLib.Store storage s = ModuleLib.store();
+        DispatchableLib.Store storage s = DispatchableLib.store();
         s.owners[__self] = owner_;
         emit RouterCreated(__self);
     }
@@ -67,7 +67,7 @@ contract Router is Module {
             s.modules[_selectors[i]] = module_;
             emit CommandSet(_selectors[i], module_);
         }
-        ModuleLib.store().owners[module_] = msg.sender;
+        DispatchableLib.store().owners[module_] = msg.sender;
         emit ModuleAdded(module_);
     }
 
@@ -80,12 +80,12 @@ contract Router is Module {
             s.modules[_selectors[i]] = address(0);
             emit CommandSet(_selectors[i], address(0));
         }
-        delete ModuleLib.store().owners[module_];
+        delete DispatchableLib.store().owners[module_];
         emit ModuleRemoved(module_);
     }
 
     function owner(address module_) public view returns (address) {
-        return ModuleLib.store().owners[module_];
+        return DispatchableLib.store().owners[module_];
     }
 
     function module(bytes4 selector_) public view returns (address) {

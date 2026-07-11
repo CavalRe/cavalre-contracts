@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Router} from "../../modules/Router.sol";
-import {Module, ModuleLib} from "../../modules/Module.sol";
+import {Dispatchable, DispatchableLib} from "../../modules/Dispatchable.sol";
 import {Sentry, SentryLib} from "../../examples/Sentry.sol";
 import {Test} from "forge-std/src/Test.sol";
 
@@ -52,7 +52,7 @@ contract SentryTest is Test {
 
     function testSentryWrongOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(Module.OwnableUnauthorizedAccount.selector, bob));
+        vm.expectRevert(abi.encodeWithSelector(Dispatchable.OwnableUnauthorizedAccount.selector, bob));
         router.addModule(sentryAddress);
     }
 

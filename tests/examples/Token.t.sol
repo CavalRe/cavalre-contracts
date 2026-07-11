@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Router} from "../../modules/Router.sol";
 import {ERC20, ERC20Lib} from "../../examples/ERC20.sol";
-import {ModuleLib} from "../../modules/Module.sol";
+import {DispatchableLib} from "../../modules/Dispatchable.sol";
 import {TestToken, TokenLib} from "../../examples/Token.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";

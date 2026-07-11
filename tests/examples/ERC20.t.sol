@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Router} from "../../modules/Router.sol";
 import {ERC20, ERC20Lib} from "../../examples/ERC20.sol";
-import {Module, ModuleLib} from "../../modules/Module.sol";
+import {Dispatchable, DispatchableLib} from "../../modules/Dispatchable.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test} from "forge-std/src/Test.sol";
 

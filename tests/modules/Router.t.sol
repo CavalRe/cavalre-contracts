@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Module} from "../../modules/Module.sol";
+import {Dispatchable} from "../../modules/Dispatchable.sol";
 import {Router} from "../../modules/Router.sol";
 import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {Test, console} from "forge-std/src/Test.sol";
 
-library TestModuleLib {
+library TestDispatchableLib {
     bytes4 internal constant FOO = bytes4(keccak256("foo()"));
     bytes4 internal constant BAR = bytes4(keccak256("bar()"));
 }
 
-contract Foo is Module {
+contract Foo is Dispatchable {
     function selectors() public pure override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](1);
-        _selectors[0] = TestModuleLib.FOO;
+        _selectors[0] = TestDispatchableLib.FOO;
     }
 
     function foo() public pure returns (string memory) {
@@ -22,10 +22,10 @@ contract Foo is Module {
     }
 }
 
-contract Bar is Module {
+contract Bar is Dispatchable {
     function selectors() public pure override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](1);
-        _selectors[0] = TestModuleLib.BAR;
+        _selectors[0] = TestDispatchableLib.BAR;
     }
 
     function bar() public pure returns (string memory) {
@@ -52,48 +52,48 @@ contract RouterTest is Test, ContextUpgradeable {
     function testRouterInit() public view {
         assertEq(router.owner(address(router)), bob, "RouterTest: Owner not set");
 
-        assertEq(router.module(TestModuleLib.FOO), address(foo), "RouterTest: foo() not set");
+        assertEq(router.module(TestDispatchableLib.FOO), address(foo), "RouterTest: foo() not set");
     }
 
     function testRouterAddModule() public {
         vm.startPrank(alice);
 
         Bar bar = new Bar();
-        vm.expectRevert(abi.encodeWithSelector(Module.OwnableUnauthorizedAccount.selector, alice));
+        vm.expectRevert(abi.encodeWithSelector(Dispatchable.OwnableUnauthorizedAccount.selector, alice));
         router.addModule(address(bar));
 
         vm.stopPrank();
 
         vm.startPrank(bob);
         router.addModule(address(bar));
-        assertEq(router.module(TestModuleLib.BAR), address(bar), "RouterTest: bar() not set");
+        assertEq(router.module(TestDispatchableLib.BAR), address(bar), "RouterTest: bar() not set");
     }
 
     function testRouterCallModule() public {
-        (bool success, bytes memory data) = address(router).call(abi.encodeWithSelector(TestModuleLib.FOO));
+        (bool success, bytes memory data) = address(router).call(abi.encodeWithSelector(TestDispatchableLib.FOO));
         assertTrue(success, "RouterTest: foo() failed");
         assertEq(abi.decode(data, (string)), "Foo module", "RouterTest: foo() wrong return");
 
-        (success, data) = address(router).call(abi.encodeWithSelector(TestModuleLib.BAR));
+        (success, data) = address(router).call(abi.encodeWithSelector(TestDispatchableLib.BAR));
         assertFalse(success, "RouterTest: bar() should fail");
     }
 
     function testRouterRemoveModule() public {
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSelector(Module.OwnableUnauthorizedAccount.selector, alice));
+        vm.expectRevert(abi.encodeWithSelector(Dispatchable.OwnableUnauthorizedAccount.selector, alice));
         router.removeModule(address(foo));
 
         vm.stopPrank();
 
         vm.startPrank(bob);
         router.removeModule(address(foo));
-        assertEq(router.module(TestModuleLib.FOO), address(0), "RouterTest: foo() not removed");
+        assertEq(router.module(TestDispatchableLib.FOO), address(0), "RouterTest: foo() not removed");
 
-        vm.expectRevert(abi.encodeWithSelector(Router.CommandNotFound.selector, TestModuleLib.FOO));
-        (bool success, bytes memory data) = address(router).call(abi.encodeWithSelector(TestModuleLib.FOO));
+        vm.expectRevert(abi.encodeWithSelector(Router.CommandNotFound.selector, TestDispatchableLib.FOO));
+        (bool success, bytes memory data) = address(router).call(abi.encodeWithSelector(TestDispatchableLib.FOO));
 
-        vm.expectRevert(abi.encodeWithSelector(Router.CommandNotFound.selector, TestModuleLib.BAR));
-        (success, data) = address(router).call(abi.encodeWithSelector(TestModuleLib.BAR));
+        vm.expectRevert(abi.encodeWithSelector(Router.CommandNotFound.selector, TestDispatchableLib.BAR));
+        (success, data) = address(router).call(abi.encodeWithSelector(TestDispatchableLib.BAR));
     }
 
     function testRouterRedeployModule() public {
@@ -103,6 +103,6 @@ contract RouterTest is Test, ContextUpgradeable {
         Foo foo2 = new Foo();
         router.addModule(address(foo2));
 
-        assertEq(router.module(TestModuleLib.FOO), address(foo2), "RouterTest: foo() not redeployed");
+        assertEq(router.module(TestDispatchableLib.FOO), address(foo2), "RouterTest: foo() not redeployed");
     }
 }

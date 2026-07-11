@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Module} from "../modules/Module.sol";
+import {Dispatchable} from "../modules/Dispatchable.sol";
 import {ERC20Lib} from "./ERC20.sol";
 
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
@@ -38,7 +38,7 @@ library Lib {
     }
 }
 
-contract ERC4626 is Module, ERC4626Upgradeable {
+contract ERC4626 is Dispatchable, ERC4626Upgradeable {
     uint8 private immutable _decimals;
 
     bytes32 private constant INITIALIZABLE_STORAGE = keccak256(

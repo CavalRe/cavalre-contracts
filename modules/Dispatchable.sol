@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {ModuleLib} from "../libraries/ModuleLib.sol";
+import {DispatchableLib} from "../libraries/DispatchableLib.sol";
 
-abstract contract Module {
+abstract contract Dispatchable {
     address internal immutable __self = address(this);
 
     // Errors
@@ -15,8 +15,8 @@ abstract contract Module {
     // Commands
     function selectors() external pure virtual returns (bytes4[] memory _selectors);
 
-    function enforceIsOwner() internal view returns (ModuleLib.Store storage s) {
-        s = ModuleLib.store();
+    function enforceIsOwner() internal view returns (DispatchableLib.Store storage s) {
+        s = DispatchableLib.store();
         if (s.owners[__self] != msg.sender) {
             revert OwnableUnauthorizedAccount(msg.sender);
         }
