@@ -776,7 +776,7 @@ library LedgerLib {
             if (msg.value != amount_) {
                 revert ILedger.IncorrectAmount(msg.value, amount_);
             }
-            // Native value already sits on the router (this contract via delegatecall),
+            // Native value already sits on the dispatcher (this contract via delegatecall),
             // so no external transfer is needed.
         } else {
             SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), amount_);

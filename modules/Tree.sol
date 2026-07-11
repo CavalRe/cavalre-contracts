@@ -6,6 +6,41 @@ import {LedgerLib} from "../libraries/LedgerLib.sol";
 import {TreeLib} from "../libraries/TreeLib.sol";
 
 contract Tree is Dispatchable {
+    function signatures() external pure override returns (string[] memory _signatures) {
+        _signatures = new string[](31);
+        _signatures[0] = "root(address)";
+        _signatures[1] = "parent(address)";
+        _signatures[2] = "flags(address)";
+        _signatures[3] = "wrapper(address)";
+        _signatures[4] = "tree(address)";
+        _signatures[5] = "treeNode(address)";
+        _signatures[6] = "treeNode(address,address)";
+        _signatures[7] = "accountKind(uint256)";
+        _signatures[8] = "tokenKind(uint256)";
+        _signatures[9] = "packedAddress(uint256)";
+        _signatures[10] = "isUnregisteredAccount(uint256)";
+        _signatures[11] = "isDebitGroup(uint256)";
+        _signatures[12] = "isCreditGroup(uint256)";
+        _signatures[13] = "isDebitLedger(uint256)";
+        _signatures[14] = "isCreditLedger(uint256)";
+        _signatures[15] = "isGroup(uint256)";
+        _signatures[16] = "isLedger(uint256)";
+        _signatures[17] = "isCredit(uint256)";
+        _signatures[18] = "effectiveFlags(address,address)";
+        _signatures[19] = "isUnregisteredToken(uint256)";
+        _signatures[20] = "isInternal(uint256)";
+        _signatures[21] = "isNative(uint256)";
+        _signatures[22] = "isExternal(uint256)";
+        _signatures[23] = "isRoot(uint256)";
+        _signatures[24] = "isClaim(uint256)";
+        _signatures[25] = "claimAccount(uint256)";
+        _signatures[26] = "subAccounts(address)";
+        _signatures[27] = "hasSubAccount(address)";
+        _signatures[28] = "subAccountIndex(address,address)";
+        _signatures[29] = "debugTree(address)";
+        _signatures[30] = "debugTrees(address[])";
+    }
+
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         uint256 n;
         _selectors = new bytes4[](31);

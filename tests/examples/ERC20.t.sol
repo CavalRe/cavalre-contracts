@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Router} from "../../modules/Router.sol";
+import {Dispatcher} from "../../modules/Dispatcher.sol";
 import {ERC20, ERC20Lib} from "../../examples/ERC20.sol";
-import {Dispatchable, DispatchableLib} from "../../modules/Dispatchable.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract ERC20Test is Test {
-    Router router;
+    Dispatcher dispatcher;
     ERC20 erc20;
 
     address alice = address(1);
@@ -22,9 +21,9 @@ contract ERC20Test is Test {
     function setUp() public {
         vm.startPrank(alice);
         erc20 = new ERC20(18);
-        router = new Router(alice);
-        router.addModule(address(erc20));
-        erc20 = ERC20(payable(router));
+        dispatcher = new Dispatcher(alice);
+        dispatcher.addModule(address(erc20));
+        erc20 = ERC20(payable(dispatcher));
     }
 
     function testERC20Initialize() public {

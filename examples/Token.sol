@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Router} from "../modules/Router.sol";
+import {Dispatcher} from "../modules/Dispatcher.sol";
 import {ERC20, ERC20Lib} from "./ERC20.sol";
-import {DispatchableLib} from "../modules/Dispatchable.sol";
-
 import {Test, console} from "forge-std/src/Test.sol";
 
 library TokenLib {
@@ -22,6 +20,22 @@ contract TestToken is ERC20 {
 
     constructor(uint8 _decimals) ERC20(_decimals) {}
 
+    function signatures() public pure virtual override returns (string[] memory _signatures) {
+        _signatures = new string[](12);
+        _signatures[0] = "initializeTestToken(string,string)";
+        _signatures[1] = "name()";
+        _signatures[2] = "symbol()";
+        _signatures[3] = "decimals()";
+        _signatures[4] = "totalSupply()";
+        _signatures[5] = "balanceOf(address)";
+        _signatures[6] = "transfer(address,uint256)";
+        _signatures[7] = "allowance(address,address)";
+        _signatures[8] = "approve(address,uint256)";
+        _signatures[9] = "transferFrom(address,address,uint256)";
+        _signatures[10] = "mint(uint256)";
+        _signatures[11] = "burn(uint256)";
+    }
+
     function selectors() public pure virtual override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](12);
         _selectors[0] = TokenLib.INITIALIZE_TOKEN;
@@ -32,7 +46,7 @@ contract TestToken is ERC20 {
         _selectors[5] = ERC20Lib.BALANCE_OF;
         _selectors[6] = ERC20Lib.TRANSFER;
         _selectors[7] = ERC20Lib.ALLOWANCE;
-        _selectors[7] = ERC20Lib.APPROVE;
+        _selectors[8] = ERC20Lib.APPROVE;
         _selectors[9] = ERC20Lib.TRANSFER_FROM;
         _selectors[10] = TokenLib.MINT;
         _selectors[11] = TokenLib.BURN;

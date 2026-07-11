@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {DispatchableLib} from "../libraries/DispatchableLib.sol";
+import {DispatcherLib} from "../libraries/DispatcherLib.sol";
+import {IDispatcher} from "../interfaces/IDispatcher.sol";
 
 abstract contract Dispatchable {
     address internal immutable __self = address(this);
 
     // Errors
-    error OwnableUnauthorizedAccount(address account);
     error NotDelegated();
     error IsDelegated();
     error InvalidCommandsLength(uint256 n);
 
     // Commands
+    function signatures() external pure virtual returns (string[] memory _signatures);
+
     function selectors() external pure virtual returns (bytes4[] memory _selectors);
 
-    function enforceIsOwner() internal view returns (DispatchableLib.Store storage s) {
-        s = DispatchableLib.store();
-        if (s.owners[__self] != msg.sender) {
-            revert OwnableUnauthorizedAccount(msg.sender);
+    function enforceIsOwner() internal view {
+        if (DispatcherLib.store().owners[__self] != msg.sender) {
+            revert IDispatcher.OwnableUnauthorizedAccount(msg.sender);
         }
     }
 
@@ -29,4 +30,5 @@ abstract contract Dispatchable {
     function enforceNotDelegated() internal view {
         if (address(this) != __self) revert IsDelegated();
     }
+
 }

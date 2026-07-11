@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Router} from "../../modules/Router.sol";
+import {Dispatcher} from "../../modules/Dispatcher.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract ModuleTest is Test {
@@ -12,7 +12,7 @@ contract ModuleTest is Test {
     function testModuleInit() public {
         vm.startPrank(alice);
 
-        Router router = new Router(alice);
-        assertEq(router.owner(address(router)), alice, "RouterTest: Owner not set");
+        Dispatcher dispatcher = new Dispatcher(alice);
+        assertEq(dispatcher.owner(address(dispatcher)), alice, "DispatcherTest: Owner not set");
     }
 }

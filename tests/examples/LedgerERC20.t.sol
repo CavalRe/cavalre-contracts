@@ -7,10 +7,15 @@ import {ILedger} from "../../interfaces/ILedger.sol";
 import {ERC20} from "../../examples/LedgerERC20.sol";
 import {Ledger} from "../../modules/Ledger.sol";
 import {Dispatchable} from "../../modules/Dispatchable.sol";
-import {Router} from "../../modules/Router.sol";
+import {Dispatcher} from "../../modules/Dispatcher.sol";
 import {LedgerLib} from "../../libraries/LedgerLib.sol";
 
 contract MintModule is Dispatchable {
+    function signatures() external pure override returns (string[] memory _signatures) {
+        _signatures = new string[](1);
+        _signatures[0] = "mintCanonical(address,uint256)";
+    }
+
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](1);
         _selectors[0] = bytes4(keccak256("mintCanonical(address,uint256)"));
@@ -23,7 +28,7 @@ contract MintModule is Dispatchable {
 }
 
 contract LedgerERC20Test is Test {
-    Router router;
+    Dispatcher dispatcher;
     Ledger ledgers;
     ERC20 token;
     MintModule minter;
@@ -41,19 +46,19 @@ contract LedgerERC20Test is Test {
         ledgers = new Ledger(18, "Ethereum", "ETH", 18);
         token = new ERC20();
         minter = new MintModule();
-        router = new Router(alice);
+        dispatcher = new Dispatcher(alice);
 
-        router.addModule(address(ledgers));
-        router.addModule(address(token));
-        router.addModule(address(minter));
+        dispatcher.addModule(address(ledgers));
+        dispatcher.addModule(address(token));
+        dispatcher.addModule(address(minter));
 
-        ledgers = Ledger(payable(router));
-        token = ERC20(payable(router));
-        minter = MintModule(payable(router));
+        ledgers = Ledger(payable(dispatcher));
+        token = ERC20(payable(dispatcher));
+        minter = MintModule(payable(dispatcher));
 
         ledgers.initializeLedger("Canonical Root", "ROOT");
         source_ = address(0);
-        ledgers.addSubAccount(address(router), source_, "Zero Address", true);
+        ledgers.addSubAccount(address(dispatcher), source_, "Zero Address", true);
         token.initializeERC20();
     }
 
@@ -90,7 +95,7 @@ contract LedgerERC20Test is Test {
         vm.startPrank(alice);
         minter.mintCanonical(alice, 1000);
 
-        vm.expectEmit(true, true, true, true, address(router));
+        vm.expectEmit(true, true, true, true, address(dispatcher));
         emit ILedger.Transfer(alice, alice, 250);
         assertTrue(token.transfer(alice, 250));
 
@@ -102,7 +107,7 @@ contract LedgerERC20Test is Test {
         vm.startPrank(alice);
         minter.mintCanonical(alice, 1000);
 
-        vm.expectEmit(true, true, true, true, address(router));
+        vm.expectEmit(true, true, true, true, address(dispatcher));
         emit ILedger.Transfer(alice, bob, 0);
         assertTrue(token.transfer(bob, 0));
 
@@ -132,7 +137,7 @@ contract LedgerERC20Test is Test {
         assertEq(token.allowance(alice, bob), 60);
 
         vm.expectRevert(
-            abi.encodeWithSelector(ILedger.InsufficientAllowance.selector, address(router), alice, bob, 60, 61)
+            abi.encodeWithSelector(ILedger.InsufficientAllowance.selector, address(dispatcher), alice, bob, 60, 61)
         );
         token.decreaseAllowance(bob, 61);
 
@@ -146,7 +151,7 @@ contract LedgerERC20Test is Test {
         vm.stopPrank();
 
         vm.startPrank(source_);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, address(router)));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, address(dispatcher)));
         token.transfer(bob, 1);
         vm.stopPrank();
     }
@@ -160,7 +165,7 @@ contract LedgerERC20Test is Test {
         token.approve(bob, 10);
 
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, address(router)));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, address(dispatcher)));
         token.transferFrom(source_, charlie, 1);
         vm.stopPrank();
     }

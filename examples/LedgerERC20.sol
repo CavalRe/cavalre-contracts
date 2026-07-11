@@ -19,6 +19,23 @@ contract ERC20 is Dispatchable, Initializable {
         return INITIALIZABLE_STORAGE;
     }
 
+    function signatures() external pure virtual override returns (string[] memory _signatures) {
+        _signatures = new string[](13);
+        _signatures[0] = "initializeERC20()";
+        _signatures[1] = "name()";
+        _signatures[2] = "symbol()";
+        _signatures[3] = "decimals()";
+        _signatures[4] = "totalSupply()";
+        _signatures[5] = "balanceOf(address)";
+        _signatures[6] = "allowance(address,address)";
+        _signatures[7] = "approve(address,uint256)";
+        _signatures[8] = "transfer(address,uint256)";
+        _signatures[9] = "transferFrom(address,address,uint256)";
+        _signatures[10] = "increaseAllowance(address,uint256)";
+        _signatures[11] = "decreaseAllowance(address,uint256)";
+        _signatures[12] = "forceApprove(address,uint256)";
+    }
+
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](13);
         _selectors[0] = ERC20Lib.INITIALIZE_ERC20;

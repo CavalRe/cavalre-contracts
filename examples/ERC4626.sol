@@ -53,6 +53,36 @@ contract ERC4626 is Dispatchable, ERC4626Upgradeable {
         return INITIALIZABLE_STORAGE;
     }
 
+    function signatures() public pure virtual override returns (string[] memory _signatures) {
+        _signatures = new string[](26);
+        _signatures[0] = "initializeERC4626(IERC20,string,string)";
+        _signatures[1] = "name()";
+        _signatures[2] = "symbol()";
+        _signatures[3] = "decimals()";
+        _signatures[4] = "totalSupply()";
+        _signatures[5] = "balanceOf(address)";
+        _signatures[6] = "transfer(address,uint256)";
+        _signatures[7] = "allowance(address,address)";
+        _signatures[8] = "approve(address,uint256)";
+        _signatures[9] = "transferFrom(address,address,uint256)";
+        _signatures[10] = "asset()";
+        _signatures[11] = "totalAssets()";
+        _signatures[12] = "convertToShares(uint256)";
+        _signatures[13] = "convertToAssets(uint256)";
+        _signatures[14] = "maxDeposit()";
+        _signatures[15] = "previewDeposit(uint256)";
+        _signatures[16] = "deposit(uint256)";
+        _signatures[17] = "maxMint()";
+        _signatures[18] = "previewMint(uint256)";
+        _signatures[19] = "mint(uint256)";
+        _signatures[20] = "maxWithdraw()";
+        _signatures[21] = "previewWithdraw(uint256)";
+        _signatures[22] = "withdraw(uint256)";
+        _signatures[23] = "maxRedeem()";
+        _signatures[24] = "previewRedeem(uint256)";
+        _signatures[25] = "redeem(uint256)";
+    }
+
     function selectors() public pure virtual override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](26);
         _selectors[0] = Lib.INITIALIZE_ERC4626;

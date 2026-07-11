@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Dispatchable, DispatchableLib} from "../modules/Dispatchable.sol";
+import {Dispatchable} from "../modules/Dispatchable.sol";
+import {DispatcherLib} from "../libraries/DispatcherLib.sol";
+import {IDispatcher} from "../interfaces/IDispatcher.sol";
 import {console} from "forge-std/src/console.sol";
 
 struct Store {
@@ -35,6 +37,15 @@ contract Sentry is Dispatchable {
     // Errors
     error OwnableInvalidOwner(address owner);
 
+    function signatures() public pure virtual override returns (string[] memory _signatures) {
+        _signatures = new string[](5);
+        _signatures[0] = "transferOwnership(address,address)";
+        _signatures[1] = "acceptOwnership(address)";
+        _signatures[2] = "renounceOwnership(address)";
+        _signatures[3] = "confirmRenounceOwnership(address)";
+        _signatures[4] = "pendingOwner(address)";
+    }
+
     function selectors() public pure virtual override returns (bytes4[] memory _selectors) {
         _selectors = new bytes4[](5);
         _selectors[0] = SentryLib.TRANSFER_OWNERSHIP;
@@ -45,48 +56,47 @@ contract Sentry is Dispatchable {
     }
 
     function transferOwnership(address _module, address _newOwner) external {
-        DispatchableLib.Store storage ms = enforceIsOwner();
+        enforceIsOwner();
         if (_newOwner == address(0)) {
             revert OwnableInvalidOwner(_newOwner);
         }
         Store storage s = SentryLib.store();
         s.pendingOwners[_module] = _newOwner;
 
-        emit OwnershipTransferStarted(ms.owners[_module], _newOwner);
+        emit OwnershipTransferStarted(DispatcherLib.store().owners[_module], _newOwner);
     }
 
     function acceptOwnership(address _module) external {
-        DispatchableLib.Store storage ms = DispatchableLib.store();
         Store storage s = SentryLib.store();
         address sender = msg.sender;
         if (s.pendingOwners[_module] != sender) {
-            revert Dispatchable.OwnableUnauthorizedAccount(sender);
+            revert IDispatcher.OwnableUnauthorizedAccount(sender);
         }
-        address oldOwner = ms.owners[_module];
-        ms.owners[_module] = sender;
+        address oldOwner = DispatcherLib.store().owners[_module];
+        DispatcherLib.store().owners[_module] = sender;
         s.pendingOwners[_module] = address(0);
 
         emit OwnershipTransferred(oldOwner, sender);
     }
 
     function renouceOwnership(address _module) external {
-        DispatchableLib.Store storage ms = enforceIsOwner();
+        enforceIsOwner();
         Store storage s = SentryLib.store();
         address sender = msg.sender;
-        if (ms.owners[_module] != sender) {
-            revert Dispatchable.OwnableUnauthorizedAccount(sender);
+        if (DispatcherLib.store().owners[_module] != sender) {
+            revert IDispatcher.OwnableUnauthorizedAccount(sender);
         }
-        address oldOwner = ms.owners[_module];
+        address oldOwner = DispatcherLib.store().owners[_module];
         s.pendingOwners[_module] = address(0);
 
         emit OwnershipTransferStarted(oldOwner, address(0));
     }
 
     function confirmRenounceOwnership(address _module) external {
-        DispatchableLib.Store storage ms = enforceIsOwner();
+        enforceIsOwner();
         Store storage s = SentryLib.store();
-        address oldOwner = ms.owners[_module];
-        ms.owners[_module] = address(0);
+        address oldOwner = DispatcherLib.store().owners[_module];
+        DispatcherLib.store().owners[_module] = address(0);
         s.pendingOwners[_module] = address(0);
 
         emit OwnershipTransferred(oldOwner, address(0));

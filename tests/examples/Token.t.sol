@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Router} from "../../modules/Router.sol";
+import {Dispatcher} from "../../modules/Dispatcher.sol";
 import {ERC20, ERC20Lib} from "../../examples/ERC20.sol";
-import {DispatchableLib} from "../../modules/Dispatchable.sol";
 import {TestToken, TokenLib} from "../../examples/Token.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
 
 contract TestTokenTest is Test {
     TestToken token;
-    Router router;
+    Dispatcher dispatcher;
 
     address alice = address(1);
     address bob = address(2);
@@ -23,10 +22,10 @@ contract TestTokenTest is Test {
     function setUp() public {
         vm.startPrank(alice);
         token = new TestToken(18);
-        router = new Router(alice);
-        router.addModule(address(token));
+        dispatcher = new Dispatcher(alice);
+        dispatcher.addModule(address(token));
 
-        token = TestToken(payable(router));
+        token = TestToken(payable(dispatcher));
 
         token.initializeTestToken("TestToken", "TOKEN");
     }

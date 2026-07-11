@@ -14,7 +14,7 @@ contract ERC20Wrapper {
     // Storage
     // -------------------------------------------------------------------------
 
-    address private immutable _router;
+    address private immutable _dispatcher;
     address private immutable _token;
     bool private immutable _isCredit;
     string private _name;
@@ -34,14 +34,14 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     constructor(
-        address router_,
+        address dispatcher_,
         address token_,
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
         bool isCredit_
     ) {
-        _router = router_;
+        _dispatcher = dispatcher_;
         _token = token_ == address(0) ? address(this) : token_;
         _isCredit = isCredit_;
         _name = name_;
@@ -49,8 +49,8 @@ contract ERC20Wrapper {
         _decimals = decimals_;
     }
 
-    modifier routerOnly() {
-        if (msg.sender != _router) revert ILedger.Unauthorized(msg.sender);
+    modifier dispatcherOnly() {
+        if (msg.sender != _dispatcher) revert ILedger.Unauthorized(msg.sender);
         _;
     }
 
@@ -70,8 +70,8 @@ contract ERC20Wrapper {
         return _decimals;
     }
 
-    function router() public view returns (address) {
-        return _router;
+    function dispatcher() public view returns (address) {
+        return _dispatcher;
     }
 
     function token() public view returns (address) {
@@ -87,11 +87,11 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     function totalSupply() public view returns (uint256) {
-        return ILedger(_router).totalSupply(_token);
+        return ILedger(_dispatcher).totalSupply(_token);
     }
 
     function balanceOf(address account_) public view returns (uint256) {
-        return ILedger(_router).balanceOf(_token, account_);
+        return ILedger(_dispatcher).balanceOf(_token, account_);
     }
 
     // -------------------------------------------------------------------------
@@ -150,7 +150,7 @@ contract ERC20Wrapper {
         if (_isCredit) {
             (from_, to_) = (to_, from_);
         }
-        ILedger(_router).transfer(_token, from_, _token, to_, amount_);
+        ILedger(_dispatcher).transfer(_token, from_, _token, to_, amount_);
         return true;
     }
 
@@ -165,11 +165,11 @@ contract ERC20Wrapper {
         if (_isCredit) {
             (from_, to_) = (to_, from_);
         }
-        ILedger(_router).transfer(_token, from_, _token, to_, amount_);
+        ILedger(_dispatcher).transfer(_token, from_, _token, to_, amount_);
         return true;
     }
 
-    function emitTransfer(address from_, address to_, uint256 amount_) public routerOnly {
+    function emitTransfer(address from_, address to_, uint256 amount_) public dispatcherOnly {
         emit Transfer(from_, to_, amount_);
     }
 }
@@ -208,6 +208,39 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard, ILedger {
 
     function _reentrancyGuardStorageSlot() internal pure override returns (bytes32) {
         return REENTRANCY_GUARD_STORAGE;
+    }
+
+    function signatures() external pure virtual override returns (string[] memory _signatures) {
+        _signatures = new string[](29);
+        _signatures[0] = "initializeLedger(string,string)";
+        _signatures[1] = "addSubAccountGroup(address,string,bool)";
+        _signatures[2] = "addSubAccountGroup(address,address,string,bool)";
+        _signatures[3] = "addSubAccount(address,string,bool)";
+        _signatures[4] = "addSubAccount(address,address,string,bool)";
+        _signatures[5] = "addNativeToken()";
+        _signatures[6] = "addExternalToken(address)";
+        _signatures[7] = "createInternalToken(string,string,uint8)";
+        _signatures[8] = "createClaimToken(string,string,uint8,address,address)";
+        _signatures[9] = "removeSubAccountGroup(address,string)";
+        _signatures[10] = "removeSubAccountGroup(address,address)";
+        _signatures[11] = "removeSubAccount(address,string)";
+        _signatures[12] = "removeSubAccount(address,address)";
+        _signatures[13] = "name(address)";
+        _signatures[14] = "symbol(address)";
+        _signatures[15] = "decimals(address)";
+        _signatures[16] = "nativeName()";
+        _signatures[17] = "nativeSymbol()";
+        _signatures[18] = "nativeDecimals()";
+        _signatures[19] = "debitBalanceOf(address,address)";
+        _signatures[20] = "creditBalanceOf(address,address)";
+        _signatures[21] = "balanceOf(address,address)";
+        _signatures[22] = "totalSupply(address)";
+        _signatures[23] = "isClaim(address)";
+        _signatures[24] = "claimAccountOf(address)";
+        _signatures[25] = "transfer(address,address,address,address,uint256)";
+        _signatures[26] = "transfer(address,address,address,uint256)";
+        _signatures[27] = "wrap(address,uint256)";
+        _signatures[28] = "unwrap(address,uint256)";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
@@ -249,7 +282,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard, ILedger {
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
         enforceIsOwner();
 
-        // Canonical root is always registered at the router address; ERC20 exposure remains an optional module.
+        // Canonical root is always registered at the dispatcher address; ERC20 exposure remains an optional module.
         LedgerLib.addLedger(address(this), name_, symbol_, 18, LedgerLib.TokenKind.Internal, address(0));
     }
 

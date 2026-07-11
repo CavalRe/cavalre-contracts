@@ -7,7 +7,7 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
  * @dev Shadow version of OpenZeppelin's ReentrancyGuardTransient to support module-specific storage slots.
  *
  * This contract overrides the default `_reentrancyGuardStorageSlot` behavior to enforce separate
- * storage slots for each module in a diamond-style Router/Dispatchable architecture.
+ * storage slots for each module in a diamond-style Dispatcher/Dispatchable architecture.
  *
  * Without this override, all modules that inherit OpenZeppelin's ReentrancyGuardTransient would use the
  * same storage slot, leading to collisions when using delegatecall.

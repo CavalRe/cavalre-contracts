@@ -3,15 +3,15 @@ pragma solidity ^0.8.26;
 
 import {Test, console} from "forge-std/src/Test.sol";
 
-import {Router} from "../../modules/Router.sol";
+import {Dispatcher} from "../../modules/Dispatcher.sol";
 import {ILedger, Ledger, ERC20Wrapper, LedgerLib} from "../../modules/Ledger.sol";
 import {Tree} from "../../modules/Tree.sol";
 
 import {TestLedger, MockERC20} from "./Ledger.t.sol";
 
 contract ERC20WrapperTest is Test {
-    Router internal router;
-    TestLedger internal ledgers; // will point to Router after module add
+    Dispatcher internal dispatcher;
+    TestLedger internal ledgers; // will point to Dispatcher after module add
     Tree internal tree;
     ERC20Wrapper internal token;
     MockERC20 internal externalToken;
@@ -28,18 +28,18 @@ contract ERC20WrapperTest is Test {
         if (isVerbose) console.log("setUp");
         vm.startPrank(owner);
 
-        // Deploy Ledger impl, register in Router, then speak to it at Router address
+        // Deploy Ledger impl, register in Dispatcher, then speak to it at Dispatcher address
         if (isVerbose) console.log("Deploying Ledger impl");
         TestLedger impl = new TestLedger(18, 18);
         Tree treeImpl = new Tree();
-        if (isVerbose) console.log("Deploying Router");
-        router = new Router(owner);
+        if (isVerbose) console.log("Deploying Dispatcher");
+        dispatcher = new Dispatcher(owner);
         if (isVerbose) console.log("Registering Ledger impl");
-        router.addModule(address(impl));
-        router.addModule(address(treeImpl));
+        dispatcher.addModule(address(impl));
+        dispatcher.addModule(address(treeImpl));
         if (isVerbose) console.log("Instantiating Test Ledger");
-        ledgers = TestLedger(payable(address(router)));
-        tree = Tree(payable(address(router)));
+        ledgers = TestLedger(payable(address(dispatcher)));
+        tree = Tree(payable(address(dispatcher)));
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledgers.initializeTestLedger();
@@ -68,7 +68,7 @@ contract ERC20WrapperTest is Test {
 
         if (isVerbose) console.log("Display Account Hierarchy");
         if (isVerbose) console.log("--------------------");
-        if (isVerbose) tree.debugTree(address(router));
+        if (isVerbose) tree.debugTree(address(dispatcher));
         if (isVerbose) console.log("--------------------");
         if (isVerbose) tree.debugTree(address(token));
         if (isVerbose) console.log("--------------------");
@@ -82,7 +82,7 @@ contract ERC20WrapperTest is Test {
         assertEq(token.name(), "Internal Test Token");
         assertEq(token.symbol(), "ITT");
         assertEq(token.decimals(), 18);
-        assertEq(token.router(), address(router));
+        assertEq(token.dispatcher(), address(dispatcher));
         assertEq(token.token(), address(token));
         assertEq(token.totalSupply(), 0);
 

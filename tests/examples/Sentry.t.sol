@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Router} from "../../modules/Router.sol";
-import {Dispatchable, DispatchableLib} from "../../modules/Dispatchable.sol";
+import {Dispatcher} from "../../modules/Dispatcher.sol";
+import {IDispatcher} from "../../interfaces/IDispatcher.sol";
 import {Sentry, SentryLib} from "../../examples/Sentry.sol";
 import {Test} from "forge-std/src/Test.sol";
 
 contract SentryTest is Test {
-    Router router;
+    Dispatcher dispatcher;
     Sentry sentry;
 
-    address routerAddress;
+    address dispatcherAddress;
     address sentryAddress;
 
     address alice = address(1);
@@ -26,49 +26,48 @@ contract SentryTest is Test {
         sentry = new Sentry();
         sentryAddress = address(sentry);
 
-        router = new Router(alice);
-        routerAddress = address(router);
+        dispatcher = new Dispatcher(alice);
+        dispatcherAddress = address(dispatcher);
+        dispatcher.addModule(sentryAddress);
 
-        router.addModule(sentryAddress);
-
-        sentry = Sentry(payable(router));
+        sentry = Sentry(payable(dispatcher));
     }
 
     function testSentryInit() public view {
-        assertEq(router.owner(address(router)), alice, "SentryTest: Owner not set");
-        assertEq(router.module(SentryLib.TRANSFER_OWNERSHIP), sentryAddress, "SentryTest: TransferOwnership not set");
-        assertEq(router.module(SentryLib.ACCEPT_OWNERSHIP), sentryAddress, "SentryTest: AcceptOwnership not set");
-        assertEq(router.module(SentryLib.RENOUNCE_OWNERSHIP), sentryAddress, "SentryTest: RenounceOwnership not set");
+        assertEq(dispatcher.owner(address(dispatcher)), alice, "SentryTest: Owner not set");
+        assertEq(dispatcher.module(SentryLib.TRANSFER_OWNERSHIP), sentryAddress, "SentryTest: TransferOwnership not set");
+        assertEq(dispatcher.module(SentryLib.ACCEPT_OWNERSHIP), sentryAddress, "SentryTest: AcceptOwnership not set");
+        assertEq(dispatcher.module(SentryLib.RENOUNCE_OWNERSHIP), sentryAddress, "SentryTest: RenounceOwnership not set");
         assertEq(
-            router.module(SentryLib.CONFIRM_RENOUNCE_OWNERSHIP),
+            dispatcher.module(SentryLib.CONFIRM_RENOUNCE_OWNERSHIP),
             sentryAddress,
             "SentryTest: ConfirmRenounceOwnership not set"
         );
     }
 
     function testSentryOwner() public view {
-        assertEq(router.owner(sentryAddress), alice);
+        assertEq(dispatcher.owner(sentryAddress), alice);
     }
 
     function testSentryWrongOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(Dispatchable.OwnableUnauthorizedAccount.selector, bob));
-        router.addModule(sentryAddress);
+        vm.expectRevert(abi.encodeWithSelector(IDispatcher.OwnableUnauthorizedAccount.selector, bob));
+        dispatcher.addModule(sentryAddress);
     }
 
     function testSentryTransferOwnership() public {
         vm.startPrank(alice);
         // emit log("Alice starts the transfer to Bob");
-        sentry.transferOwnership(routerAddress, bob);
+        sentry.transferOwnership(dispatcherAddress, bob);
 
         // emit log("Verify Bob is now the pending owner");
-        assertEq(sentry.pendingOwner(routerAddress), bob);
+        assertEq(sentry.pendingOwner(dispatcherAddress), bob);
 
         vm.startPrank(bob);
         // emit log("Bob accepts the transfer");
-        sentry.acceptOwnership(routerAddress);
+        sentry.acceptOwnership(dispatcherAddress);
 
         // emit log("Verify Bob is now the owner");
-        assertEq(router.owner(routerAddress), bob);
+        assertEq(dispatcher.owner(dispatcherAddress), bob);
     }
 }

@@ -9,7 +9,7 @@ import {ILedger} from "../../interfaces/ILedger.sol";
 import {LedgerLib} from "../../libraries/LedgerLib.sol";
 import {Ledger} from "../../modules/Ledger.sol";
 import {Dispatchable} from "../../modules/Dispatchable.sol";
-import {Router} from "../../modules/Router.sol";
+import {Dispatcher} from "../../modules/Dispatcher.sol";
 import {Tree} from "../../modules/Tree.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {TreeLib} from "../../libraries/TreeLib.sol";
@@ -18,7 +18,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Test, console} from "forge-std/src/Test.sol";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test module that exposes LedgerLib via external funcs for Router delegatecall
+// Test module that exposes LedgerLib via external funcs for Dispatcher delegatecall
 // ─────────────────────────────────────────────────────────────────────────────
 contract TestLedger is Ledger {
     string internal constant LEDGER_NAME = "Ledger";
@@ -26,7 +26,46 @@ contract TestLedger is Ledger {
 
     constructor(uint8 decimals_, uint8 nativeDecimals_) Ledger(decimals_, "Ethereum", "ETH", nativeDecimals_) {}
 
-    // Keep command registry so Router can “register” the module (if you use it)
+    // Keep command registry so Dispatcher can “register” the module (if you use it)
+    function signatures() external pure virtual override returns (string[] memory _signatures) {
+        _signatures = new string[](35);
+        _signatures[0] = "initializeTestLedger()";
+        _signatures[1] = "addSubAccountGroup(address,string,bool)";
+        _signatures[2] = "addSubAccountGroup(address,address,string,bool)";
+        _signatures[3] = "addSubAccount(address,string,bool)";
+        _signatures[4] = "addSubAccount(address,address,string,bool)";
+        _signatures[5] = "addNativeToken()";
+        _signatures[6] = "addExternalToken(address)";
+        _signatures[7] = "createInternalToken(string,string,uint8)";
+        _signatures[8] = "createClaimToken(string,string,uint8,address,address)";
+        _signatures[9] = "removeSubAccountGroup(address,string)";
+        _signatures[10] = "removeSubAccountGroup(address,address)";
+        _signatures[11] = "removeSubAccount(address,string)";
+        _signatures[12] = "removeSubAccount(address,address)";
+        _signatures[13] = "name(address)";
+        _signatures[14] = "symbol(address)";
+        _signatures[15] = "decimals(address)";
+        _signatures[16] = "nativeName()";
+        _signatures[17] = "nativeSymbol()";
+        _signatures[18] = "nativeDecimals()";
+        _signatures[19] = "debitBalanceOf(address,address)";
+        _signatures[20] = "creditBalanceOf(address,address)";
+        _signatures[21] = "balanceOf(address,address)";
+        _signatures[22] = "totalSupply(address)";
+        _signatures[23] = "isClaim(address)";
+        _signatures[24] = "claimAccountOf(address)";
+        _signatures[25] = "transfer(address,address,address,address,uint256)";
+        _signatures[26] = "transfer(address,address,address,uint256)";
+        _signatures[27] = "wrap(address,uint256)";
+        _signatures[28] = "unwrap(address,uint256)";
+        _signatures[29] = "mint(address,address,uint256)";
+        _signatures[30] = "burn(address,address,uint256)";
+        _signatures[31] = "enforceNativeValue(uint256)";
+        _signatures[32] = "wrapThenUnwrap(address,uint256,address,uint256)";
+        _signatures[33] = "wrapThenWrap(address,uint256,address,uint256)";
+        _signatures[34] = "rawTransfer(address,address,address,address,uint256)";
+    }
+
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
         _selectors = new bytes4[](35);
@@ -188,7 +227,7 @@ contract ReenterToken is ERC20 {
 contract LedgerTest is Test {
     bool isVerbose;
 
-    Router router;
+    Dispatcher dispatcher;
     TestLedger ledger;
     Tree tree;
 
@@ -228,13 +267,13 @@ contract LedgerTest is Test {
         if (isVerbose) console.log("Deploying TestLedger");
         ledger = new TestLedger(18, 18);
         Tree treeImpl = new Tree();
-        if (isVerbose) console.log("Deploying Router");
-        router = new Router(alice);
-        if (isVerbose) console.log("Adding Ledger module to Router");
-        router.addModule(address(ledger));
-        router.addModule(address(treeImpl));
-        ledger = TestLedger(payable(router));
-        tree = Tree(payable(address(router)));
+        if (isVerbose) console.log("Deploying Dispatcher");
+        dispatcher = new Dispatcher(alice);
+        if (isVerbose) console.log("Adding Ledger module to Dispatcher");
+        dispatcher.addModule(address(ledger));
+        dispatcher.addModule(address(treeImpl));
+        ledger = TestLedger(payable(dispatcher));
+        tree = Tree(payable(address(dispatcher)));
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledger.initializeTestLedger();
@@ -286,7 +325,7 @@ contract LedgerTest is Test {
 
         if (isVerbose) console.log("Display Account Hierarchy");
         if (isVerbose) console.log("--------------------");
-        if (isVerbose) tree.debugTree(address(router));
+        if (isVerbose) tree.debugTree(address(dispatcher));
         if (isVerbose) console.log("--------------------");
         if (isVerbose) tree.debugTree(testLedger);
         if (isVerbose) console.log("--------------------");
@@ -301,8 +340,8 @@ contract LedgerTest is Test {
         ledger.initializeTestLedger(); // re-init should revert
 
         // Tree shape sanity
-        assertEq(ledger.name(address(router)), "Ledger", "ledger name");
-        assertEq(ledger.symbol(address(router)), "LEDGER", "ledger symbol");
+        assertEq(ledger.name(address(dispatcher)), "Ledger", "ledger name");
+        assertEq(ledger.symbol(address(dispatcher)), "LEDGER", "ledger symbol");
         assertEq(tree.subAccounts(testLedger).length, 2, "Subaccounts (testLedger)");
         assertEq(tree.subAccounts(r1).length, 3, "Subaccounts (r1)");
         assertEq(tree.subAccounts(r10).length, 2, "Subaccounts (r10)");
@@ -372,11 +411,11 @@ contract LedgerTest is Test {
     function testLedgerAddNativeTokenUsesConfiguredNativeDecimals() public {
         TestLedger ledgerImpl_ = new TestLedger(18, 6);
         Tree treeImpl_ = new Tree();
-        Router router_ = new Router(alice);
-        router_.addModule(address(ledgerImpl_));
-        router_.addModule(address(treeImpl_));
+        Dispatcher dispatcher_ = new Dispatcher(alice);
+        dispatcher_.addModule(address(ledgerImpl_));
+        dispatcher_.addModule(address(treeImpl_));
 
-        TestLedger ledger_ = TestLedger(payable(address(router_)));
+        TestLedger ledger_ = TestLedger(payable(address(dispatcher_)));
         ledger_.initializeTestLedger();
         ledger_.addNativeToken();
 
@@ -884,7 +923,7 @@ contract LedgerTest is Test {
 
         if (isVerbose) console.log("Display Account Hierarchy");
         if (isVerbose) console.log("--------------------");
-        // if (isVerbose) TreeLib.debugTree(ledger, address(router));
+        // if (isVerbose) TreeLib.debugTree(ledger, address(dispatcher));
         // if (isVerbose) console.log("--------------------");
         // if (isVerbose) TreeLib.debugTree(ledger, testLedger);
         // if (isVerbose) console.log("--------------------");
@@ -956,7 +995,7 @@ contract LedgerTest is Test {
         ledger.wrap(address(externalToken), wrapAmount);
         vm.stopPrank();
 
-        assertEq(externalToken.balanceOf(address(router)), wrapAmount, "router holds wrapped tokens");
+        assertEq(externalToken.balanceOf(address(dispatcher)), wrapAmount, "dispatcher holds wrapped tokens");
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance consumed");
         assertEq(ledger.debitBalanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
         assertEq(ledger.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
@@ -995,7 +1034,7 @@ contract LedgerTest is Test {
         ledger.unwrap(address(externalToken), unwrapAmount);
         vm.stopPrank();
 
-        assertEq(externalToken.balanceOf(address(router)), wrapAmount - unwrapAmount, "router balance after unwrap");
+        assertEq(externalToken.balanceOf(address(dispatcher)), wrapAmount - unwrapAmount, "dispatcher balance after unwrap");
         assertEq(externalToken.balanceOf(alice), unwrapAmount, "alice external balance after unwrap");
         assertEq(
             ledger.debitBalanceOf(address(externalToken), alice),
@@ -1035,7 +1074,7 @@ contract LedgerTest is Test {
         vm.stopPrank();
 
         assertEq(externalToken.balanceOf(alice), externalUnwrapAmount, "alice external balance after unwrap");
-        assertEq(externalToken.balanceOf(address(router)), 0, "router external balance after unwrap");
+        assertEq(externalToken.balanceOf(address(dispatcher)), 0, "dispatcher external balance after unwrap");
         assertEq(ledger.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
         assertEq(ledger.debitBalanceOf(address(externalToken), alice), 0, "external ledger balance after unwrap");
     }
@@ -1055,7 +1094,7 @@ contract LedgerTest is Test {
         vm.stopPrank();
 
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance after wrap");
-        assertEq(externalToken.balanceOf(address(router)), externalWrapAmount, "router external balance after wrap");
+        assertEq(externalToken.balanceOf(address(dispatcher)), externalWrapAmount, "dispatcher external balance after wrap");
         assertEq(ledger.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
         assertEq(
             ledger.debitBalanceOf(address(externalToken), alice),
@@ -1104,7 +1143,7 @@ contract LedgerTest is Test {
         if (isVerbose) console.log("Wrapping external token");
         ledger.wrap(address(externalToken), source_, address(externalToken), alice, wrapAmount);
 
-        assertEq(externalToken.balanceOf(address(router)), wrapAmount, "router holds wrapped tokens");
+        assertEq(externalToken.balanceOf(address(dispatcher)), wrapAmount, "dispatcher holds wrapped tokens");
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance consumed");
         assertEq(ledger.debitBalanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
         assertEq(ledger.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
@@ -1118,7 +1157,7 @@ contract LedgerTest is Test {
         uint256 firstUnwrap = 45;
         ledger.unwrap(address(externalToken), alice, address(externalToken), source_, firstUnwrap);
         assertEq(
-            externalToken.balanceOf(address(router)), wrapAmount - firstUnwrap, "router balance after partial unwrap"
+            externalToken.balanceOf(address(dispatcher)), wrapAmount - firstUnwrap, "dispatcher balance after partial unwrap"
         );
         assertEq(externalToken.balanceOf(alice), firstUnwrap, "alice external balance after partial unwrap");
         assertEq(
@@ -1132,7 +1171,7 @@ contract LedgerTest is Test {
 
         uint256 remaining = wrapAmount - firstUnwrap;
         ledger.unwrap(address(externalToken), alice, address(externalToken), source_, remaining);
-        assertEq(externalToken.balanceOf(address(router)), 0, "router drained after unwrap");
+        assertEq(externalToken.balanceOf(address(dispatcher)), 0, "dispatcher drained after unwrap");
         assertEq(externalToken.balanceOf(alice), wrapAmount, "alice restored external balance");
         assertEq(ledger.debitBalanceOf(address(externalToken), alice), 0, "ledger balance cleared");
         assertEq(ledger.totalSupply(address(externalToken)), 0, "total supply cleared");
@@ -1262,11 +1301,11 @@ contract LedgerTest is Test {
         ledger.addSubAccount(native, source_, "Zero Address", true);
 
         uint256 wrapAmount = 2 ether;
-        uint256 routerBalanceBefore = address(router).balance;
+        uint256 dispatcherBalanceBefore = address(dispatcher).balance;
         ledger.wrap{value: wrapAmount}(native, source_, native, alice, wrapAmount);
         vm.stopPrank();
 
-        assertEq(address(router).balance, routerBalanceBefore + wrapAmount, "router holds native collateral");
+        assertEq(address(dispatcher).balance, dispatcherBalanceBefore + wrapAmount, "dispatcher holds native collateral");
         assertEq(ledger.debitBalanceOf(native, alice), wrapAmount, "ledger native balance");
         assertEq(ledger.totalSupply(native), wrapAmount, "native total supply");
     }
@@ -1319,14 +1358,14 @@ contract LedgerTest is Test {
 
         uint256 wrapAmount = 3 ether;
         ledger.wrap{value: wrapAmount}(native, source_, native, alice, wrapAmount);
-        uint256 routerBalanceAfterWrap = address(router).balance;
+        uint256 dispatcherBalanceAfterWrap = address(dispatcher).balance;
         uint256 aliceBalanceAfterWrap = alice.balance;
 
         uint256 unwrapAmount = 1 ether;
         ledger.unwrap(native, alice, native, source_, unwrapAmount);
         vm.stopPrank();
 
-        assertEq(address(router).balance, routerBalanceAfterWrap - unwrapAmount, "router native balance");
+        assertEq(address(dispatcher).balance, dispatcherBalanceAfterWrap - unwrapAmount, "dispatcher native balance");
         assertEq(alice.balance, aliceBalanceAfterWrap + unwrapAmount, "alice native balance");
         assertEq(ledger.debitBalanceOf(native, alice), wrapAmount - unwrapAmount, "ledger native balance");
         assertEq(ledger.totalSupply(native), wrapAmount - unwrapAmount, "native total supply");
@@ -1364,22 +1403,22 @@ contract LedgerTest is Test {
     function testLedgerTransfer() public {
         vm.startPrank(alice);
 
-        address routerRoot = r1;
+        address dispatcherRoot = r1;
         address testLedgerRoot = address(testLedger);
 
         // Mint → transfer to bob under the same root
-        ledger.mint(routerRoot, alice, 1000);
-        // elm: fromParent = routerRoot, toParent = routerRoot, to = bob
-        ledger.transfer(routerRoot, routerRoot, bob, 700);
+        ledger.mint(dispatcherRoot, alice, 1000);
+        // elm: fromParent = dispatcherRoot, toParent = dispatcherRoot, to = bob
+        ledger.transfer(dispatcherRoot, dispatcherRoot, bob, 700);
 
-        assertEq(ledger.debitBalanceOf(routerRoot, alice), 300, "alice");
-        assertEq(ledger.debitBalanceOf(routerRoot, bob), 700, "bob");
-        assertEq(ledger.totalSupply(routerRoot), 1000, "supply");
+        assertEq(ledger.debitBalanceOf(dispatcherRoot, alice), 300, "alice");
+        assertEq(ledger.debitBalanceOf(dispatcherRoot, bob), 700, "bob");
+        assertEq(ledger.totalSupply(dispatcherRoot), 1000, "supply");
 
         // Different roots should revert
-        vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, routerRoot, testLedgerRoot));
-        // attempt: fromParent=routerRoot, toParent=testLedgerRoot (different root)
-        ledger.transfer(routerRoot, testLedgerRoot, bob, 100);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, dispatcherRoot, testLedgerRoot));
+        // attempt: fromParent=dispatcherRoot, toParent=testLedgerRoot (different root)
+        ledger.transfer(dispatcherRoot, testLedgerRoot, bob, 100);
     }
 
     function testLedgerTransferAcrossSiblingBranchesPreservesAncestorBalance() public {
@@ -1520,7 +1559,7 @@ contract LedgerTest is Test {
 
 //     if (isVerbose) {
 //         console.log("--------------------");
-//         TreeLib.debugTree(ledger, address(router));
+//         TreeLib.debugTree(ledger, address(dispatcher));
 //         console.log("--------------------");
 //         TreeLib.debugTree(ledger, r1);
 //         console.log("--------------------");
@@ -1566,7 +1605,7 @@ contract LedgerTest is Test {
 //     // First run the tree visualization tests
 //     if (isVerbose) {
 //         console.log("--------------------");
-//         TreeLib.debugTree(ledger, address(router));
+//         TreeLib.debugTree(ledger, address(dispatcher));
 //         console.log("--------------------");
 //         TreeLib.debugTree(ledger, r1);
 //         console.log("--------------------");
@@ -1708,7 +1747,7 @@ contract LedgerTest is Test {
 
 //     if (isVerbose) {
 //         console.log("--------------------");
-//         TreeLib.debugTree(ledger, address(router));
+//         TreeLib.debugTree(ledger, address(dispatcher));
 //         console.log("--------------------");
 //         TreeLib.debugTree(ledger, r1);
 //         console.log("--------------------");
@@ -1779,7 +1818,7 @@ contract LedgerTest is Test {
 
 //     if (isVerbose) {
 //         console.log("--------------------");
-//         TreeLib.debugTree(ledger, address(router));
+//         TreeLib.debugTree(ledger, address(dispatcher));
 //         console.log("--------------------");
 //         TreeLib.debugTree(ledger, r1);
 //         console.log("--------------------");
