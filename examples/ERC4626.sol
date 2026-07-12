@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Dispatchable} from "../modules/Dispatchable.sol";
+import {Dispatchable} from "../modules/dispatcher/Dispatchable.sol";
 import {ERC20Lib} from "./ERC20.sol";
 
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";

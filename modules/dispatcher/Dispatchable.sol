@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {DispatcherLib} from "../libraries/DispatcherLib.sol";
-import {IDispatcher} from "../interfaces/IDispatcher.sol";
+import {DispatcherLib} from "./DispatcherLib.sol";
+import {IDispatcher} from "./IDispatcher.sol";
 
 abstract contract Dispatchable {
     address internal immutable __self = address(this);

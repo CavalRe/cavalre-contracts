@@ -3,9 +3,11 @@ pragma solidity ^0.8.26;
 
 import {Test, console} from "forge-std/src/Test.sol";
 
-import {Dispatcher} from "../../modules/Dispatcher.sol";
-import {ILedger, Ledger, ERC20Wrapper, LedgerLib} from "../../modules/Ledger.sol";
-import {Tree} from "../../modules/Tree.sol";
+import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
+import {Ledger, ERC20Wrapper} from "../../modules/ledger/Ledger.sol";
+import {ILedger} from "../../modules/ledger/ILedger.sol";
+import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
+import {Tree} from "../../modules/tree/Tree.sol";
 
 import {TestLedger, MockERC20} from "./Ledger.t.sol";
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Float, FloatLib} from "./FloatLib.sol";
+import {Float, FloatLib} from "../math/FloatLib.sol";
 
 library RandomLib {
     using FloatLib for Float;

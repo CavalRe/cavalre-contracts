@@ -3,9 +3,9 @@ pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/src/Test.sol";
 import {console} from "forge-std/src/console.sol";
-import {FloatLib, Float} from "../../libraries/FloatLib.sol";
-import {FloatStrings} from "../../libraries/FloatStrings.sol";
-import {RandomLib} from "../../libraries/RandomLib.sol";
+import {FloatLib, Float} from "../../math/FloatLib.sol";
+import {FloatStrings} from "../../math/FloatStrings.sol";
+import {RandomLib} from "../../utilities/RandomLib.sol";
 
 contract RandomLibTest is Test {
     using FloatLib for Float;

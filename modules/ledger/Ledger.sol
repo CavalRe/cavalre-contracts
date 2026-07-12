@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Dispatchable} from "./Dispatchable.sol";
-import {Initializable} from "../utilities/Initializable.sol";
-import {ReentrancyGuard} from "../utilities/ReentrancyGuard.sol";
-import {LedgerLib} from "../libraries/LedgerLib.sol";
+import {Dispatchable} from "../dispatcher/Dispatchable.sol";
+import {Initializable} from "../../utilities/Initializable.sol";
+import {ReentrancyGuard} from "../../utilities/ReentrancyGuard.sol";
+import {LedgerLib} from "./LedgerLib.sol";
 import {ShortString, ShortStrings} from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
-import {ILedger} from "../interfaces/ILedger.sol";
+import {ILedger} from "./ILedger.sol";
 
 contract ERC20Wrapper {
     // -------------------------------------------------------------------------

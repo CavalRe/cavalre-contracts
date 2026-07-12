@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Dispatcher} from "../../modules/Dispatcher.sol";
+import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {ERC20, ERC20Lib} from "../../examples/ERC20.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Test} from "forge-std/src/Test.sol";

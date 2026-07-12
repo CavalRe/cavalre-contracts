@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/src/Test.sol";
-import {MemoryLib} from "../../libraries/MemoryLib.sol";
+import {MemoryLib} from "../../utilities/MemoryLib.sol";
 
 contract MemoryLibTest is Test {
     using MemoryLib for MemoryLib.AddressSet;

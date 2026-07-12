@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Dispatchable} from "./Dispatchable.sol";
-import {LedgerLib} from "../libraries/LedgerLib.sol";
-import {TreeLib} from "../libraries/TreeLib.sol";
+import {Dispatchable} from "../dispatcher/Dispatchable.sol";
+import {LedgerLib} from "../ledger/LedgerLib.sol";
+import {TreeLib} from "./TreeLib.sol";
 
 contract Tree is Dispatchable {
     function signatures() external pure override returns (string[] memory _signatures) {

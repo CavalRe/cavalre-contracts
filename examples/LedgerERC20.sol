@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Dispatchable} from "../modules/Dispatchable.sol";
+import {Dispatchable} from "../modules/dispatcher/Dispatchable.sol";
 import {Initializable} from "../utilities/Initializable.sol";
-import {LedgerLib} from "../libraries/LedgerLib.sol";
+import {LedgerLib} from "../modules/ledger/LedgerLib.sol";
 import {ERC20Lib} from "./LedgerERC20Lib.sol";
-import {ILedger} from "../interfaces/ILedger.sol";
+import {ILedger} from "../modules/ledger/ILedger.sol";
 
 contract ERC20 is Dispatchable, Initializable {
     // -- Storage --

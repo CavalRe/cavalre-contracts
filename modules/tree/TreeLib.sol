@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Float, FloatLib, FloatStrings} from "./FloatStrings.sol";
-import {LedgerLib} from "./LedgerLib.sol";
+import {Float, FloatLib, FloatStrings} from "../../math/FloatStrings.sol";
+import {LedgerLib} from "../ledger/LedgerLib.sol";
 
 import {console} from "forge-std/src/Test.sol";
 

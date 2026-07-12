@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {ILedger, ERC20Wrapper} from "../modules/Ledger.sol";
+import {ERC20Wrapper} from "./Ledger.sol";
+import {ILedger} from "./ILedger.sol";
 
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";

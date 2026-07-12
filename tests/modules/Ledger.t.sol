@@ -5,14 +5,14 @@ pragma solidity ^0.8.26;
 // Import split layout (interfaces + lib + module + infra)
 // Adjust paths if your repo layout differs.
 // ─────────────────────────────────────────────────────────────────────────────
-import {ILedger} from "../../interfaces/ILedger.sol";
-import {LedgerLib} from "../../libraries/LedgerLib.sol";
-import {Ledger} from "../../modules/Ledger.sol";
-import {Dispatchable} from "../../modules/Dispatchable.sol";
-import {Dispatcher} from "../../modules/Dispatcher.sol";
-import {Tree} from "../../modules/Tree.sol";
+import {ILedger} from "../../modules/ledger/ILedger.sol";
+import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
+import {Ledger} from "../../modules/ledger/Ledger.sol";
+import {Dispatchable} from "../../modules/dispatcher/Dispatchable.sol";
+import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
+import {Tree} from "../../modules/tree/Tree.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
-import {TreeLib} from "../../libraries/TreeLib.sol";
+import {TreeLib} from "../../modules/tree/TreeLib.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";

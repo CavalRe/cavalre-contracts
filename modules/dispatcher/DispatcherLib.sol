@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Dispatchable} from "../modules/Dispatchable.sol";
-import {IDispatcher} from "../interfaces/IDispatcher.sol";
+import {Dispatchable} from "../dispatcher/Dispatchable.sol";
+import {IDispatcher} from "../dispatcher/IDispatcher.sol";
 
 library DispatcherLib {
     struct Command {

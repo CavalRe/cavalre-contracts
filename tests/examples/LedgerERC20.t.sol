@@ -3,12 +3,12 @@ pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/src/Test.sol";
 
-import {ILedger} from "../../interfaces/ILedger.sol";
+import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {ERC20} from "../../examples/LedgerERC20.sol";
-import {Ledger} from "../../modules/Ledger.sol";
-import {Dispatchable} from "../../modules/Dispatchable.sol";
-import {Dispatcher} from "../../modules/Dispatcher.sol";
-import {LedgerLib} from "../../libraries/LedgerLib.sol";
+import {Ledger} from "../../modules/ledger/Ledger.sol";
+import {Dispatchable} from "../../modules/dispatcher/Dispatchable.sol";
+import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
+import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
 
 contract MintModule is Dispatchable {
     function signatures() external pure override returns (string[] memory _signatures) {

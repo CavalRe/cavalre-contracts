@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Dispatchable} from "../modules/Dispatchable.sol";
-import {DispatcherLib} from "../libraries/DispatcherLib.sol";
-import {IDispatcher} from "../interfaces/IDispatcher.sol";
+import {Dispatchable} from "../modules/dispatcher/Dispatchable.sol";
+import {DispatcherLib} from "../modules/dispatcher/DispatcherLib.sol";
+import {IDispatcher} from "../modules/dispatcher/IDispatcher.sol";
 import {console} from "forge-std/src/console.sol";
 
 struct Store {
