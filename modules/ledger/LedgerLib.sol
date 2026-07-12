@@ -36,6 +36,9 @@ library LedgerLib {
         mapping(address => uint256) flags;
         mapping(address => uint256) debits;
         mapping(address => uint256) credits;
+        string nativeName;
+        string nativeSymbol;
+        uint8 nativeDecimals;
     }
 
     bytes32 private constant STORE_POSITION =
@@ -333,7 +336,7 @@ library LedgerLib {
     }
 
     //==================================================================
-    //                         Tree Manipulation
+    //                         TreeView Manipulation
     //==================================================================
 
     function addSubAccountGroup(address parent_, string memory name_, bool isCredit_)
@@ -469,6 +472,17 @@ library LedgerLib {
         addSubAccount(root_, address(0), "Zero Address", true);
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);
     }
+
+    function setNativeMetadata(string memory name_, string memory symbol_, uint8 decimals_) internal {
+        Store storage s = store();
+        s.nativeName = name_;
+        s.nativeSymbol = symbol_;
+        s.nativeDecimals = decimals_;
+    }
+
+    function nativeName() internal view returns (string memory) { return store().nativeName; }
+    function nativeSymbol() internal view returns (string memory) { return store().nativeSymbol; }
+    function nativeDecimals() internal view returns (uint8) { return store().nativeDecimals; }
 
     function addNativeToken() internal returns (uint256 _flags) {
         return addLedger(

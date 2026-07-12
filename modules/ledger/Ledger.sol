@@ -174,7 +174,7 @@ contract ERC20Wrapper {
     }
 }
 
-contract Ledger is Dispatchable, Initializable, ReentrancyGuard, ILedger {
+contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     using ShortStrings for string;
 
     constructor(uint8 decimals_, string memory nativeName_, string memory nativeSymbol_, uint8 nativeDecimals_) {
@@ -211,7 +211,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard, ILedger {
     }
 
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](29);
+        _signatures = new string[](17);
         _signatures[0] = "initializeLedger(string,string)";
         _signatures[1] = "addSubAccountGroup(address,string,bool)";
         _signatures[2] = "addSubAccountGroup(address,address,string,bool)";
@@ -225,27 +225,15 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard, ILedger {
         _signatures[10] = "removeSubAccountGroup(address,address)";
         _signatures[11] = "removeSubAccount(address,string)";
         _signatures[12] = "removeSubAccount(address,address)";
-        _signatures[13] = "name(address)";
-        _signatures[14] = "symbol(address)";
-        _signatures[15] = "decimals(address)";
-        _signatures[16] = "nativeName()";
-        _signatures[17] = "nativeSymbol()";
-        _signatures[18] = "nativeDecimals()";
-        _signatures[19] = "debitBalanceOf(address,address)";
-        _signatures[20] = "creditBalanceOf(address,address)";
-        _signatures[21] = "balanceOf(address,address)";
-        _signatures[22] = "totalSupply(address)";
-        _signatures[23] = "isClaim(address)";
-        _signatures[24] = "claimAccountOf(address)";
-        _signatures[25] = "transfer(address,address,address,address,uint256)";
-        _signatures[26] = "transfer(address,address,address,uint256)";
-        _signatures[27] = "wrap(address,uint256)";
-        _signatures[28] = "unwrap(address,uint256)";
+        _signatures[13] = "transfer(address,address,address,address,uint256)";
+        _signatures[14] = "transfer(address,address,address,uint256)";
+        _signatures[15] = "wrap(address,uint256)";
+        _signatures[16] = "unwrap(address,uint256)";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](29);
+        _selectors = new bytes4[](17);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
@@ -259,18 +247,6 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard, ILedger {
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
-        _selectors[n++] = bytes4(keccak256("name(address)"));
-        _selectors[n++] = bytes4(keccak256("symbol(address)"));
-        _selectors[n++] = bytes4(keccak256("decimals(address)"));
-        _selectors[n++] = bytes4(keccak256("nativeName()"));
-        _selectors[n++] = bytes4(keccak256("nativeSymbol()"));
-        _selectors[n++] = bytes4(keccak256("nativeDecimals()"));
-        _selectors[n++] = bytes4(keccak256("debitBalanceOf(address,address)"));
-        _selectors[n++] = bytes4(keccak256("creditBalanceOf(address,address)"));
-        _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
-        _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
-        _selectors[n++] = bytes4(keccak256("isClaim(address)"));
-        _selectors[n++] = bytes4(keccak256("claimAccountOf(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
@@ -281,6 +257,8 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard, ILedger {
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
         enforceIsOwner();
+
+        LedgerLib.setNativeMetadata(ShortStrings.toString(_nativeName), ShortStrings.toString(_nativeSymbol), _nativeDecimals);
 
         // Canonical root is always registered at the dispatcher address; ERC20 exposure remains an optional module.
         LedgerLib.addLedger(address(this), name_, symbol_, 18, LedgerLib.TokenKind.Internal, address(0));
@@ -374,64 +352,6 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard, ILedger {
         enforceIsOwner();
 
         return LedgerLib.removeSubAccount(parent_, addr_);
-    }
-
-    //==========
-    // Metadata
-    //==========
-    function name(address addr_) external view returns (string memory) {
-        return LedgerLib.name(addr_);
-    }
-
-    function symbol(address addr_) external view returns (string memory) {
-        return LedgerLib.symbol(addr_);
-    }
-
-    function decimals(address addr_) external view returns (uint8) {
-        return LedgerLib.decimals(addr_);
-    }
-
-    function nativeName() external view returns (string memory) {
-        return ShortStrings.toString(_nativeName);
-    }
-
-    function nativeSymbol() external view returns (string memory) {
-        return ShortStrings.toString(_nativeSymbol);
-    }
-
-    function nativeDecimals() external view returns (uint8) {
-        return _nativeDecimals;
-    }
-
-    //=========================
-    // Balances & Valuations
-    //=========================
-    // Subaccount balances
-    function debitBalanceOf(address parent_, address owner_) external view returns (uint256) {
-        address _account = LedgerLib.toAddress(parent_, owner_);
-        return LedgerLib.debitBalanceOf(_account);
-    }
-
-    function creditBalanceOf(address parent_, address owner_) external view returns (uint256) {
-        address _account = LedgerLib.toAddress(parent_, owner_);
-        return LedgerLib.creditBalanceOf(_account);
-    }
-
-    function balanceOf(address parent_, address owner_) external view returns (uint256) {
-        (address _account, uint256 _flags) = LedgerLib.effectiveFlags(parent_, owner_);
-        return LedgerLib.balanceOf(_account, LedgerLib.isCredit(_flags));
-    }
-
-    function totalSupply(address token_) external view returns (uint256) {
-        return LedgerLib.totalSupply(token_);
-    }
-
-    function isClaim(address token_) external view returns (bool) {
-        return LedgerLib.isClaim(LedgerLib.flags(token_));
-    }
-
-    function claimAccountOf(address token_) external view returns (address) {
-        return LedgerLib.claimAccount(token_);
     }
 
     //===========

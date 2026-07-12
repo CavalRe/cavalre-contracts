@@ -23,7 +23,7 @@ interface ILedger {
     function nativeDecimals() external view returns (uint8);
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Tree Manipulation
+    // TreeView Manipulation
     // ─────────────────────────────────────────────────────────────────────────────
     function addSubAccountGroup(address parent, string memory name, bool isCredit)
         external

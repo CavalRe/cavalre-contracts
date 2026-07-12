@@ -7,14 +7,14 @@ import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {Ledger, ERC20Wrapper} from "../../modules/ledger/Ledger.sol";
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
-import {Tree} from "../../modules/tree/Tree.sol";
+import {TreeView} from "../../modules/tree/TreeView.sol";
 
 import {TestLedger, MockERC20} from "./Ledger.t.sol";
 
 contract ERC20WrapperTest is Test {
     Dispatcher internal dispatcher;
     TestLedger internal ledgers; // will point to Dispatcher after module add
-    Tree internal tree;
+    TreeView internal tree;
     ERC20Wrapper internal token;
     MockERC20 internal externalToken;
 
@@ -33,7 +33,7 @@ contract ERC20WrapperTest is Test {
         // Deploy Ledger impl, register in Dispatcher, then speak to it at Dispatcher address
         if (isVerbose) console.log("Deploying Ledger impl");
         TestLedger impl = new TestLedger(18, 18);
-        Tree treeImpl = new Tree();
+        TreeView treeImpl = new TreeView();
         if (isVerbose) console.log("Deploying Dispatcher");
         dispatcher = new Dispatcher(owner);
         if (isVerbose) console.log("Registering Ledger impl");
@@ -41,7 +41,7 @@ contract ERC20WrapperTest is Test {
         dispatcher.addModule(address(treeImpl));
         if (isVerbose) console.log("Instantiating Test Ledger");
         ledgers = TestLedger(payable(address(dispatcher)));
-        tree = Tree(payable(address(dispatcher)));
+        tree = TreeView(payable(address(dispatcher)));
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledgers.initializeTestLedger();

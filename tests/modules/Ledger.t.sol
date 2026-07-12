@@ -10,7 +10,7 @@ import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
 import {Ledger} from "../../modules/ledger/Ledger.sol";
 import {Dispatchable} from "../../modules/dispatcher/Dispatchable.sol";
 import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
-import {Tree} from "../../modules/tree/Tree.sol";
+import {TreeView} from "../../modules/tree/TreeView.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {TreeLib} from "../../modules/tree/TreeLib.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -229,7 +229,7 @@ contract LedgerTest is Test {
 
     Dispatcher dispatcher;
     TestLedger ledger;
-    Tree tree;
+    TreeView tree;
 
     address alice = address(0xA11CE);
     address bob = address(0xB0B);
@@ -266,14 +266,14 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
         if (isVerbose) console.log("Deploying TestLedger");
         ledger = new TestLedger(18, 18);
-        Tree treeImpl = new Tree();
+        TreeView treeImpl = new TreeView();
         if (isVerbose) console.log("Deploying Dispatcher");
         dispatcher = new Dispatcher(alice);
         if (isVerbose) console.log("Adding Ledger module to Dispatcher");
         dispatcher.addModule(address(ledger));
         dispatcher.addModule(address(treeImpl));
         ledger = TestLedger(payable(dispatcher));
-        tree = Tree(payable(address(dispatcher)));
+        tree = TreeView(payable(address(dispatcher)));
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledger.initializeTestLedger();
@@ -339,7 +339,7 @@ contract LedgerTest is Test {
         vm.expectRevert(InvalidInitialization.selector);
         ledger.initializeTestLedger(); // re-init should revert
 
-        // Tree shape sanity
+        // TreeView shape sanity
         assertEq(ledger.name(address(dispatcher)), "Ledger", "ledger name");
         assertEq(ledger.symbol(address(dispatcher)), "LEDGER", "ledger symbol");
         assertEq(tree.subAccounts(testLedger).length, 2, "Subaccounts (testLedger)");
@@ -410,7 +410,7 @@ contract LedgerTest is Test {
 
     function testLedgerAddNativeTokenUsesConfiguredNativeDecimals() public {
         TestLedger ledgerImpl_ = new TestLedger(18, 6);
-        Tree treeImpl_ = new Tree();
+        TreeView treeImpl_ = new TreeView();
         Dispatcher dispatcher_ = new Dispatcher(alice);
         dispatcher_.addModule(address(ledgerImpl_));
         dispatcher_.addModule(address(treeImpl_));

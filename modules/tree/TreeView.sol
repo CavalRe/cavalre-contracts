@@ -5,7 +5,7 @@ import {Dispatchable} from "../dispatcher/Dispatchable.sol";
 import {LedgerLib} from "../ledger/LedgerLib.sol";
 import {TreeLib} from "./TreeLib.sol";
 
-contract Tree is Dispatchable {
+contract TreeView is Dispatchable {
     function signatures() external pure override returns (string[] memory _signatures) {
         _signatures = new string[](31);
         _signatures[0] = "root(address)";

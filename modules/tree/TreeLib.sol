@@ -7,7 +7,7 @@ import {LedgerLib} from "../ledger/LedgerLib.sol";
 import {console} from "forge-std/src/Test.sol";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tree helpers
+// TreeView helpers
 // ─────────────────────────────────────────────────────────────────────────────
 library TreeLib {
     using FloatLib for uint256;
