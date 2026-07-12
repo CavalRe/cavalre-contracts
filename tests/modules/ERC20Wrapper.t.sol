@@ -7,6 +7,7 @@ import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {Ledger, ERC20Wrapper} from "../../modules/ledger/Ledger.sol";
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
+import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {TreeView} from "../../modules/tree/TreeView.sol";
 
 import {TestLedger, MockERC20} from "./Ledger.t.sol";
@@ -14,6 +15,7 @@ import {TestLedger, MockERC20} from "./Ledger.t.sol";
 contract ERC20WrapperTest is Test {
     Dispatcher internal dispatcher;
     TestLedger internal ledgers; // will point to Dispatcher after module add
+    LedgerView internal ledgerView;
     TreeView internal tree;
     ERC20Wrapper internal token;
     MockERC20 internal externalToken;
@@ -33,14 +35,17 @@ contract ERC20WrapperTest is Test {
         // Deploy Ledger impl, register in Dispatcher, then speak to it at Dispatcher address
         if (isVerbose) console.log("Deploying Ledger impl");
         TestLedger impl = new TestLedger(18, 18);
+        LedgerView ledgerViewImpl = new LedgerView();
         TreeView treeImpl = new TreeView();
         if (isVerbose) console.log("Deploying Dispatcher");
         dispatcher = new Dispatcher(owner);
         if (isVerbose) console.log("Registering Ledger impl");
         dispatcher.addModule(address(impl));
+        dispatcher.addModule(address(ledgerViewImpl));
         dispatcher.addModule(address(treeImpl));
         if (isVerbose) console.log("Instantiating Test Ledger");
         ledgers = TestLedger(payable(address(dispatcher)));
+        ledgerView = LedgerView(payable(address(dispatcher)));
         tree = TreeView(payable(address(dispatcher)));
 
         if (isVerbose) console.log("Initializing Test Ledger");
@@ -88,10 +93,10 @@ contract ERC20WrapperTest is Test {
         assertEq(token.token(), address(token));
         assertEq(token.totalSupply(), 0);
 
-        assertEq(ledgers.name(address(token)), "Internal Test Token");
-        assertEq(ledgers.symbol(address(token)), "ITT");
-        assertEq(ledgers.decimals(address(token)), 18);
-        assertEq(ledgers.totalSupply(address(token)), 0);
+        assertEq(ledgerView.name(address(token)), "Internal Test Token");
+        assertEq(ledgerView.symbol(address(token)), "ITT");
+        assertEq(ledgerView.decimals(address(token)), 18);
+        assertEq(ledgerView.totalSupply(address(token)), 0);
     }
 
     function testERC20WrapperCreateInternalToken() public {
@@ -104,9 +109,9 @@ contract ERC20WrapperTest is Test {
         assertEq(ERC20Wrapper(_newToken).decimals(), 18);
         assertEq(ERC20Wrapper(_newToken).totalSupply(), 0);
 
-        assertEq(ledgers.name(_newRoot), "New Test Token");
-        assertEq(ledgers.symbol(_newRoot), "NTT");
-        assertEq(ledgers.decimals(_newRoot), 18);
+        assertEq(ledgerView.name(_newRoot), "New Test Token");
+        assertEq(ledgerView.symbol(_newRoot), "NTT");
+        assertEq(ledgerView.decimals(_newRoot), 18);
     }
 
     function testERC20WrapperClaimRootMintTransferBurn() public {

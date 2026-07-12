@@ -8,6 +8,7 @@ pragma solidity ^0.8.26;
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
 import {Ledger} from "../../modules/ledger/Ledger.sol";
+import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {Dispatchable} from "../../modules/dispatcher/Dispatchable.sol";
 import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {TreeView} from "../../modules/tree/TreeView.sol";
@@ -28,7 +29,7 @@ contract TestLedger is Ledger {
 
     // Keep command registry so Dispatcher can “register” the module (if you use it)
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](35);
+        _signatures = new string[](23);
         _signatures[0] = "initializeTestLedger()";
         _signatures[1] = "addSubAccountGroup(address,string,bool)";
         _signatures[2] = "addSubAccountGroup(address,address,string,bool)";
@@ -42,33 +43,21 @@ contract TestLedger is Ledger {
         _signatures[10] = "removeSubAccountGroup(address,address)";
         _signatures[11] = "removeSubAccount(address,string)";
         _signatures[12] = "removeSubAccount(address,address)";
-        _signatures[13] = "name(address)";
-        _signatures[14] = "symbol(address)";
-        _signatures[15] = "decimals(address)";
-        _signatures[16] = "nativeName()";
-        _signatures[17] = "nativeSymbol()";
-        _signatures[18] = "nativeDecimals()";
-        _signatures[19] = "debitBalanceOf(address,address)";
-        _signatures[20] = "creditBalanceOf(address,address)";
-        _signatures[21] = "balanceOf(address,address)";
-        _signatures[22] = "totalSupply(address)";
-        _signatures[23] = "isClaim(address)";
-        _signatures[24] = "claimAccountOf(address)";
-        _signatures[25] = "transfer(address,address,address,address,uint256)";
-        _signatures[26] = "transfer(address,address,address,uint256)";
-        _signatures[27] = "wrap(address,uint256)";
-        _signatures[28] = "unwrap(address,uint256)";
-        _signatures[29] = "mint(address,address,uint256)";
-        _signatures[30] = "burn(address,address,uint256)";
-        _signatures[31] = "enforceNativeValue(uint256)";
-        _signatures[32] = "wrapThenUnwrap(address,uint256,address,uint256)";
-        _signatures[33] = "wrapThenWrap(address,uint256,address,uint256)";
-        _signatures[34] = "rawTransfer(address,address,address,address,uint256)";
+        _signatures[13] = "transfer(address,address,address,address,uint256)";
+        _signatures[14] = "transfer(address,address,address,uint256)";
+        _signatures[15] = "wrap(address,uint256)";
+        _signatures[16] = "unwrap(address,uint256)";
+        _signatures[17] = "mint(address,address,uint256)";
+        _signatures[18] = "burn(address,address,uint256)";
+        _signatures[19] = "enforceNativeValue(uint256)";
+        _signatures[20] = "wrapThenUnwrap(address,uint256,address,uint256)";
+        _signatures[21] = "wrapThenWrap(address,uint256,address,uint256)";
+        _signatures[22] = "rawTransfer(address,address,address,address,uint256)";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](35);
+        _selectors = new bytes4[](23);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -83,18 +72,6 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
-        _selectors[n++] = bytes4(keccak256("name(address)"));
-        _selectors[n++] = bytes4(keccak256("symbol(address)"));
-        _selectors[n++] = bytes4(keccak256("decimals(address)"));
-        _selectors[n++] = bytes4(keccak256("nativeName()"));
-        _selectors[n++] = bytes4(keccak256("nativeSymbol()"));
-        _selectors[n++] = bytes4(keccak256("nativeDecimals()"));
-        _selectors[n++] = bytes4(keccak256("debitBalanceOf(address,address)"));
-        _selectors[n++] = bytes4(keccak256("creditBalanceOf(address,address)"));
-        _selectors[n++] = bytes4(keccak256("balanceOf(address,address)"));
-        _selectors[n++] = bytes4(keccak256("totalSupply(address)"));
-        _selectors[n++] = bytes4(keccak256("isClaim(address)"));
-        _selectors[n++] = bytes4(keccak256("claimAccountOf(address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
@@ -108,7 +85,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("rawTransfer(address,address,address,address,uint256)"));
         // TODO: Move to DepositLib
         // _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 35) revert InvalidCommandsLength(n);
+        if (n != 23) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -229,6 +206,7 @@ contract LedgerTest is Test {
 
     Dispatcher dispatcher;
     TestLedger ledger;
+    LedgerView ledgerView;
     TreeView tree;
 
     address alice = address(0xA11CE);
@@ -266,13 +244,16 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
         if (isVerbose) console.log("Deploying TestLedger");
         ledger = new TestLedger(18, 18);
+        LedgerView ledgerViewImpl = new LedgerView();
         TreeView treeImpl = new TreeView();
         if (isVerbose) console.log("Deploying Dispatcher");
         dispatcher = new Dispatcher(alice);
         if (isVerbose) console.log("Adding Ledger module to Dispatcher");
         dispatcher.addModule(address(ledger));
+        dispatcher.addModule(address(ledgerViewImpl));
         dispatcher.addModule(address(treeImpl));
         ledger = TestLedger(payable(dispatcher));
+        ledgerView = LedgerView(payable(address(dispatcher)));
         tree = TreeView(payable(address(dispatcher)));
 
         if (isVerbose) console.log("Initializing Test Ledger");
@@ -340,8 +321,8 @@ contract LedgerTest is Test {
         ledger.initializeTestLedger(); // re-init should revert
 
         // TreeView shape sanity
-        assertEq(ledger.name(address(dispatcher)), "Ledger", "ledger name");
-        assertEq(ledger.symbol(address(dispatcher)), "LEDGER", "ledger symbol");
+        assertEq(ledgerView.name(address(dispatcher)), "Ledger", "ledger name");
+        assertEq(ledgerView.symbol(address(dispatcher)), "LEDGER", "ledger symbol");
         assertEq(tree.subAccounts(testLedger).length, 2, "Subaccounts (testLedger)");
         assertEq(tree.subAccounts(r1).length, 3, "Subaccounts (r1)");
         assertEq(tree.subAccounts(r10).length, 2, "Subaccounts (r10)");
@@ -381,8 +362,8 @@ contract LedgerTest is Test {
     function testNativeWrapperNotCreatedDuringInit() public view {
         assertEq(tree.wrapper(native), address(0), "wrapper unset");
         assertEq(tree.root(native), address(0), "root unset");
-        assertEq(ledger.name(native), "", "name empty");
-        assertEq(ledger.symbol(native), "", "symbol empty");
+        assertEq(ledgerView.name(native), "", "name empty");
+        assertEq(ledgerView.symbol(native), "", "symbol empty");
     }
 
     function testLedgerAddNativeTokenIsIdempotentWithoutWrapper() public {
@@ -393,10 +374,10 @@ contract LedgerTest is Test {
 
         assertEq(tree.wrapper(native), address(0), "wrapper unset");
         assertEq(tree.root(native), native, "root native");
-        assertEq(ledger.name(native), "Ethereum", "name");
-        assertEq(ledger.symbol(native), "ETH", "symbol");
-        assertEq(ledger.nativeDecimals(), 18, "native decimals");
-        assertEq(ledger.decimals(native), 18, "decimals");
+        assertEq(ledgerView.name(native), "Ethereum", "name");
+        assertEq(ledgerView.symbol(native), "ETH", "symbol");
+        assertEq(ledgerView.nativeDecimals(), 18, "native decimals");
+        assertEq(ledgerView.decimals(native), 18, "decimals");
         uint256 nativeFlags_ = tree.flags(native);
         assertEq(
             uint256(tree.accountKind(nativeFlags_)), uint256(LedgerLib.AccountKind.DebitGroup), "native debit root"
@@ -410,17 +391,20 @@ contract LedgerTest is Test {
 
     function testLedgerAddNativeTokenUsesConfiguredNativeDecimals() public {
         TestLedger ledgerImpl_ = new TestLedger(18, 6);
+        LedgerView ledgerViewImpl_ = new LedgerView();
         TreeView treeImpl_ = new TreeView();
         Dispatcher dispatcher_ = new Dispatcher(alice);
         dispatcher_.addModule(address(ledgerImpl_));
+        dispatcher_.addModule(address(ledgerViewImpl_));
         dispatcher_.addModule(address(treeImpl_));
 
         TestLedger ledger_ = TestLedger(payable(address(dispatcher_)));
+        LedgerView ledgerView_ = LedgerView(payable(address(dispatcher_)));
         ledger_.initializeTestLedger();
         ledger_.addNativeToken();
 
-        assertEq(ledger_.nativeDecimals(), 6, "native decimals");
-        assertEq(ledger_.decimals(native), 6, "registered native decimals");
+        assertEq(ledgerView_.nativeDecimals(), 6, "native decimals");
+        assertEq(ledgerView_.decimals(native), 6, "registered native decimals");
     }
 
     function testLedgerCreateInternalTokenDoesNotRegisterUnderRoot() public {
@@ -441,9 +425,9 @@ contract LedgerTest is Test {
         assertEq(tokenAgain_, token_, "same token");
         assertEq(tree.root(token_), token_, "root registered");
         assertEq(tree.wrapper(token_), token_, "self wrapped");
-        assertEq(ledger.name(token_), "Neutral Token", "name stable");
-        assertEq(ledger.symbol(token_), "NT", "symbol stable");
-        assertEq(ledger.decimals(token_), 18, "decimals stable");
+        assertEq(ledgerView.name(token_), "Neutral Token", "name stable");
+        assertEq(ledgerView.symbol(token_), "NT", "symbol stable");
+        assertEq(ledgerView.decimals(token_), 18, "decimals stable");
     }
 
     function testLedgerCreateClaimTokenIsIdempotent() public {
@@ -456,10 +440,10 @@ contract LedgerTest is Test {
         assertEq(flagsAgain_, flags_, "same flags");
         assertFalse(tree.isCredit(flags_), "claim root debit");
         assertTrue(tree.isClaim(flags_), "claim root");
-        assertTrue(ledger.isClaim(token_), "ledger claim view");
+        assertTrue(ledgerView.isClaim(token_), "ledger claim view");
         assertFalse(tree.isInternal(flags_), "claim root not internal");
         assertEq(tree.claimAccount(flags_), LedgerLib.toAddress(r1, source_), "claim account");
-        assertEq(ledger.claimAccountOf(token_), LedgerLib.toAddress(r1, source_), "ledger claim account view");
+        assertEq(ledgerView.claimAccountOf(token_), LedgerLib.toAddress(r1, source_), "ledger claim account view");
         assertEq(tree.root(token_), token_, "root registered");
         assertEq(tree.wrapper(token_), token_, "self wrapped");
     }
@@ -514,9 +498,9 @@ contract LedgerTest is Test {
 
         assertEq(tree.root(address(unlistedToken)), address(unlistedToken), "root registered");
         assertEq(tree.wrapper(address(unlistedToken)), address(0), "wrapper unset");
-        assertEq(ledger.name(address(unlistedToken)), "Unlisted Token", "name stable");
-        assertEq(ledger.symbol(address(unlistedToken)), "UNL", "symbol stable");
-        assertEq(ledger.decimals(address(unlistedToken)), 18, "decimals stable");
+        assertEq(ledgerView.name(address(unlistedToken)), "Unlisted Token", "name stable");
+        assertEq(ledgerView.symbol(address(unlistedToken)), "UNL", "symbol stable");
+        assertEq(ledgerView.decimals(address(unlistedToken)), 18, "decimals stable");
     }
 
     function testLedgerRootFlagsByTokenType() public view {
@@ -581,8 +565,8 @@ contract LedgerTest is Test {
         address missingDebit_ = LedgerLib.toAddress("missingDebit");
         ledger.mint(r1, missingDebit_, 100);
 
-        assertEq(ledger.balanceOf(r1, missingDebit_), 100, "unregistered debit leaf");
-        assertEq(ledger.balanceOf(r1, source_), 100, "registered credit source leaf");
+        assertEq(ledgerView.balanceOf(r1, missingDebit_), 100, "unregistered debit leaf");
+        assertEq(ledgerView.balanceOf(r1, source_), 100, "registered credit source leaf");
     }
 
     function testPackedParentAndWrapperMapping() public view {
@@ -610,7 +594,7 @@ contract LedgerTest is Test {
         assertEq(index_, before_.length, "index should equal #subs");
         assertTrue(tree.hasSubAccount(r1), "r1 should have subs");
         assertEq(tree.flags(added), flags_, "flags stored");
-        assertEq(ledger.name(added), "newSubAccount", "name stored");
+        assertEq(ledgerView.name(added), "newSubAccount", "name stored");
 
         (address idempotent, uint256 flagsAgain_) = ledger.addSubAccountGroup(r1, "newSubAccount", false);
         address[] memory after_ = tree.subAccounts(r1);
@@ -619,7 +603,7 @@ contract LedgerTest is Test {
         assertEq(after_.length, before_.length, "child count stable");
         assertEq(after_[after_.length - 1], before_[before_.length - 1], "child ordering stable");
         assertEq(tree.subAccountIndex(r1, LedgerLib.toAddress("newSubAccount")), index_, "index stable");
-        assertEq(ledger.name(added), "newSubAccount", "name stable");
+        assertEq(ledgerView.name(added), "newSubAccount", "name stable");
     }
 
     function testLedgerAddSubAccountGroupAddressFormIsIdempotent() public {
@@ -637,7 +621,7 @@ contract LedgerTest is Test {
         assertEq(after_.length, before_.length, "child count stable");
         assertEq(after_[after_.length - 1], relative_, "no duplicate child");
         assertEq(tree.subAccountIndex(r1, relative_), index_, "index stable");
-        assertEq(ledger.name(added_), "groupByAddr", "name stable");
+        assertEq(ledgerView.name(added_), "groupByAddr", "name stable");
     }
 
     function testLedgerAddSubAccountGroupRejectsFundedDebitLeaf() public {
@@ -686,7 +670,7 @@ contract LedgerTest is Test {
         assertEq(after_.length, before_.length, "child count stable");
         assertEq(after_[after_.length - 1], relative_, "no duplicate child");
         assertEq(tree.subAccountIndex(r1, relative_), index_, "index stable");
-        assertEq(ledger.name(added_), "leafSubAccount", "name stable");
+        assertEq(ledgerView.name(added_), "leafSubAccount", "name stable");
     }
 
     function testLedgerAddSubAccountRegistersFundedDebitLeaf() public {
@@ -699,7 +683,7 @@ contract LedgerTest is Test {
 
         assertEq(added_, LedgerLib.toAddress(r1, relative_), "registered addr");
         assertFalse(tree.isCredit(flags_), "registered debit");
-        assertEq(ledger.balanceOf(r1, relative_), 100, "balance preserved");
+        assertEq(ledgerView.balanceOf(r1, relative_), 100, "balance preserved");
     }
 
     function testLedgerAddSubAccountRejectsFundedDebitLeafAsCredit() public {
@@ -751,7 +735,7 @@ contract LedgerTest is Test {
         if (isVerbose) console.log("Check index");
         assertEq(tree.subAccountIndex(r10, _100), 0, "index reset");
         if (isVerbose) console.log("Check name");
-        assertEq(ledger.name(_100), "", "name cleared");
+        assertEq(ledgerView.name(_100), "", "name cleared");
         if (isVerbose) console.log("Check hasSubAccount");
         assertFalse(tree.hasSubAccount(_100), "no children");
     }
@@ -777,7 +761,7 @@ contract LedgerTest is Test {
 
         assertEq(tree.parent(added_), address(0), "parent reset");
         assertEq(tree.subAccountIndex(r1, relative_), 0, "index reset");
-        assertEq(ledger.name(added_), "", "name cleared");
+        assertEq(ledgerView.name(added_), "", "name cleared");
     }
 
     function testLedgerRemoveSubAccountNameDelegatesToAddressForm() public {
@@ -789,7 +773,7 @@ contract LedgerTest is Test {
 
         assertEq(tree.parent(added_), address(0), "parent reset");
         assertEq(tree.subAccountIndex(r1, relative_), 0, "index reset");
-        assertEq(ledger.name(added_), "", "name cleared");
+        assertEq(ledgerView.name(added_), "", "name cleared");
     }
 
     function testLedgerRemoveSubAccountIsIdempotent() public {
@@ -911,15 +895,15 @@ contract LedgerTest is Test {
         if (isVerbose) console.log("Initial mint r1: Alice");
         ledger.mint(r1, alice, 1000e18);
 
-        assertEq(ledger.debitBalanceOf(r1, alice), 1000e18, "debitBalanceOf(alice)");
-        assertEq(ledger.totalSupply(r1), 1000e18, "totalSupply");
+        assertEq(ledgerView.debitBalanceOf(r1, alice), 1000e18, "debitBalanceOf(alice)");
+        assertEq(ledgerView.totalSupply(r1), 1000e18, "totalSupply");
 
         if (isVerbose) console.log("Mint token 1: Alice");
         ledger.mint(r100, alice, 1000e18);
-        assertEq(ledger.debitBalanceOf(r100, alice), 1000e18, "debitBalanceOf(r100, alice)");
-        assertEq(ledger.debitBalanceOf(r10, LedgerLib.toAddress("100")), 1000e18, 'debitBalanceOf(r10, "100")');
-        assertEq(ledger.debitBalanceOf(r1, LedgerLib.toAddress("10")), 1000e18, 'debitBalanceOf(r1, "10")');
-        assertEq(ledger.totalSupply(r1), 2000e18, "totalSupply(r1)");
+        assertEq(ledgerView.debitBalanceOf(r100, alice), 1000e18, "debitBalanceOf(r100, alice)");
+        assertEq(ledgerView.debitBalanceOf(r10, LedgerLib.toAddress("100")), 1000e18, 'debitBalanceOf(r10, "100")');
+        assertEq(ledgerView.debitBalanceOf(r1, LedgerLib.toAddress("10")), 1000e18, 'debitBalanceOf(r1, "10")');
+        assertEq(ledgerView.totalSupply(r1), 2000e18, "totalSupply(r1)");
 
         if (isVerbose) console.log("Display Account Hierarchy");
         if (isVerbose) console.log("--------------------");
@@ -939,16 +923,16 @@ contract LedgerTest is Test {
         ledger.mint(r1, alice, 1000e18);
         ledger.burn(r1, alice, 700e18);
 
-        assertEq(ledger.debitBalanceOf(r1, alice), 300e18, "debitBalanceOf(alice)");
-        assertEq(ledger.totalSupply(r1), 300e18, "totalSupply");
+        assertEq(ledgerView.debitBalanceOf(r1, alice), 300e18, "debitBalanceOf(alice)");
+        assertEq(ledgerView.totalSupply(r1), 300e18, "totalSupply");
 
         ledger.mint(r100, alice, 1000e18);
         ledger.burn(r100, alice, 600e18);
 
-        assertEq(ledger.debitBalanceOf(r100, alice), 400e18, "debitBalanceOf(r100, alice)");
-        assertEq(ledger.debitBalanceOf(r10, LedgerLib.toAddress("100")), 400e18, 'debitBalanceOf(r10, "100")');
-        assertEq(ledger.debitBalanceOf(r1, LedgerLib.toAddress("10")), 400e18, 'debitBalanceOf(r1, "10")');
-        assertEq(ledger.totalSupply(r1), 700e18, "totalSupply(r1)");
+        assertEq(ledgerView.debitBalanceOf(r100, alice), 400e18, "debitBalanceOf(r100, alice)");
+        assertEq(ledgerView.debitBalanceOf(r10, LedgerLib.toAddress("100")), 400e18, 'debitBalanceOf(r10, "100")');
+        assertEq(ledgerView.debitBalanceOf(r1, LedgerLib.toAddress("10")), 400e18, 'debitBalanceOf(r1, "10")');
+        assertEq(ledgerView.totalSupply(r1), 700e18, "totalSupply(r1)");
     }
 
     // TODO: Move to DepositLib
@@ -997,8 +981,8 @@ contract LedgerTest is Test {
 
         assertEq(externalToken.balanceOf(address(dispatcher)), wrapAmount, "dispatcher holds wrapped tokens");
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance consumed");
-        assertEq(ledger.debitBalanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
-        assertEq(ledger.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
+        assertEq(ledgerView.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
     }
 
     function testLedgerWrapExternalTokenRejectsDirectValue() public {
@@ -1037,11 +1021,11 @@ contract LedgerTest is Test {
         assertEq(externalToken.balanceOf(address(dispatcher)), wrapAmount - unwrapAmount, "dispatcher balance after unwrap");
         assertEq(externalToken.balanceOf(alice), unwrapAmount, "alice external balance after unwrap");
         assertEq(
-            ledger.debitBalanceOf(address(externalToken), alice),
+            ledgerView.debitBalanceOf(address(externalToken), alice),
             wrapAmount - unwrapAmount,
             "ledger balance after unwrap"
         );
-        assertEq(ledger.totalSupply(address(externalToken)), wrapAmount - unwrapAmount, "total supply after unwrap");
+        assertEq(ledgerView.totalSupply(address(externalToken)), wrapAmount - unwrapAmount, "total supply after unwrap");
     }
 
     function testLedgerUnwrapExternalTokenRejectsDirectValue() public {
@@ -1075,8 +1059,8 @@ contract LedgerTest is Test {
 
         assertEq(externalToken.balanceOf(alice), externalUnwrapAmount, "alice external balance after unwrap");
         assertEq(externalToken.balanceOf(address(dispatcher)), 0, "dispatcher external balance after unwrap");
-        assertEq(ledger.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
-        assertEq(ledger.debitBalanceOf(address(externalToken), alice), 0, "external ledger balance after unwrap");
+        assertEq(ledgerView.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), alice), 0, "external ledger balance after unwrap");
     }
 
     function testLedgerWrapExternalTokenAfterNativeWrapAllowsCallValue() public {
@@ -1095,9 +1079,9 @@ contract LedgerTest is Test {
 
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance after wrap");
         assertEq(externalToken.balanceOf(address(dispatcher)), externalWrapAmount, "dispatcher external balance after wrap");
-        assertEq(ledger.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
+        assertEq(ledgerView.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
         assertEq(
-            ledger.debitBalanceOf(address(externalToken), alice),
+            ledgerView.debitBalanceOf(address(externalToken), alice),
             externalWrapAmount,
             "external ledger balance after wrap"
         );
@@ -1145,8 +1129,8 @@ contract LedgerTest is Test {
 
         assertEq(externalToken.balanceOf(address(dispatcher)), wrapAmount, "dispatcher holds wrapped tokens");
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance consumed");
-        assertEq(ledger.debitBalanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
-        assertEq(ledger.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), alice), wrapAmount, "ledger balance after wrap");
+        assertEq(ledgerView.totalSupply(address(externalToken)), wrapAmount, "total supply after wrap");
 
         vm.expectRevert(abi.encodeWithSelector(ILedger.ZeroAddress.selector));
         ledger.unwrap(address(unlistedToken), alice, address(unlistedToken), alice, 10);
@@ -1161,20 +1145,20 @@ contract LedgerTest is Test {
         );
         assertEq(externalToken.balanceOf(alice), firstUnwrap, "alice external balance after partial unwrap");
         assertEq(
-            ledger.debitBalanceOf(address(externalToken), alice),
+            ledgerView.debitBalanceOf(address(externalToken), alice),
             wrapAmount - firstUnwrap,
             "ledger balance after partial unwrap"
         );
         assertEq(
-            ledger.totalSupply(address(externalToken)), wrapAmount - firstUnwrap, "total supply after partial unwrap"
+            ledgerView.totalSupply(address(externalToken)), wrapAmount - firstUnwrap, "total supply after partial unwrap"
         );
 
         uint256 remaining = wrapAmount - firstUnwrap;
         ledger.unwrap(address(externalToken), alice, address(externalToken), source_, remaining);
         assertEq(externalToken.balanceOf(address(dispatcher)), 0, "dispatcher drained after unwrap");
         assertEq(externalToken.balanceOf(alice), wrapAmount, "alice restored external balance");
-        assertEq(ledger.debitBalanceOf(address(externalToken), alice), 0, "ledger balance cleared");
-        assertEq(ledger.totalSupply(address(externalToken)), 0, "total supply cleared");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), alice), 0, "ledger balance cleared");
+        assertEq(ledgerView.totalSupply(address(externalToken)), 0, "total supply cleared");
     }
 
     function testLedgerWrapUsesExplicitSourceNotCaller() public {
@@ -1189,14 +1173,14 @@ contract LedgerTest is Test {
         // Caller is bob, but source accounting is unallocated.
         ledger.wrap(totalParent, source_, address(externalToken), bob, wrapAmount);
 
-        assertEq(ledger.debitBalanceOf(address(externalToken), bob), wrapAmount, "caller received wrapped balance");
-        assertEq(ledger.creditBalanceOf(totalParent, source_), wrapAmount, "source ledger entry credited");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), bob), wrapAmount, "caller received wrapped balance");
+        assertEq(ledgerView.creditBalanceOf(totalParent, source_), wrapAmount, "source ledger entry credited");
 
         // Unwrap using same source to close out source ledger entry.
         ledger.unwrap(address(externalToken), bob, totalParent, source_, wrapAmount);
 
-        assertEq(ledger.debitBalanceOf(address(externalToken), bob), 0, "wrapped caller balance cleared");
-        assertEq(ledger.creditBalanceOf(totalParent, source_), 0, "source ledger entry cleared");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), bob), 0, "wrapped caller balance cleared");
+        assertEq(ledgerView.creditBalanceOf(totalParent, source_), 0, "source ledger entry cleared");
         vm.stopPrank();
     }
 
@@ -1284,12 +1268,12 @@ contract LedgerTest is Test {
         externalToken.approve(address(ledger), wrapAmount);
         ledger.wrap(address(externalToken), source_, address(externalToken), bob, wrapAmount);
 
-        assertEq(ledger.debitBalanceOf(address(externalToken), alice), 0, "caller has no wrapped ledger balance");
-        assertEq(ledger.debitBalanceOf(address(externalToken), bob), wrapAmount, "bob received wrapped balance");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), alice), 0, "caller has no wrapped ledger balance");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), bob), wrapAmount, "bob received wrapped balance");
 
         ledger.unwrap(address(externalToken), bob, address(externalToken), source_, wrapAmount);
 
-        assertEq(ledger.debitBalanceOf(address(externalToken), bob), 0, "bob wrapped balance cleared");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), bob), 0, "bob wrapped balance cleared");
         assertEq(externalToken.balanceOf(alice), wrapAmount, "caller receives external tokens");
         vm.stopPrank();
     }
@@ -1306,8 +1290,8 @@ contract LedgerTest is Test {
         vm.stopPrank();
 
         assertEq(address(dispatcher).balance, dispatcherBalanceBefore + wrapAmount, "dispatcher holds native collateral");
-        assertEq(ledger.debitBalanceOf(native, alice), wrapAmount, "ledger native balance");
-        assertEq(ledger.totalSupply(native), wrapAmount, "native total supply");
+        assertEq(ledgerView.debitBalanceOf(native, alice), wrapAmount, "ledger native balance");
+        assertEq(ledgerView.totalSupply(native), wrapAmount, "native total supply");
     }
 
     function testLedgerWrapReentrancyGuard() public {
@@ -1367,8 +1351,8 @@ contract LedgerTest is Test {
 
         assertEq(address(dispatcher).balance, dispatcherBalanceAfterWrap - unwrapAmount, "dispatcher native balance");
         assertEq(alice.balance, aliceBalanceAfterWrap + unwrapAmount, "alice native balance");
-        assertEq(ledger.debitBalanceOf(native, alice), wrapAmount - unwrapAmount, "ledger native balance");
-        assertEq(ledger.totalSupply(native), wrapAmount - unwrapAmount, "native total supply");
+        assertEq(ledgerView.debitBalanceOf(native, alice), wrapAmount - unwrapAmount, "ledger native balance");
+        assertEq(ledgerView.totalSupply(native), wrapAmount - unwrapAmount, "native total supply");
     }
 
     function testLedgerUnwrapNativeRejectsValue() public {
@@ -1411,9 +1395,9 @@ contract LedgerTest is Test {
         // elm: fromParent = dispatcherRoot, toParent = dispatcherRoot, to = bob
         ledger.transfer(dispatcherRoot, dispatcherRoot, bob, 700);
 
-        assertEq(ledger.debitBalanceOf(dispatcherRoot, alice), 300, "alice");
-        assertEq(ledger.debitBalanceOf(dispatcherRoot, bob), 700, "bob");
-        assertEq(ledger.totalSupply(dispatcherRoot), 1000, "supply");
+        assertEq(ledgerView.debitBalanceOf(dispatcherRoot, alice), 300, "alice");
+        assertEq(ledgerView.debitBalanceOf(dispatcherRoot, bob), 700, "bob");
+        assertEq(ledgerView.totalSupply(dispatcherRoot), 1000, "supply");
 
         // Different roots should revert
         vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, dispatcherRoot, testLedgerRoot));
@@ -1427,12 +1411,12 @@ contract LedgerTest is Test {
         ledger.mint(r100, alice, 1000);
         ledger.transfer(r100, r101, bob, 400);
 
-        assertEq(ledger.debitBalanceOf(r100, alice), 600, "r100/alice debited");
-        assertEq(ledger.debitBalanceOf(r101, bob), 400, "r101/bob credited");
-        assertEq(ledger.debitBalanceOf(r10, LedgerLib.toAddress("100")), 600, 'r10/"100" updated');
-        assertEq(ledger.debitBalanceOf(r10, LedgerLib.toAddress("101")), 400, 'r10/"101" updated');
-        assertEq(ledger.debitBalanceOf(r1, LedgerLib.toAddress("10")), 1000, 'r1/"10" unchanged above common ancestor');
-        assertEq(ledger.totalSupply(r1), 1000, "total supply unchanged");
+        assertEq(ledgerView.debitBalanceOf(r100, alice), 600, "r100/alice debited");
+        assertEq(ledgerView.debitBalanceOf(r101, bob), 400, "r101/bob credited");
+        assertEq(ledgerView.debitBalanceOf(r10, LedgerLib.toAddress("100")), 600, 'r10/"100" updated');
+        assertEq(ledgerView.debitBalanceOf(r10, LedgerLib.toAddress("101")), 400, 'r10/"101" updated');
+        assertEq(ledgerView.debitBalanceOf(r1, LedgerLib.toAddress("10")), 1000, 'r1/"10" unchanged above common ancestor');
+        assertEq(ledgerView.totalSupply(r1), 1000, "total supply unchanged");
     }
 
     function testLedgerTransferUsesLeafPolarityThroughMixedPolarityParents() public {
@@ -1443,12 +1427,12 @@ contract LedgerTest is Test {
 
         ledger.rawTransfer(r10, creditLeaf_, r111, bob, 400);
 
-        assertEq(ledger.creditBalanceOf(r10, creditLeaf_), 400, "credit leaf credited");
-        assertEq(ledger.debitBalanceOf(r10, creditLeaf_), 0, "credit leaf debit untouched");
-        assertEq(ledger.creditBalanceOf(r1, _10), 400, "debit parent credit balance updated");
-        assertEq(ledger.debitBalanceOf(r1, _10), 0, "debit parent debit balance untouched");
-        assertEq(ledger.debitBalanceOf(r111, bob), 400, "debit target debited");
-        assertEq(ledger.creditBalanceOf(r111, bob), 0, "debit target credit untouched");
+        assertEq(ledgerView.creditBalanceOf(r10, creditLeaf_), 400, "credit leaf credited");
+        assertEq(ledgerView.debitBalanceOf(r10, creditLeaf_), 0, "credit leaf debit untouched");
+        assertEq(ledgerView.creditBalanceOf(r1, _10), 400, "debit parent credit balance updated");
+        assertEq(ledgerView.debitBalanceOf(r1, _10), 0, "debit parent debit balance untouched");
+        assertEq(ledgerView.debitBalanceOf(r111, bob), 400, "debit target debited");
+        assertEq(ledgerView.creditBalanceOf(r111, bob), 0, "debit target credit untouched");
     }
 
     function testLedgerDeepTransferEmitsLedgerTransferEvent() public {
@@ -1479,9 +1463,9 @@ contract LedgerTest is Test {
 
         ledger.transfer(r100, r1, source_, 400);
 
-        assertEq(ledger.debitBalanceOf(r100, alice), 600, "alice debited");
-        assertEq(ledger.creditBalanceOf(r1, source_), 600, "source supply burned");
-        assertEq(ledger.totalSupply(r1), 600, "supply burned");
+        assertEq(ledgerView.debitBalanceOf(r100, alice), 600, "alice debited");
+        assertEq(ledgerView.creditBalanceOf(r1, source_), 600, "source supply burned");
+        assertEq(ledgerView.totalSupply(r1), 600, "supply burned");
     }
 
     function testLedgerTransferRejectsMintFromZeroAddress() public {
@@ -1516,9 +1500,9 @@ contract LedgerTest is Test {
 
         ledger.transfer(r100, r10, creditLeaf_, 400);
 
-        assertEq(ledger.debitBalanceOf(r100, alice), 600, "alice debited");
-        assertEq(ledger.creditBalanceOf(r10, creditLeaf_), 0, "credit target burned");
-        assertEq(ledger.totalSupply(r1), 600, "supply burned");
+        assertEq(ledgerView.debitBalanceOf(r100, alice), 600, "alice debited");
+        assertEq(ledgerView.creditBalanceOf(r10, creditLeaf_), 0, "credit target burned");
+        assertEq(ledgerView.totalSupply(r1), 600, "supply burned");
     }
 
     function testLedgerTransferAllowsCreditToCredit() public {
@@ -1535,8 +1519,8 @@ contract LedgerTest is Test {
         vm.prank(creditLeaf_);
         ledger.transfer(r10, r10, otherCreditLeaf_, 150);
 
-        assertEq(ledger.creditBalanceOf(r10, creditLeaf_), 150, "credit source increased");
-        assertEq(ledger.creditBalanceOf(r10, otherCreditLeaf_), 250, "credit target decreased");
+        assertEq(ledgerView.creditBalanceOf(r10, creditLeaf_), 150, "credit source increased");
+        assertEq(ledgerView.creditBalanceOf(r10, otherCreditLeaf_), 250, "credit target decreased");
     }
 
     function testLedgerTransferInsufficientBalanceReportsDeepUnregisteredLeafContext() public {
