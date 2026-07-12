@@ -8,21 +8,6 @@ interface ILedger {
     function initializeLedger(string memory name, string memory symbol) external;
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Metadata (by arbitrary address)
-    // ─────────────────────────────────────────────────────────────────────────────
-    function name(address addr) external view returns (string memory);
-
-    function symbol(address addr) external view returns (string memory);
-
-    function decimals(address addr) external view returns (uint8);
-
-    function nativeName() external view returns (string memory);
-
-    function nativeSymbol() external view returns (string memory);
-
-    function nativeDecimals() external view returns (uint8);
-
-    // ─────────────────────────────────────────────────────────────────────────────
     // TreeView Manipulation
     // ─────────────────────────────────────────────────────────────────────────────
     function addSubAccountGroup(address parent, string memory name, bool isCredit)
@@ -62,21 +47,6 @@ interface ILedger {
     function removeSubAccount(address parent, string memory name) external returns (address);
 
     function removeSubAccount(address parent, address child) external returns (address);
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Balances & Valuations
-    // ─────────────────────────────────────────────────────────────────────────────
-    function debitBalanceOf(address parent, address owner) external view returns (uint256);
-
-    function creditBalanceOf(address parent, address owner) external view returns (uint256);
-
-    function balanceOf(address parent, address owner) external view returns (uint256);
-
-    function totalSupply(address token) external view returns (uint256);
-
-    function isClaim(address token) external view returns (bool);
-
-    function claimAccountOf(address token) external view returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)

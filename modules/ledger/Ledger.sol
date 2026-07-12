@@ -8,6 +8,7 @@ import {LedgerLib} from "./LedgerLib.sol";
 import {ShortString, ShortStrings} from "@openzeppelin/contracts/utils/ShortStrings.sol";
 
 import {ILedger} from "./ILedger.sol";
+import {ILedgerView} from "./ILedgerView.sol";
 
 contract ERC20Wrapper {
     // -------------------------------------------------------------------------
@@ -87,11 +88,11 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     function totalSupply() public view returns (uint256) {
-        return ILedger(_dispatcher).totalSupply(_token);
+        return ILedgerView(_dispatcher).totalSupply(_token);
     }
 
     function balanceOf(address account_) public view returns (uint256) {
-        return ILedger(_dispatcher).balanceOf(_token, account_);
+        return ILedgerView(_dispatcher).balanceOf(_token, account_);
     }
 
     // -------------------------------------------------------------------------
@@ -258,7 +259,9 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
         enforceIsOwner();
 
-        LedgerLib.setNativeMetadata(ShortStrings.toString(_nativeName), ShortStrings.toString(_nativeSymbol), _nativeDecimals);
+        LedgerLib.setNativeMetadata(
+            ShortStrings.toString(_nativeName), ShortStrings.toString(_nativeSymbol), _nativeDecimals
+        );
 
         // Canonical root is always registered at the dispatcher address; ERC20 exposure remains an optional module.
         LedgerLib.addLedger(address(this), name_, symbol_, 18, LedgerLib.TokenKind.Internal, address(0));

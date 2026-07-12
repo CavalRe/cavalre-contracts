@@ -480,18 +480,21 @@ library LedgerLib {
         s.nativeDecimals = decimals_;
     }
 
-    function nativeName() internal view returns (string memory) { return store().nativeName; }
-    function nativeSymbol() internal view returns (string memory) { return store().nativeSymbol; }
-    function nativeDecimals() internal view returns (uint8) { return store().nativeDecimals; }
+    function nativeName() internal view returns (string memory) {
+        return store().nativeName;
+    }
+
+    function nativeSymbol() internal view returns (string memory) {
+        return store().nativeSymbol;
+    }
+
+    function nativeDecimals() internal view returns (uint8) {
+        return store().nativeDecimals;
+    }
 
     function addNativeToken() internal returns (uint256 _flags) {
         return addLedger(
-            LedgerLib.NATIVE_ADDRESS,
-            ILedger(address(this)).nativeName(),
-            ILedger(address(this)).nativeSymbol(),
-            ILedger(address(this)).nativeDecimals(),
-            TokenKind.Native,
-            address(0)
+            LedgerLib.NATIVE_ADDRESS, nativeName(), nativeSymbol(), nativeDecimals(), TokenKind.Native, address(0)
         );
     }
 
@@ -747,17 +750,14 @@ library LedgerLib {
         while (_depth > 0) {
             // if (_current != _root && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
             if (_from.depth >= _depth) {
-                _from.balance = _update(
-                    _from, _root, _from.isCredit ? s.credits : s.debits, amount_, _from.isCredit
-                );
+                _from.balance = _update(_from, _root, _from.isCredit ? s.credits : s.debits, amount_, _from.isCredit);
                 if (_depth > 1) {
                     _from.current = parent(_from.flags);
                     _from.flags = flags(_from.current);
                 }
             }
             if (_to.depth >= _depth) {
-                _to.balance =
-                    _update(_to, _root, _to.isCredit ? s.credits : s.debits, amount_, !_to.isCredit);
+                _to.balance = _update(_to, _root, _to.isCredit ? s.credits : s.debits, amount_, !_to.isCredit);
                 if (_depth > 1) {
                     _to.current = parent(_to.flags);
                     _to.flags = flags(_to.current);
@@ -819,5 +819,4 @@ library LedgerLib {
             SafeERC20.safeTransfer(IERC20(_token), msg.sender, amount_);
         }
     }
-
 }
