@@ -30,7 +30,7 @@ contract TestLedger is Ledger {
 
     // Keep command registry so Dispatcher can “register” the module (if you use it)
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](23);
+        _signatures = new string[](24);
         _signatures[0] = "initializeTestLedger()";
         _signatures[1] = "addSubAccountGroup(address,string,bool)";
         _signatures[2] = "addSubAccountGroup(address,address,string,bool)";
@@ -48,17 +48,18 @@ contract TestLedger is Ledger {
         _signatures[14] = "transfer(address,address,address,uint256)";
         _signatures[15] = "wrap(address,uint256)";
         _signatures[16] = "unwrap(address,uint256)";
-        _signatures[17] = "mint(address,address,uint256)";
-        _signatures[18] = "burn(address,address,uint256)";
-        _signatures[19] = "enforceNativeValue(uint256)";
-        _signatures[20] = "wrapThenUnwrap(address,uint256,address,uint256)";
-        _signatures[21] = "wrapThenWrap(address,uint256,address,uint256)";
-        _signatures[22] = "rawTransfer(address,address,address,address,uint256)";
+        _signatures[17] = "handleNative()";
+        _signatures[18] = "mint(address,address,uint256)";
+        _signatures[19] = "burn(address,address,uint256)";
+        _signatures[20] = "enforceNativeValue(uint256)";
+        _signatures[21] = "wrapThenUnwrap(address,uint256,address,uint256)";
+        _signatures[22] = "wrapThenWrap(address,uint256,address,uint256)";
+        _signatures[23] = "rawTransfer(address,address,address,address,uint256)";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](23);
+        _selectors = new bytes4[](24);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
@@ -77,6 +78,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("handleNative()"));
         // Extra test-exposing commands
         _selectors[n++] = bytes4(keccak256("mint(address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,uint256)"));
@@ -86,7 +88,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("rawTransfer(address,address,address,address,uint256)"));
         // TODO: Move to DepositLib
         // _selectors[n++] = bytes4(keccak256("reallocate(address,address,uint256)"));
-        if (n != 23) revert InvalidCommandsLength(n);
+        if (n != 24) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -999,6 +1001,39 @@ contract LedgerTest is Test {
         vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
         ledger.wrap{value: 1}(address(externalToken), wrapAmount);
         vm.stopPrank();
+    }
+
+    function testLedgerHandleNativeWrapsMsgValueToSender() public {
+        uint256 wrapAmount = 1 ether;
+
+        vm.startPrank(alice);
+        ledger.addNativeToken();
+        vm.stopPrank();
+
+        vm.deal(bob, wrapAmount);
+        vm.prank(bob);
+        ledger.handleNative{value: wrapAmount}();
+
+        assertEq(address(dispatcher).balance, wrapAmount, "dispatcher native balance");
+        assertEq(ledgerView.debitBalanceOf(native, bob), wrapAmount, "bob native ledger balance");
+        assertEq(ledgerView.totalSupply(native), wrapAmount, "native total supply");
+    }
+
+    function testDispatcherReceiveWrapsNativeToOriginalSender() public {
+        uint256 wrapAmount = 1 ether;
+
+        vm.startPrank(alice);
+        ledger.addNativeToken();
+        vm.stopPrank();
+
+        vm.deal(bob, wrapAmount);
+        vm.prank(bob);
+        (bool success,) = address(dispatcher).call{value: wrapAmount}("");
+
+        assertTrue(success, "dispatcher receive failed");
+        assertEq(address(dispatcher).balance, wrapAmount, "dispatcher native balance");
+        assertEq(ledgerView.debitBalanceOf(native, bob), wrapAmount, "bob native ledger balance");
+        assertEq(ledgerView.totalSupply(native), wrapAmount, "native total supply");
     }
 
     function testLedgerEnforceNativeValue() public {

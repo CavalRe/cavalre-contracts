@@ -186,7 +186,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     }
 
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](17);
+        _signatures = new string[](18);
         _signatures[0] = "initializeLedger(string,string)";
         _signatures[1] = "addSubAccountGroup(address,string,bool)";
         _signatures[2] = "addSubAccountGroup(address,address,string,bool)";
@@ -204,11 +204,12 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _signatures[14] = "transfer(address,address,address,uint256)";
         _signatures[15] = "wrap(address,uint256)";
         _signatures[16] = "unwrap(address,uint256)";
+        _signatures[17] = "handleNative()";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](17);
+        _selectors = new bytes4[](18);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
@@ -226,8 +227,9 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("handleNative()"));
 
-        if (n != 17) revert InvalidCommandsLength(n);
+        if (n != 18) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
@@ -369,6 +371,10 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         }
         // Wrap mints from the root Zero Address source into msg.sender.
         return LedgerLib.wrap(token_, address(0), token_, msg.sender, amount_);
+    }
+
+    function handleNative() external payable nonReentrant {
+        LedgerLib.wrap(LedgerLib.NATIVE_ADDRESS, address(0), LedgerLib.NATIVE_ADDRESS, msg.sender, msg.value);
     }
 
     function unwrap(address token_, uint256 amount_)

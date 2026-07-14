@@ -60,7 +60,22 @@ contract Dispatcher is IDispatcher {
 
     // Routes native value to the installed `handleNative()` command.
     receive() external payable {
-        INativeHandler(address(this)).handleNative{value: msg.value}();
+        address module_ = DispatcherLib.module(INativeHandler.handleNative.selector);
+        if (module_ == address(0)) revert CommandNotFound(INativeHandler.handleNative.selector);
+
+        bytes4 selector_ = INativeHandler.handleNative.selector;
+
+        assembly {
+            mstore(0x00, selector_)
+
+            let result := delegatecall(gas(), module_, 0x00, 0x04, 0, 0)
+
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
+        }
     }
 
     // -- Module Management --
