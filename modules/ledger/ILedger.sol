@@ -83,6 +83,7 @@ interface ILedger {
     error InvalidDecimals(uint8 decimals);
     error InvalidAccountGroup();
     error InvalidLedgerAccount(address ledgerAddress);
+    error InvalidNativePayer(address payer, address sender);
     error LedgerUninitialized();
     error InvalidString(string symbol);
     error InvalidSubAccount(address addr);

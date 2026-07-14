@@ -794,7 +794,7 @@ library LedgerLib {
         revert ILedger.ZeroDepth();
     }
 
-    function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
+    function wrap(address payer_, address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         internal
         returns (address _token, bool _fromIsCredit, bool _toIsCredit)
     {
@@ -809,6 +809,7 @@ library LedgerLib {
         if (!_fromIsCredit) revert ILedger.InvalidSubAccount(from_);
         if (_toIsCredit) revert ILedger.InvalidSubAccount(to_);
         if (_token == NATIVE_ADDRESS) {
+            if (payer_ != msg.sender) revert ILedger.InvalidNativePayer(payer_, msg.sender);
             if (msg.value != amount_) {
                 revert ILedger.IncorrectAmount(msg.value, amount_);
             }
@@ -816,17 +817,21 @@ library LedgerLib {
             // so no external transfer is needed.
         } else {
             uint256 _balanceBefore = IERC20(_token).balanceOf(address(this));
-            SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), amount_);
+            SafeERC20.safeTransferFrom(IERC20(_token), payer_, address(this), amount_);
             uint256 _balanceAfter = IERC20(_token).balanceOf(address(this));
             uint256 _received = _balanceAfter > _balanceBefore ? _balanceAfter - _balanceBefore : 0;
             if (_received != amount_) revert ILedger.UnsupportedTokenBehavior(_token, amount_, _received);
         }
     }
 
-    function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
-        internal
-        returns (address _token, bool _fromIsCredit, bool _toIsCredit)
-    {
+    function unwrap(
+        address recipient_,
+        address fromParent_,
+        address from_,
+        address toParent_,
+        address to_,
+        uint256 amount_
+    ) internal returns (address _token, bool _fromIsCredit, bool _toIsCredit) {
         _token = root(fromParent_);
         uint256 _tokenFlags = flags(_token);
         // Unwrap only applies to external/native debit roots with real asset custody.
@@ -842,12 +847,12 @@ library LedgerLib {
         if (_fromIsCredit) revert ILedger.InvalidSubAccount(from_);
         if (!_toIsCredit) revert ILedger.InvalidSubAccount(to_);
         if (_token == NATIVE_ADDRESS) {
-            (bool _success,) = payable(msg.sender).call{value: amount_}("");
+            (bool _success,) = payable(recipient_).call{value: amount_}("");
             if (!_success) revert ILedger.NativeTransferFailed();
         } else {
-            uint256 _balanceBefore = IERC20(_token).balanceOf(msg.sender);
-            SafeERC20.safeTransfer(IERC20(_token), msg.sender, amount_);
-            uint256 _balanceAfter = IERC20(_token).balanceOf(msg.sender);
+            uint256 _balanceBefore = IERC20(_token).balanceOf(recipient_);
+            SafeERC20.safeTransfer(IERC20(_token), recipient_, amount_);
+            uint256 _balanceAfter = IERC20(_token).balanceOf(recipient_);
             uint256 _received = _balanceAfter > _balanceBefore ? _balanceAfter - _balanceBefore : 0;
             if (_received != amount_) revert ILedger.UnsupportedTokenBehavior(_token, amount_, _received);
         }

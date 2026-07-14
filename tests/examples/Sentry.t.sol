@@ -35,9 +35,13 @@ contract SentryTest is Test {
 
     function testSentryInit() public view {
         assertEq(dispatcher.owner(address(dispatcher)), alice, "SentryTest: Owner not set");
-        assertEq(dispatcher.module(SentryLib.TRANSFER_OWNERSHIP), sentryAddress, "SentryTest: TransferOwnership not set");
+        assertEq(
+            dispatcher.module(SentryLib.TRANSFER_OWNERSHIP), sentryAddress, "SentryTest: TransferOwnership not set"
+        );
         assertEq(dispatcher.module(SentryLib.ACCEPT_OWNERSHIP), sentryAddress, "SentryTest: AcceptOwnership not set");
-        assertEq(dispatcher.module(SentryLib.RENOUNCE_OWNERSHIP), sentryAddress, "SentryTest: RenounceOwnership not set");
+        assertEq(
+            dispatcher.module(SentryLib.RENOUNCE_OWNERSHIP), sentryAddress, "SentryTest: RenounceOwnership not set"
+        );
         assertEq(
             dispatcher.module(SentryLib.CONFIRM_RENOUNCE_OWNERSHIP),
             sentryAddress,

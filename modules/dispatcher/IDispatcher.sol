@@ -39,5 +39,4 @@ interface IDispatcher {
     function commands() external view returns (DispatcherLib.Command[] memory);
 
     function commands(address[] calldata modules_) external view returns (DispatcherLib.Command[] memory);
-
 }

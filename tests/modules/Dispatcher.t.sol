@@ -155,10 +155,7 @@ contract DispatcherTest is Test, ContextUpgradeable {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IDispatcher.CommandInWrongModule.selector,
-                TestDispatchableLib.FOO,
-                address(foo),
-                address(foo2)
+                IDispatcher.CommandInWrongModule.selector, TestDispatchableLib.FOO, address(foo), address(foo2)
             )
         );
         dispatcher.removeModule(address(foo));

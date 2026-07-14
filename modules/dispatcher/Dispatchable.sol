@@ -30,5 +30,4 @@ abstract contract Dispatchable {
     function enforceNotDelegated() internal view {
         if (address(this) != __self) revert IsDelegated();
     }
-
 }
