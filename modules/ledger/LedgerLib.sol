@@ -235,16 +235,20 @@ library LedgerLib {
     //                            Addresses
     //==================================================================
 
+    /// @notice Derives a relative subaccount address from a human-readable name.
+    /// @dev This value is not an absolute ledger-tree identity until anchored under a parent.
     function toAddress(string memory name_) internal pure returns (address) {
         checkString(name_);
         return address(uint160(uint256(keccak256(abi.encodePacked(name_)))));
     }
 
-    function toAddress(address parent_, address ledger_) internal pure returns (address) {
+    /// @notice Derives the canonical absolute ledger-tree address for `relative_` under `parent_`.
+    function toAddress(address parent_, address relative_) internal pure returns (address) {
         checkZeroAddress(parent_);
-        return address(uint160(uint256(keccak256(abi.encodePacked(parent_, ledger_)))));
+        return address(uint160(uint256(keccak256(abi.encodePacked(parent_, relative_)))));
     }
 
+    /// @notice Convenience form for `toAddress(parent_, toAddress(name_))`.
     function toAddress(address parent_, string memory name_) internal pure returns (address) {
         checkZeroAddress(parent_);
         checkString(name_);

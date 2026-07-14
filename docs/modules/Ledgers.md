@@ -40,6 +40,31 @@
 - `LedgerLib.wrap(...)` / `unwrap(...)` only apply to external/native debit roots; internal and claim roots revert
 - tree/root mutators are intended to be idempotent: exact replays return the same result or become no-ops, while conflicting replays revert
 
+## Address Derivation
+
+Ledger account addresses are deterministic identifiers, not externally owned
+accounts.
+
+`LedgerLib.toAddress(name_)` derives a relative subaccount address from a
+human-readable name. This is a child key. It is not a complete position in the
+ledger tree until it is anchored under a parent.
+
+`LedgerLib.toAddress(parent_, relative_)` derives the canonical absolute address
+for a specific point in the ledger tree. This is the primary tree identity:
+
+```solidity
+absolute = LedgerLib.toAddress(parent, relative);
+```
+
+`LedgerLib.toAddress(parent_, name_)` is the convenience form:
+
+```solidity
+LedgerLib.toAddress(parent, LedgerLib.toAddress(name));
+```
+
+Use the two-step form when the distinction between a named relative subaccount
+and its absolute tree location matters for readability.
+
 ## Storage
 
 Ledger storage lives in `modules/ledger/LedgerLib.sol` (`LedgerLib.Store`) under an ERC-7201-style namespaced slot.
