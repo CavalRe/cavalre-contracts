@@ -338,26 +338,27 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     //===========
 
     function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_) external {
-        address _root = LedgerLib.checkRoots(fromParent_, toParent_);
-        if (_root == address(0)) revert ILedger.ZeroAddress();
+        (address _root, bool _fromIsCredit, bool _toIsCredit) =
+            LedgerLib.enforceTransfer(fromParent_, from_, toParent_, to_);
         // Wrapper calls must come from the root wrapper; canonical ERC20 may call via address(this).
         if (msg.sender != LedgerLib.wrapper(_root) && (msg.sender != address(this) || _root != address(this))) {
             revert ILedger.Unauthorized(msg.sender);
         }
-        (, bool _fromIsCredit, bool _toIsCredit) = LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_);
         // Public transfer surfaces may not mint from credit into debit accounts.
         if (_fromIsCredit && !_toIsCredit) {
             revert ILedger.InvalidLedgerAccount(fromParent_);
         }
+        LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_);
     }
 
     function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external {
         // Direct user transfer uses msg.sender as source leaf under fromParent_.
-        (, bool _fromIsCredit, bool _toIsCredit) = LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
+        (, bool _fromIsCredit, bool _toIsCredit) = LedgerLib.enforceTransfer(fromParent_, msg.sender, toParent_, to_);
         // Public transfers may not mint from credit into debit accounts.
         if (_fromIsCredit && !_toIsCredit) {
             revert ILedger.InvalidLedgerAccount(fromParent_);
         }
+        LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
     }
 
     function wrap(address token_, uint256 amount_)

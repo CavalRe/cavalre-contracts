@@ -703,7 +703,6 @@ library LedgerLib {
         address absolute;
         uint256 flags;
         uint8 depth;
-        bool isCredit;
         bool isUnregistered;
     }
 
@@ -712,17 +711,21 @@ library LedgerLib {
         _acct.relative = addr_;
         (_acct.flags, _originalFlags, _acct.absolute) = effectiveFlags(parent_, addr_);
         _acct.depth = depth(_acct.flags);
-        _acct.isCredit = isCredit(_acct.flags);
         _acct.isUnregistered = isUnregisteredAccount(_originalFlags);
     }
 
-    function emitWrapperTransfer(address root_, AccountCache memory from_, AccountCache memory to_, uint256 amount_)
-        private
-    {
+    function emitWrapperTransfer(
+        address root_,
+        AccountCache memory from_,
+        bool fromIsCredit_,
+        AccountCache memory to_,
+        bool toIsCredit_,
+        uint256 amount_
+    ) private {
         address _from;
         address _to;
-        if (from_.isCredit == to_.isCredit) {
-            if (from_.isCredit) {
+        if (fromIsCredit_ == toIsCredit_) {
+            if (fromIsCredit_) {
                 _to = from_.depth == 2 ? from_.relative : address(this);
                 _from = to_.depth == 2 ? to_.relative : address(this);
             } else {
@@ -731,45 +734,56 @@ library LedgerLib {
             }
         } else {
             _from =
-                from_.isCredit ? address(0) : from_.depth == 2 && from_.isUnregistered ? from_.relative : address(this);
-            _to = to_.isCredit ? address(0) : to_.depth == 2 && to_.isUnregistered ? to_.relative : address(this);
+                fromIsCredit_ ? address(0) : from_.depth == 2 && from_.isUnregistered ? from_.relative : address(this);
+            _to = toIsCredit_ ? address(0) : to_.depth == 2 && to_.isUnregistered ? to_.relative : address(this);
         }
         if (_from == address(this) && _to == address(this)) return;
         ERC20Wrapper(root_).emitTransfer(_from, _to, amount_);
+    }
+
+    function enforceTransfer(address fromParent_, address from_, address toParent_, address to_)
+        internal
+        view
+        returns (address _root, bool _fromIsCredit, bool _toIsCredit)
+    {
+        _root = checkRoots(fromParent_, toParent_);
+        if (_root == address(0)) revert ILedger.ZeroAddress();
+
+        (uint256 _fromFlags,, address _fromAbsolute) = effectiveFlags(fromParent_, from_);
+        (uint256 _toFlags,, address _toAbsolute) = effectiveFlags(toParent_, to_);
+
+        if (isGroup(_fromFlags)) revert ILedger.InvalidLedgerAccount(_fromAbsolute);
+        if (isGroup(_toFlags)) revert ILedger.InvalidLedgerAccount(_toAbsolute);
+        if (depth(_fromFlags) == 0) revert ILedger.ZeroDepth();
+        if (depth(_toFlags) == 0) revert ILedger.ZeroDepth();
+
+        _fromIsCredit = isCredit(_fromFlags);
+        _toIsCredit = isCredit(_toFlags);
     }
 
     function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
         internal
         returns (address _root, bool _fromIsCredit, bool _toIsCredit)
     {
-        _root = checkRoots(fromParent_, toParent_);
-        if (_root == address(0)) revert ILedger.ZeroAddress();
+        (_root, _fromIsCredit, _toIsCredit) = enforceTransfer(fromParent_, from_, toParent_, to_);
 
         AccountCache memory _from = setAccountCache(fromParent_, from_);
         AccountCache memory _to = setAccountCache(toParent_, to_);
         if (_root == wrapper(_root) && (_from.depth == 2 || _to.depth == 2)) {
-            emitWrapperTransfer(_root, _from, _to, amount_);
+            emitWrapperTransfer(_root, _from, _fromIsCredit, _to, _toIsCredit, amount_);
         }
         if (_from.absolute == _to.absolute) {
-            return (_root, _from.isCredit, _to.isCredit);
+            return (_root, _fromIsCredit, _toIsCredit);
         }
 
-        bool _isSameSide = _from.isCredit == _to.isCredit;
-
-        // Ensure absolute accounts are ledger accounts (not groups)
-        if (isGroup(_from.flags)) revert ILedger.InvalidLedgerAccount(_from.absolute);
-        if (isGroup(_to.flags)) revert ILedger.InvalidLedgerAccount(_to.absolute);
-
-        // Ensure roots are valid before starting the walk.
-        if (_from.depth == 0) revert ILedger.ZeroDepth();
-        if (_to.depth == 0) revert ILedger.ZeroDepth();
+        bool _isSameSide = _fromIsCredit == _toIsCredit;
 
         Store storage s = store();
         uint8 _depth = _from.depth > _to.depth ? _from.depth : _to.depth;
         while (_depth > 0) {
             // if (_current != _root && !isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
             if (_from.depth >= _depth) {
-                _from.balance = _update(_from, _root, _from.isCredit ? s.credits : s.debits, amount_, _from.isCredit);
+                _from.balance = _update(_from, _root, _fromIsCredit ? s.credits : s.debits, amount_, _fromIsCredit);
                 emit ILedger.Credit(_root, _from.absolute, amount_, _from.balance);
                 if (_depth > 1) {
                     _from.absolute = parent(_from.flags);
@@ -777,7 +791,7 @@ library LedgerLib {
                 }
             }
             if (_to.depth >= _depth) {
-                _to.balance = _update(_to, _root, _to.isCredit ? s.credits : s.debits, amount_, !_to.isCredit);
+                _to.balance = _update(_to, _root, _toIsCredit ? s.credits : s.debits, amount_, !_toIsCredit);
                 emit ILedger.Debit(_root, _to.absolute, amount_, _to.balance);
                 if (_depth > 1) {
                     _to.absolute = parent(_to.flags);
@@ -787,7 +801,7 @@ library LedgerLib {
             // Once both walks reach the same ancestor on the same side, remaining upward mutations are identical,
             // so no further net balance changes occur above this point. Depth 1 is the root completion case.
             if (_depth == 1 || (_from.absolute == _to.absolute && _isSameSide)) {
-                return (_root, _from.isCredit, _to.isCredit);
+                return (_root, _fromIsCredit, _toIsCredit);
             }
             _depth--;
         }
