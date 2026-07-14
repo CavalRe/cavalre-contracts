@@ -35,6 +35,7 @@ library DispatcherLib {
     function addModule(address module_) internal {
         (Store storage s,, bytes4[] memory _selectors) = enforceModuleUpdate(module_);
         if (_selectors.length == 0) revert IDispatcher.ModuleNotFound(module_);
+        if (s.moduleListIndexes[module_] != 0) revert IDispatcher.ModuleAlreadyAdded(module_);
         for (uint256 i = 0; i < _selectors.length; i++) {
             bytes4 _selector = _selectors[i];
             if (s.modules[_selector] != address(0)) {

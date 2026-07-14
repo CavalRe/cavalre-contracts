@@ -12,6 +12,7 @@ interface IDispatcher {
     error CommandAlreadySet(bytes4 command, address module);
     error CommandNotFound(bytes4 command);
     error CommandInWrongModule(bytes4 command, address expectedModule, address actualModule);
+    error ModuleAlreadyAdded(address module);
     error ModuleNotFound(address module);
     error OwnableUnauthorizedAccount(address account);
     error InvalidSignaturesLength(uint256 expectedLength, uint256 actualLength);

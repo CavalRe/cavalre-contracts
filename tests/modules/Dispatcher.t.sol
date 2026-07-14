@@ -99,6 +99,12 @@ contract DispatcherTest is Test, ContextUpgradeable {
         assertEq(dispatcher.module(TestDispatchableLib.BAR), address(bar), "DispatcherTest: bar() not set");
     }
 
+    function testDispatcherRejectsDuplicateModule() public {
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(IDispatcher.ModuleAlreadyAdded.selector, address(foo)));
+        dispatcher.addModule(address(foo));
+    }
+
     function testDispatcherVerifyModule() public view {
         (bytes4[] memory _selectors, string[] memory _signatures) = dispatcher.verifyModule(address(foo));
         assertEq(_selectors.length, 1, "DispatcherTest: selector count");
