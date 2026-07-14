@@ -773,6 +773,7 @@ library LedgerLib {
 
         AccountCache memory _from = setAccountCache(fromParent_, from_);
         AccountCache memory _to = setAccountCache(toParent_, to_);
+        // Emit before same-account no-op so ERC20 self-transfers still produce Transfer(from, from, amount).
         if (_root == wrapper(_root) && (_from.depth == 2 || _to.depth == 2)) {
             emitWrapperTransfer(_root, _from, _fromIsCredit, _to, _toIsCredit, amount_);
         }
