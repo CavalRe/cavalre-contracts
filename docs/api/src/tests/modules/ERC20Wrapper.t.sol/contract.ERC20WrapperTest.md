@@ -1,22 +1,22 @@
 # ERC20WrapperTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/tests/modules/ERC20Wrapper.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/tests/modules/ERC20Wrapper.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
 
 
 ## State Variables
-### DEFAULT_SOURCE_NAME
+### TRANSFER_TOPIC
 
 ```solidity
-string internal constant DEFAULT_SOURCE_NAME = "Source"
+bytes32 internal constant TRANSFER_TOPIC = keccak256("Transfer(address,address,uint256)")
 ```
 
 
-### router
+### dispatcher
 
 ```solidity
-Router internal router
+Dispatcher internal dispatcher
 ```
 
 
@@ -27,10 +27,17 @@ TestLedger internal ledgers
 ```
 
 
+### ledgerView
+
+```solidity
+LedgerView internal ledgerView
+```
+
+
 ### tree
 
 ```solidity
-Tree internal tree
+TreeView internal tree
 ```
 
 
@@ -45,13 +52,6 @@ ERC20Wrapper internal token
 
 ```solidity
 MockERC20 internal externalToken
-```
-
-
-### externalWrapper
-
-```solidity
-ERC20Wrapper internal externalWrapper
 ```
 
 
@@ -133,6 +133,27 @@ function testERC20WrapperClaimRootMintTransferBurn() public;
 function testERC20WrapperMintTransferBurn() public;
 ```
 
+### testERC20WrapperTransferToSelfEmitsTransfer
+
+
+```solidity
+function testERC20WrapperTransferToSelfEmitsTransfer() public;
+```
+
+### testERC20WrapperZeroTransferEmitsTransfer
+
+
+```solidity
+function testERC20WrapperZeroTransferEmitsTransfer() public;
+```
+
+### testERC20WrapperTransferMatrix
+
+
+```solidity
+function testERC20WrapperTransferMatrix() public;
+```
+
 ### testERC20WrapperApproveTransferFromandAllowanceMutators
 
 
@@ -166,5 +187,84 @@ function testERC20WrapperLedgerWrapperFunctionsUnauthorized() public;
 
 ```solidity
 function testERC20WrapperMultiHolderAccounting() public;
+```
+
+### _buildMatrixLegs
+
+
+```solidity
+function _buildMatrixLegs(uint160 base_, string memory prefix_) private returns (MatrixLeg[] memory legs_);
+```
+
+### _expectedWrapperTransfer
+
+
+```solidity
+function _expectedWrapperTransfer(MatrixLeg memory from_, MatrixLeg memory to_)
+    private
+    view
+    returns (ExpectedWrapperTransfer memory expected_);
+```
+
+### _projectDebit
+
+
+```solidity
+function _projectDebit(MatrixLeg memory leg_) private view returns (address);
+```
+
+### _projectCreditForCreditTransfer
+
+
+```solidity
+function _projectCreditForCreditTransfer(MatrixLeg memory leg_) private view returns (address);
+```
+
+### _assertWrapperTransferLogs
+
+
+```solidity
+function _assertWrapperTransferLogs(ExpectedWrapperTransfer memory expected_, uint256 fromIndex_, uint256 toIndex_)
+    private;
+```
+
+### _matrixCellLabel
+
+
+```solidity
+function _matrixCellLabel(string memory prefix_, uint256 fromIndex_, uint256 toIndex_)
+    private
+    pure
+    returns (string memory);
+```
+
+### _matrixLabel
+
+
+```solidity
+function _matrixLabel(uint256 index_) private pure returns (string memory);
+```
+
+## Structs
+### MatrixLeg
+
+```solidity
+struct MatrixLeg {
+    address parent;
+    address relative;
+    uint8 depth;
+    bool isCredit;
+    bool isUnregistered;
+}
+```
+
+### ExpectedWrapperTransfer
+
+```solidity
+struct ExpectedWrapperTransfer {
+    bool emitted;
+    address from;
+    address to;
+}
 ```
 

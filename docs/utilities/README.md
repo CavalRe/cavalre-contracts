@@ -1,10 +1,10 @@
 # Utilities
 
-This folder contains shadow wrappers for OpenZeppelin contracts used to support module-specific behavior in a diamond-style `Router/Module` architecture.
+This folder contains shadow wrappers for OpenZeppelin contracts used to support module-specific behavior in a diamond-style `Dispatcher/Dispatchable` architecture.
 
 ## Purpose
 
-When using `delegatecall` in a modular system, all modules share the same storage layout as the calling Router. To avoid storage slot collisions, these utilities override OpenZeppelin defaults to enforce **per-module storage isolation**.
+When using `delegatecall` in a modular system, all modules share the same storage layout as the calling Dispatcher. To avoid storage slot collisions, these utilities override OpenZeppelin defaults to enforce **per-module storage isolation**.
 
 ## Included Contracts
 

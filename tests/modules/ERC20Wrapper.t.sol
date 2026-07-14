@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Test, console} from "forge-std/src/Test.sol";
+import {Vm} from "forge-std/src/Vm.sol";
 
 import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {Ledger, ERC20Wrapper} from "../../modules/ledger/Ledger.sol";
@@ -13,6 +14,8 @@ import {TreeView} from "../../modules/tree/TreeView.sol";
 import {TestLedger, MockERC20} from "./Ledger.t.sol";
 
 contract ERC20WrapperTest is Test {
+    bytes32 internal constant TRANSFER_TOPIC = keccak256("Transfer(address,address,uint256)");
+
     Dispatcher internal dispatcher;
     TestLedger internal ledgers; // will point to Dispatcher after module add
     LedgerView internal ledgerView;
@@ -25,6 +28,20 @@ contract ERC20WrapperTest is Test {
     address internal bob = address(0xCA11);
     address internal carol = address(0xD00D);
     address internal source_;
+
+    struct MatrixLeg {
+        address parent;
+        address relative;
+        uint8 depth;
+        bool isCredit;
+        bool isUnregistered;
+    }
+
+    struct ExpectedWrapperTransfer {
+        bool emitted;
+        address from;
+        address to;
+    }
 
     function setUp() public {
         bool isVerbose = false;
@@ -90,7 +107,6 @@ contract ERC20WrapperTest is Test {
         assertEq(token.symbol(), "ITT");
         assertEq(token.decimals(), 18);
         assertEq(token.dispatcher(), address(dispatcher));
-        assertEq(token.token(), address(token));
         assertEq(token.totalSupply(), 0);
 
         assertEq(ledgerView.name(address(token)), "Internal Test Token");
@@ -205,6 +221,23 @@ contract ERC20WrapperTest is Test {
         assertEq(token.balanceOf(alice), 1_000);
         assertEq(token.balanceOf(bob), 0);
         assertEq(token.totalSupply(), 1_000);
+    }
+
+    function testERC20WrapperTransferMatrix() public {
+        vm.startPrank(owner);
+        MatrixLeg[] memory froms = _buildMatrixLegs(0x1000, "from");
+        MatrixLeg[] memory tos = _buildMatrixLegs(0x2000, "to");
+        vm.stopPrank();
+
+        for (uint256 i = 0; i < froms.length; i++) {
+            for (uint256 j = 0; j < tos.length; j++) {
+                ExpectedWrapperTransfer memory expected = _expectedWrapperTransfer(froms[i], tos[j]);
+
+                vm.recordLogs();
+                ledgers.rawTransfer(froms[i].parent, froms[i].relative, tos[j].parent, tos[j].relative, 0);
+                _assertWrapperTransferLogs(expected, i, j);
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -347,5 +380,114 @@ contract ERC20WrapperTest is Test {
         assertEq(token.balanceOf(alice), 450);
         assertEq(token.balanceOf(bob), 550);
         assertEq(token.totalSupply(), 1_000);
+    }
+
+    function _buildMatrixLegs(uint160 base_, string memory prefix_) private returns (MatrixLeg[] memory legs_) {
+        legs_ = new MatrixLeg[](7);
+
+        address debitGroupRelative_ = address(base_ + 0x10);
+        address creditGroupRelative_ = address(base_ + 0x20);
+        (address debitGroup_,) = ledgers.addSubAccountGroup(
+            address(token), debitGroupRelative_, string.concat(prefix_, "-debit-group"), false
+        );
+        (address creditGroup_,) = ledgers.addSubAccountGroup(
+            address(token), creditGroupRelative_, string.concat(prefix_, "-credit-group"), true
+        );
+
+        address r2d_ = address(base_ + 0x04);
+        address r2c_ = address(base_ + 0x05);
+        address rd_ = address(base_ + 0x06);
+        address rc_ = address(base_ + 0x07);
+        ledgers.addSubAccount(address(token), r2d_, string.concat(prefix_, "-r2d"), false);
+        ledgers.addSubAccount(address(token), r2c_, string.concat(prefix_, "-r2c"), true);
+        ledgers.addSubAccount(debitGroup_, rd_, string.concat(prefix_, "-rd"), false);
+        ledgers.addSubAccount(creditGroup_, rc_, string.concat(prefix_, "-rc"), true);
+
+        legs_[0] = MatrixLeg(address(token), address(base_ + 0x01), 2, false, true); // U2D
+        legs_[1] = MatrixLeg(debitGroup_, address(base_ + 0x02), 3, false, true); // U>D
+        legs_[2] = MatrixLeg(creditGroup_, address(base_ + 0x03), 3, true, true); // U>C
+        legs_[3] = MatrixLeg(address(token), r2d_, 2, false, false); // R2D
+        legs_[4] = MatrixLeg(address(token), r2c_, 2, true, false); // R2C
+        legs_[5] = MatrixLeg(debitGroup_, rd_, 3, false, false); // R>D
+        legs_[6] = MatrixLeg(creditGroup_, rc_, 3, true, false); // R>C
+    }
+
+    function _expectedWrapperTransfer(MatrixLeg memory from_, MatrixLeg memory to_)
+        private
+        view
+        returns (ExpectedWrapperTransfer memory expected_)
+    {
+        if (from_.depth != 2 && to_.depth != 2) return expected_;
+
+        if (from_.isCredit == to_.isCredit) {
+            if (from_.isCredit) {
+                expected_.from = _projectCreditForCreditTransfer(to_);
+                expected_.to = _projectCreditForCreditTransfer(from_);
+            } else {
+                expected_.from = _projectDebit(from_);
+                expected_.to = _projectDebit(to_);
+            }
+        } else {
+            expected_.from = from_.isCredit ? address(0) : _projectDebit(from_);
+            expected_.to = to_.isCredit ? address(0) : _projectDebit(to_);
+        }
+
+        expected_.emitted = expected_.from != address(ledgers) || expected_.to != address(ledgers);
+    }
+
+    function _projectDebit(MatrixLeg memory leg_) private view returns (address) {
+        return leg_.depth == 2 && leg_.isUnregistered ? leg_.relative : address(ledgers);
+    }
+
+    function _projectCreditForCreditTransfer(MatrixLeg memory leg_) private view returns (address) {
+        return leg_.depth == 2 ? leg_.relative : address(ledgers);
+    }
+
+    function _assertWrapperTransferLogs(ExpectedWrapperTransfer memory expected_, uint256 fromIndex_, uint256 toIndex_)
+        private
+    {
+        Vm.Log[] memory logs_ = vm.getRecordedLogs();
+        uint256 count_;
+        address actualFrom_;
+        address actualTo_;
+        uint256 actualAmount_;
+
+        for (uint256 i = 0; i < logs_.length; i++) {
+            if (logs_[i].emitter != address(token)) continue;
+            if (logs_[i].topics.length == 0 || logs_[i].topics[0] != TRANSFER_TOPIC) continue;
+
+            count_++;
+            actualFrom_ = address(uint160(uint256(logs_[i].topics[1])));
+            actualTo_ = address(uint160(uint256(logs_[i].topics[2])));
+            actualAmount_ = abi.decode(logs_[i].data, (uint256));
+        }
+
+        if (!expected_.emitted) {
+            assertEq(count_, 0, _matrixCellLabel("unexpected wrapper Transfer", fromIndex_, toIndex_));
+            return;
+        }
+
+        assertEq(count_, 1, _matrixCellLabel("wrapper Transfer count", fromIndex_, toIndex_));
+        assertEq(actualFrom_, expected_.from, _matrixCellLabel("wrapper Transfer from", fromIndex_, toIndex_));
+        assertEq(actualTo_, expected_.to, _matrixCellLabel("wrapper Transfer to", fromIndex_, toIndex_));
+        assertEq(actualAmount_, 0, _matrixCellLabel("wrapper Transfer amount", fromIndex_, toIndex_));
+    }
+
+    function _matrixCellLabel(string memory prefix_, uint256 fromIndex_, uint256 toIndex_)
+        private
+        pure
+        returns (string memory)
+    {
+        return string.concat(prefix_, " [", _matrixLabel(fromIndex_), " -> ", _matrixLabel(toIndex_), "]");
+    }
+
+    function _matrixLabel(uint256 index_) private pure returns (string memory) {
+        if (index_ == 0) return "U2D";
+        if (index_ == 1) return "U>D";
+        if (index_ == 2) return "U>C";
+        if (index_ == 3) return "R2D";
+        if (index_ == 4) return "R2C";
+        if (index_ == 5) return "R>D";
+        return "R>C";
     }
 }

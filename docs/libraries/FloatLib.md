@@ -1,6 +1,6 @@
 # FloatLib
 
-`libraries/FloatLib.sol` provides CavalRe’s custom decimal floating representation and arithmetic helpers.
+`math/FloatLib.sol` provides CavalRe’s custom decimal floating representation and arithmetic helpers.
 
 ## Overview
 
@@ -31,5 +31,5 @@ Current constants target 21 significant digits (`SIGNIFICANT_DIGITS = 21`).
 
 For exact function signatures and semantics, use generated API docs:
 
-- `docs/api/src/libraries/FloatLib.sol/library.FloatLib.md`
-- `docs/api/src/libraries/FloatLib.sol/type.Float.md`
+- `docs/api/src/math/FloatLib.sol/library.FloatLib.md`
+- `docs/api/src/math/FloatLib.sol/type.Float.md`

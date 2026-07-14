@@ -82,7 +82,7 @@ contract ERC20 is Dispatchable, Initializable {
     }
 
     function balanceOf(address owner_) external view returns (uint256) {
-        (address _account, uint256 _flags) = LedgerLib.effectiveFlags(address(this), owner_);
+        (uint256 _flags,, address _account) = LedgerLib.effectiveFlags(address(this), owner_);
         return LedgerLib.balanceOf(_account, LedgerLib.isCredit(_flags));
     }
 

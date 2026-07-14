@@ -1,5 +1,5 @@
 # TestToken
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/examples/Token.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/examples/Token.sol)
 
 **Inherits:**
 [ERC20](/node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol/abstract.ERC20.md)
@@ -11,6 +11,13 @@
 
 ```solidity
 constructor(uint8 _decimals) ERC20(_decimals);
+```
+
+### signatures
+
+
+```solidity
+function signatures() public pure virtual override returns (string[] memory _signatures);
 ```
 
 ### selectors

@@ -1,15 +1,15 @@
 # SentryTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/tests/examples/Sentry.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/tests/examples/Sentry.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
 
 
 ## State Variables
-### router
+### dispatcher
 
 ```solidity
-Router router
+Dispatcher dispatcher
 ```
 
 
@@ -20,10 +20,10 @@ Sentry sentry
 ```
 
 
-### routerAddress
+### dispatcherAddress
 
 ```solidity
-address routerAddress
+address dispatcherAddress
 ```
 
 

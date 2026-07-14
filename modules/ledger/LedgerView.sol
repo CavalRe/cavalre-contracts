@@ -71,7 +71,7 @@ contract LedgerView is Dispatchable, ILedgerView {
     }
 
     function balanceOf(address p, address a) external view returns (uint256) {
-        (address x, uint256 f) = LedgerLib.effectiveFlags(p, a);
+        (uint256 f,, address x) = LedgerLib.effectiveFlags(p, a);
         return LedgerLib.balanceOf(x, LedgerLib.isCredit(f));
     }
 

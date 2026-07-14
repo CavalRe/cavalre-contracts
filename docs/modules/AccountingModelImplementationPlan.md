@@ -4,6 +4,7 @@
 
 This is a historical implementation checklist for the balance-column refactor that has since landed. References to `TOTAL` describe the old model being removed.
 The final `transfer(...)` implementation ended up using a single coordinated tree walk with same-side early cancellation rather than permanently keeping split `credit(...)` + `debit(...)` legs.
+Source paths in this note use the old flat layout; current Ledger source lives under `modules/ledger/`.
 
 - no onchain income statement tracking
 - no onchain cashflow statement tracking

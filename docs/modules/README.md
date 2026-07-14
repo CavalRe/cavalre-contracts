@@ -1,21 +1,16 @@
-# Module.sol
+# Dispatchable / Dispatcher
 
-The `Module` contract is an abstract base for CavalRe modules. It provides access control, delegation checks, and shared ownership access through `ModuleLib.Store`.
+`Dispatchable` is the abstract base for CavalRe modules. `Dispatcher` is the immutable selector router that delegates calls into installed modules.
 
-It is paired with a `Lib` library that defines the storage layout and access method using a fixed storage slot.
+`DispatcherLib` defines shared dispatcher storage using a fixed ERC-7201-style slot.
 
 ## Storage Layout
 
 ```solidity
 struct Store {
-    mapping(address => address) owners;
+    address owner;
+    mapping(bytes4 => address) modules;
 }
-```
-
-The storage slot is namespaced using the ERC-7201-style pattern:
-
-```solidity
-keccak256(abi.encode(uint256(keccak256("cavalre.storage.Module")) - 1)) & ~bytes32(uint256(0xff))
 ```
 
 ## Key Functions
@@ -24,7 +19,7 @@ keccak256(abi.encode(uint256(keccak256("cavalre.storage.Module")) - 1)) & ~bytes
 
 Each module must override this function to return the list of function selectors it implements.
 
-### `function enforceIsOwner() internal view returns (Store storage)`
+### `function enforceIsOwner() internal view`
 
 Reverts with `OwnableUnauthorizedAccount(msg.sender)` if the caller is not the registered owner of this module.
 
@@ -44,32 +39,25 @@ Ensures the function is **not** being called via `delegatecall`. Reverts with `I
 
 ## Notes
 
-This contract assumes the calling context may be either a direct call or a `delegatecall` through the `Router`, and provides hooks to enforce the correct mode.
+Dispatchable contracts assume the calling context may be either a direct call or
+a `delegatecall` through `Dispatcher`, and provide hooks to enforce the correct
+mode.
 
-# Router.sol
+# Dispatcher.sol
 
-The `Router` contract is the immutable dispatcher in CavalRe's modular architecture. It inherits from `Module` and assigns modules to function selectors using a mapping defined in `RouterLib.Store`.
+`Dispatcher` is the immutable dispatcher in CavalRe's modular architecture. It
+assigns modules to function selectors using `DispatcherLib.Store`.
 
 ## Storage Layout
 
-```solidity
-struct Store {
-    mapping(bytes4 => address) modules;
-}
-```
-
-The mapping is stored under a unique ERC-7201-style slot derived from:
-
-```solidity
-keccak256(abi.encode(uint256(keccak256("cavalre.storage.Router")) - 1)) & ~bytes32(uint256(0xff))
-```
+See storage layout above.
 
 ## Events
 
 - `CommandSet(bytes4 indexed command, address indexed module)`
 - `ModuleAdded(address indexed module)`
 - `ModuleRemoved(address indexed module)`
-- `RouterCreated(address indexed router)`
+- `DispatcherCreated(address indexed dispatcher)`
 
 ## Errors
 
@@ -83,11 +71,11 @@ keccak256(abi.encode(uint256(keccak256("cavalre.storage.Router")) - 1)) & ~bytes
 constructor(address owner_)
 ```
 
-Sets a specified owner of the router’s context (via module storage), and emits `RouterCreated`.
+Sets the dispatcher owner and emits `DispatcherCreated`.
 
 ## Function: `selectors()`
 
-Returns the list of supported commands (selectors). In the base `Router` contract, this returns an empty array:
+Returns the list of supported commands (selectors). In the base `Dispatcher` contract, this returns an empty array:
 
 ```solidity
 function selectors() external pure override returns (bytes4[] memory) {
@@ -95,13 +83,12 @@ function selectors() external pure override returns (bytes4[] memory) {
 }
 ```
 
-This means the `Router` itself does not handle application logic — it only manages and delegates to modules.
+This means the `Dispatcher` itself does not handle application logic - it only manages and delegates to modules.
 
 ## Design Notes
 
-- Built atop `Module.sol`, the Router shares access control logic.
 - Command-module relationships are mutable (you can add/remove modules).
-- The Router itself is designed to be immutable — it delegates to upgradeable modules via `delegatecall`.
+- The Dispatcher itself is designed to be immutable - it delegates to upgradeable modules via `delegatecall`.
 
 # Ledger.sol
 
@@ -114,8 +101,8 @@ The `Ledger` module owns token-root registration, hierarchical account trees, an
 - claim roots are also self-wrapped at creation and reference one registered non-claim Ledger leaf account
 - internal root creation happens through `createInternalToken(...)` and is deterministic/idempotent by `(name, symbol, decimals)`
 - claim root creation happens through `createClaimToken(...)` and is deterministic/idempotent by `(name, symbol, decimals, claimAccount)`
-- native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`
-- canonical root may also be wrapped via `createWrapper(...)` if no `ERC20` module surface is present or a separate wrapper is desired
+- native and external roots are registered ledger roots without self-wrapped ERC20 surfaces
+- canonical-root ERC20 behavior lives in the example ERC20 module when installed
 - `LedgerLib.wrap(...)` / `LedgerLib.unwrap(...)` depend on registered roots, not wrapper existence
 - external `Ledger.wrap(token_, amount_)` / `Ledger.unwrap(token_, amount_)` route through the per-root default source leaf
 - wrap/unwrap are valid only for external/native debit roots; internal and claim roots revert
@@ -130,9 +117,9 @@ The `Ledger` module owns token-root registration, hierarchical account trees, an
 - transfer posting and total supply accounting
 - wrap/unwrap settlement logic
 
-# Tree.sol
+# TreeView.sol
 
-The `Tree` module owns topology/debug reads for ledger trees.
+The `TreeView` module owns topology/debug reads for ledger trees.
 
 ## Responsibilities
 
@@ -144,15 +131,15 @@ The `Tree` module owns topology/debug reads for ledger trees.
 
 `TreeLib` now reads directly from `LedgerLib`; callers no longer pass a `Ledger` handle into `debugTree(s)`.
 
-# ERC20.sol
+# LedgerERC20.sol
 
-The `ERC20` module is the optional ERC20 surface for the canonical root.
+The example `LedgerERC20` module is the optional ERC20 surface for the canonical root.
 
 ## Design Notes
 
-- deployed as a module, so runtime address is the Router address via `delegatecall`
+- deployed as a module, so runtime address is the Dispatcher address via `delegatecall`
 - metadata, balances, total supply, and transfer posting all route through `LedgerLib`
-- allowances live in `ERC20Lib`
+- allowances live in `LedgerERC20Lib`
 - this keeps canonical-root ERC20 behavior out of `LedgerLib` while preserving `address(this)` as canonical token address
 
 ## Further Reading

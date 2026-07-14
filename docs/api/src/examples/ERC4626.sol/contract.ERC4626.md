@@ -1,8 +1,8 @@
 # ERC4626
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/examples/ERC4626.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/examples/ERC4626.sol)
 
 **Inherits:**
-[Module](/modules/Module.sol/abstract.Module.md), [ERC4626Upgradeable](/node_modules/@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol/abstract.ERC4626Upgradeable.md)
+[Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [ERC4626Upgradeable](/node_modules/@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol/abstract.ERC4626Upgradeable.md)
 
 
 ## State Variables
@@ -35,6 +35,13 @@ constructor(uint8 decimals_) ;
 
 ```solidity
 function _initializableStorageSlot() internal pure override returns (bytes32);
+```
+
+### signatures
+
+
+```solidity
+function signatures() public pure virtual override returns (string[] memory _signatures);
 ```
 
 ### selectors

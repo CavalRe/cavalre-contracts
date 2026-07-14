@@ -151,7 +151,7 @@ contract TreeView is Dispatchable {
         return LedgerLib.isCredit(flags_);
     }
 
-    function effectiveFlags(address parent_, address addr_) external view returns (address, uint256) {
+    function effectiveFlags(address parent_, address addr_) external view returns (uint256, uint256, address) {
         return LedgerLib.effectiveFlags(parent_, addr_);
     }
 

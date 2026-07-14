@@ -2,6 +2,9 @@
 
 Short audit notes for issues noticed while reviewing `cavalre-contracts`. Intended as actionable pointers (not a full audit).
 
+Status note: this is a historical audit note. Several paths refer to the old
+flat source layout; current Ledger source lives under `modules/ledger/`.
+
 ---
 
 ## Finding 1 — Router `receive()` can revert (missing `handleNative`)
@@ -35,9 +38,10 @@ Short audit notes for issues noticed while reviewing `cavalre-contracts`. Intend
 ## Finding 4 — `ERC20Wrapper.mint/burn` only emit events
 
 - **Severity**: Low
-- **Where**: `modules/Ledger.sol` (`ERC20Wrapper.mint`, `ERC20Wrapper.burn`)
+- **Where**: historical `modules/Ledger.sol` (`ERC20Wrapper.mint`, `ERC20Wrapper.burn`)
 - **Impact**: These functions emit ERC-20 `Transfer` events but do not mutate balances. Correct behavior relies on Ledger state changes happening elsewhere, then calling these to mirror events.
 - **Recommendation**: Add NatSpec clarifying that these are event-only hooks and must be paired with Ledger balance mutations.
+- **Status**: Superseded. Current `ERC20Wrapper` exposes dispatcher-only `emitTransfer(...)`; mint/burn event-only shims have been removed.
 
 ---
 
@@ -47,4 +51,3 @@ Short audit notes for issues noticed while reviewing `cavalre-contracts`. Intend
 - **Where**: `libraries/LedgerLib.sol` (`addExternalToken`)
 - **Impact**: Calls `IERC20Metadata(token).name()/symbol()/decimals()`. A malicious token could behave unexpectedly (incl. reentrancy into the router via callbacks).
 - **Recommendation**: Only add trusted tokens; consider a simple “malicious token metadata” test and/or defensive patterns if desired.
-

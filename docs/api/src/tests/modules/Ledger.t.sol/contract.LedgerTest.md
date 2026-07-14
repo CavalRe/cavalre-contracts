@@ -1,5 +1,5 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -13,17 +13,10 @@ bool isVerbose
 ```
 
 
-### DEFAULT_SOURCE_NAME
+### dispatcher
 
 ```solidity
-string internal constant DEFAULT_SOURCE_NAME = "Source"
-```
-
-
-### router
-
-```solidity
-Router router
+Dispatcher dispatcher
 ```
 
 
@@ -34,10 +27,17 @@ TestLedger ledger
 ```
 
 
+### ledgerView
+
+```solidity
+LedgerView ledgerView
+```
+
+
 ### tree
 
 ```solidity
-Tree tree
+TreeView tree
 ```
 
 
@@ -87,13 +87,6 @@ MockERC20 externalToken
 
 ```solidity
 MockERC20 unlistedToken
-```
-
-
-### externalWrapper
-
-```solidity
-address externalWrapper
 ```
 
 
@@ -224,11 +217,11 @@ function testLedgerInit() public;
 function testNativeWrapperNotCreatedDuringInit() public view;
 ```
 
-### testLedgerAddNativeTokenAndCreateWrapper
+### testLedgerAddNativeTokenIsIdempotentWithoutWrapper
 
 
 ```solidity
-function testLedgerAddNativeTokenAndCreateWrapper() public;
+function testLedgerAddNativeTokenIsIdempotentWithoutWrapper() public;
 ```
 
 ### testLedgerAddNativeTokenUsesConfiguredNativeDecimals
@@ -236,20 +229,6 @@ function testLedgerAddNativeTokenAndCreateWrapper() public;
 
 ```solidity
 function testLedgerAddNativeTokenUsesConfiguredNativeDecimals() public;
-```
-
-### testLedgerCreateWrapperCanonicalRootIsIdempotent
-
-
-```solidity
-function testLedgerCreateWrapperCanonicalRootIsIdempotent() public;
-```
-
-### testLedgerCreateWrapperInternalRootIsIdempotent
-
-
-```solidity
-function testLedgerCreateWrapperInternalRootIsIdempotent() public;
 ```
 
 ### testLedgerCreateInternalTokenDoesNotRegisterUnderRoot
@@ -308,11 +287,11 @@ function testLedgerCreateClaimTokenRejectsGroupClaimAccount() public;
 function testLedgerCreateClaimTokenRejectsNestedClaimRoot() public;
 ```
 
-### testLedgerAddExternalTokenAndCreateWrapperAreIdempotent
+### testLedgerAddExternalTokenIsIdempotentWithoutWrapper
 
 
 ```solidity
-function testLedgerAddExternalTokenAndCreateWrapperAreIdempotent() public;
+function testLedgerAddExternalTokenIsIdempotentWithoutWrapper() public;
 ```
 
 ### testLedgerRootFlagsByTokenType
@@ -602,11 +581,67 @@ function testLedgerTransfer() public;
 function testLedgerTransferAcrossSiblingBranchesPreservesAncestorBalance() public;
 ```
 
+### testLedgerTransferUsesLeafPolarityThroughMixedPolarityParents
+
+
+```solidity
+function testLedgerTransferUsesLeafPolarityThroughMixedPolarityParents() public;
+```
+
+### testLedgerDeepTransferDoesNotEmitLegacyTransferEvent
+
+
+```solidity
+function testLedgerDeepTransferDoesNotEmitLegacyTransferEvent() public;
+```
+
+### testLedgerDeepTransferEmitsCreditAndDebitEvents
+
+
+```solidity
+function testLedgerDeepTransferEmitsCreditAndDebitEvents() public;
+```
+
 ### testLedgerTransferRejectsCreditFromParent
 
 
 ```solidity
 function testLedgerTransferRejectsCreditFromParent() public;
+```
+
+### testLedgerTransferAllowsBurnToZeroAddress
+
+
+```solidity
+function testLedgerTransferAllowsBurnToZeroAddress() public;
+```
+
+### testLedgerTransferRejectsMintFromZeroAddress
+
+
+```solidity
+function testLedgerTransferRejectsMintFromZeroAddress() public;
+```
+
+### testLedgerTransferRejectsMintFromCreditLeaf
+
+
+```solidity
+function testLedgerTransferRejectsMintFromCreditLeaf() public;
+```
+
+### testLedgerTransferAllowsBurnToCreditLeaf
+
+
+```solidity
+function testLedgerTransferAllowsBurnToCreditLeaf() public;
+```
+
+### testLedgerTransferAllowsCreditToCredit
+
+
+```solidity
+function testLedgerTransferAllowsCreditToCredit() public;
 ```
 
 ### testLedgerTransferInsufficientBalanceReportsDeepUnregisteredLeafContext

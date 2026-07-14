@@ -101,6 +101,8 @@ interface ILedger {
     event SubAccountGroupAdded(address indexed root, address indexed parent, string subName, bool isCredit);
     event SubAccountRemoved(address indexed root, address indexed parent, address addr);
     event SubAccountGroupRemoved(address indexed root, address indexed parent, address addr);
+    event Credit(address indexed root, address indexed account, uint256 amount, uint256 balance);
+    event Debit(address indexed root, address indexed account, uint256 amount, uint256 balance);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Standard ERC-20 events (emitted through library/wrapper)

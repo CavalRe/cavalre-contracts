@@ -5,6 +5,8 @@
 - [ERC20](ERC20.sol/contract.ERC20.md)
 - [Lib](ERC4626.sol/library.Lib.md)
 - [ERC4626](ERC4626.sol/contract.ERC4626.md)
+- [ERC20](LedgerERC20.sol/contract.ERC20.md)
+- [ERC20Lib](LedgerERC20Lib.sol/library.ERC20Lib.md)
 - [Store](Sentry.sol/struct.Store.md)
 - [SentryLib](Sentry.sol/library.SentryLib.md)
 - [Sentry](Sentry.sol/contract.Sentry.md)

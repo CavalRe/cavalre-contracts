@@ -7,28 +7,22 @@ This repository contains the core smart contracts powering [CavalRe](https://cav
 ```txt
 cavalre-contracts/
 ├── modules/
-│   ├── ERC20.sol
-│   ├── Module.sol
-│   ├── Router.sol
-│   ├── Ledger.sol
-│   └── Tree.sol
-├── libraries/
-│   ├── ERC20Lib.sol
+│   ├── dispatcher/
+│   ├── ledger/
+│   └── tree/
+├── math/
 │   ├── FloatLib.sol
-│   ├── FloatStrings.sol
-│   ├── LedgerLib.sol
-│   ├── ModuleLib.sol
-│   ├── RandomLib.sol
-│   ├── RouterLib.sol
-│   └── TreeLib.sol
+│   └── FloatStrings.sol
 ├── utilities/
 │   ├── Initializable.sol
+│   ├── MemoryLib.sol
+│   ├── RandomLib.sol
 │   └── ReentrancyGuard.sol
-├── interfaces/
-│   └── ILedger.sol
 ├── examples/
 │   ├── ERC20.sol
 │   ├── ERC4626.sol
+│   ├── LedgerERC20.sol
+│   ├── LedgerERC20Lib.sol
 │   ├── Sentry.sol
 │   └── Token.sol
 ├── tests/
@@ -41,12 +35,12 @@ cavalre-contracts/
 
 ## Core Concepts
 
-- **Module.sol**: Abstract base contract that all modules inherit, defining the shared interface and access to storage.
-- **Router.sol**: The immutable entrypoint that delegates calls to upgradeable modules via `delegatecall`.
+- **Dispatchable.sol**: Abstract base contract for modules installed behind a dispatcher.
+- **Dispatcher.sol**: Immutable entrypoint that delegates calls to installed modules via `delegatecall`.
 - **Ledger.sol**: Hierarchical double-entry accounting, token-root registration, claim-token registration, transfer routing, and external/native wrap settlement.
-- **ERC20.sol**: Optional canonical-root ERC20 surface layered over `LedgerLib` state via the Router.
-- **Tree.sol**: Topology/debug surface for account-tree introspection and `debugTree(s)`.
-- **FloatLib.sol**: A custom fixed-point math library for precision arithmetic with dynamic scaling.
+- **LedgerERC20.sol**: Optional canonical-root ERC20 surface layered over `LedgerLib` state via the Dispatcher.
+- **TreeView.sol**: Topology/debug surface for account-tree introspection and `debugTree(s)`.
+- **FloatLib.sol**: Custom fixed-point math library for precision arithmetic with dynamic scaling.
 
 ## Ledger Model
 
@@ -54,12 +48,12 @@ cavalre-contracts/
 - All registered roots are debit groups.
 - Root token kind is encoded as `Native`, `External`, `Internal`, or `Claim`.
 - Internal and claim roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
-- Native and external roots can be registered first, then optionally wrapped later via `createWrapper(...)`.
+- Native and external roots do not get separate wrapper surfaces.
 - Internal root creation uses `createInternalToken(...)` and is deterministic/idempotent: the same `(name, symbol, decimals)` maps to the same root.
 - Claim root creation uses `createClaimToken(...)`; each claim root references one registered non-claim Ledger leaf account and is deterministic by `(name, symbol, decimals, claimAccount)`.
-- Canonical-root ERC20 exposure is optional and provided by `modules/ERC20.sol`.
-- Each root auto-registers a default source leaf derived from the configured source name.
-- Account flags are decoded through `LedgerLib.AccountKind` and `LedgerLib.TokenKind`; use helpers such as `isUnregisteredAccount`, `isGroup`, `isLedger`, `isCredit`, `isUnregisteredToken`, `isInternal`, `isNative`, `isExternal`, and `isClaim`.
+- Canonical-root ERC20 exposure is optional and illustrated by `examples/LedgerERC20.sol`.
+- Each root auto-registers `address(0)` / `Zero Address` as the default credit source leaf.
+- Account flags are decoded through `LedgerLib.AccountKind` and `LedgerLib.TokenKind`; use exact helpers such as `isUnregisteredAccount`, `isUnregisteredToken`, `isInternal`, `isNative`, `isExternal`, and `isClaim`, plus composite account helpers such as `isGroup`, `isLedger`, and `isCredit`.
 
 ## Installation
 
@@ -78,8 +72,8 @@ Then add this to your `remappings.txt`:
 This allows you to import contracts like:
 
 ```solidity
-import {Module} from "@cavalre/modules/Module.sol";
-import {Ledger} from "@cavalre/modules/Ledger.sol";
+import {Dispatchable} from "@cavalre/modules/dispatcher/Dispatchable.sol";
+import {Ledger} from "@cavalre/modules/ledger/Ledger.sol";
 ```
 
 ## Philosophy
@@ -87,7 +81,7 @@ import {Ledger} from "@cavalre/modules/Ledger.sol";
 CavalRe's smart contracts are built with the following principles:
 
 - **Accounting-first architecture** — balances are structured and provable
-- **Modular and upgradeable** — contracts are composed through the Router and can be swapped as independent modules
+- **Modular and upgradeable** — contracts are composed through the Dispatcher and can be swapped as independent modules
 - **Auditable separation of concerns** — no monolithic contracts, everything is isolated and testable
 
 ## Development

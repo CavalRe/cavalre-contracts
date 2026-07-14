@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/src/Test.sol";
+import {Vm} from "forge-std/src/Vm.sol";
 
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {ERC20} from "../../examples/LedgerERC20.sol";
@@ -91,24 +92,40 @@ contract LedgerERC20Test is Test {
         assertEq(token.balanceOf(address(0)), 1000);
     }
 
-    function testERC20TransferToSelfEmitsTransfer() public {
+    function testERC20TransferToSelfEmitsNoLedgerMutationEvents() public {
         vm.startPrank(alice);
         minter.mintCanonical(alice, 1000);
 
-        vm.expectEmit(true, true, true, true, address(dispatcher));
-        emit ILedger.Transfer(alice, alice, 250);
+        bytes32 creditTopic = keccak256("Credit(address,address,uint256,uint256)");
+        bytes32 debitTopic = keccak256("Debit(address,address,uint256,uint256)");
+
+        vm.recordLogs();
         assertTrue(token.transfer(alice, 250));
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        uint256 creditCount;
+        uint256 debitCount;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].emitter != address(dispatcher) || logs[i].topics.length == 0) continue;
+            if (logs[i].topics[0] == creditTopic) creditCount++;
+            if (logs[i].topics[0] == debitTopic) debitCount++;
+        }
+
+        assertEq(creditCount, 0, "Credit event");
+        assertEq(debitCount, 0, "Debit event");
 
         assertEq(token.balanceOf(alice), 1000);
         assertEq(token.totalSupply(), 1000);
     }
 
-    function testERC20ZeroTransferEmitsTransfer() public {
+    function testERC20ZeroTransferEmitsCreditAndDebitEvents() public {
         vm.startPrank(alice);
         minter.mintCanonical(alice, 1000);
 
         vm.expectEmit(true, true, true, true, address(dispatcher));
-        emit ILedger.Transfer(alice, bob, 0);
+        emit ILedger.Credit(address(dispatcher), LedgerLib.toAddress(address(dispatcher), alice), 0, 1000);
+        vm.expectEmit(true, true, true, true, address(dispatcher));
+        emit ILedger.Debit(address(dispatcher), LedgerLib.toAddress(address(dispatcher), bob), 0, 0);
         assertTrue(token.transfer(bob, 0));
 
         assertEq(token.balanceOf(alice), 1000);

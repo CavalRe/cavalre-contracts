@@ -1,6 +1,6 @@
 # Ledger.sol
 
-`modules/Ledger.sol` implements CavalRe’s hierarchical double-entry ledger module.
+`modules/ledger/Ledger.sol` implements CavalRe’s hierarchical double-entry ledger module.
 
 ## Scope
 
@@ -10,8 +10,8 @@
 - wrapper-facing transfer hooks
 - default-source registration per root
 - library-level wrap/unwrap settlement flows
-- canonical-root ERC20 surface via `modules/ERC20.sol`
-- topology/debug surface via `modules/Tree.sol`
+- canonical-root ERC20 surface via `examples/LedgerERC20.sol`
+- topology/debug surface via `modules/tree/TreeView.sol`
 
 ## Key Model
 
@@ -27,12 +27,11 @@
 - when both paths converge on the same ancestor on the same side, remaining upward mutations cancel and the walk can stop early
 - internal roots are created deterministically with `CREATE2` via `createInternalToken(...)`, so `(name, symbol, decimals)` uniquely identifies the root and repeated calls are idempotent
 - internal and claim roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
-- native/external roots can be registered first and optionally wrapped later via `createWrapper`
+- native/external roots are registered as ledger roots without self-wrapped ERC20 surfaces
 - claim roots are created with `createClaimToken(...)`, reference one registered non-claim Ledger leaf account, and are deterministic by `(name, symbol, decimals, claimAccount)`
-- canonical root may also be wrapped via `createWrapper` when a separate wrapper surface is desired
-- canonical root ERC20 UX is handled by `modules/ERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `ERC20Lib`
-- every root also auto-registers a default source leaf; its address is derived once from the configured source name during `Ledger` construction and its polarity is opposite the root
-- `effectiveFlags(parent_, addr_)` resolves both absolute address and effective flags for possibly-unregistered derived leaves
+- canonical root ERC20 UX is handled by `examples/LedgerERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `LedgerERC20Lib`
+- every root also auto-registers `address(0)` / `Zero Address` as its default credit source leaf
+- `effectiveFlags(parent_, addr_)` returns `(effectiveFlags, originalFlags, absoluteAddress)` for possibly-unregistered derived leaves
 - `transfer(...)` returns the resolved root plus effective from/to flags
 - 5-arg `transfer(...)` is wrapper/canonical-ERC20 plumbing; 4-arg `transfer(...)` is direct user path
 - both transfer paths reject wrong-polarity sources after `LedgerLib.transfer(...)` resolves effective flags
@@ -43,7 +42,7 @@
 
 ## Storage
 
-Ledger storage lives in `libraries/LedgerLib.sol` (`LedgerLib.Store`) under an ERC-7201-style namespaced slot.
+Ledger storage lives in `modules/ledger/LedgerLib.sol` (`LedgerLib.Store`) under an ERC-7201-style namespaced slot.
 
 Core fields include:
 
@@ -56,7 +55,7 @@ Core fields include:
 Special addresses:
 
 - `NATIVE_ADDRESS`
-- per-root default source leaf at `toAddress(defaultSourceName_)`
+- per-root default credit source leaf at `address(0)` / `Zero Address`
 - claim root packed address slot stores the referenced absolute claim account
 
 ## Events
@@ -72,7 +71,9 @@ Primary ledger/accounting events:
 - `SubAccountRemoved`
 - `SubAccountGroupRemoved`
 
-ERC20-style events are emitted by the canonical `ERC20` module or wrapper contracts (`Transfer`, `Approval`).
+ERC20-style `Transfer` events are emitted by self-wrapped internal/claim token
+contracts through `ERC20Wrapper.emitTransfer(...)`. The Ledger accounting stream
+is `Credit` / `Debit`.
 
 ## Testing
 
@@ -80,7 +81,6 @@ Use Foundry tests under `tests/modules/`:
 
 ```bash
 forge test --match-path tests/modules/Ledger.t.sol
-forge test --match-path tests/modules/ERC20.t.sol
 forge test --match-path tests/modules/ERC20Wrapper.t.sol
 ```
 

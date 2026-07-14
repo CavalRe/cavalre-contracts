@@ -16,8 +16,6 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     address private immutable _dispatcher;
-    address private immutable _token;
-    bool private immutable _isCredit;
     string private _name;
     string private _symbol;
     uint8 public immutable _decimals;
@@ -34,17 +32,8 @@ contract ERC20Wrapper {
     // Init
     // -------------------------------------------------------------------------
 
-    constructor(
-        address dispatcher_,
-        address token_,
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        bool isCredit_
-    ) {
+    constructor(address dispatcher_, string memory name_, string memory symbol_, uint8 decimals_) {
         _dispatcher = dispatcher_;
-        _token = token_ == address(0) ? address(this) : token_;
-        _isCredit = isCredit_;
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
@@ -75,24 +64,16 @@ contract ERC20Wrapper {
         return _dispatcher;
     }
 
-    function token() public view returns (address) {
-        return _token;
-    }
-
-    function isCredit() public view returns (bool) {
-        return _isCredit;
-    }
-
     // -------------------------------------------------------------------------
     // Supply / Balances (delegated to Ledger)
     // -------------------------------------------------------------------------
 
     function totalSupply() public view returns (uint256) {
-        return ILedgerView(_dispatcher).totalSupply(_token);
+        return ILedgerView(_dispatcher).totalSupply(address(this));
     }
 
     function balanceOf(address account_) public view returns (uint256) {
-        return ILedgerView(_dispatcher).balanceOf(_token, account_);
+        return ILedgerView(_dispatcher).balanceOf(address(this), account_);
     }
 
     // -------------------------------------------------------------------------
@@ -121,7 +102,7 @@ contract ERC20Wrapper {
     function decreaseAllowance(address spender_, uint256 subtractedValue_) public returns (bool _ok) {
         uint256 current = _allowances[msg.sender][spender_];
         if (subtractedValue_ > current) {
-            revert ILedger.InsufficientAllowance(_token, msg.sender, spender_, current, subtractedValue_);
+            revert ILedger.InsufficientAllowance(address(this), msg.sender, spender_, current, subtractedValue_);
         }
         uint256 _amount = current - subtractedValue_;
         _allowances[msg.sender][spender_] = _amount;
@@ -147,26 +128,19 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
-        address from_ = msg.sender;
-        if (_isCredit) {
-            (from_, to_) = (to_, from_);
-        }
-        ILedger(_dispatcher).transfer(_token, from_, _token, to_, amount_);
+        ILedger(_dispatcher).transfer(address(this), msg.sender, address(this), to_, amount_);
         return true;
     }
 
     function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
         uint256 current = _allowances[from_][msg.sender];
         if (current < amount_) {
-            revert ILedger.InsufficientAllowance(_token, from_, msg.sender, current, amount_);
+            revert ILedger.InsufficientAllowance(address(this), from_, msg.sender, current, amount_);
         }
         if (current != type(uint256).max) {
             _allowances[from_][msg.sender] = current - amount_;
         }
-        if (_isCredit) {
-            (from_, to_) = (to_, from_);
-        }
-        ILedger(_dispatcher).transfer(_token, from_, _token, to_, amount_);
+        ILedger(_dispatcher).transfer(address(this), from_, address(this), to_, amount_);
         return true;
     }
 

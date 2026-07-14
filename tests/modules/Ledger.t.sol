@@ -17,6 +17,7 @@ import {TreeLib} from "../../modules/tree/TreeLib.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {Test, console} from "forge-std/src/Test.sol";
+import {Vm} from "forge-std/src/Vm.sol";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test module that exposes LedgerLib via external funcs for Dispatcher delegatecall
@@ -548,15 +549,18 @@ contract LedgerTest is Test {
     function testLedgerEffectiveFlags() public {
         vm.startPrank(alice);
         (address creditParent_,) = ledger.addSubAccountGroup(r1, "creditParent", true);
-        (address debitAddr_, uint256 debitFlags_) = tree.effectiveFlags(r1, LedgerLib.toAddress("missingDebit"));
+        (uint256 debitFlags_, uint256 debitOriginalFlags_, address debitAddr_) =
+            tree.effectiveFlags(r1, LedgerLib.toAddress("missingDebit"));
 
         assertEq(debitAddr_, LedgerLib.toAddress(r1, LedgerLib.toAddress("missingDebit")), "absolute address");
+        assertEq(debitOriginalFlags_, 0, "unregistered original flags");
         assertFalse(tree.isCredit(debitFlags_), "inherits debit parent");
         assertEq(LedgerLib.parent(debitFlags_), r1, "inherits parent");
         ledger.addSubAccount(r1, source_, "Zero Address", true);
-        (, uint256 sourceFlags_) = tree.effectiveFlags(r1, source_);
+        (uint256 sourceFlags_, uint256 sourceOriginalFlags_,) = tree.effectiveFlags(r1, source_);
         assertTrue(tree.isCredit(sourceFlags_), "registered credit leaf");
-        (, uint256 missingCreditFlags_) = tree.effectiveFlags(creditParent_, LedgerLib.toAddress("missingCredit"));
+        assertEq(sourceOriginalFlags_, sourceFlags_, "registered effective flags");
+        (uint256 missingCreditFlags_,,) = tree.effectiveFlags(creditParent_, LedgerLib.toAddress("missingCredit"));
         assertTrue(tree.isCredit(missingCreditFlags_), "inherits credit parent");
     }
 
@@ -1018,7 +1022,9 @@ contract LedgerTest is Test {
         ledger.unwrap(address(externalToken), unwrapAmount);
         vm.stopPrank();
 
-        assertEq(externalToken.balanceOf(address(dispatcher)), wrapAmount - unwrapAmount, "dispatcher balance after unwrap");
+        assertEq(
+            externalToken.balanceOf(address(dispatcher)), wrapAmount - unwrapAmount, "dispatcher balance after unwrap"
+        );
         assertEq(externalToken.balanceOf(alice), unwrapAmount, "alice external balance after unwrap");
         assertEq(
             ledgerView.debitBalanceOf(address(externalToken), alice),
@@ -1078,7 +1084,9 @@ contract LedgerTest is Test {
         vm.stopPrank();
 
         assertEq(externalToken.balanceOf(alice), 0, "alice external balance after wrap");
-        assertEq(externalToken.balanceOf(address(dispatcher)), externalWrapAmount, "dispatcher external balance after wrap");
+        assertEq(
+            externalToken.balanceOf(address(dispatcher)), externalWrapAmount, "dispatcher external balance after wrap"
+        );
         assertEq(ledgerView.debitBalanceOf(native, alice), nativeWrapAmount, "native ledger balance after wrap");
         assertEq(
             ledgerView.debitBalanceOf(address(externalToken), alice),
@@ -1415,7 +1423,9 @@ contract LedgerTest is Test {
         assertEq(ledgerView.debitBalanceOf(r101, bob), 400, "r101/bob credited");
         assertEq(ledgerView.debitBalanceOf(r10, LedgerLib.toAddress("100")), 600, 'r10/"100" updated');
         assertEq(ledgerView.debitBalanceOf(r10, LedgerLib.toAddress("101")), 400, 'r10/"101" updated');
-        assertEq(ledgerView.debitBalanceOf(r1, LedgerLib.toAddress("10")), 1000, 'r1/"10" unchanged above common ancestor');
+        assertEq(
+            ledgerView.debitBalanceOf(r1, LedgerLib.toAddress("10")), 1000, 'r1/"10" unchanged above common ancestor'
+        );
         assertEq(ledgerView.totalSupply(r1), 1000, "total supply unchanged");
     }
 
@@ -1435,16 +1445,43 @@ contract LedgerTest is Test {
         assertEq(ledgerView.creditBalanceOf(r111, bob), 0, "debit target credit untouched");
     }
 
-    function testLedgerDeepTransferEmitsLedgerTransferEvent() public {
+    function testLedgerDeepTransferDoesNotEmitLegacyTransferEvent() public {
         vm.startPrank(alice);
 
         ledger.mint(r100, alice, 1000);
 
-        address _from = LedgerLib.toAddress(r100, alice);
-        address _to = LedgerLib.toAddress(r101, bob);
+        bytes32 legacyTransferTopic = keccak256("Transfer(address,address,uint256)");
+        bytes32 creditTopic = keccak256("Credit(address,address,uint256,uint256)");
+        bytes32 debitTopic = keccak256("Debit(address,address,uint256,uint256)");
 
-        vm.expectEmit(true, true, true, true, address(ledger));
-        emit ILedger.Transfer(_from, _to, 400);
+        vm.recordLogs();
+        ledger.transfer(r100, r101, bob, 400);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        uint256 legacyTransferCount;
+        uint256 creditCount;
+        uint256 debitCount;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].emitter != address(ledger) || logs[i].topics.length == 0) continue;
+            if (logs[i].topics[0] == legacyTransferTopic) legacyTransferCount++;
+            if (logs[i].topics[0] == creditTopic) creditCount++;
+            if (logs[i].topics[0] == debitTopic) debitCount++;
+        }
+
+        assertEq(legacyTransferCount, 0, "legacy Transfer event");
+        assertEq(creditCount, 2, "Credit event");
+        assertEq(debitCount, 2, "Debit event");
+    }
+
+    function testLedgerDeepTransferEmitsCreditAndDebitEvents() public {
+        vm.startPrank(alice);
+
+        ledger.mint(r100, alice, 1000);
+
+        vm.expectEmit(true, true, false, true, address(ledger));
+        emit ILedger.Credit(r1, LedgerLib.toAddress(r100, alice), 400, 600);
+        vm.expectEmit(true, true, false, true, address(ledger));
+        emit ILedger.Debit(r1, LedgerLib.toAddress(r101, bob), 400, 400);
         ledger.transfer(r100, r101, bob, 400);
     }
 

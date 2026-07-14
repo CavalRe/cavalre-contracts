@@ -40,7 +40,7 @@ When updating: maintain concise style, add to appropriate section, avoid redunda
 
 ## Project Overview
 
-CavalRe: modular, accounting-driven smart contracts for onchain capital markets. Router-Module pattern with delegatecall-based upgradability + hierarchical double-entry ledger.
+CavalRe: modular, accounting-driven smart contracts for onchain capital markets. Dispatcher/Dispatchable pattern with delegatecall-based upgradability + hierarchical double-entry ledger.
 
 ## Development Commands
 
@@ -69,20 +69,20 @@ forge clean
 
 ### Core Module Pattern
 
-**Router.sol** - Immutable entrypoint. Maps function selectors → module addresses, delegatecalls on each call. Enables upgradability with constant Router address.
+**Dispatcher.sol** - Immutable entrypoint. Maps function selectors → module addresses, delegatecalls on each call. Enables upgradability with constant Dispatcher address.
 
-**Module.sol** - Abstract base for all modules:
+**Dispatchable.sol** - Abstract base for all modules:
 
 - `__self` immutable - detects delegatecall context
 - `enforceIsDelegated()` / `enforceNotDelegated()` - guards
 - `enforceIsOwner()` - access control via ModuleLib storage
 - `selectors()` - must implement to register commands
 
-**Registration flow**: Module implements `selectors()` → returns function selectors array → Router maps selector → module address. On call: Router looks up selector, delegatecalls to module.
+**Registration flow**: Module implements `selectors()` → returns function selectors array → Dispatcher maps selector → module address. On call: Dispatcher looks up selector, delegatecalls to module.
 
 ### Ledger Module
 
-`modules/Ledger.sol` - Hierarchical double-entry accounting:
+`modules/ledger/Ledger.sol` - Hierarchical double-entry accounting:
 
 - **Account hierarchy**: Tree structure, parent-child via `LedgerLib.Store`
 - **Debit vs Credit**: Encoded in `LedgerLib.AccountKind`
@@ -95,14 +95,14 @@ Special addresses / roots:
 
 - `NATIVE_ADDRESS` - native token (ETH)
 - all registered roots are debit groups
-- each root auto-registers a default source leaf whose address is derived from the configured source name
+- each root auto-registers `address(0)` / `Zero Address` as its default credit source leaf
 - claim-token roots store the referenced absolute claim account in the packed root address slot
 
 **ERC20Wrapper**: Internal and claim roots are self-wrapped at creation. If a root has a wrapper, the wrapper address is the root address. Native/external roots do not get separate wrapper surfaces.
 
-**ERC20 Module**: `modules/ERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `ERC20Lib`; transfers route through `Ledger.transfer(...)`.
+**ERC20 Example Module**: `examples/LedgerERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `LedgerERC20Lib`; transfers route through `Ledger.transfer(...)`.
 
-**Tree Module**: `modules/Tree.sol` owns topology/debug reads (`root`, `parent`, `flags`, `effectiveFlags`, `subAccounts`, `debugTree(s)`) so `Ledger` can stay focused on accounting state and mutations.
+**Tree Module**: `modules/tree/TreeView.sol` owns topology/debug reads (`root`, `parent`, `flags`, `effectiveFlags`, `subAccounts`, `debugTree(s)`) so `Ledger` can stay focused on accounting state and mutations.
 
 ### Storage Pattern
 
@@ -113,11 +113,11 @@ bytes32 private constant STORE_POSITION =
     keccak256(abi.encode(uint256(keccak256("cavalre.storage.ModuleName")) - 1)) & ~bytes32(uint256(0xff));
 ```
 
-Each library (ModuleLib, LedgerLib, RouterLib): `Store` struct + `store()` function for isolated storage slot.
+Each storage library: `Store` struct + `store()` function for isolated storage slot.
 
 ### FloatLib - Custom Fixed-Point Math
 
-`libraries/FloatLib.sol` - Custom fixed-point:
+`math/FloatLib.sol` - Custom fixed-point:
 
 - **Type**: `Float` wraps `int256`
 - **Structure**: signed base-10 exponent packed with a 72-bit mantissa
@@ -131,25 +131,14 @@ Enables precise arithmetic across decimal scales—critical for multi-decimal to
 
 ```
 cavalre-contracts/
-├── modules/              # Core upgradeable modules
-│   ├── ERC20.sol         # Canonical-root ERC20 surface
-│   ├── Module.sol        # Abstract base for all modules
-│   ├── Router.sol        # Immutable delegatecall dispatcher
-│   ├── Ledger.sol        # Hierarchical accounting + ERC20Wrapper
-│   └── Tree.sol          # Topology/debug surface
-├── libraries/            # Stateless libraries and namespaced storage
-│   ├── ERC20Lib.sol      # Canonical-root ERC20 allowance storage/selectors
-│   ├── FloatLib.sol      # Fixed-point math with dynamic scaling
-│   ├── FloatStrings.sol  # Float to string conversion
-│   ├── ModuleLib.sol     # Module storage (owner mapping)
-│   ├── RouterLib.sol     # Router storage (selector -> module mapping)
-│   ├── LedgerLib.sol     # Ledger storage (accounts, balances, tree)
-│   └── TreeLib.sol       # Debug helpers for ledger tree visualization
+├── modules/
+│   ├── dispatcher/       # Dispatchable/Dispatcher selector router
+│   ├── ledger/           # Hierarchical accounting + ERC20Wrapper
+│   └── tree/             # Topology/debug surface
+├── math/                 # FloatLib + FloatStrings
 ├── utilities/            # Reusable abstract contracts
 │   ├── Initializable.sol # Initialization guard
 │   └── ReentrancyGuard.sol # Module-specific reentrancy protection
-├── interfaces/           # Interface definitions
-│   └── ILedger.sol       # Ledger module interface
 ├── examples/             # Reference implementations and legacy code
 │   ├── ERC20.sol
 │   ├── ERC4626.sol
@@ -166,8 +155,8 @@ cavalre-contracts/
 - `.t.sol` suffix, `tests/` directory
 - Inherit `forge-std/Test.sol`
 - Test modules wrap actual modules (e.g., `TestLedger is Ledger`) for test-specific functions
-- Must implement `selectors()` for Router registration
-- Visualize ledger trees via `Tree` module: `tree.debugTree(root)`
+- Must implement `selectors()` for Dispatcher registration
+- Visualize ledger trees via `TreeView` module: `tree.debugTree(root)`
 - When running Forge, note EIP-3860 initcode size warnings: expected in tests sometimes; flag if non-test deployable contracts hit warning.
 
 ## Dependencies

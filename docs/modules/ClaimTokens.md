@@ -225,7 +225,7 @@ packedAddress(rootFlags) == address(0)
 ```
 
 - `addExternalToken` remains idempotent for matching ERC20 metadata.
-- wrapper branding and `createWrapper` behavior remain unchanged.
+- external roots are not self-wrapped; custody movement is handled by `wrap` / `unwrap`.
 - `wrap` uses `safeTransferFrom`.
 - `unwrap` uses `safeTransfer`.
 - `isExternal(flags)` is an explicit `TokenKind.External` check.

@@ -1,11 +1,18 @@
 # Sentry
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/49d54302ba16f305aa5ba0622c305165383e18ed/examples/Sentry.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/examples/Sentry.sol)
 
 **Inherits:**
-[Module](/modules/Module.sol/abstract.Module.md)
+[Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md)
 
 
 ## Functions
+### signatures
+
+
+```solidity
+function signatures() public pure virtual override returns (string[] memory _signatures);
+```
+
 ### selectors
 
 
