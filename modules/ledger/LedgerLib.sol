@@ -815,7 +815,11 @@ library LedgerLib {
             // Native value already sits on the dispatcher (this contract via delegatecall),
             // so no external transfer is needed.
         } else {
+            uint256 _balanceBefore = IERC20(_token).balanceOf(address(this));
             SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), amount_);
+            uint256 _balanceAfter = IERC20(_token).balanceOf(address(this));
+            uint256 _received = _balanceAfter > _balanceBefore ? _balanceAfter - _balanceBefore : 0;
+            if (_received != amount_) revert ILedger.UnsupportedTokenBehavior(_token, amount_, _received);
         }
     }
 
@@ -829,6 +833,10 @@ library LedgerLib {
         if (isCredit(_tokenFlags) || (!isExternal(_tokenFlags) && !isNative(_tokenFlags))) {
             revert ILedger.InvalidLedgerAccount(_token);
         }
+        uint256 _liabilities = totalSupply(_token);
+        uint256 _collateral = _token == NATIVE_ADDRESS ? address(this).balance : IERC20(_token).balanceOf(address(this));
+        if (_collateral < _liabilities) revert ILedger.UndercollateralizedToken(_token, _liabilities, _collateral);
+
         (_token, _fromIsCredit, _toIsCredit) = transfer(fromParent_, from_, toParent_, to_, amount_);
         // Debit-root unwrap burns from debit holder balance back into credit source.
         if (_fromIsCredit) revert ILedger.InvalidSubAccount(from_);
@@ -837,7 +845,11 @@ library LedgerLib {
             (bool _success,) = payable(msg.sender).call{value: amount_}("");
             if (!_success) revert ILedger.NativeTransferFailed();
         } else {
+            uint256 _balanceBefore = IERC20(_token).balanceOf(msg.sender);
             SafeERC20.safeTransfer(IERC20(_token), msg.sender, amount_);
+            uint256 _balanceAfter = IERC20(_token).balanceOf(msg.sender);
+            uint256 _received = _balanceAfter > _balanceBefore ? _balanceAfter - _balanceBefore : 0;
+            if (_received != amount_) revert ILedger.UnsupportedTokenBehavior(_token, amount_, _received);
         }
     }
 }

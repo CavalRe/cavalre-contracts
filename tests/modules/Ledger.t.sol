@@ -164,6 +164,29 @@ contract MockERC20 is ERC20 {
     }
 }
 
+contract FeeOnTransferToken is MockERC20 {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) MockERC20(name_, symbol_, decimals_) {}
+
+    function transferFrom(address from_, address to_, uint256 amount_) public override returns (bool) {
+        uint256 fee_ = amount_ / 50;
+        _spendAllowance(from_, _msgSender(), amount_);
+        _transfer(from_, to_, amount_ - fee_);
+        _burn(from_, fee_);
+        return true;
+    }
+}
+
+contract FeeOnTransferOutToken is MockERC20 {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) MockERC20(name_, symbol_, decimals_) {}
+
+    function transfer(address to_, uint256 amount_) public override returns (bool) {
+        uint256 fee_ = amount_ / 50;
+        _transfer(_msgSender(), to_, amount_ - fee_);
+        _burn(_msgSender(), fee_);
+        return true;
+    }
+}
+
 contract ReenterToken is ERC20 {
     address public target;
     bool public reenter;
@@ -1003,6 +1026,55 @@ contract LedgerTest is Test {
         vm.stopPrank();
     }
 
+    function testLedgerWrapRejectsFeeOnTransferToken() public {
+        uint256 wrapAmount = 100;
+        FeeOnTransferToken feeToken_ = new FeeOnTransferToken("Fee Token", "FEE", 18);
+
+        vm.startPrank(alice);
+        ledger.addExternalToken(address(feeToken_));
+        ledger.addSubAccount(address(feeToken_), source_, "Zero Address", true);
+        feeToken_.mint(alice, wrapAmount);
+        feeToken_.approve(address(ledger), wrapAmount);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILedger.UnsupportedTokenBehavior.selector, address(feeToken_), wrapAmount, wrapAmount - 2
+            )
+        );
+        ledger.wrap(address(feeToken_), wrapAmount);
+        vm.stopPrank();
+
+        assertEq(feeToken_.balanceOf(address(dispatcher)), 0, "dispatcher should not keep partial receipt");
+        assertEq(feeToken_.balanceOf(alice), wrapAmount, "alice balance should roll back");
+        assertEq(ledgerView.debitBalanceOf(address(feeToken_), alice), 0, "ledger balance should roll back");
+        assertEq(ledgerView.totalSupply(address(feeToken_)), 0, "total supply should roll back");
+    }
+
+    function testLedgerUnwrapRejectsFeeOnTransferToken() public {
+        uint256 wrapAmount = 100;
+        FeeOnTransferOutToken feeToken_ = new FeeOnTransferOutToken("Fee Out Token", "FOUT", 18);
+
+        vm.startPrank(alice);
+        ledger.addExternalToken(address(feeToken_));
+        ledger.addSubAccount(address(feeToken_), source_, "Zero Address", true);
+        feeToken_.mint(alice, wrapAmount);
+        feeToken_.approve(address(ledger), wrapAmount);
+        ledger.wrap(address(feeToken_), wrapAmount);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILedger.UnsupportedTokenBehavior.selector, address(feeToken_), wrapAmount, wrapAmount - 2
+            )
+        );
+        ledger.unwrap(address(feeToken_), wrapAmount);
+        vm.stopPrank();
+
+        assertEq(feeToken_.balanceOf(address(dispatcher)), wrapAmount, "dispatcher should keep wrapped balance");
+        assertEq(feeToken_.balanceOf(alice), 0, "alice should not receive partial unwrap");
+        assertEq(ledgerView.debitBalanceOf(address(feeToken_), alice), wrapAmount, "ledger balance should roll back");
+        assertEq(ledgerView.totalSupply(address(feeToken_)), wrapAmount, "total supply should roll back");
+    }
+
     function testLedgerHandleNativeWrapsMsgValueToSender() public {
         uint256 wrapAmount = 1 ether;
 
@@ -1069,6 +1141,36 @@ contract LedgerTest is Test {
         assertEq(ledgerView.totalSupply(address(externalToken)), wrapAmount - unwrapAmount, "total supply after unwrap");
     }
 
+    function testLedgerUnwrapExternalTokenRevertsWhenUndercollateralized() public {
+        uint256 wrapAmount = 120;
+        uint256 drainAmount = 1;
+        uint256 unwrapAmount = 45;
+
+        vm.startPrank(alice);
+        externalToken.mint(alice, wrapAmount);
+        externalToken.approve(address(ledger), wrapAmount);
+        ledger.wrap(address(externalToken), wrapAmount);
+        vm.stopPrank();
+
+        vm.prank(address(dispatcher));
+        externalToken.transfer(charlie, drainAmount);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILedger.UndercollateralizedToken.selector,
+                address(externalToken),
+                wrapAmount,
+                wrapAmount - drainAmount
+            )
+        );
+        ledger.unwrap(address(externalToken), unwrapAmount);
+
+        assertEq(externalToken.balanceOf(address(dispatcher)), wrapAmount - drainAmount, "dispatcher collateral");
+        assertEq(ledgerView.debitBalanceOf(address(externalToken), alice), wrapAmount, "ledger balance unchanged");
+        assertEq(ledgerView.totalSupply(address(externalToken)), wrapAmount, "total supply unchanged");
+    }
+
     function testLedgerUnwrapExternalTokenRejectsDirectValue() public {
         uint256 wrapAmount = 120;
         uint256 unwrapAmount = 45;
@@ -1081,6 +1183,32 @@ contract LedgerTest is Test {
         vm.expectRevert(abi.encodeWithSelector(ILedger.IncorrectAmount.selector, 1, 0));
         ledger.unwrap{value: 1}(address(externalToken), unwrapAmount);
         vm.stopPrank();
+    }
+
+    function testLedgerUnwrapNativeRevertsWhenUndercollateralized() public {
+        uint256 wrapAmount = 3 ether;
+        uint256 drainAmount = 1 wei;
+        uint256 unwrapAmount = 1 ether;
+
+        vm.deal(alice, wrapAmount);
+        vm.startPrank(alice);
+        ledger.addNativeToken();
+        ledger.wrap{value: wrapAmount}(native, wrapAmount);
+        vm.stopPrank();
+
+        vm.deal(address(dispatcher), wrapAmount - drainAmount);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILedger.UndercollateralizedToken.selector, native, wrapAmount, wrapAmount - drainAmount
+            )
+        );
+        ledger.unwrap(native, unwrapAmount);
+
+        assertEq(address(dispatcher).balance, wrapAmount - drainAmount, "dispatcher native collateral");
+        assertEq(ledgerView.debitBalanceOf(native, alice), wrapAmount, "ledger native balance unchanged");
+        assertEq(ledgerView.totalSupply(native), wrapAmount, "native total supply unchanged");
     }
 
     function testLedgerUnwrapExternalTokenAfterNativeWrapAllowsCallValue() public {
