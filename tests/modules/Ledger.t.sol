@@ -1673,6 +1673,13 @@ contract LedgerTest is Test {
         ledger.transfer(dispatcherRoot, testLedgerRoot, bob, 100);
     }
 
+    function testLedgerExplicitTransferAuthenticatesBeforeAccounting() public {
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, bob));
+        ledger.transfer(r1, charlie, r1, bob, 1);
+        vm.stopPrank();
+    }
+
     function testLedgerTransferAcrossSiblingBranchesPreservesAncestorBalance() public {
         vm.startPrank(alice);
 
