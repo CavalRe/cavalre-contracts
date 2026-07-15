@@ -507,6 +507,7 @@ library LedgerLib {
     }
 
     function addExternalToken(address token_) internal returns (uint256 _flags) {
+        // External roots intentionally require ERC20 metadata compliance at registration.
         IERC20Metadata _meta = IERC20Metadata(token_);
         string memory _name = _meta.name();
         string memory _symbol = _meta.symbol();
