@@ -11,7 +11,8 @@ contract ERC20 is Dispatchable, Initializable {
     // -- Storage --
 
     bytes32 private constant INITIALIZABLE_STORAGE =
-        keccak256(abi.encode(uint256(keccak256("cavalre.storage.ERC20.Initializable")) - 1)) & ~bytes32(uint256(0xff));
+        keccak256(abi.encode(uint256(keccak256("cavalre.storage.LedgerERC20.Initializable")) - 1))
+            & ~bytes32(uint256(0xff));
 
     // -- Init --
 
