@@ -32,13 +32,18 @@ interface ILedger {
 
     function addExternalToken(address token) external returns (uint256 flags);
 
-    function createInternalToken(string memory name, string memory symbol, uint8 decimals)
+    function createInternalToken(string memory name, string memory symbol, uint8 decimals, string memory version)
         external
         returns (address token, uint256 flags);
 
-    function createClaimToken(string memory name, string memory symbol, uint8 decimals, address parent, address addr)
-        external
-        returns (address token, uint256 flags);
+    function createClaimToken(
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        address parent,
+        address addr,
+        string memory version
+    ) external returns (address token, uint256 flags);
 
     function removeSubAccountGroup(address parent, string memory name) external returns (address);
 

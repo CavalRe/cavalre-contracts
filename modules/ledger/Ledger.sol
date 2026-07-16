@@ -194,8 +194,8 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _signatures[4] = "addSubAccount(address,address,string,bool)";
         _signatures[5] = "addNativeToken()";
         _signatures[6] = "addExternalToken(address)";
-        _signatures[7] = "createInternalToken(string,string,uint8)";
-        _signatures[8] = "createClaimToken(string,string,uint8,address,address)";
+        _signatures[7] = "createInternalToken(string,string,uint8,string)";
+        _signatures[8] = "createClaimToken(string,string,uint8,address,address,string)";
         _signatures[9] = "removeSubAccountGroup(address,string)";
         _signatures[10] = "removeSubAccountGroup(address,address)";
         _signatures[11] = "removeSubAccount(address,string)";
@@ -217,8 +217,8 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
-        _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8)"));
-        _selectors[n++] = bytes4(keccak256("createClaimToken(string,string,uint8,address,address)"));
+        _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,string)"));
+        _selectors[n++] = bytes4(keccak256("createClaimToken(string,string,uint8,address,address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,string)"));
@@ -290,12 +290,12 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         return LedgerLib.addExternalToken(token_);
     }
 
-    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
+    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
         external
         returns (address _token, uint256 _flags)
     {
         enforceIsOwner();
-        return LedgerLib.createInternalToken(name_, symbol_, decimals_);
+        return LedgerLib.createInternalToken(name_, symbol_, decimals_, version_);
     }
 
     function createClaimToken(
@@ -303,10 +303,11 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         string memory symbol_,
         uint8 decimals_,
         address parent_,
-        address addr_
+        address addr_,
+        string memory version_
     ) external returns (address _token, uint256 _flags) {
         enforceIsOwner();
-        return LedgerLib.createClaimToken(name_, symbol_, decimals_, parent_, addr_);
+        return LedgerLib.createClaimToken(name_, symbol_, decimals_, parent_, addr_, version_);
     }
 
     function removeSubAccountGroup(address parent_, string memory name_) external returns (address) {

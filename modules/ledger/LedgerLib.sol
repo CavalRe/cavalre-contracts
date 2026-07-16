@@ -519,7 +519,7 @@ library LedgerLib {
         return addLedger(token_, _name, _symbol, _decimals, TokenKind.External, address(0));
     }
 
-    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
+    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
         internal
         returns (address _token, uint256 _flags)
     {
@@ -527,7 +527,9 @@ library LedgerLib {
             revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
         }
 
-        bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_));
+        bytes32 _salt = bytes(version_).length == 0
+            ? keccak256(abi.encode(name_, symbol_, decimals_))
+            : keccak256(abi.encode(name_, symbol_, decimals_, version_));
         bytes memory _creationCode =
             abi.encodePacked(type(ERC20Wrapper).creationCode, abi.encode(address(this), name_, symbol_, decimals_));
         _token = Create2.computeAddress(_salt, keccak256(_creationCode));
@@ -569,14 +571,17 @@ library LedgerLib {
         string memory symbol_,
         uint8 decimals_,
         address parent_,
-        address addr_
+        address addr_,
+        string memory version_
     ) internal returns (address _token, uint256 _flags) {
         if (!isValidString(name_) || !isValidString(symbol_)) {
             revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
         }
         address _claimAccount = checkClaimAccount(address(0), parent_, addr_);
 
-        bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_, _claimAccount));
+        bytes32 _salt = bytes(version_).length == 0
+            ? keccak256(abi.encode(name_, symbol_, decimals_, _claimAccount))
+            : keccak256(abi.encode(name_, symbol_, decimals_, _claimAccount, version_));
         _token = Create2.computeAddress(
             _salt,
             keccak256(

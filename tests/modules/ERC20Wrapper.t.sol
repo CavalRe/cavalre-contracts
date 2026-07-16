@@ -70,7 +70,7 @@ contract ERC20WrapperTest is Test {
         source_ = address(0);
 
         if (isVerbose) console.log("Adding new token to ledger");
-        (address token_,) = ledgers.createInternalToken("Internal Test Token", "ITT", 18);
+        (address token_,) = ledgers.createInternalToken("Internal Test Token", "ITT", 18, "");
         token = ERC20Wrapper(token_);
         ledgers.addSubAccount(address(token), source_, "Zero Address", true);
 
@@ -118,7 +118,7 @@ contract ERC20WrapperTest is Test {
     function testERC20WrapperCreateInternalToken() public {
         vm.startPrank(owner);
 
-        (address _newRoot,) = ledgers.createInternalToken("New Test Token", "NTT", 18);
+        (address _newRoot,) = ledgers.createInternalToken("New Test Token", "NTT", 18, "");
         address _newToken = _newRoot;
         assertEq(ERC20Wrapper(_newToken).name(), "New Test Token");
         assertEq(ERC20Wrapper(_newToken).symbol(), "NTT");
@@ -132,7 +132,7 @@ contract ERC20WrapperTest is Test {
 
     function testERC20WrapperClaimRootMintTransferBurn() public {
         vm.startPrank(owner);
-        (address claimToken_,) = ledgers.createClaimToken("Claim Token", "CLM", 18, address(token), source_);
+        (address claimToken_,) = ledgers.createClaimToken("Claim Token", "CLM", 18, address(token), source_, "");
         vm.stopPrank();
 
         ERC20Wrapper claim = ERC20Wrapper(claimToken_);
