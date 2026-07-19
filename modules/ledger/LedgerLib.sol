@@ -239,31 +239,33 @@ library LedgerLib {
     //                            Addresses
     //==================================================================
 
-    /// @notice Derives a relative subaccount address from a human-readable name.
-    /// @dev This value is not an absolute ledger-tree identity until anchored under a parent.
+    /// @notice Derives a relative address from a human-readable name.
+    /// @dev Relative addresses are reusable child keys. They become holder addresses only in a parent holder context.
     function toAddress(string memory name_) internal pure returns (address) {
         checkString(name_);
         return address(uint160(uint256(keccak256(abi.encodePacked(name_)))));
     }
 
-    /// @notice Derives the canonical absolute ledger-tree address for `relative_` under `parent_`.
+    /// @notice Derives a holder address from a parent holder and a relative address.
+    /// @dev Holder addresses are token-local identities. Project them through `toAddress(token, holder)` for storage.
     function toAddress(address parent_, address relative_) internal pure returns (address) {
         checkZeroAddress(parent_);
         return address(uint160(uint256(keccak256(abi.encodePacked(parent_, relative_)))));
     }
 
-    /// @notice Convenience form for `toAddress(parent_, toAddress(name_))`.
+    /// @notice Derives a global storage address for `addr_` in `token_` scope.
+    /// @dev If `parent_ == token_`, `addr_` is already the holder. Otherwise derive the holder under `parent_` first.
+    function toAddress(address token_, address parent_, address addr_) internal pure returns (address) {
+        address _holder = parent_ == token_ ? addr_ : toAddress(parent_, addr_);
+        return toAddress(token_, _holder);
+    }
+
+    /// @notice Derives a contextual relative address from a parent holder and a human-readable name.
+    /// @dev This is a named relative holder address in token context, not a global storage address.
     function toAddress(address parent_, string memory name_) internal pure returns (address) {
         checkZeroAddress(parent_);
         checkString(name_);
         return address(uint160(uint256(keccak256(abi.encodePacked(parent_, toAddress(name_))))));
-    }
-
-    function toSubIndex(uint256 index_) private pure returns (uint32) {
-        if (index_ > type(uint32).max) revert ILedger.TooManySubAccounts(index_);
-        // Safe because the explicit guard above bounds index_ to uint32.
-        // forge-lint: disable-next-line(unsafe-typecast)
-        return uint32(index_);
     }
 
     //==================================================================
@@ -330,6 +332,13 @@ library LedgerLib {
     function subAccountIndex(address parent_, address addr_) internal view returns (uint32) {
         address _addr = toAddress(parent_, addr_);
         return store().subIndex[_addr];
+    }
+
+    function toSubIndex(uint256 index_) private pure returns (uint32) {
+        if (index_ > type(uint32).max) revert ILedger.TooManySubAccounts(index_);
+        // Safe because the explicit guard above bounds index_ to uint32.
+        // forge-lint: disable-next-line(unsafe-typecast)
+        return uint32(index_);
     }
 
     //==================================================================
