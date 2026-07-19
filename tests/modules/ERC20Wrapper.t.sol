@@ -43,6 +43,9 @@ contract ERC20WrapperTest is Test {
         address to;
     }
 
+    address[] internal indexedHolders;
+    mapping(address => uint256) internal indexedBalances;
+
     function setUp() public {
         bool isVerbose = false;
 
@@ -138,12 +141,16 @@ contract ERC20WrapperTest is Test {
         ERC20Wrapper claim = ERC20Wrapper(claimToken_);
 
         vm.prank(owner);
+        vm.expectEmit(true, true, true, true, address(claim));
+        emit ERC20Wrapper.Transfer(address(0), alice, 1_000);
         ledgers.mint(claimToken_, alice, 1_000);
 
         assertEq(claim.totalSupply(), 1_000);
         assertEq(claim.balanceOf(alice), 1_000);
 
         vm.prank(alice);
+        vm.expectEmit(true, true, true, true, address(claim));
+        emit ERC20Wrapper.Transfer(alice, bob, 400);
         assertTrue(claim.transfer(bob, 400));
 
         assertEq(claim.balanceOf(alice), 600);
@@ -151,6 +158,8 @@ contract ERC20WrapperTest is Test {
         assertEq(claim.totalSupply(), 1_000);
 
         vm.prank(owner);
+        vm.expectEmit(true, true, true, true, address(claim));
+        emit ERC20Wrapper.Transfer(bob, address(0), 150);
         ledgers.burn(claimToken_, bob, 150);
 
         assertEq(claim.balanceOf(bob), 250);
@@ -225,17 +234,33 @@ contract ERC20WrapperTest is Test {
 
     function testERC20WrapperTransferMatrix() public {
         vm.startPrank(owner);
-        MatrixLeg[] memory froms = _buildMatrixLegs(0x1000, "from");
-        MatrixLeg[] memory tos = _buildMatrixLegs(0x2000, "to");
+        MatrixLeg[] memory froms = _buildMatrixLegs(address(token), 0x1000, "from");
+        MatrixLeg[] memory tos = _buildMatrixLegs(address(token), 0x2000, "to");
         vm.stopPrank();
 
+        _assertTransferMatrix(address(token), froms, tos);
+    }
+
+    function testERC20WrapperClaimRootTransferMatrix() public {
+        address claimToken_;
+
+        vm.startPrank(owner);
+        (claimToken_,) = ledgers.createClaimToken("Matrix Claim Token", "MCT", 18, address(token), source_, "");
+        MatrixLeg[] memory froms = _buildMatrixLegs(claimToken_, 0x3000, "claim-from");
+        MatrixLeg[] memory tos = _buildMatrixLegs(claimToken_, 0x4000, "claim-to");
+        vm.stopPrank();
+
+        _assertTransferMatrix(claimToken_, froms, tos);
+    }
+
+    function _assertTransferMatrix(address root_, MatrixLeg[] memory froms, MatrixLeg[] memory tos) private {
         for (uint256 i = 0; i < froms.length; i++) {
             for (uint256 j = 0; j < tos.length; j++) {
                 ExpectedWrapperTransfer memory expected = _expectedWrapperTransfer(froms[i], tos[j]);
 
                 vm.recordLogs();
                 ledgers.rawTransfer(froms[i].parent, froms[i].relative, tos[j].parent, tos[j].relative, 0);
-                _assertWrapperTransferLogs(expected, i, j);
+                _assertWrapperTransferLogs(root_, expected, i, j);
             }
         }
     }
@@ -345,6 +370,59 @@ contract ERC20WrapperTest is Test {
         vm.stopPrank();
     }
 
+    function testERC20WrapperEtherscanStyleTransferIndexReconcilesHolders() public {
+        address testTokenAddress;
+        address surplus = LedgerLib.toAddress("Surplus");
+
+        vm.startPrank(owner);
+        (testTokenAddress,) = ledgers.createInternalToken("Test Token", "TEST", 18, "");
+        ledgers.addSubAccount(testTokenAddress, surplus, "Surplus", false);
+        vm.stopPrank();
+
+        ERC20Wrapper testToken = ERC20Wrapper(testTokenAddress);
+
+        vm.recordLogs();
+
+        vm.prank(owner);
+        ledgers.mint(testTokenAddress, surplus, 1_000);
+
+        ledgers.rawTransfer(testTokenAddress, surplus, testTokenAddress, alice, 300);
+        ledgers.rawTransfer(testTokenAddress, surplus, testTokenAddress, bob, 400);
+        ledgers.rawTransfer(testTokenAddress, surplus, testTokenAddress, carol, 300);
+
+        vm.prank(alice);
+        assertTrue(testToken.transfer(bob, 50));
+
+        vm.prank(bob);
+        testToken.approve(carol, 75);
+
+        vm.prank(carol);
+        assertTrue(testToken.transferFrom(bob, alice, 75));
+
+        vm.prank(bob);
+        assertTrue(testToken.transfer(bob, 0));
+
+        vm.prank(carol);
+        assertTrue(testToken.transfer(carol, 10));
+
+        vm.prank(owner);
+        ledgers.burn(testTokenAddress, carol, 25);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        _assertExplorerEventAddressProjection(testTokenAddress, logs, surplus);
+        _indexTokenTransferLogs(testTokenAddress, logs);
+
+        _assertIndexedHolder(testTokenAddress, alice);
+        _assertIndexedHolder(testTokenAddress, bob);
+        _assertIndexedHolder(testTokenAddress, carol);
+        _assertIndexedHolder(testTokenAddress, surplus);
+        _assertIndexedHolder(testTokenAddress, address(ledgers));
+        _assertIndexedHolder(testTokenAddress, address(0));
+
+        assertEq(_indexedHolderCount(), 3, "indexed holder count");
+        assertEq(_indexedSupply(), testToken.totalSupply(), "indexed supply");
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Reverts: direct calls into wrapper transfer path MUST fail
     // We intentionally call LedgerLib.transfer first in Ledger.transfer(...) so
@@ -382,32 +460,33 @@ contract ERC20WrapperTest is Test {
         assertEq(token.totalSupply(), 1_000);
     }
 
-    function _buildMatrixLegs(uint160 base_, string memory prefix_) private returns (MatrixLeg[] memory legs_) {
+    function _buildMatrixLegs(address root_, uint160 base_, string memory prefix_)
+        private
+        returns (MatrixLeg[] memory legs_)
+    {
         legs_ = new MatrixLeg[](7);
 
         address debitGroupRelative_ = address(base_ + 0x10);
         address creditGroupRelative_ = address(base_ + 0x20);
-        (address debitGroup_,) = ledgers.addSubAccountGroup(
-            address(token), debitGroupRelative_, string.concat(prefix_, "-debit-group"), false
-        );
-        (address creditGroup_,) = ledgers.addSubAccountGroup(
-            address(token), creditGroupRelative_, string.concat(prefix_, "-credit-group"), true
-        );
+        (address debitGroup_,) =
+            ledgers.addSubAccountGroup(root_, debitGroupRelative_, string.concat(prefix_, "-debit-group"), false);
+        (address creditGroup_,) =
+            ledgers.addSubAccountGroup(root_, creditGroupRelative_, string.concat(prefix_, "-credit-group"), true);
 
         address r2d_ = address(base_ + 0x04);
         address r2c_ = address(base_ + 0x05);
         address rd_ = address(base_ + 0x06);
         address rc_ = address(base_ + 0x07);
-        ledgers.addSubAccount(address(token), r2d_, string.concat(prefix_, "-r2d"), false);
-        ledgers.addSubAccount(address(token), r2c_, string.concat(prefix_, "-r2c"), true);
+        ledgers.addSubAccount(root_, r2d_, string.concat(prefix_, "-r2d"), false);
+        ledgers.addSubAccount(root_, r2c_, string.concat(prefix_, "-r2c"), true);
         ledgers.addSubAccount(debitGroup_, rd_, string.concat(prefix_, "-rd"), false);
         ledgers.addSubAccount(creditGroup_, rc_, string.concat(prefix_, "-rc"), true);
 
-        legs_[0] = MatrixLeg(address(token), address(base_ + 0x01), 2, false, true); // U2D
+        legs_[0] = MatrixLeg(root_, address(base_ + 0x01), 2, false, true); // U2D
         legs_[1] = MatrixLeg(debitGroup_, address(base_ + 0x02), 3, false, true); // U>D
         legs_[2] = MatrixLeg(creditGroup_, address(base_ + 0x03), 3, true, true); // U>C
-        legs_[3] = MatrixLeg(address(token), r2d_, 2, false, false); // R2D
-        legs_[4] = MatrixLeg(address(token), r2c_, 2, true, false); // R2C
+        legs_[3] = MatrixLeg(root_, r2d_, 2, false, false); // R2D
+        legs_[4] = MatrixLeg(root_, r2c_, 2, true, false); // R2C
         legs_[5] = MatrixLeg(debitGroup_, rd_, 3, false, false); // R>D
         legs_[6] = MatrixLeg(creditGroup_, rc_, 3, true, false); // R>C
     }
@@ -443,9 +522,12 @@ contract ERC20WrapperTest is Test {
         return leg_.depth == 2 ? leg_.relative : address(ledgers);
     }
 
-    function _assertWrapperTransferLogs(ExpectedWrapperTransfer memory expected_, uint256 fromIndex_, uint256 toIndex_)
-        private
-    {
+    function _assertWrapperTransferLogs(
+        address root_,
+        ExpectedWrapperTransfer memory expected_,
+        uint256 fromIndex_,
+        uint256 toIndex_
+    ) private {
         Vm.Log[] memory logs_ = vm.getRecordedLogs();
         uint256 count_;
         address actualFrom_;
@@ -453,7 +535,7 @@ contract ERC20WrapperTest is Test {
         uint256 actualAmount_;
 
         for (uint256 i = 0; i < logs_.length; i++) {
-            if (logs_[i].emitter != address(token)) continue;
+            if (logs_[i].emitter != root_) continue;
             if (logs_[i].topics.length == 0 || logs_[i].topics[0] != TRANSFER_TOPIC) continue;
 
             count_++;
@@ -471,6 +553,78 @@ contract ERC20WrapperTest is Test {
         assertEq(actualFrom_, expected_.from, _matrixCellLabel("wrapper Transfer from", fromIndex_, toIndex_));
         assertEq(actualTo_, expected_.to, _matrixCellLabel("wrapper Transfer to", fromIndex_, toIndex_));
         assertEq(actualAmount_, 0, _matrixCellLabel("wrapper Transfer amount", fromIndex_, toIndex_));
+    }
+
+    function _indexTokenTransferLogs(address token_, Vm.Log[] memory logs_) private {
+        for (uint256 i = 0; i < logs_.length; i++) {
+            if (logs_[i].emitter != token_) continue;
+            if (logs_[i].topics.length == 0 || logs_[i].topics[0] != TRANSFER_TOPIC) continue;
+
+            address from_ = address(uint160(uint256(logs_[i].topics[1])));
+            address to_ = address(uint160(uint256(logs_[i].topics[2])));
+            uint256 amount_ = abi.decode(logs_[i].data, (uint256));
+
+            _trackIndexedHolder(from_);
+            _trackIndexedHolder(to_);
+
+            if (from_ != address(0)) indexedBalances[from_] -= amount_;
+            if (to_ != address(0)) indexedBalances[to_] += amount_;
+        }
+    }
+
+    function _assertExplorerEventAddressProjection(address token_, Vm.Log[] memory logs_, address registeredAccount_)
+        private
+        view
+    {
+        uint256 tokenTransferCount_;
+        for (uint256 i = 0; i < logs_.length; i++) {
+            if (logs_[i].emitter != token_) continue;
+            if (logs_[i].topics.length == 0 || logs_[i].topics[0] != TRANSFER_TOPIC) continue;
+
+            tokenTransferCount_++;
+            address from_ = address(uint160(uint256(logs_[i].topics[1])));
+            address to_ = address(uint160(uint256(logs_[i].topics[2])));
+
+            assertTrue(_isAllowedExplorerEventAddress(from_), "unexpected Transfer from projection");
+            assertTrue(_isAllowedExplorerEventAddress(to_), "unexpected Transfer to projection");
+            assertTrue(from_ != registeredAccount_, "registered account leaked as Transfer from");
+            assertTrue(to_ != registeredAccount_, "registered account leaked as Transfer to");
+        }
+        assertGt(tokenTransferCount_, 0, "token Transfer logs");
+    }
+
+    function _isAllowedExplorerEventAddress(address account_) private view returns (bool) {
+        return account_ == address(0) || account_ == address(ledgers) || account_ == alice || account_ == bob
+            || account_ == carol;
+    }
+
+    function _trackIndexedHolder(address holder_) private {
+        for (uint256 i = 0; i < indexedHolders.length; i++) {
+            if (indexedHolders[i] == holder_) return;
+        }
+        indexedHolders.push(holder_);
+    }
+
+    function _assertIndexedHolder(address token_, address holder_) private view {
+        if (holder_ == address(0)) {
+            assertEq(indexedBalances[holder_], 0, "zero address must not index as holder");
+            return;
+        }
+        assertEq(indexedBalances[holder_], ERC20Wrapper(token_).balanceOf(holder_), "indexed holder balance");
+    }
+
+    function _indexedHolderCount() private view returns (uint256 count_) {
+        for (uint256 i = 0; i < indexedHolders.length; i++) {
+            address holder_ = indexedHolders[i];
+            if (holder_ != address(0) && indexedBalances[holder_] != 0) count_++;
+        }
+    }
+
+    function _indexedSupply() private view returns (uint256 supply_) {
+        for (uint256 i = 0; i < indexedHolders.length; i++) {
+            address holder_ = indexedHolders[i];
+            if (holder_ != address(0)) supply_ += indexedBalances[holder_];
+        }
     }
 
     function _matrixCellLabel(string memory prefix_, uint256 fromIndex_, uint256 toIndex_)
