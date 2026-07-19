@@ -98,6 +98,7 @@ interface ILedger {
     error NativeTransferFailed();
     error SubAccountNotFound(address addr);
     error SubAccountGroupNotFound(address addr);
+    error TooManySubAccounts(uint256 count);
     error UndercollateralizedToken(address token, uint256 liabilities, uint256 collateral);
     error Unauthorized(address user);
     error UnsupportedTokenBehavior(address token, uint256 expected, uint256 actual);

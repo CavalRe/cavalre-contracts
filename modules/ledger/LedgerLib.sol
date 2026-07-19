@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {ERC20Wrapper} from "./Ledger.sol";
+import {ERC20Wrapper} from "./ERC20Wrapper.sol";
 import {ILedger} from "./ILedger.sol";
 
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
@@ -123,6 +123,8 @@ library LedgerLib {
     }
 
     function packedAddress(uint256 flags_) internal pure returns (address) {
+        // Safe because packed addresses occupy exactly the high 160-bit lane.
+        // forge-lint: disable-next-line(unsafe-typecast)
         return address(uint160(flags_ >> PACK_ADDR_SHIFT));
     }
 
@@ -196,6 +198,8 @@ library LedgerLib {
     }
 
     function depth(uint256 flags_) internal pure returns (uint8) {
+        // Safe because FLAG_DEPTH_MASK bounds the shifted value to one byte.
+        // forge-lint: disable-next-line(unsafe-typecast)
         return uint8((flags_ & FLAG_DEPTH_MASK) >> FLAG_DEPTH_SHIFT);
     }
 
@@ -253,6 +257,13 @@ library LedgerLib {
         checkZeroAddress(parent_);
         checkString(name_);
         return address(uint160(uint256(keccak256(abi.encodePacked(parent_, toAddress(name_))))));
+    }
+
+    function toSubIndex(uint256 index_) private pure returns (uint32) {
+        if (index_ > type(uint32).max) revert ILedger.TooManySubAccounts(index_);
+        // Safe because the explicit guard above bounds index_ to uint32.
+        // forge-lint: disable-next-line(unsafe-typecast)
+        return uint32(index_);
     }
 
     //==================================================================
@@ -630,7 +641,7 @@ library LedgerLib {
         address _lastChildAbsolute = toAddress(parent_, _lastChild);
         if (_index != _lastIndex) {
             s.subs[parent_][_index - 1] = _lastChild;
-            s.subIndex[_lastChildAbsolute] = uint32(_index);
+            s.subIndex[_lastChildAbsolute] = toSubIndex(_index);
         }
         s.subs[parent_].pop();
 
@@ -668,7 +679,7 @@ library LedgerLib {
         address _lastChildAbsolute = toAddress(parent_, _lastChild);
         if (_index != _lastIndex) {
             s.subs[parent_][_index - 1] = _lastChild;
-            s.subIndex[_lastChildAbsolute] = uint32(_index);
+            s.subIndex[_lastChildAbsolute] = toSubIndex(_index);
         }
         s.subs[parent_].pop();
 
