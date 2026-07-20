@@ -36,7 +36,7 @@ contract TreeView is Dispatchable {
         _signatures[25] = "claimAccount(uint256)";
         _signatures[26] = "subAccounts(address)";
         _signatures[27] = "hasSubAccount(address)";
-        _signatures[28] = "subAccountIndex(address,address)";
+        _signatures[28] = "subAccountIndex(address)";
         _signatures[29] = "debugTree(address)";
         _signatures[30] = "debugTrees(address[])";
     }
@@ -72,7 +72,7 @@ contract TreeView is Dispatchable {
         _selectors[n++] = bytes4(keccak256("claimAccount(uint256)"));
         _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
         _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
-        _selectors[n++] = bytes4(keccak256("subAccountIndex(address,address)"));
+        _selectors[n++] = bytes4(keccak256("subAccountIndex(address)"));
         _selectors[n++] = bytes4(keccak256("debugTree(address)"));
         _selectors[n++] = bytes4(keccak256("debugTrees(address[])"));
 
@@ -84,7 +84,7 @@ contract TreeView is Dispatchable {
     }
 
     function parent(address addr_) external view returns (address) {
-        return LedgerLib.parent(addr_);
+        return LedgerLib.holderParent(LedgerLib.flags(addr_));
     }
 
     function flags(address addr_) external view returns (uint256) {
@@ -191,8 +191,8 @@ contract TreeView is Dispatchable {
         return LedgerLib.hasSubAccount(parent_);
     }
 
-    function subAccountIndex(address parent_, address addr_) external view returns (uint32) {
-        return LedgerLib.subAccountIndex(parent_, addr_);
+    function subAccountIndex(address absolute_) external view returns (uint32) {
+        return LedgerLib.subAccountIndex(absolute_);
     }
 
     function debugTree(address root_) external view {

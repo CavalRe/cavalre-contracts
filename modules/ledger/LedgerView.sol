@@ -84,6 +84,6 @@ contract LedgerView is Dispatchable, ILedgerView {
     }
 
     function claimAccountOf(address t) external view returns (address) {
-        return LedgerLib.claimAccount(t);
+        return LedgerLib.claimAccount(LedgerLib.flags(t));
     }
 }
