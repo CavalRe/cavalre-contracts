@@ -14,9 +14,9 @@ contract LedgerView is Dispatchable, ILedgerView {
         s[3] = "nativeName()";
         s[4] = "nativeSymbol()";
         s[5] = "nativeDecimals()";
-        s[6] = "debitBalanceOf(address,address)";
-        s[7] = "creditBalanceOf(address,address)";
-        s[8] = "balanceOf(address,address)";
+        s[6] = "debitBalanceOf(address,address,address)";
+        s[7] = "creditBalanceOf(address,address,address)";
+        s[8] = "balanceOf(address,address,address)";
         s[9] = "totalSupply(address)";
         s[10] = "isClaim(address)";
         s[11] = "claimAccountOf(address)";
@@ -30,24 +30,24 @@ contract LedgerView is Dispatchable, ILedgerView {
         s[3] = bytes4(keccak256("nativeName()"));
         s[4] = bytes4(keccak256("nativeSymbol()"));
         s[5] = bytes4(keccak256("nativeDecimals()"));
-        s[6] = bytes4(keccak256("debitBalanceOf(address,address)"));
-        s[7] = bytes4(keccak256("creditBalanceOf(address,address)"));
-        s[8] = bytes4(keccak256("balanceOf(address,address)"));
+        s[6] = bytes4(keccak256("debitBalanceOf(address,address,address)"));
+        s[7] = bytes4(keccak256("creditBalanceOf(address,address,address)"));
+        s[8] = bytes4(keccak256("balanceOf(address,address,address)"));
         s[9] = bytes4(keccak256("totalSupply(address)"));
         s[10] = bytes4(keccak256("isClaim(address)"));
         s[11] = bytes4(keccak256("claimAccountOf(address)"));
     }
 
-    function name(address a) external view returns (string memory) {
-        return LedgerLib.name(a);
+    function name(address absolute_) external view returns (string memory) {
+        return LedgerLib.name(absolute_);
     }
 
-    function symbol(address a) external view returns (string memory) {
-        return LedgerLib.symbol(a);
+    function symbol(address absolute_) external view returns (string memory) {
+        return LedgerLib.symbol(absolute_);
     }
 
-    function decimals(address a) external view returns (uint8) {
-        return LedgerLib.decimals(a);
+    function decimals(address absolute_) external view returns (uint8) {
+        return LedgerLib.decimals(absolute_);
     }
 
     function nativeName() external view returns (string memory) {
@@ -62,28 +62,28 @@ contract LedgerView is Dispatchable, ILedgerView {
         return LedgerLib.nativeDecimals();
     }
 
-    function debitBalanceOf(address p, address a) external view returns (uint256) {
-        return LedgerLib.debitBalanceOf(LedgerLib.toAddress(p, a));
+    function debitBalanceOf(address root_, address holderParent_, address relative_) external view returns (uint256) {
+        return LedgerLib.debitBalanceOf(LedgerLib.toAddress(root_, holderParent_, relative_));
     }
 
-    function creditBalanceOf(address p, address a) external view returns (uint256) {
-        return LedgerLib.creditBalanceOf(LedgerLib.toAddress(p, a));
+    function creditBalanceOf(address root_, address holderParent_, address relative_) external view returns (uint256) {
+        return LedgerLib.creditBalanceOf(LedgerLib.toAddress(root_, holderParent_, relative_));
     }
 
-    function balanceOf(address p, address a) external view returns (uint256) {
-        (uint256 f,, address x) = LedgerLib.effectiveFlags(p, a);
-        return LedgerLib.balanceOf(x, LedgerLib.isCredit(f));
+    function balanceOf(address root_, address holderParent_, address relative_) external view returns (uint256) {
+        (uint256 _flags,, address _absolute) = LedgerLib.effectiveFlags(root_, holderParent_, relative_);
+        return LedgerLib.balanceOf(_absolute, LedgerLib.isCredit(_flags));
     }
 
-    function totalSupply(address t) external view returns (uint256) {
-        return LedgerLib.totalSupply(t);
+    function totalSupply(address root_) external view returns (uint256) {
+        return LedgerLib.totalSupply(root_);
     }
 
-    function isClaim(address t) external view returns (bool) {
-        return LedgerLib.isClaim(LedgerLib.flags(t));
+    function isClaim(address root_) external view returns (bool) {
+        return LedgerLib.isClaim(LedgerLib.flags(root_));
     }
 
-    function claimAccountOf(address t) external view returns (address) {
-        return LedgerLib.claimAccount(LedgerLib.flags(t));
+    function claimAccountOf(address root_) external view returns (address) {
+        return LedgerLib.claimAccount(LedgerLib.flags(root_));
     }
 }

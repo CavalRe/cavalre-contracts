@@ -253,9 +253,9 @@ library LedgerLib {
     }
 
     /// @notice Derives an absolute Ledger storage address in root scope.
-    /// @dev If `holderParent_ == root_`, `relative_` is already the holder; otherwise derive the holder first.
+    /// @dev First derives the holder from `holderParent_ + relative_`, then projects it through `root_`.
     function toAddress(address root_, address holderParent_, address relative_) internal pure returns (address) {
-        address _holder = holderParent_ == root_ ? relative_ : toAddress(holderParent_, relative_);
+        address _holder = toAddress(holderParent_, relative_);
         return toAddress(root_, _holder);
     }
 
@@ -880,6 +880,13 @@ library LedgerLib {
         revert ILedger.ZeroDepth();
     }
 
+    struct WrapCache {
+        uint256 rootFlags;
+        uint256 balanceBefore;
+        uint256 balanceAfter;
+        uint256 received;
+    }
+
     function wrap(
         address payer_,
         address root_,
@@ -888,18 +895,18 @@ library LedgerLib {
         address toHolderParent_,
         address to_,
         uint256 amount_
-    ) internal returns (address _root, bool _fromIsCredit, bool _toIsCredit) {
-        _root = root_;
-        uint256 _rootFlags = flags(_root);
+    ) internal returns (address, bool _fromIsCredit, bool _toIsCredit) {
+        WrapCache memory c;
+        c.rootFlags = flags(root_);
         // Wrap only applies to external/native debit roots with real asset custody.
-        if (isCredit(_rootFlags) || (!isExternal(_rootFlags) && !isNative(_rootFlags))) {
-            revert ILedger.InvalidLedgerAccount(_root);
+        if (isCredit(c.rootFlags) || (!isExternal(c.rootFlags) && !isNative(c.rootFlags))) {
+            revert ILedger.InvalidLedgerAccount(root_);
         }
-        (_root, _fromIsCredit, _toIsCredit) = transfer(root_, fromHolderParent_, from_, toHolderParent_, to_, amount_);
+        (, _fromIsCredit, _toIsCredit) = transfer(root_, fromHolderParent_, from_, toHolderParent_, to_, amount_);
         // Debit-root wrap must move value from credit source into debit holder balance.
         if (!_fromIsCredit) revert ILedger.InvalidSubAccount(from_);
         if (_toIsCredit) revert ILedger.InvalidSubAccount(to_);
-        if (_root == NATIVE_ADDRESS) {
+        if (root_ == NATIVE_ADDRESS) {
             if (payer_ != msg.sender) revert ILedger.InvalidNativePayer(payer_, msg.sender);
             if (msg.value != amount_) {
                 revert ILedger.IncorrectAmount(msg.value, amount_);
@@ -907,12 +914,22 @@ library LedgerLib {
             // Native value already sits on the dispatcher (this contract via delegatecall),
             // so no external transfer is needed.
         } else {
-            uint256 _balanceBefore = IERC20(_root).balanceOf(address(this));
-            SafeERC20.safeTransferFrom(IERC20(_root), payer_, address(this), amount_);
-            uint256 _balanceAfter = IERC20(_root).balanceOf(address(this));
-            uint256 _received = _balanceAfter > _balanceBefore ? _balanceAfter - _balanceBefore : 0;
-            if (_received != amount_) revert ILedger.UnsupportedTokenBehavior(_root, amount_, _received);
+            c.balanceBefore = IERC20(root_).balanceOf(address(this));
+            SafeERC20.safeTransferFrom(IERC20(root_), payer_, address(this), amount_);
+            c.balanceAfter = IERC20(root_).balanceOf(address(this));
+            c.received = c.balanceAfter > c.balanceBefore ? c.balanceAfter - c.balanceBefore : 0;
+            if (c.received != amount_) revert ILedger.UnsupportedTokenBehavior(root_, amount_, c.received);
         }
+        return (root_, _fromIsCredit, _toIsCredit);
+    }
+
+    struct UnwrapCache {
+        uint256 rootFlags;
+        uint256 liabilities;
+        uint256 collateral;
+        uint256 balanceBefore;
+        uint256 balanceAfter;
+        uint256 received;
     }
 
     function unwrap(
@@ -923,30 +940,33 @@ library LedgerLib {
         address toHolderParent_,
         address to_,
         uint256 amount_
-    ) internal returns (address _root, bool _fromIsCredit, bool _toIsCredit) {
-        _root = root_;
-        uint256 _rootFlags = flags(_root);
+    ) internal returns (address, bool _fromIsCredit, bool _toIsCredit) {
+        UnwrapCache memory c;
+        c.rootFlags = flags(root_);
         // Unwrap only applies to external/native debit roots with real asset custody.
-        if (isCredit(_rootFlags) || (!isExternal(_rootFlags) && !isNative(_rootFlags))) {
-            revert ILedger.InvalidLedgerAccount(_root);
+        if (isCredit(c.rootFlags) || (!isExternal(c.rootFlags) && !isNative(c.rootFlags))) {
+            revert ILedger.InvalidLedgerAccount(root_);
         }
-        uint256 _liabilities = totalSupply(_root);
-        uint256 _collateral = _root == NATIVE_ADDRESS ? address(this).balance : IERC20(_root).balanceOf(address(this));
-        if (_collateral < _liabilities) revert ILedger.UndercollateralizedToken(_root, _liabilities, _collateral);
+        c.liabilities = totalSupply(root_);
+        c.collateral = root_ == NATIVE_ADDRESS ? address(this).balance : IERC20(root_).balanceOf(address(this));
+        if (c.collateral < c.liabilities) {
+            revert ILedger.UndercollateralizedToken(root_, c.liabilities, c.collateral);
+        }
 
-        (_root, _fromIsCredit, _toIsCredit) = transfer(root_, fromHolderParent_, from_, toHolderParent_, to_, amount_);
+        (, _fromIsCredit, _toIsCredit) = transfer(root_, fromHolderParent_, from_, toHolderParent_, to_, amount_);
         // Debit-root unwrap burns from debit holder balance back into credit source.
         if (_fromIsCredit) revert ILedger.InvalidSubAccount(from_);
         if (!_toIsCredit) revert ILedger.InvalidSubAccount(to_);
-        if (_root == NATIVE_ADDRESS) {
+        if (root_ == NATIVE_ADDRESS) {
             (bool _success,) = payable(recipient_).call{value: amount_}("");
             if (!_success) revert ILedger.NativeTransferFailed();
         } else {
-            uint256 _balanceBefore = IERC20(_root).balanceOf(recipient_);
-            SafeERC20.safeTransfer(IERC20(_root), recipient_, amount_);
-            uint256 _balanceAfter = IERC20(_root).balanceOf(recipient_);
-            uint256 _received = _balanceAfter > _balanceBefore ? _balanceAfter - _balanceBefore : 0;
-            if (_received != amount_) revert ILedger.UnsupportedTokenBehavior(_root, amount_, _received);
+            c.balanceBefore = IERC20(root_).balanceOf(recipient_);
+            SafeERC20.safeTransfer(IERC20(root_), recipient_, amount_);
+            c.balanceAfter = IERC20(root_).balanceOf(recipient_);
+            c.received = c.balanceAfter > c.balanceBefore ? c.balanceAfter - c.balanceBefore : 0;
+            if (c.received != amount_) revert ILedger.UnsupportedTokenBehavior(root_, amount_, c.received);
         }
+        return (root_, _fromIsCredit, _toIsCredit);
     }
 }

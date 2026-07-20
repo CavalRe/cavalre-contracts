@@ -24,7 +24,7 @@ contract MintModule is Dispatchable {
 
     function mintCanonical(address to_, uint256 amount_) external {
         enforceIsOwner();
-        LedgerLib.transfer(address(this), address(0), address(this), to_, amount_);
+        LedgerLib.transfer(address(this), address(this), address(0), address(this), to_, amount_);
     }
 }
 
@@ -59,7 +59,7 @@ contract LedgerERC20Test is Test {
 
         ledgers.initializeLedger("Canonical Root", "ROOT");
         source_ = address(0);
-        ledgers.addSubAccount(address(dispatcher), source_, "Zero Address", true);
+        ledgers.addSubAccount(address(dispatcher), address(dispatcher), source_, "Zero Address", true);
         token.initializeERC20();
     }
 
@@ -123,9 +123,19 @@ contract LedgerERC20Test is Test {
         minter.mintCanonical(alice, 1000);
 
         vm.expectEmit(true, true, true, true, address(dispatcher));
-        emit ILedger.Credit(address(dispatcher), LedgerLib.toAddress(address(dispatcher), alice), 0, 1000);
+        emit ILedger.Credit(
+            address(dispatcher),
+            LedgerLib.toAddress(address(dispatcher), LedgerLib.toAddress(address(dispatcher), alice)),
+            0,
+            1000
+        );
         vm.expectEmit(true, true, true, true, address(dispatcher));
-        emit ILedger.Debit(address(dispatcher), LedgerLib.toAddress(address(dispatcher), bob), 0, 0);
+        emit ILedger.Debit(
+            address(dispatcher),
+            LedgerLib.toAddress(address(dispatcher), LedgerLib.toAddress(address(dispatcher), bob)),
+            0,
+            0
+        );
         assertTrue(token.transfer(bob, 0));
 
         assertEq(token.balanceOf(alice), 1000);

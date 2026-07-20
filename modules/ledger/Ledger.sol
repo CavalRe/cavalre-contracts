@@ -48,20 +48,20 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     function signatures() external pure virtual override returns (string[] memory _signatures) {
         _signatures = new string[](18);
         _signatures[0] = "initializeLedger(string,string)";
-        _signatures[1] = "addSubAccountGroup(address,string,bool)";
-        _signatures[2] = "addSubAccountGroup(address,address,string,bool)";
-        _signatures[3] = "addSubAccount(address,string,bool)";
-        _signatures[4] = "addSubAccount(address,address,string,bool)";
+        _signatures[1] = "addSubAccountGroup(address,address,string,bool)";
+        _signatures[2] = "addSubAccountGroup(address,address,address,string,bool)";
+        _signatures[3] = "addSubAccount(address,address,string,bool)";
+        _signatures[4] = "addSubAccount(address,address,address,string,bool)";
         _signatures[5] = "addNativeToken()";
         _signatures[6] = "addExternalToken(address)";
         _signatures[7] = "createInternalToken(string,string,uint8,string)";
-        _signatures[8] = "createClaimToken(string,string,uint8,address,address,string)";
-        _signatures[9] = "removeSubAccountGroup(address,string)";
-        _signatures[10] = "removeSubAccountGroup(address,address)";
-        _signatures[11] = "removeSubAccount(address,string)";
-        _signatures[12] = "removeSubAccount(address,address)";
-        _signatures[13] = "transfer(address,address,address,address,uint256)";
-        _signatures[14] = "transfer(address,address,address,uint256)";
+        _signatures[8] = "createClaimToken(string,string,uint8,address,address,address,string)";
+        _signatures[9] = "removeSubAccountGroup(address,address,string)";
+        _signatures[10] = "removeSubAccountGroup(address,address,address)";
+        _signatures[11] = "removeSubAccount(address,address,string)";
+        _signatures[12] = "removeSubAccount(address,address,address)";
+        _signatures[13] = "transfer(address,address,address,address,address,uint256)";
+        _signatures[14] = "transfer(address,address,address,address,uint256)";
         _signatures[15] = "wrap(address,uint256)";
         _signatures[16] = "unwrap(address,uint256)";
         _signatures[17] = "handleNative()";
@@ -71,20 +71,20 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         uint256 n;
         _selectors = new bytes4[](18);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
-        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("addSubAccount(address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
+        _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
         _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,string)"));
-        _selectors[n++] = bytes4(keccak256("createClaimToken(string,string,uint8,address,address,string)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,string)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,string)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address)"));
+        _selectors[n++] = bytes4(keccak256("createClaimToken(string,string,uint8,address,address,address,string)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,string)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,address)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,string)"));
+        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,address)"));
+        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("handleNative()"));
@@ -107,37 +107,43 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         initializeLedger_unchained(name_, symbol_);
     }
 
-    function addSubAccountGroup(address parent_, string memory name_, bool isCredit_)
+    function addSubAccountGroup(address root_, address holderParent_, string memory name_, bool isCredit_)
         external
         returns (address, uint256)
     {
         enforceIsOwner();
 
-        return LedgerLib.addSubAccountGroup(parent_, name_, isCredit_);
+        return LedgerLib.addSubAccountGroup(root_, holderParent_, name_, isCredit_);
     }
 
-    function addSubAccountGroup(address parent_, address addr_, string memory name_, bool isCredit_)
+    function addSubAccountGroup(
+        address root_,
+        address holderParent_,
+        address relative_,
+        string memory name_,
+        bool isCredit_
+    ) external returns (address, uint256) {
+        enforceIsOwner();
+
+        return LedgerLib.addSubAccountGroup(root_, holderParent_, relative_, name_, isCredit_);
+    }
+
+    function addSubAccount(address root_, address holderParent_, string memory name_, bool isCredit_)
         external
         returns (address, uint256)
     {
         enforceIsOwner();
 
-        return LedgerLib.addSubAccountGroup(parent_, addr_, name_, isCredit_);
+        return LedgerLib.addSubAccount(root_, holderParent_, name_, isCredit_);
     }
 
-    function addSubAccount(address parent_, string memory name_, bool isCredit_) external returns (address, uint256) {
-        enforceIsOwner();
-
-        return LedgerLib.addSubAccount(parent_, name_, isCredit_);
-    }
-
-    function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
+    function addSubAccount(address root_, address holderParent_, address relative_, string memory name_, bool isCredit_)
         external
         returns (address, uint256)
     {
         enforceIsOwner();
 
-        return LedgerLib.addSubAccount(parent_, addr_, name_, isCredit_);
+        return LedgerLib.addSubAccount(root_, holderParent_, relative_, name_, isCredit_);
     }
 
     function addNativeToken() external returns (uint256 _flags) {
@@ -162,64 +168,78 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        address parent_,
-        address addr_,
+        address root_,
+        address holderParent_,
+        address relative_,
         string memory version_
     ) external returns (address _token, uint256 _flags) {
         enforceIsOwner();
-        return LedgerLib.createClaimToken(name_, symbol_, decimals_, parent_, addr_, version_);
+        return LedgerLib.createClaimToken(name_, symbol_, decimals_, root_, holderParent_, relative_, version_);
     }
 
-    function removeSubAccountGroup(address parent_, string memory name_) external returns (address) {
+    function removeSubAccountGroup(address root_, address holderParent_, string memory name_)
+        external
+        returns (address)
+    {
         enforceIsOwner();
 
-        return LedgerLib.removeSubAccountGroup(parent_, name_);
+        return LedgerLib.removeSubAccountGroup(root_, holderParent_, name_);
     }
 
-    function removeSubAccountGroup(address parent_, address addr_) external returns (address) {
+    function removeSubAccountGroup(address root_, address holderParent_, address relative_) external returns (address) {
         enforceIsOwner();
 
-        return LedgerLib.removeSubAccountGroup(parent_, addr_);
+        return LedgerLib.removeSubAccountGroup(root_, holderParent_, relative_);
     }
 
-    function removeSubAccount(address parent_, string memory name_) external returns (address) {
+    function removeSubAccount(address root_, address holderParent_, string memory name_) external returns (address) {
         enforceIsOwner();
 
-        return LedgerLib.removeSubAccount(parent_, name_);
+        return LedgerLib.removeSubAccount(root_, holderParent_, name_);
     }
 
-    function removeSubAccount(address parent_, address addr_) external returns (address) {
+    function removeSubAccount(address root_, address holderParent_, address relative_) external returns (address) {
         enforceIsOwner();
 
-        return LedgerLib.removeSubAccount(parent_, addr_);
+        return LedgerLib.removeSubAccount(root_, holderParent_, relative_);
     }
 
     //===========
     // Transfers
     //===========
 
-    function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_) external {
+    function transfer(
+        address root_,
+        address fromHolderParent_,
+        address from_,
+        address toHolderParent_,
+        address to_,
+        uint256 amount_
+    ) external {
         (address _root, bool _fromIsCredit, bool _toIsCredit) =
-            LedgerLib.enforceTransfer(fromParent_, from_, toParent_, to_);
+            LedgerLib.enforceTransfer(root_, fromHolderParent_, from_, toHolderParent_, to_);
         // Wrapper calls must come from the root wrapper; canonical ERC20 may call via address(this).
         if (msg.sender != LedgerLib.wrapper(_root) && (msg.sender != address(this) || _root != address(this))) {
             revert ILedger.Unauthorized(msg.sender);
         }
         // Public transfer surfaces may not mint from credit into debit accounts.
         if (_fromIsCredit && !_toIsCredit) {
-            revert ILedger.InvalidLedgerAccount(fromParent_);
+            revert ILedger.InvalidLedgerAccount(fromHolderParent_);
         }
-        LedgerLib.transfer(fromParent_, from_, toParent_, to_, amount_);
+        LedgerLib.transfer(root_, fromHolderParent_, from_, toHolderParent_, to_, amount_);
     }
 
-    function transfer(address fromParent_, address toParent_, address to_, uint256 amount_) external {
+    function transfer(address root_, address fromHolderParent_, address toHolderParent_, address to_, uint256 amount_)
+        external
+    {
         // Direct user transfer uses msg.sender as source leaf under fromParent_.
-        (, bool _fromIsCredit, bool _toIsCredit) = LedgerLib.enforceTransfer(fromParent_, msg.sender, toParent_, to_);
+        (, bool _fromIsCredit, bool _toIsCredit) =
+            LedgerLib.enforceTransfer(root_, fromHolderParent_, msg.sender, toHolderParent_, to_);
         // Public transfers may not mint from credit into debit accounts.
         if (_fromIsCredit && !_toIsCredit) {
-            revert ILedger.InvalidLedgerAccount(fromParent_);
+            revert ILedger.InvalidLedgerAccount(fromHolderParent_);
         }
-        LedgerLib.transfer(fromParent_, msg.sender, toParent_, to_, amount_);
+        LedgerLib.transfer(root_, fromHolderParent_, msg.sender, toHolderParent_, to_, amount_);
     }
 
     function wrap(address token_, uint256 amount_)
@@ -232,12 +252,18 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
             revert ILedger.IncorrectAmount(msg.value, 0);
         }
         // Wrap mints from the root Zero Address source into msg.sender.
-        return LedgerLib.wrap(msg.sender, token_, address(0), token_, msg.sender, amount_);
+        return LedgerLib.wrap(msg.sender, token_, token_, address(0), token_, msg.sender, amount_);
     }
 
     function handleNative() external payable nonReentrant {
         LedgerLib.wrap(
-            msg.sender, LedgerLib.NATIVE_ADDRESS, address(0), LedgerLib.NATIVE_ADDRESS, msg.sender, msg.value
+            msg.sender,
+            LedgerLib.NATIVE_ADDRESS,
+            LedgerLib.NATIVE_ADDRESS,
+            address(0),
+            LedgerLib.NATIVE_ADDRESS,
+            msg.sender,
+            msg.value
         );
     }
 
@@ -249,6 +275,6 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     {
         if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
         // Unwrap burns from msg.sender back into the root Zero Address source.
-        return LedgerLib.unwrap(msg.sender, token_, msg.sender, token_, address(0), amount_);
+        return LedgerLib.unwrap(msg.sender, token_, token_, msg.sender, token_, address(0), amount_);
     }
 }

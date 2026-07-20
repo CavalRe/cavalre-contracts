@@ -67,7 +67,7 @@ contract ERC20Wrapper {
     }
 
     function balanceOf(address account_) public view returns (uint256) {
-        return ILedgerView(_dispatcher).balanceOf(address(this), account_);
+        return ILedgerView(_dispatcher).balanceOf(address(this), address(this), account_);
     }
 
     // -------------------------------------------------------------------------

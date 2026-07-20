@@ -10,21 +10,21 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // TreeView Manipulation
     // ─────────────────────────────────────────────────────────────────────────────
-    function addSubAccountGroup(address parent, string memory name, bool isCredit)
+    function addSubAccountGroup(address root, address holderParent, string memory name, bool isCredit)
         external
         returns (address addr, uint256 flags);
 
-    function addSubAccountGroup(address parent, address addr, string memory name, bool isCredit)
+    function addSubAccountGroup(address root, address holderParent, address relative, string memory name, bool isCredit)
         external
         returns (address subAccount, uint256 flags);
 
     /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
-    function addSubAccount(address parent, string memory name, bool isCredit)
+    function addSubAccount(address root, address holderParent, string memory name, bool isCredit)
         external
         returns (address addr, uint256 flags);
 
     /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
-    function addSubAccount(address parent, address addr, string memory name, bool isCredit)
+    function addSubAccount(address root, address holderParent, address relative, string memory name, bool isCredit)
         external
         returns (address subAccount, uint256 flags);
 
@@ -40,25 +40,34 @@ interface ILedger {
         string memory name,
         string memory symbol,
         uint8 decimals,
-        address parent,
-        address addr,
+        address root,
+        address holderParent,
+        address relative,
         string memory version
     ) external returns (address token, uint256 flags);
 
-    function removeSubAccountGroup(address parent, string memory name) external returns (address);
+    function removeSubAccountGroup(address root, address holderParent, string memory name) external returns (address);
 
-    function removeSubAccountGroup(address parent, address addr) external returns (address);
+    function removeSubAccountGroup(address root, address holderParent, address relative) external returns (address);
 
-    function removeSubAccount(address parent, string memory name) external returns (address);
+    function removeSubAccount(address root, address holderParent, string memory name) external returns (address);
 
-    function removeSubAccount(address parent, address child) external returns (address);
+    function removeSubAccount(address root, address holderParent, address relative) external returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
     // ─────────────────────────────────────────────────────────────────────────────
-    function transfer(address fromParent, address from, address toParent, address to, uint256 amount) external;
+    function transfer(
+        address root,
+        address fromHolderParent,
+        address from,
+        address toHolderParent,
+        address to,
+        uint256 amount
+    ) external;
 
-    function transfer(address fromParent, address toParent, address to, uint256 amount) external;
+    function transfer(address root, address fromHolderParent, address toHolderParent, address to, uint256 amount)
+        external;
 
     // ─────────────────────────────────────────────────────────────────────────────
     function wrap(address token_, uint256 amount_)

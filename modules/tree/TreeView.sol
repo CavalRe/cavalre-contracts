@@ -9,12 +9,12 @@ contract TreeView is Dispatchable {
     function signatures() external pure override returns (string[] memory _signatures) {
         _signatures = new string[](31);
         _signatures[0] = "root(address)";
-        _signatures[1] = "parent(address)";
+        _signatures[1] = "holderParent(address)";
         _signatures[2] = "flags(address)";
         _signatures[3] = "wrapper(address)";
         _signatures[4] = "tree(address)";
         _signatures[5] = "treeNode(address)";
-        _signatures[6] = "treeNode(address,address)";
+        _signatures[6] = "treeNode(address,address,address)";
         _signatures[7] = "accountKind(uint256)";
         _signatures[8] = "tokenKind(uint256)";
         _signatures[9] = "packedAddress(uint256)";
@@ -26,7 +26,7 @@ contract TreeView is Dispatchable {
         _signatures[15] = "isGroup(uint256)";
         _signatures[16] = "isLedger(uint256)";
         _signatures[17] = "isCredit(uint256)";
-        _signatures[18] = "effectiveFlags(address,address)";
+        _signatures[18] = "effectiveFlags(address,address,address)";
         _signatures[19] = "isUnregisteredToken(uint256)";
         _signatures[20] = "isInternal(uint256)";
         _signatures[21] = "isNative(uint256)";
@@ -45,12 +45,12 @@ contract TreeView is Dispatchable {
         uint256 n;
         _selectors = new bytes4[](31);
         _selectors[n++] = bytes4(keccak256("root(address)"));
-        _selectors[n++] = bytes4(keccak256("parent(address)"));
+        _selectors[n++] = bytes4(keccak256("holderParent(address)"));
         _selectors[n++] = bytes4(keccak256("flags(address)"));
         _selectors[n++] = bytes4(keccak256("wrapper(address)"));
         _selectors[n++] = bytes4(keccak256("tree(address)"));
         _selectors[n++] = bytes4(keccak256("treeNode(address)"));
-        _selectors[n++] = bytes4(keccak256("treeNode(address,address)"));
+        _selectors[n++] = bytes4(keccak256("treeNode(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("accountKind(uint256)"));
         _selectors[n++] = bytes4(keccak256("tokenKind(uint256)"));
         _selectors[n++] = bytes4(keccak256("packedAddress(uint256)"));
@@ -62,7 +62,7 @@ contract TreeView is Dispatchable {
         _selectors[n++] = bytes4(keccak256("isGroup(uint256)"));
         _selectors[n++] = bytes4(keccak256("isLedger(uint256)"));
         _selectors[n++] = bytes4(keccak256("isCredit(uint256)"));
-        _selectors[n++] = bytes4(keccak256("effectiveFlags(address,address)"));
+        _selectors[n++] = bytes4(keccak256("effectiveFlags(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("isUnregisteredToken(uint256)"));
         _selectors[n++] = bytes4(keccak256("isInternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
@@ -79,20 +79,20 @@ contract TreeView is Dispatchable {
         if (n != 31) revert InvalidCommandsLength(n);
     }
 
-    function root(address addr_) external view returns (address) {
-        return LedgerLib.root(addr_);
+    function root(address absolute_) external view returns (address) {
+        return LedgerLib.root(absolute_);
     }
 
-    function parent(address addr_) external view returns (address) {
-        return LedgerLib.holderParent(LedgerLib.flags(addr_));
+    function holderParent(address absolute_) external view returns (address) {
+        return LedgerLib.holderParent(LedgerLib.flags(absolute_));
     }
 
-    function flags(address addr_) external view returns (uint256) {
-        return LedgerLib.flags(addr_);
+    function flags(address absolute_) external view returns (uint256) {
+        return LedgerLib.flags(absolute_);
     }
 
-    function wrapper(address token_) external view returns (address) {
-        return LedgerLib.wrapper(token_);
+    function wrapper(address root_) external view returns (address) {
+        return LedgerLib.wrapper(root_);
     }
 
     function tree(address root_) external view returns (TreeLib.TreeNode[] memory) {
@@ -100,11 +100,15 @@ contract TreeView is Dispatchable {
     }
 
     function treeNode(address root_) external view returns (TreeLib.TreeNode memory) {
-        return TreeLib.node(address(0), root_);
+        return TreeLib.node(root_, address(0), root_);
     }
 
-    function treeNode(address parent_, address addr_) external view returns (TreeLib.TreeNode memory) {
-        return TreeLib.node(parent_, addr_);
+    function treeNode(address root_, address holderParent_, address relative_)
+        external
+        view
+        returns (TreeLib.TreeNode memory)
+    {
+        return TreeLib.node(root_, holderParent_, relative_);
     }
 
     function accountKind(uint256 flags_) external pure returns (LedgerLib.AccountKind) {
@@ -151,8 +155,12 @@ contract TreeView is Dispatchable {
         return LedgerLib.isCredit(flags_);
     }
 
-    function effectiveFlags(address parent_, address addr_) external view returns (uint256, uint256, address) {
-        return LedgerLib.effectiveFlags(parent_, addr_);
+    function effectiveFlags(address root_, address holderParent_, address relative_)
+        external
+        view
+        returns (uint256, uint256, address)
+    {
+        return LedgerLib.effectiveFlags(root_, holderParent_, relative_);
     }
 
     function isUnregisteredToken(uint256 flags_) external pure returns (bool) {
@@ -183,12 +191,12 @@ contract TreeView is Dispatchable {
         return LedgerLib.claimAccount(flags_);
     }
 
-    function subAccounts(address parent_) external view returns (address[] memory) {
-        return LedgerLib.subAccounts(parent_);
+    function subAccounts(address absolute_) external view returns (address[] memory) {
+        return LedgerLib.subAccounts(absolute_);
     }
 
-    function hasSubAccount(address parent_) external view returns (bool) {
-        return LedgerLib.hasSubAccount(parent_);
+    function hasSubAccount(address absolute_) external view returns (bool) {
+        return LedgerLib.hasSubAccount(absolute_);
     }
 
     function subAccountIndex(address absolute_) external view returns (uint32) {

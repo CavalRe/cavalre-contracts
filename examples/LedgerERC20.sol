@@ -10,9 +10,9 @@ import {ILedger} from "../modules/ledger/ILedger.sol";
 contract ERC20 is Dispatchable, Initializable {
     // -- Storage --
 
-    bytes32 private constant INITIALIZABLE_STORAGE =
-        keccak256(abi.encode(uint256(keccak256("cavalre.storage.LedgerERC20.Initializable")) - 1))
-            & ~bytes32(uint256(0xff));
+    bytes32 private constant INITIALIZABLE_STORAGE = keccak256(
+        abi.encode(uint256(keccak256("cavalre.storage.LedgerERC20.Initializable")) - 1)
+    ) & ~bytes32(uint256(0xff));
 
     // -- Init --
 
@@ -83,7 +83,7 @@ contract ERC20 is Dispatchable, Initializable {
     }
 
     function balanceOf(address owner_) external view returns (uint256) {
-        (uint256 _flags,, address _account) = LedgerLib.effectiveFlags(address(this), owner_);
+        (uint256 _flags,, address _account) = LedgerLib.effectiveFlags(address(this), address(this), owner_);
         return LedgerLib.balanceOf(_account, LedgerLib.isCredit(_flags));
     }
 
@@ -125,7 +125,7 @@ contract ERC20 is Dispatchable, Initializable {
     // -- Transfers --
 
     function transfer(address to_, uint256 amount_) external returns (bool) {
-        ILedger(address(this)).transfer(address(this), msg.sender, address(this), to_, amount_);
+        ILedger(address(this)).transfer(address(this), address(this), msg.sender, address(this), to_, amount_);
         return true;
     }
 
@@ -137,7 +137,7 @@ contract ERC20 is Dispatchable, Initializable {
         if (current_ != type(uint256).max) {
             ERC20Lib.store().allowances[from_][msg.sender] = current_ - amount_;
         }
-        ILedger(address(this)).transfer(address(this), from_, address(this), to_, amount_);
+        ILedger(address(this)).transfer(address(this), address(this), from_, address(this), to_, amount_);
         return true;
     }
 

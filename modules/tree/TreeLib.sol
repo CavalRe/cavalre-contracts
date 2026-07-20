@@ -25,25 +25,29 @@ library TreeLib {
     }
 
     struct TreeNode {
-        address parent;
-        address addr;
+        address holderParent;
+        address relative;
         string name;
         bool isCredit;
         uint256 debit;
         uint256 credit;
     }
 
-    function node(address parent_, address addr_) internal view returns (TreeNode memory _node) {
-        bool _isRoot = LedgerLib.isZeroAddress(parent_);
-        address _absolute = _isRoot ? addr_ : LedgerLib.toAddress(parent_, addr_);
+    function node(address root_, address holderParent_, address relative_)
+        internal
+        view
+        returns (TreeNode memory _node)
+    {
+        bool _isRoot = LedgerLib.isZeroAddress(holderParent_);
+        address _absolute = _isRoot ? root_ : LedgerLib.toAddress(root_, holderParent_, relative_);
         uint256 _flags;
-        _node.parent = parent_;
-        _node.addr = addr_;
+        _node.holderParent = holderParent_;
+        _node.relative = relative_;
         _node.name = LedgerLib.name(_absolute);
         if (_isRoot) {
             _flags = LedgerLib.flags(_absolute);
         } else {
-            (_flags,,) = LedgerLib.effectiveFlags(parent_, addr_);
+            (_flags,,) = LedgerLib.effectiveFlags(root_, holderParent_, relative_);
         }
         _node.isCredit = LedgerLib.isCredit(_flags);
         _node.debit = LedgerLib.debitBalanceOf(_absolute);
@@ -51,44 +55,56 @@ library TreeLib {
     }
 
     function tree(address root_) internal view returns (TreeNode[] memory _nodes) {
-        _nodes = new TreeNode[](count(root_));
-        fill(address(0), root_, _nodes, 0);
+        _nodes = new TreeNode[](count(root_, address(0), root_));
+        fill(root_, address(0), root_, _nodes, 0);
     }
 
-    function count(address addr_) internal view returns (uint256 _count) {
+    function count(address root_, address holderParent_, address relative_) internal view returns (uint256 _count) {
+        bool _isRoot = LedgerLib.isZeroAddress(holderParent_);
+        address _absolute = _isRoot ? root_ : LedgerLib.toAddress(root_, holderParent_, relative_);
+        address _holder = _isRoot ? root_ : LedgerLib.toAddress(holderParent_, relative_);
         _count = 1;
-        address[] memory _subs = LedgerLib.subAccounts(addr_);
+        address[] memory _subs = LedgerLib.subAccounts(_absolute);
         for (uint256 i = 0; i < _subs.length; i++) {
-            _count += count(LedgerLib.toAddress(addr_, _subs[i]));
+            _count += count(root_, _holder, _subs[i]);
         }
     }
 
-    function fill(address parent_, address addr_, TreeNode[] memory nodes_, uint256 n_)
+    function fill(address root_, address holderParent_, address relative_, TreeNode[] memory nodes_, uint256 n_)
         internal
         view
         returns (uint256 _n)
     {
-        TreeNode memory _node = node(parent_, addr_);
+        TreeNode memory _node = node(root_, holderParent_, relative_);
         nodes_[n_] = _node;
         _n = n_ + 1;
 
-        address _absolute = LedgerLib.isZeroAddress(parent_) ? addr_ : LedgerLib.toAddress(parent_, addr_);
+        bool _isRoot = LedgerLib.isZeroAddress(holderParent_);
+        address _absolute = _isRoot ? root_ : LedgerLib.toAddress(root_, holderParent_, relative_);
+        address _holder = _isRoot ? root_ : LedgerLib.toAddress(holderParent_, relative_);
         address[] memory _subs = LedgerLib.subAccounts(_absolute);
         for (uint256 i = 0; i < _subs.length; i++) {
-            _n = fill(_absolute, _subs[i], nodes_, _n);
+            _n = fill(root_, _holder, _subs[i], nodes_, _n);
         }
     }
 
-    function logTree(address parent_, address addr_, string memory prefix_, bool isFirst_, bool isLast_) internal view {
+    function logTree(
+        address root_,
+        address holderParent_,
+        address relative_,
+        string memory prefix_,
+        bool isFirst_,
+        bool isLast_
+    ) internal view {
         TreeCache memory c;
 
-        c.isRoot = LedgerLib.isZeroAddress(parent_);
-        c.addr = c.isRoot ? addr_ : LedgerLib.toAddress(parent_, addr_);
+        c.isRoot = LedgerLib.isZeroAddress(holderParent_);
+        c.addr = c.isRoot ? root_ : LedgerLib.toAddress(root_, holderParent_, relative_);
         c.flags = LedgerLib.flags(c.addr);
         if (c.isRoot) {
             c.balance = LedgerLib.totalSupply(c.addr);
         } else {
-            (uint256 _flags,,) = LedgerLib.effectiveFlags(parent_, addr_);
+            (uint256 _flags,,) = LedgerLib.effectiveFlags(root_, holderParent_, relative_);
             c.balance =
                 LedgerLib.isCredit(_flags) ? LedgerLib.creditBalanceOf(c.addr) : LedgerLib.debitBalanceOf(c.addr);
         }
@@ -115,18 +131,19 @@ library TreeLib {
         c.subPrefix = string(abi.encodePacked(prefix_, isFirst_ ? "" : (isLast_ ? "   " : unicode"│  ")));
 
         c.subs = LedgerLib.subAccounts(c.addr);
+        address _holder = c.isRoot ? root_ : LedgerLib.toAddress(holderParent_, relative_);
         for (uint256 i = 0; i < c.subs.length; i++) {
-            logTree(c.addr, c.subs[i], c.subPrefix, false, i == c.subs.length - 1);
+            logTree(root_, _holder, c.subs[i], c.subPrefix, false, i == c.subs.length - 1);
         }
     }
 
     function debugTree(address root_) internal view {
-        logTree(address(0), root_, "", true, true);
+        logTree(root_, address(0), root_, "", true, true);
     }
 
     function debugTrees(address[] memory roots_) internal view {
         for (uint256 i = 0; i < roots_.length; i++) {
-            logTree(address(0), roots_[i], "", true, true);
+            logTree(roots_[i], address(0), roots_[i], "", true, true);
             console.log("---------------------------------");
         }
     }
