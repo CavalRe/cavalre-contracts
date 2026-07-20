@@ -46,42 +46,34 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     }
 
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](18);
+        _signatures = new string[](14);
         _signatures[0] = "initializeLedger(string,string)";
-        _signatures[1] = "addSubAccountGroup(address,address,string,bool)";
-        _signatures[2] = "addSubAccountGroup(address,address,address,string,bool)";
-        _signatures[3] = "addSubAccount(address,address,string,bool)";
-        _signatures[4] = "addSubAccount(address,address,address,string,bool)";
-        _signatures[5] = "addNativeToken()";
-        _signatures[6] = "addExternalToken(address)";
-        _signatures[7] = "createInternalToken(string,string,uint8,string)";
-        _signatures[8] = "createClaimToken(string,string,uint8,address,address,address,string)";
-        _signatures[9] = "removeSubAccountGroup(address,address,string)";
-        _signatures[10] = "removeSubAccountGroup(address,address,address)";
-        _signatures[11] = "removeSubAccount(address,address,string)";
-        _signatures[12] = "removeSubAccount(address,address,address)";
-        _signatures[13] = "transfer(address,address,address,address,address,uint256)";
-        _signatures[14] = "transfer(address,address,address,address,uint256)";
-        _signatures[15] = "wrap(address,uint256)";
-        _signatures[16] = "unwrap(address,uint256)";
-        _signatures[17] = "handleNative()";
+        _signatures[1] = "addSubAccountGroup(address,address,address,string,bool)";
+        _signatures[2] = "addSubAccount(address,address,address,string,bool)";
+        _signatures[3] = "addNativeToken()";
+        _signatures[4] = "addExternalToken(address)";
+        _signatures[5] = "createInternalToken(string,string,uint8,string)";
+        _signatures[6] = "createClaimToken(string,string,uint8,address,address,address,string)";
+        _signatures[7] = "removeSubAccountGroup(address,address,address)";
+        _signatures[8] = "removeSubAccount(address,address,address)";
+        _signatures[9] = "transfer(address,address,address,address,address,uint256)";
+        _signatures[10] = "transfer(address,address,address,address,uint256)";
+        _signatures[11] = "wrap(address,uint256)";
+        _signatures[12] = "unwrap(address,uint256)";
+        _signatures[13] = "handleNative()";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](18);
+        _selectors = new bytes4[](14);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
-        _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,address,string,bool)"));
-        _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
         _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,string)"));
         _selectors[n++] = bytes4(keccak256("createClaimToken(string,string,uint8,address,address,address,string)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,address)"));
-        _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
@@ -89,7 +81,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("handleNative()"));
 
-        if (n != 18) revert InvalidCommandsLength(n);
+        if (n != 14) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
@@ -107,15 +99,6 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         initializeLedger_unchained(name_, symbol_);
     }
 
-    function addSubAccountGroup(address root_, address holderParent_, string memory name_, bool isCredit_)
-        external
-        returns (address, uint256)
-    {
-        enforceIsOwner();
-
-        return LedgerLib.addSubAccountGroup(root_, holderParent_, name_, isCredit_);
-    }
-
     function addSubAccountGroup(
         address root_,
         address holderParent_,
@@ -126,15 +109,6 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         enforceIsOwner();
 
         return LedgerLib.addSubAccountGroup(root_, holderParent_, relative_, name_, isCredit_);
-    }
-
-    function addSubAccount(address root_, address holderParent_, string memory name_, bool isCredit_)
-        external
-        returns (address, uint256)
-    {
-        enforceIsOwner();
-
-        return LedgerLib.addSubAccount(root_, holderParent_, name_, isCredit_);
     }
 
     function addSubAccount(address root_, address holderParent_, address relative_, string memory name_, bool isCredit_)
@@ -177,25 +151,10 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         return LedgerLib.createClaimToken(name_, symbol_, decimals_, root_, holderParent_, relative_, version_);
     }
 
-    function removeSubAccountGroup(address root_, address holderParent_, string memory name_)
-        external
-        returns (address)
-    {
-        enforceIsOwner();
-
-        return LedgerLib.removeSubAccountGroup(root_, holderParent_, name_);
-    }
-
     function removeSubAccountGroup(address root_, address holderParent_, address relative_) external returns (address) {
         enforceIsOwner();
 
         return LedgerLib.removeSubAccountGroup(root_, holderParent_, relative_);
-    }
-
-    function removeSubAccount(address root_, address holderParent_, string memory name_) external returns (address) {
-        enforceIsOwner();
-
-        return LedgerLib.removeSubAccount(root_, holderParent_, name_);
     }
 
     function removeSubAccount(address root_, address holderParent_, address relative_) external returns (address) {
@@ -251,8 +210,8 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         if (token_ != LedgerLib.NATIVE_ADDRESS && msg.value != 0) {
             revert ILedger.IncorrectAmount(msg.value, 0);
         }
-        // Wrap mints from the root Zero Address source into msg.sender.
-        return LedgerLib.wrap(msg.sender, token_, token_, address(0), token_, msg.sender, amount_);
+        // Wrap mints from the root Source account into msg.sender.
+        return LedgerLib.wrap(msg.sender, token_, token_, LedgerLib.SOURCE_ADDRESS, token_, msg.sender, amount_);
     }
 
     function handleNative() external payable nonReentrant {
@@ -260,7 +219,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
             msg.sender,
             LedgerLib.NATIVE_ADDRESS,
             LedgerLib.NATIVE_ADDRESS,
-            address(0),
+            LedgerLib.SOURCE_ADDRESS,
             LedgerLib.NATIVE_ADDRESS,
             msg.sender,
             msg.value
@@ -274,7 +233,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         returns (address _token, bool _fromIsCredit, bool _toIsCredit)
     {
         if (msg.value != 0) revert ILedger.IncorrectAmount(msg.value, 0);
-        // Unwrap burns from msg.sender back into the root Zero Address source.
-        return LedgerLib.unwrap(msg.sender, token_, token_, msg.sender, token_, address(0), amount_);
+        // Unwrap burns from msg.sender back into the root Source account.
+        return LedgerLib.unwrap(msg.sender, token_, token_, msg.sender, token_, LedgerLib.SOURCE_ADDRESS, amount_);
     }
 }

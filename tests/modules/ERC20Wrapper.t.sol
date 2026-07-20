@@ -71,17 +71,17 @@ contract ERC20WrapperTest is Test {
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledgers.initializeTestLedger();
-        source_ = address(0);
+        source_ = LedgerLib.SOURCE_ADDRESS;
 
         if (isVerbose) console.log("Adding new token to ledger");
         (address token_,) = ledgers.createInternalToken("Internal Test Token", "ITT", 18, "");
         token = ERC20Wrapper(token_);
-        ledgers.addSubAccount(address(token), address(token), source_, "Zero Address", true);
+        ledgers.addSubAccount(address(token), address(token), source_, LedgerLib.SOURCE_NAME, true);
 
         if (isVerbose) console.log("Creating external token");
         externalToken = new MockERC20("External Token", "EXT", 18);
         ledgers.addExternalToken(address(externalToken));
-        ledgers.addSubAccount(address(externalToken), address(externalToken), source_, "Zero Address", true);
+        ledgers.addSubAccount(address(externalToken), address(externalToken), source_, LedgerLib.SOURCE_NAME, true);
 
         if (isVerbose) console.log("Token added");
 
@@ -136,7 +136,8 @@ contract ERC20WrapperTest is Test {
 
     function testERC20WrapperClaimRootMintTransferBurn() public {
         vm.startPrank(owner);
-        (address claimToken_,) = ledgers.createClaimToken("Claim Token", "CLM", 18, address(token), address(token), source_, "");
+        (address claimToken_,) =
+            ledgers.createClaimToken("Claim Token", "CLM", 18, address(token), address(token), source_, "");
         vm.stopPrank();
 
         ERC20Wrapper claim = ERC20Wrapper(claimToken_);
@@ -180,7 +181,7 @@ contract ERC20WrapperTest is Test {
 
         if (isVerbose) console.log("totalSupply()");
         assertEq(token.totalSupply(), 1_000);
-        assertEq(token.balanceOf(address(0)), 1_000);
+        assertEq(token.balanceOf(address(0)), 0);
 
         if (isVerbose) console.log("balanceOf(alice)");
         assertEq(token.balanceOf(alice), 1_000);
@@ -193,7 +194,7 @@ contract ERC20WrapperTest is Test {
         assertEq(token.balanceOf(alice), 300);
         assertEq(token.balanceOf(bob), 700);
         assertEq(token.totalSupply(), 1_000);
-        assertEq(token.balanceOf(address(0)), 1_000);
+        assertEq(token.balanceOf(address(0)), 0);
 
         if (isVerbose) console.log("Burn -> ERC20 Transfer(bob, 0x0, 200)");
         vm.stopPrank();
@@ -203,7 +204,7 @@ contract ERC20WrapperTest is Test {
 
         assertEq(token.balanceOf(bob), 500);
         assertEq(token.totalSupply(), 800);
-        assertEq(token.balanceOf(address(0)), 800);
+        assertEq(token.balanceOf(address(0)), 0);
     }
 
     function testERC20WrapperTransferToSelfEmitsTransfer() public {
@@ -246,7 +247,8 @@ contract ERC20WrapperTest is Test {
         address claimToken_;
 
         vm.startPrank(owner);
-        (claimToken_,) = ledgers.createClaimToken("Matrix Claim Token", "MCT", 18, address(token), address(token), source_, "");
+        (claimToken_,) =
+            ledgers.createClaimToken("Matrix Claim Token", "MCT", 18, address(token), address(token), source_, "");
         MatrixLeg[] memory froms = _buildMatrixLegs(claimToken_, 0x3000, "claim-from");
         MatrixLeg[] memory tos = _buildMatrixLegs(claimToken_, 0x4000, "claim-to");
         vm.stopPrank();
@@ -377,7 +379,7 @@ contract ERC20WrapperTest is Test {
 
         vm.startPrank(owner);
         (testTokenAddress,) = ledgers.createInternalToken("Test Token", "TEST", 18, "");
-        ledgers.addSubAccount(testTokenAddress, surplus, "Surplus", false);
+        ledgers.addSubAccount(testTokenAddress, testTokenAddress, surplus, "Surplus", false);
         vm.stopPrank();
 
         ERC20Wrapper testToken = ERC20Wrapper(testTokenAddress);
@@ -417,7 +419,6 @@ contract ERC20WrapperTest is Test {
         _assertIndexedHolder(testTokenAddress, bob);
         _assertIndexedHolder(testTokenAddress, carol);
         _assertIndexedHolder(testTokenAddress, surplus);
-        _assertIndexedHolder(testTokenAddress, address(ledgers));
         _assertIndexedHolder(testTokenAddress, address(0));
 
         assertEq(_indexedHolderCount(), 3, "indexed holder count");
@@ -461,66 +462,71 @@ contract ERC20WrapperTest is Test {
         assertEq(token.totalSupply(), 1_000);
     }
 
+    struct MatrixBuildCache {
+        address debitGroupRelative;
+        address creditGroupRelative;
+        address debitGroup;
+        address creditGroup;
+        address r2d;
+        address r2c;
+        address rd;
+        address rc;
+        string debitGroupName;
+        string creditGroupName;
+        string r2dName;
+        string r2cName;
+        string rdName;
+        string rcName;
+    }
+
     function _buildMatrixLegs(address root_, uint160 base_, string memory prefix_)
         private
         returns (MatrixLeg[] memory legs_)
     {
         legs_ = new MatrixLeg[](7);
+        MatrixBuildCache memory c;
 
-        address debitGroupRelative_ = address(base_ + 0x10);
-        address creditGroupRelative_ = address(base_ + 0x20);
-        (address debitGroup_,) =
-            ledgers.addSubAccountGroup(root_, debitGroupRelative_, string.concat(prefix_, "-debit-group"), false);
-        (address creditGroup_,) =
-            ledgers.addSubAccountGroup(root_, creditGroupRelative_, string.concat(prefix_, "-credit-group"), true);
+        c.debitGroupRelative = address(base_ + 0x10);
+        c.creditGroupRelative = address(base_ + 0x20);
+        c.debitGroupName = string.concat(prefix_, "-debit-group");
+        c.creditGroupName = string.concat(prefix_, "-credit-group");
+        (c.debitGroup,) = ledgers.addSubAccountGroup(root_, root_, c.debitGroupRelative, c.debitGroupName, false);
+        (c.creditGroup,) = ledgers.addSubAccountGroup(root_, root_, c.creditGroupRelative, c.creditGroupName, true);
 
-        address r2d_ = address(base_ + 0x04);
-        address r2c_ = address(base_ + 0x05);
-        address rd_ = address(base_ + 0x06);
-        address rc_ = address(base_ + 0x07);
-        ledgers.addSubAccount(root_, r2d_, string.concat(prefix_, "-r2d"), false);
-        ledgers.addSubAccount(root_, r2c_, string.concat(prefix_, "-r2c"), true);
-        ledgers.addSubAccount(debitGroup_, rd_, string.concat(prefix_, "-rd"), false);
-        ledgers.addSubAccount(creditGroup_, rc_, string.concat(prefix_, "-rc"), true);
+        c.r2d = address(base_ + 0x04);
+        c.r2c = address(base_ + 0x05);
+        c.rd = address(base_ + 0x06);
+        c.rc = address(base_ + 0x07);
+        c.r2dName = string.concat(prefix_, "-r2d");
+        c.r2cName = string.concat(prefix_, "-r2c");
+        c.rdName = string.concat(prefix_, "-rd");
+        c.rcName = string.concat(prefix_, "-rc");
+        ledgers.addSubAccount(root_, root_, c.r2d, c.r2dName, false);
+        ledgers.addSubAccount(root_, root_, c.r2c, c.r2cName, true);
+        ledgers.addSubAccount(root_, c.debitGroup, c.rd, c.rdName, false);
+        ledgers.addSubAccount(root_, c.creditGroup, c.rc, c.rcName, true);
 
         legs_[0] = MatrixLeg(root_, address(base_ + 0x01), 2, false, true); // U2D
-        legs_[1] = MatrixLeg(debitGroup_, address(base_ + 0x02), 3, false, true); // U>D
-        legs_[2] = MatrixLeg(creditGroup_, address(base_ + 0x03), 3, true, true); // U>C
-        legs_[3] = MatrixLeg(root_, r2d_, 2, false, false); // R2D
-        legs_[4] = MatrixLeg(root_, r2c_, 2, true, false); // R2C
-        legs_[5] = MatrixLeg(debitGroup_, rd_, 3, false, false); // R>D
-        legs_[6] = MatrixLeg(creditGroup_, rc_, 3, true, false); // R>C
+        legs_[1] = MatrixLeg(c.debitGroup, address(base_ + 0x02), 3, false, true); // U>D
+        legs_[2] = MatrixLeg(c.creditGroup, address(base_ + 0x03), 3, true, true); // U>C
+        legs_[3] = MatrixLeg(root_, c.r2d, 2, false, false); // R2D
+        legs_[4] = MatrixLeg(root_, c.r2c, 2, true, false); // R2C
+        legs_[5] = MatrixLeg(c.debitGroup, c.rd, 3, false, false); // R>D
+        legs_[6] = MatrixLeg(c.creditGroup, c.rc, 3, true, false); // R>C
     }
 
     function _expectedWrapperTransfer(MatrixLeg memory from_, MatrixLeg memory to_)
         private
-        view
+        pure
         returns (ExpectedWrapperTransfer memory expected_)
     {
-        if (from_.depth != 2 && to_.depth != 2) return expected_;
-
-        if (from_.isCredit == to_.isCredit) {
-            if (from_.isCredit) {
-                expected_.from = _projectCreditForCreditTransfer(to_);
-                expected_.to = _projectCreditForCreditTransfer(from_);
-            } else {
-                expected_.from = _projectDebit(from_);
-                expected_.to = _projectDebit(to_);
-            }
-        } else {
-            expected_.from = from_.isCredit ? address(0) : _projectDebit(from_);
-            expected_.to = to_.isCredit ? address(0) : _projectDebit(to_);
-        }
-
-        expected_.emitted = expected_.from != address(ledgers) || expected_.to != address(ledgers);
+        expected_.from = from_.isCredit ? address(0) : _holder(from_);
+        expected_.to = to_.isCredit ? address(0) : _holder(to_);
+        expected_.emitted = true;
     }
 
-    function _projectDebit(MatrixLeg memory leg_) private view returns (address) {
-        return leg_.depth == 2 && leg_.isUnregistered ? leg_.relative : address(ledgers);
-    }
-
-    function _projectCreditForCreditTransfer(MatrixLeg memory leg_) private view returns (address) {
-        return leg_.depth == 2 ? leg_.relative : address(ledgers);
+    function _holder(MatrixLeg memory leg_) private pure returns (address) {
+        return leg_.depth == 2 ? leg_.relative : LedgerLib.toAddress(leg_.parent, leg_.relative);
     }
 
     function _assertWrapperTransferLogs(
@@ -586,16 +592,14 @@ contract ERC20WrapperTest is Test {
             address from_ = address(uint160(uint256(logs_[i].topics[1])));
             address to_ = address(uint160(uint256(logs_[i].topics[2])));
 
-            assertTrue(_isAllowedExplorerEventAddress(from_), "unexpected Transfer from projection");
-            assertTrue(_isAllowedExplorerEventAddress(to_), "unexpected Transfer to projection");
-            assertTrue(from_ != registeredAccount_, "registered account leaked as Transfer from");
-            assertTrue(to_ != registeredAccount_, "registered account leaked as Transfer to");
+            assertTrue(_isAllowedExplorerEventAddress(from_, registeredAccount_), "unexpected Transfer from projection");
+            assertTrue(_isAllowedExplorerEventAddress(to_, registeredAccount_), "unexpected Transfer to projection");
         }
         assertGt(tokenTransferCount_, 0, "token Transfer logs");
     }
 
-    function _isAllowedExplorerEventAddress(address account_) private view returns (bool) {
-        return account_ == address(0) || account_ == address(ledgers) || account_ == alice || account_ == bob
+    function _isAllowedExplorerEventAddress(address account_, address registeredAccount_) private view returns (bool) {
+        return account_ == address(0) || account_ == registeredAccount_ || account_ == alice || account_ == bob
             || account_ == carol;
     }
 

@@ -10,18 +10,9 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // TreeView Manipulation
     // ─────────────────────────────────────────────────────────────────────────────
-    function addSubAccountGroup(address root, address holderParent, string memory name, bool isCredit)
-        external
-        returns (address addr, uint256 flags);
-
     function addSubAccountGroup(address root, address holderParent, address relative, string memory name, bool isCredit)
         external
         returns (address subAccount, uint256 flags);
-
-    /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
-    function addSubAccount(address root, address holderParent, string memory name, bool isCredit)
-        external
-        returns (address addr, uint256 flags);
 
     /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
     function addSubAccount(address root, address holderParent, address relative, string memory name, bool isCredit)
@@ -46,11 +37,7 @@ interface ILedger {
         string memory version
     ) external returns (address token, uint256 flags);
 
-    function removeSubAccountGroup(address root, address holderParent, string memory name) external returns (address);
-
     function removeSubAccountGroup(address root, address holderParent, address relative) external returns (address);
-
-    function removeSubAccount(address root, address holderParent, string memory name) external returns (address);
 
     function removeSubAccount(address root, address holderParent, address relative) external returns (address);
 

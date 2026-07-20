@@ -52,7 +52,7 @@ cavalre-contracts/
 - Internal root creation uses `createInternalToken(...)` and is deterministic/idempotent: the same `(name, symbol, decimals)` maps to the same root.
 - Claim root creation uses `createClaimToken(...)`; each claim root references one registered non-claim Ledger leaf account and is deterministic by `(name, symbol, decimals, claimAccount)`.
 - Canonical-root ERC20 exposure is optional and illustrated by `examples/LedgerERC20.sol`.
-- Each root auto-registers `address(0)` / `Zero Address` as the default credit source leaf.
+- Each root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as the default credit source leaf; `address(0)` is reserved for ERC20 mint/burn event projection.
 - Account flags are decoded through `LedgerLib.AccountKind` and `LedgerLib.TokenKind`; use exact helpers such as `isUnregisteredAccount`, `isUnregisteredToken`, `isInternal`, `isNative`, `isExternal`, and `isClaim`, plus composite account helpers such as `isGroup`, `isLedger`, and `isCredit`.
 
 ## Installation

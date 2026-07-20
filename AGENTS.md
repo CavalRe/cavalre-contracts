@@ -89,13 +89,13 @@ forge clean
 - **Group vs Leaf**: Groups (containers) or leaves (actual balances)
 - **Token kind**: Root type encoded in `LedgerLib.TokenKind` (`Native`, `External`, `Internal`, `Claim`)
 - **Registration**: Registered accounts have non-`Unregistered` `AccountKind`
-- **Address encoding**: Absolute account = `keccak256(abi.encodePacked(parentAbsolute, childRelative))` via `LedgerLib.toAddress()`
+- **Address taxonomy**: `absolute_` = global storage key, `holder_` = token-local ERC20 holder key, `relative_` = reusable child key. Use `LedgerLib.toAddress(root, holderParent, relative)` for storage keys.
 
 Special addresses / roots:
 
 - `NATIVE_ADDRESS` - native token (ETH)
 - all registered roots are debit groups
-- each root auto-registers `address(0)` / `Zero Address` as its default credit source leaf
+- each root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as its default credit source leaf; `address(0)` is ERC20 event-only
 - claim-token roots store the referenced absolute claim account in the packed root address slot
 
 **ERC20Wrapper**: Internal and claim roots are self-wrapped at creation. If a root has a wrapper, the wrapper address is the root address. Native/external roots do not get separate wrapper surfaces.

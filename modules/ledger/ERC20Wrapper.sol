@@ -122,7 +122,7 @@ contract ERC20Wrapper {
     // -------------------------------------------------------------------------
 
     function transfer(address to_, uint256 amount_) public returns (bool) {
-        ILedger(_dispatcher).transfer(address(this), msg.sender, address(this), to_, amount_);
+        ILedger(_dispatcher).transfer(address(this), address(this), msg.sender, address(this), to_, amount_);
         return true;
     }
 
@@ -134,7 +134,7 @@ contract ERC20Wrapper {
         if (current != type(uint256).max) {
             _allowances[from_][msg.sender] = current - amount_;
         }
-        ILedger(_dispatcher).transfer(address(this), from_, address(this), to_, amount_);
+        ILedger(_dispatcher).transfer(address(this), address(this), from_, address(this), to_, amount_);
         return true;
     }
 

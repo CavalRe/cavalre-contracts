@@ -20,13 +20,12 @@
 - transfer-side Ledger accounting emits `ILedger.Credit` / `ILedger.Debit`
 - canonical ERC20 transfers therefore inherit the same source-polarity gate as other user-facing transfer paths
 
-## Zero Address Balance
+## Source And Zero Address
 
-`address(0)` is a real depth-2 Ledger account under each root: `Zero Address`.
-It is the default credit source/sink used for mint-like and burn-like ledger
-movement. For that reason, `balanceOf(address(0))` on the ERC20 surface reports
-the Ledger balance of that account instead of forcing the vanilla ERC20
-compatibility value `0`.
+`LedgerLib.SOURCE_ADDRESS` / `Source` is the default credit source/sink under
+each root. `address(0)` is not a registered Ledger holder and is reserved for
+ERC20 `Transfer` mint/burn projection. ERC20 surfaces should report
+`balanceOf(address(0)) == 0`.
 
 ## Relationship To Ledger
 

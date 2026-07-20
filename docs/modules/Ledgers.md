@@ -30,7 +30,8 @@
 - native/external roots are registered as ledger roots without self-wrapped ERC20 surfaces
 - claim roots are created with `createClaimToken(...)`, reference one registered non-claim Ledger leaf account, and are deterministic by `(name, symbol, decimals, claimAccount)`
 - canonical root ERC20 UX is handled by `examples/LedgerERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `LedgerERC20Lib`
-- every root also auto-registers `address(0)` / `Zero Address` as its default credit source leaf
+- every root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as its default credit source leaf
+- `address(0)` is not a registered Ledger holder; it is reserved for ERC20 mint/burn event projection
 - `effectiveFlags(parent_, addr_)` returns `(effectiveFlags, originalFlags, absoluteAddress)` for possibly-unregistered derived leaves
 - `transfer(...)` returns the resolved root plus effective from/to flags
 - 5-arg `transfer(...)` is wrapper/canonical-ERC20 plumbing; 4-arg `transfer(...)` is direct user path
@@ -49,14 +50,24 @@ accounts.
 human-readable name. This is a child key. It is not a complete position in the
 ledger tree until it is anchored under a parent.
 
-`LedgerLib.toAddress(parent_, relative_)` derives the canonical absolute address
-for a specific point in the ledger tree. This is the primary tree identity:
+`LedgerLib.toAddress(parent_, relative_)` derives the next address in an address
+tree. Use it as `toAddress(holderParent, relative)` for holder addresses and as
+`toAddress(root, holder)` for global storage keys:
 
 ```solidity
-absolute = LedgerLib.toAddress(parent, relative);
+holder = LedgerLib.toAddress(holderParent, relative);
+absolute = LedgerLib.toAddress(root, holder);
 ```
 
-`LedgerLib.toAddress(parent_, name_)` is the convenience form:
+`LedgerLib.toAddress(root_, holderParent_, relative_)` derives a global storage
+key from token scope plus holder-parent scope:
+
+```solidity
+holder = holderParent == root ? relative : LedgerLib.toAddress(holderParent, relative);
+absolute = LedgerLib.toAddress(root, holder);
+```
+
+`LedgerLib.toAddress(parent_, name_)` derives a contextual relative holder:
 
 ```solidity
 LedgerLib.toAddress(parent, LedgerLib.toAddress(name));
@@ -80,7 +91,7 @@ Core fields include:
 Special addresses:
 
 - `NATIVE_ADDRESS`
-- per-root default credit source leaf at `address(0)` / `Zero Address`
+- per-root default credit source leaf at `LedgerLib.SOURCE_ADDRESS` / `Source`
 - claim root packed address slot stores the referenced absolute claim account
 
 ## Events
@@ -99,6 +110,11 @@ Primary ledger/accounting events:
 ERC20-style `Transfer` events are emitted by self-wrapped internal/claim token
 contracts through `ERC20Wrapper.emitTransfer(...)`. The Ledger accounting stream
 is `Credit` / `Debit`.
+
+The wrapper projection rule is deliberately simple for explorer compatibility:
+
+- credit holders project to `address(0)`
+- non-credit holders project to their holder address
 
 ## Testing
 
