@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import {ERC20Wrapper} from "./ERC20Wrapper.sol";
 import {ILedger} from "./ILedger.sol";
 
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
@@ -548,37 +547,6 @@ library LedgerLib {
         return addLedger(token_, _name, _symbol, _decimals, TokenKind.External, address(0));
     }
 
-    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
-        internal
-        returns (address _token, uint256 _flags)
-    {
-        if (!isValidString(name_) || !isValidString(symbol_)) {
-            revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
-        }
-
-        bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_, version_));
-        bytes memory _creationCode =
-            abi.encodePacked(type(ERC20Wrapper).creationCode, abi.encode(address(this), name_, symbol_, decimals_));
-        _token = Create2.computeAddress(_salt, keccak256(_creationCode));
-
-        if (root(_token) == _token) {
-            _flags = flags(address(0), AccountKind.DebitGroup, TokenKind.Internal, 1);
-            bool _sameFlags = _flags == flags(_token);
-            bool _sameWrapper = wrapper(_token) == _token;
-            if (_sameFlags && _sameWrapper) return (_token, _flags);
-            revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
-        }
-
-        if (_token.code.length != 0) revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
-
-        // Internal roots remain self-wrapped so the root address is immediately usable as an ERC20 surface.
-        _token = address(new ERC20Wrapper{salt: _salt}(address(this), name_, symbol_, decimals_));
-        _flags = addLedger(_token, name_, symbol_, decimals_, TokenKind.Internal, address(0));
-
-        Store storage s = store();
-        s.wrapper[_token] = _token;
-    }
-
     function addClaimToken(address token_, address root_, address holderParent_, address relative_)
         internal
         returns (uint256 _flags)
@@ -594,44 +562,6 @@ library LedgerLib {
         }
 
         return addLedger(token_, _name, _symbol, _decimals, TokenKind.Claim, _claimAccount);
-    }
-
-    function createClaimToken(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        address root_,
-        address holderParent_,
-        address relative_,
-        string memory version_
-    ) internal returns (address _token, uint256 _flags) {
-        if (!isValidString(name_) || !isValidString(symbol_)) {
-            revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
-        }
-        address _claimAccount = checkClaimAccount(address(0), root_, holderParent_, relative_);
-
-        bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_, version_));
-        _token = Create2.computeAddress(
-            _salt,
-            keccak256(
-                abi.encodePacked(type(ERC20Wrapper).creationCode, abi.encode(address(this), name_, symbol_, decimals_))
-            )
-        );
-
-        if (root(_token) == _token) {
-            _flags = flags(_claimAccount, AccountKind.DebitGroup, TokenKind.Claim, 1);
-            if (_flags == flags(_token) && wrapper(_token) == _token) return (_token, _flags);
-            revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
-        }
-
-        if (_token.code.length != 0) revert ILedger.InvalidToken(_token, name_, symbol_, decimals_);
-
-        _token = address(new ERC20Wrapper{salt: _salt}(address(this), name_, symbol_, decimals_));
-        if (root(_claimAccount) == _token) revert ILedger.InvalidLedgerAccount(_claimAccount);
-        _flags = addLedger(_token, name_, symbol_, decimals_, TokenKind.Claim, _claimAccount);
-
-        Store storage s = store();
-        s.wrapper[_token] = _token;
     }
 
     function removeSubAccountGroup(address root_, address holderParent_, string memory name_)

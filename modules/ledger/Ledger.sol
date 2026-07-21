@@ -46,33 +46,29 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     }
 
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](14);
+        _signatures = new string[](12);
         _signatures[0] = "initializeLedger(string,string)";
         _signatures[1] = "addSubAccountGroup(address,address,address,string,bool)";
         _signatures[2] = "addSubAccount(address,address,address,string,bool)";
         _signatures[3] = "addNativeToken()";
         _signatures[4] = "addExternalToken(address)";
-        _signatures[5] = "createInternalToken(string,string,uint8,string)";
-        _signatures[6] = "createClaimToken(string,string,uint8,address,address,address,string)";
-        _signatures[7] = "removeSubAccountGroup(address,address,address)";
-        _signatures[8] = "removeSubAccount(address,address,address)";
-        _signatures[9] = "transfer(address,address,address,address,address,uint256)";
-        _signatures[10] = "transfer(address,address,address,address,uint256)";
-        _signatures[11] = "wrap(address,uint256)";
-        _signatures[12] = "unwrap(address,uint256)";
-        _signatures[13] = "handleNative()";
+        _signatures[5] = "removeSubAccountGroup(address,address,address)";
+        _signatures[6] = "removeSubAccount(address,address,address)";
+        _signatures[7] = "transfer(address,address,address,address,address,uint256)";
+        _signatures[8] = "transfer(address,address,address,address,uint256)";
+        _signatures[9] = "wrap(address,uint256)";
+        _signatures[10] = "unwrap(address,uint256)";
+        _signatures[11] = "handleNative()";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](14);
+        _selectors = new bytes4[](12);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
         _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
-        _selectors[n++] = bytes4(keccak256("createInternalToken(string,string,uint8,string)"));
-        _selectors[n++] = bytes4(keccak256("createClaimToken(string,string,uint8,address,address,address,string)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
@@ -81,7 +77,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("handleNative()"));
 
-        if (n != 14) revert InvalidCommandsLength(n);
+        if (n != 12) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
@@ -128,27 +124,6 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     function addExternalToken(address token_) external returns (uint256 _flags) {
         enforceIsOwner();
         return LedgerLib.addExternalToken(token_);
-    }
-
-    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
-        external
-        returns (address _token, uint256 _flags)
-    {
-        enforceIsOwner();
-        return LedgerLib.createInternalToken(name_, symbol_, decimals_, version_);
-    }
-
-    function createClaimToken(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        address root_,
-        address holderParent_,
-        address relative_,
-        string memory version_
-    ) external returns (address _token, uint256 _flags) {
-        enforceIsOwner();
-        return LedgerLib.createClaimToken(name_, symbol_, decimals_, root_, holderParent_, relative_, version_);
     }
 
     function removeSubAccountGroup(address root_, address holderParent_, address relative_) external returns (address) {

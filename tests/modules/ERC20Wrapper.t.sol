@@ -9,6 +9,7 @@ import {Ledger} from "../../modules/ledger/Ledger.sol";
 import {ERC20Wrapper} from "../../modules/ledger/ERC20Wrapper.sol";
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
+import {LedgerTokenFactory} from "../../modules/ledger/LedgerTokenFactory.sol";
 import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {TreeView} from "../../modules/tree/TreeView.sol";
 
@@ -19,6 +20,7 @@ contract ERC20WrapperTest is Test {
 
     Dispatcher internal dispatcher;
     TestLedger internal ledgers; // will point to Dispatcher after module add
+    LedgerTokenFactory internal ledgerTokenFactory;
     LedgerView internal ledgerView;
     TreeView internal tree;
     ERC20Wrapper internal token;
@@ -56,16 +58,19 @@ contract ERC20WrapperTest is Test {
         // Deploy Ledger impl, register in Dispatcher, then speak to it at Dispatcher address
         if (isVerbose) console.log("Deploying Ledger impl");
         TestLedger impl = new TestLedger(18, 18);
+        LedgerTokenFactory ledgerTokenFactoryImpl = new LedgerTokenFactory();
         LedgerView ledgerViewImpl = new LedgerView();
         TreeView treeImpl = new TreeView();
         if (isVerbose) console.log("Deploying Dispatcher");
         dispatcher = new Dispatcher(owner);
         if (isVerbose) console.log("Registering Ledger impl");
         dispatcher.addModule(address(impl));
+        dispatcher.addModule(address(ledgerTokenFactoryImpl));
         dispatcher.addModule(address(ledgerViewImpl));
         dispatcher.addModule(address(treeImpl));
         if (isVerbose) console.log("Instantiating Test Ledger");
         ledgers = TestLedger(payable(address(dispatcher)));
+        ledgerTokenFactory = LedgerTokenFactory(payable(address(dispatcher)));
         ledgerView = LedgerView(payable(address(dispatcher)));
         tree = TreeView(payable(address(dispatcher)));
 
@@ -74,7 +79,7 @@ contract ERC20WrapperTest is Test {
         source_ = LedgerLib.SOURCE_ADDRESS;
 
         if (isVerbose) console.log("Adding new token to ledger");
-        (address token_,) = ledgers.createInternalToken("Internal Test Token", "ITT", 18, "");
+        (address token_,) = ledgerTokenFactory.createInternalToken("Internal Test Token", "ITT", 18, "");
         token = ERC20Wrapper(token_);
         ledgers.addSubAccount(address(token), address(token), source_, LedgerLib.SOURCE_NAME, true);
 
@@ -122,7 +127,7 @@ contract ERC20WrapperTest is Test {
     function testERC20WrapperCreateInternalToken() public {
         vm.startPrank(owner);
 
-        (address _newRoot,) = ledgers.createInternalToken("New Test Token", "NTT", 18, "");
+        (address _newRoot,) = ledgerTokenFactory.createInternalToken("New Test Token", "NTT", 18, "");
         address _newToken = _newRoot;
         assertEq(ERC20Wrapper(_newToken).name(), "New Test Token");
         assertEq(ERC20Wrapper(_newToken).symbol(), "NTT");
@@ -137,7 +142,7 @@ contract ERC20WrapperTest is Test {
     function testERC20WrapperClaimRootMintTransferBurn() public {
         vm.startPrank(owner);
         (address claimToken_,) =
-            ledgers.createClaimToken("Claim Token", "CLM", 18, address(token), address(token), source_, "");
+            ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, address(token), address(token), source_, "");
         vm.stopPrank();
 
         ERC20Wrapper claim = ERC20Wrapper(claimToken_);
@@ -247,7 +252,7 @@ contract ERC20WrapperTest is Test {
         address claimToken_;
 
         vm.startPrank(owner);
-        (claimToken_,) = ledgers.createClaimToken(
+        (claimToken_,) = ledgerTokenFactory.createClaimToken(
             "Matrix Claim Token", "MCT", 18, address(token), address(token), source_, ""
         );
         MatrixLeg[] memory froms = _buildMatrixLegs(claimToken_, 0x3000, "claim-from");
@@ -379,7 +384,7 @@ contract ERC20WrapperTest is Test {
         address surplus = LedgerLib.toAddress("Surplus");
 
         vm.startPrank(owner);
-        (testTokenAddress,) = ledgers.createInternalToken("Test Token", "TEST", 18, "");
+        (testTokenAddress,) = ledgerTokenFactory.createInternalToken("Test Token", "TEST", 18, "");
         ledgers.addSubAccount(testTokenAddress, testTokenAddress, surplus, "Surplus", false);
         vm.stopPrank();
 
