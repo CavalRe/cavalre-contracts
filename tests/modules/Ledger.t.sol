@@ -489,7 +489,8 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
         (address token_,) = ledger.createInternalToken("Neutral Token", "NT", 18, "");
         (address versionedToken_,) = ledger.createInternalToken("Neutral Token", "NT", 18, "v2");
-        (address versionedTokenAgain_,) = ledger.createInternalToken("Neutral Token", "NT", 18, "v2");
+        (address versionedTokenAgain_,) =
+            ledger.createInternalToken("Neutral Token", "NT", 18, "v2");
         vm.stopPrank();
 
         assertNotEq(versionedToken_, token_, "version changes address");
@@ -503,7 +504,8 @@ contract LedgerTest is Test {
 
     function testLedgerCreateClaimTokenIsIdempotent() public {
         vm.startPrank(alice);
-        (address token_, uint256 flags_) = ledger.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_, uint256 flags_) =
+            ledger.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         (address tokenAgain_, uint256 flagsAgain_) =
             ledger.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         vm.stopPrank();
@@ -522,7 +524,8 @@ contract LedgerTest is Test {
 
     function testLedgerCreateClaimTokenVersionChangesAddressOnly() public {
         vm.startPrank(alice);
-        (address token_, uint256 flags_) = ledger.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_, uint256 flags_) =
+            ledger.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         (address versionedToken_, uint256 versionedFlags_) =
             ledger.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "v2");
         (address versionedTokenAgain_, uint256 versionedFlagsAgain_) =

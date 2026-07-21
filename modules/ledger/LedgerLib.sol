@@ -556,9 +556,7 @@ library LedgerLib {
             revert ILedger.InvalidToken(address(0), name_, symbol_, decimals_);
         }
 
-        bytes32 _salt = bytes(version_).length == 0
-            ? keccak256(abi.encode(name_, symbol_, decimals_))
-            : keccak256(abi.encode(name_, symbol_, decimals_, version_));
+        bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_, version_));
         bytes memory _creationCode =
             abi.encodePacked(type(ERC20Wrapper).creationCode, abi.encode(address(this), name_, symbol_, decimals_));
         _token = Create2.computeAddress(_salt, keccak256(_creationCode));
@@ -612,9 +610,7 @@ library LedgerLib {
         }
         address _claimAccount = checkClaimAccount(address(0), root_, holderParent_, relative_);
 
-        bytes32 _salt = bytes(version_).length == 0
-            ? keccak256(abi.encode(name_, symbol_, decimals_, _claimAccount))
-            : keccak256(abi.encode(name_, symbol_, decimals_, _claimAccount, version_));
+        bytes32 _salt = keccak256(abi.encode(name_, symbol_, decimals_, version_));
         _token = Create2.computeAddress(
             _salt,
             keccak256(

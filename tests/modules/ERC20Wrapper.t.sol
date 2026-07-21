@@ -247,8 +247,9 @@ contract ERC20WrapperTest is Test {
         address claimToken_;
 
         vm.startPrank(owner);
-        (claimToken_,) =
-            ledgers.createClaimToken("Matrix Claim Token", "MCT", 18, address(token), address(token), source_, "");
+        (claimToken_,) = ledgers.createClaimToken(
+            "Matrix Claim Token", "MCT", 18, address(token), address(token), source_, ""
+        );
         MatrixLeg[] memory froms = _buildMatrixLegs(claimToken_, 0x3000, "claim-from");
         MatrixLeg[] memory tos = _buildMatrixLegs(claimToken_, 0x4000, "claim-to");
         vm.stopPrank();
