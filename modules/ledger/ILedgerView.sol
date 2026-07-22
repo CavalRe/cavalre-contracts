@@ -8,6 +8,9 @@ interface ILedgerView {
     function nativeName() external view returns (string memory);
     function nativeSymbol() external view returns (string memory);
     function nativeDecimals() external view returns (uint8);
+    function rootCount() external view returns (uint256);
+    function rootAt(uint256 index) external view returns (address);
+    function roots(uint256 start, uint256 limit) external view returns (address[] memory);
     function debitBalanceOf(address root, address holderParent, address relative) external view returns (uint256);
     function creditBalanceOf(address root, address holderParent, address relative) external view returns (uint256);
     function balanceOf(address root, address holderParent, address relative) external view returns (uint256);

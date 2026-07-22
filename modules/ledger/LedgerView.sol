@@ -7,35 +7,41 @@ import {LedgerLib} from "./LedgerLib.sol";
 
 contract LedgerView is Dispatchable, ILedgerView {
     function signatures() external pure override returns (string[] memory s) {
-        s = new string[](12);
+        s = new string[](15);
         s[0] = "name(address)";
         s[1] = "symbol(address)";
         s[2] = "decimals(address)";
         s[3] = "nativeName()";
         s[4] = "nativeSymbol()";
         s[5] = "nativeDecimals()";
-        s[6] = "debitBalanceOf(address,address,address)";
-        s[7] = "creditBalanceOf(address,address,address)";
-        s[8] = "balanceOf(address,address,address)";
-        s[9] = "totalSupply(address)";
-        s[10] = "isClaim(address)";
-        s[11] = "claimAccountOf(address)";
+        s[6] = "rootCount()";
+        s[7] = "rootAt(uint256)";
+        s[8] = "roots(uint256,uint256)";
+        s[9] = "debitBalanceOf(address,address,address)";
+        s[10] = "creditBalanceOf(address,address,address)";
+        s[11] = "balanceOf(address,address,address)";
+        s[12] = "totalSupply(address)";
+        s[13] = "isClaim(address)";
+        s[14] = "claimAccountOf(address)";
     }
 
     function selectors() external pure override returns (bytes4[] memory s) {
-        s = new bytes4[](12);
+        s = new bytes4[](15);
         s[0] = bytes4(keccak256("name(address)"));
         s[1] = bytes4(keccak256("symbol(address)"));
         s[2] = bytes4(keccak256("decimals(address)"));
         s[3] = bytes4(keccak256("nativeName()"));
         s[4] = bytes4(keccak256("nativeSymbol()"));
         s[5] = bytes4(keccak256("nativeDecimals()"));
-        s[6] = bytes4(keccak256("debitBalanceOf(address,address,address)"));
-        s[7] = bytes4(keccak256("creditBalanceOf(address,address,address)"));
-        s[8] = bytes4(keccak256("balanceOf(address,address,address)"));
-        s[9] = bytes4(keccak256("totalSupply(address)"));
-        s[10] = bytes4(keccak256("isClaim(address)"));
-        s[11] = bytes4(keccak256("claimAccountOf(address)"));
+        s[6] = bytes4(keccak256("rootCount()"));
+        s[7] = bytes4(keccak256("rootAt(uint256)"));
+        s[8] = bytes4(keccak256("roots(uint256,uint256)"));
+        s[9] = bytes4(keccak256("debitBalanceOf(address,address,address)"));
+        s[10] = bytes4(keccak256("creditBalanceOf(address,address,address)"));
+        s[11] = bytes4(keccak256("balanceOf(address,address,address)"));
+        s[12] = bytes4(keccak256("totalSupply(address)"));
+        s[13] = bytes4(keccak256("isClaim(address)"));
+        s[14] = bytes4(keccak256("claimAccountOf(address)"));
     }
 
     function name(address absolute_) external view returns (string memory) {
@@ -60,6 +66,18 @@ contract LedgerView is Dispatchable, ILedgerView {
 
     function nativeDecimals() external view returns (uint8) {
         return LedgerLib.nativeDecimals();
+    }
+
+    function rootCount() external view returns (uint256) {
+        return LedgerLib.rootCount();
+    }
+
+    function rootAt(uint256 index_) external view returns (address) {
+        return LedgerLib.rootAt(index_);
+    }
+
+    function roots(uint256 start_, uint256 limit_) external view returns (address[] memory) {
+        return LedgerLib.roots(start_, limit_);
     }
 
     function debitBalanceOf(address root_, address holderParent_, address relative_) external view returns (uint256) {

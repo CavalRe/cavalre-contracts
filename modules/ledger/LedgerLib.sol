@@ -29,6 +29,8 @@ library LedgerLib {
         mapping(address => string) symbol;
         mapping(address => uint8) decimals;
         mapping(address => address) root;
+        address[] roots;
+        mapping(address => uint256) rootIndex;
         mapping(address => address) wrapper;
         mapping(address parent => address[]) subs;
         mapping(address sub => uint32) subIndex;
@@ -115,6 +117,27 @@ library LedgerLib {
 
     function flags(address absolute_) internal view returns (uint256) {
         return store().flags[absolute_];
+    }
+
+    function rootCount() internal view returns (uint256) {
+        return store().roots.length;
+    }
+
+    function rootAt(uint256 index_) internal view returns (address) {
+        return store().roots[index_];
+    }
+
+    function roots(uint256 start_, uint256 limit_) internal view returns (address[] memory _roots) {
+        Store storage s = store();
+        uint256 _length = s.roots.length;
+        if (start_ >= _length) return new address[](0);
+
+        uint256 _available = _length - start_;
+        uint256 _count = limit_ < _available ? limit_ : _available;
+        _roots = new address[](_count);
+        for (uint256 i; i < _count; ++i) {
+            _roots[i] = s.roots[start_ + i];
+        }
     }
 
     function accountKind(uint256 flags_) internal pure returns (AccountKind) {
@@ -504,6 +527,8 @@ library LedgerLib {
         s.decimals[root_] = decimals_;
         s.root[root_] = root_;
         s.flags[root_] = _flags;
+        s.roots.push(root_);
+        s.rootIndex[root_] = s.roots.length;
 
         addSubAccount(root_, root_, SOURCE_ADDRESS, SOURCE_NAME, true);
         emit ILedger.LedgerAdded(root_, name_, symbol_, decimals_);

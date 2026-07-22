@@ -450,6 +450,51 @@ contract LedgerTest is Test {
         assertFalse(tree.isClaim(nativeFlags_), "native not claim");
     }
 
+    function testLedgerRootRegistryListsRegisteredRoots() public view {
+        assertEq(ledgerView.rootCount(), 4, "root count");
+        assertEq(ledgerView.rootAt(0), address(dispatcher), "dispatcher root");
+        assertEq(ledgerView.rootAt(1), testLedger, "test ledger root");
+        assertEq(ledgerView.rootAt(2), r1, "r1 root");
+        assertEq(ledgerView.rootAt(3), address(externalToken), "external root");
+
+        address[] memory roots_ = ledgerView.roots(1, 2);
+        assertEq(roots_.length, 2, "page length");
+        assertEq(roots_[0], testLedger, "page root 0");
+        assertEq(roots_[1], r1, "page root 1");
+
+        roots_ = ledgerView.roots(4, 10);
+        assertEq(roots_.length, 0, "empty page at end");
+
+        roots_ = ledgerView.roots(99, 10);
+        assertEq(roots_.length, 0, "empty page past end");
+    }
+
+    function testLedgerRootRegistryTracksAllRootTypesWithoutDuplicates() public {
+        vm.startPrank(alice);
+        ledger.addNativeToken();
+        ledger.addNativeToken();
+        (address internalToken_,) = ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "");
+        ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "");
+        (address claimToken_,) = ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        ledger.addExternalToken(address(unlistedToken));
+        ledger.addExternalToken(address(unlistedToken));
+        vm.stopPrank();
+
+        assertEq(ledgerView.rootCount(), 8, "root count");
+        assertEq(ledgerView.rootAt(4), native, "native root");
+        assertEq(ledgerView.rootAt(5), internalToken_, "internal root");
+        assertEq(ledgerView.rootAt(6), claimToken_, "claim root");
+        assertEq(ledgerView.rootAt(7), address(unlistedToken), "external root");
+
+        address[] memory roots_ = ledgerView.roots(4, 10);
+        assertEq(roots_.length, 4, "clipped page length");
+        assertEq(roots_[0], native, "page native");
+        assertEq(roots_[1], internalToken_, "page internal");
+        assertEq(roots_[2], claimToken_, "page claim");
+        assertEq(roots_[3], address(unlistedToken), "page external");
+    }
+
     function testLedgerAddNativeTokenUsesConfiguredNativeDecimals() public {
         TestLedger ledgerImpl_ = new TestLedger(18, 6);
         LedgerView ledgerViewImpl_ = new LedgerView();
