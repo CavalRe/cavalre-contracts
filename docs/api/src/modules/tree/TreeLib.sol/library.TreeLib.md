@@ -1,5 +1,5 @@
 # TreeLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/modules/tree/TreeLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/tree/TreeLib.sol)
 
 
 ## Functions
@@ -7,7 +7,10 @@
 
 
 ```solidity
-function node(address parent_, address addr_) internal view returns (TreeNode memory _node);
+function node(address root_, address holderParent_, address relative_)
+    internal
+    view
+    returns (TreeNode memory _node);
 ```
 
 ### tree
@@ -21,14 +24,14 @@ function tree(address root_) internal view returns (TreeNode[] memory _nodes);
 
 
 ```solidity
-function count(address addr_) internal view returns (uint256 _count);
+function count(address root_, address holderParent_, address relative_) internal view returns (uint256 _count);
 ```
 
 ### fill
 
 
 ```solidity
-function fill(address parent_, address addr_, TreeNode[] memory nodes_, uint256 n_)
+function fill(address root_, address holderParent_, address relative_, TreeNode[] memory nodes_, uint256 n_)
     internal
     view
     returns (uint256 _n);
@@ -38,7 +41,14 @@ function fill(address parent_, address addr_, TreeNode[] memory nodes_, uint256 
 
 
 ```solidity
-function logTree(address parent_, address addr_, string memory prefix_, bool isFirst_, bool isLast_) internal view;
+function logTree(
+    address root_,
+    address holderParent_,
+    address relative_,
+    string memory prefix_,
+    bool isFirst_,
+    bool isLast_
+) internal view;
 ```
 
 ### debugTree
@@ -75,8 +85,8 @@ struct TreeCache {
 
 ```solidity
 struct TreeNode {
-    address parent;
-    address addr;
+    address holderParent;
+    address relative;
     string name;
     bool isCredit;
     uint256 debit;

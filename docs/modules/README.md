@@ -92,15 +92,16 @@ This means the `Dispatcher` itself does not handle application logic - it only m
 
 # Ledger.sol
 
-The `Ledger` module owns token-root registration, hierarchical account trees, and double-entry postings.
+The `Ledger` module owns hierarchical account trees, native/external root registration, transfer routing, and double-entry postings.
 
 ## Current Root Model
 
 - canonical root is always registered at `address(this)` during `initializeLedger(...)`
 - internal roots are self-wrapped at creation, so the returned root address is immediately an ERC20 surface
 - claim roots are also self-wrapped at creation and reference one registered non-claim Ledger leaf account
-- internal root creation happens through `createInternalToken(...)` and is deterministic/idempotent by `(name, symbol, decimals)`
-- claim root creation happens through `createClaimToken(...)` and is deterministic/idempotent by `(name, symbol, decimals, claimAccount)`
+- external root registration happens through `Ledger.addExternalToken(address[])`
+- internal root creation happens through `LedgerTokenFactory.createInternalToken(TokenMetadata[])` and is deterministic/idempotent by `(name, symbol, decimals, version)`
+- claim root creation happens through `LedgerTokenFactory.createClaimToken(absoluteClaimAccount, TokenMetadata)` and is deterministic/idempotent by `(name, symbol, decimals, version)`
 - native and external roots are registered ledger roots without self-wrapped ERC20 surfaces
 - canonical-root ERC20 behavior lives in the example ERC20 module when installed
 - `LedgerLib.wrap(...)` / `LedgerLib.unwrap(...)` depend on registered roots, not wrapper existence
@@ -113,7 +114,7 @@ The `Ledger` module owns token-root registration, hierarchical account trees, an
 - token metadata by root (`name`, `symbol`, `decimals`)
 - tree management (`addSubAccount*`, `removeSubAccount*`)
 - root registration + per-root default source registration
-- claim-token reference registration
+- root-registry reads through `LedgerView.rootCount()`, `LedgerView.rootAt(index)`, and `LedgerView.roots(start, limit)`
 - transfer posting and total supply accounting
 - wrap/unwrap settlement logic
 

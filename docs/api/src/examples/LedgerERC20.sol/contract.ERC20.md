@@ -1,5 +1,5 @@
 # ERC20
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/examples/LedgerERC20.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/examples/LedgerERC20.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md)
@@ -9,8 +9,9 @@
 ### INITIALIZABLE_STORAGE
 
 ```solidity
-bytes32 private constant INITIALIZABLE_STORAGE =
-    keccak256(abi.encode(uint256(keccak256("cavalre.storage.ERC20.Initializable")) - 1)) & ~bytes32(uint256(0xff))
+bytes32 private constant INITIALIZABLE_STORAGE = keccak256(
+    abi.encode(uint256(keccak256("cavalre.storage.LedgerERC20.Initializable")) - 1)
+) & ~bytes32(uint256(0xff))
 ```
 
 

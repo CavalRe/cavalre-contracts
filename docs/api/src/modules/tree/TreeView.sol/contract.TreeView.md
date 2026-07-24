@@ -1,5 +1,5 @@
 # TreeView
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/modules/tree/TreeView.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/tree/TreeView.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md)
@@ -24,28 +24,28 @@ function selectors() external pure override returns (bytes4[] memory _selectors)
 
 
 ```solidity
-function root(address addr_) external view returns (address);
+function root(address absolute_) external view returns (address);
 ```
 
-### parent
+### holderParent
 
 
 ```solidity
-function parent(address addr_) external view returns (address);
+function holderParent(address absolute_) external view returns (address);
 ```
 
 ### flags
 
 
 ```solidity
-function flags(address addr_) external view returns (uint256);
+function flags(address absolute_) external view returns (uint256);
 ```
 
 ### wrapper
 
 
 ```solidity
-function wrapper(address token_) external view returns (address);
+function wrapper(address root_) external view returns (address);
 ```
 
 ### tree
@@ -66,7 +66,10 @@ function treeNode(address root_) external view returns (TreeLib.TreeNode memory)
 
 
 ```solidity
-function treeNode(address parent_, address addr_) external view returns (TreeLib.TreeNode memory);
+function treeNode(address root_, address holderParent_, address relative_)
+    external
+    view
+    returns (TreeLib.TreeNode memory);
 ```
 
 ### accountKind
@@ -150,7 +153,10 @@ function isCredit(uint256 flags_) external pure returns (bool);
 
 
 ```solidity
-function effectiveFlags(address parent_, address addr_) external view returns (uint256, uint256, address);
+function effectiveFlags(address root_, address holderParent_, address relative_)
+    external
+    view
+    returns (uint256, uint256, address);
 ```
 
 ### isUnregisteredToken
@@ -206,21 +212,21 @@ function claimAccount(uint256 flags_) external pure returns (address);
 
 
 ```solidity
-function subAccounts(address parent_) external view returns (address[] memory);
+function subAccounts(address absolute_) external view returns (address[] memory);
 ```
 
 ### hasSubAccount
 
 
 ```solidity
-function hasSubAccount(address parent_) external view returns (bool);
+function hasSubAccount(address absolute_) external view returns (bool);
 ```
 
 ### subAccountIndex
 
 
 ```solidity
-function subAccountIndex(address parent_, address addr_) external view returns (uint32);
+function subAccountIndex(address absolute_) external view returns (uint32);
 ```
 
 ### debugTree

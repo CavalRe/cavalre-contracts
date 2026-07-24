@@ -224,7 +224,7 @@ depth(rootFlags) == 1
 packedAddress(rootFlags) == address(0)
 ```
 
-- `addExternalToken` remains idempotent for matching ERC20 metadata.
+- `addExternalToken(address[])` remains idempotent for matching ERC20 metadata.
 - external roots are not self-wrapped; custody movement is handled by `wrap` / `unwrap`.
 - `wrap` uses `safeTransferFrom`.
 - `unwrap` uses `safeTransfer`.
@@ -239,7 +239,7 @@ depth(rootFlags) == 1
 packedAddress(rootFlags) == address(0)
 ```
 
-- `createInternalToken(...)` creates debit roots only.
+- `LedgerTokenFactory.createInternalToken(TokenMetadata[])` creates debit roots only.
 - internal roots remain self-wrapped.
 - credit-side accounting remains represented by non-root `CreditGroup` and `CreditLedger` accounts.
 
@@ -252,8 +252,8 @@ depth(rootFlags) == 1
 packedAddress(rootFlags) == claimAccount
 ```
 
-- `createClaimToken(...)` creates debit roots only.
-- claim root address derivation includes `(name, symbol, decimals, claimAccount)`.
+- `LedgerTokenFactory.createClaimToken(absoluteClaimAccount, TokenMetadata)` creates debit roots only.
+- claim root address derivation includes `(name, symbol, decimals, version)`.
 - claim roots are self-wrapped.
 - claim roots are classified by `isClaim(flags)` and are not internal by `isInternal(flags)`.
 - `wrap` and `unwrap` reject claim roots.
@@ -283,46 +283,42 @@ accountKind(accountFlags) != AccountKind.Unregistered
 function isClaim(uint256 flags_) internal pure returns (bool);
 function claimAccount(uint256 flags_) internal pure returns (address);
 function claimAccount(address token_) internal view returns (address);
-
-function addClaimToken(
-    address token_,
-    address parent_,
-    address addr_,
-    address defaultSourceAddress_,
-    string memory defaultSourceName_
-) internal returns (uint256 flags_);
-
-function createClaimToken(
-    string memory name_,
-    string memory symbol_,
-    uint8 decimals_,
-    address parent_,
-    address addr_,
-    address defaultSourceAddress_,
-    string memory defaultSourceName_
-) internal returns (address token_, uint256 flags_);
 ```
 
-`Ledger` exposes:
+`LedgerTokenFactory` exposes:
 
 ```solidity
-function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
+struct TokenMetadata {
+    string name;
+    string symbol;
+    uint8 decimals;
+    string version;
+}
+
+function createInternalToken(TokenMetadata[] memory tokens)
     external
-    returns (address token_, uint256 flags_);
+    returns (address[] memory tokenAddresses, uint256[] memory flags);
 
-function createClaimToken(
-    string memory name_,
-    string memory symbol_,
-    uint8 decimals_,
-    address parent_,
-    address addr_
-) external returns (address token_, uint256 flags_);
-
-function isClaim(address token_) external view returns (bool);
-function claimAccountOf(address token_) external view returns (address);
+function createClaimToken(address absoluteClaimAccount, TokenMetadata memory token)
+    external
+    returns (address tokenAddress, uint256 flags);
 ```
 
-`Ledger` does not expose external `addClaimToken` in v1. The library-level helper exists for future predeployed-token registration flows, but the module API stays smaller and only exposes deterministic claim-root creation.
+`LedgerTokenFactoryView` exposes deterministic token helpers:
+
+```solidity
+function tokenSalt(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
+    external
+    pure
+    returns (bytes32);
+
+function predictToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
+    external
+    view
+    returns (address);
+```
+
+`Ledger` exposes root registration for external tokens through `addExternalToken(address[])`, but internal and claim token creation live in `LedgerTokenFactory`.
 
 `Tree` exposes debug/introspection helpers for enum flags and claim roots:
 
@@ -401,8 +397,8 @@ Tests should cover:
 - transfer parent-walk behavior is unchanged
 - wrap/unwrap behavior is unchanged for native/external roots
 - wrap/unwrap reject internal and claim roots
-- `createInternalToken`, `addNativeToken`, and `addExternalToken` remain idempotent
-- `createInternalToken` creates debit roots only
+- `createInternalToken(TokenMetadata[])`, `addNativeToken`, and `addExternalToken(address[])` remain idempotent
+- `createInternalToken(TokenMetadata[])` creates debit roots only
 - claim token creation is idempotent
 - claim account cannot be unregistered
 - claim account cannot be a group account

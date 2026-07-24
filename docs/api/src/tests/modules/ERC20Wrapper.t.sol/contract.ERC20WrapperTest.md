@@ -1,5 +1,5 @@
 # ERC20WrapperTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/tests/modules/ERC20Wrapper.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/tests/modules/ERC20Wrapper.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -24,6 +24,13 @@ Dispatcher internal dispatcher
 
 ```solidity
 TestLedger internal ledgers
+```
+
+
+### ledgerTokenFactory
+
+```solidity
+LedgerTokenFactory internal ledgerTokenFactory
 ```
 
 
@@ -90,12 +97,57 @@ address internal source_
 ```
 
 
+### indexedHolders
+
+```solidity
+address[] internal indexedHolders
+```
+
+
+### indexedBalances
+
+```solidity
+mapping(address => uint256) internal indexedBalances
+```
+
+
 ## Functions
 ### setUp
 
 
 ```solidity
 function setUp() public;
+```
+
+### createInternalToken
+
+
+```solidity
+function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
+    internal
+    returns (address _tokenAddress, uint256 _flags);
+```
+
+### createClaimToken
+
+
+```solidity
+function createClaimToken(
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_,
+    address root_,
+    address holderParent_,
+    address relative_,
+    string memory version_
+) internal returns (address _tokenAddress, uint256 _flags);
+```
+
+### addExternalToken
+
+
+```solidity
+function addExternalToken(address token_) internal returns (uint256 _flags);
 ```
 
 ### testERC20WrapperInit
@@ -154,6 +206,20 @@ function testERC20WrapperZeroTransferEmitsTransfer() public;
 function testERC20WrapperTransferMatrix() public;
 ```
 
+### testERC20WrapperClaimRootTransferMatrix
+
+
+```solidity
+function testERC20WrapperClaimRootTransferMatrix() public;
+```
+
+### _assertTransferMatrix
+
+
+```solidity
+function _assertTransferMatrix(address root_, MatrixLeg[] memory froms, MatrixLeg[] memory tos) private;
+```
+
 ### testERC20WrapperApproveTransferFromandAllowanceMutators
 
 
@@ -175,6 +241,13 @@ function testERC20WrapperTransferFromExactAllowance() public;
 function testERC20WrapperMintBurnEmitsTransfer() public;
 ```
 
+### testERC20WrapperEtherscanStyleTransferIndexReconcilesHolders
+
+
+```solidity
+function testERC20WrapperEtherscanStyleTransferIndexReconcilesHolders() public;
+```
+
 ### testERC20WrapperLedgerWrapperFunctionsUnauthorized
 
 
@@ -193,7 +266,9 @@ function testERC20WrapperMultiHolderAccounting() public;
 
 
 ```solidity
-function _buildMatrixLegs(uint160 base_, string memory prefix_) private returns (MatrixLeg[] memory legs_);
+function _buildMatrixLegs(address root_, uint160 base_, string memory prefix_)
+    private
+    returns (MatrixLeg[] memory legs_);
 ```
 
 ### _expectedWrapperTransfer
@@ -202,30 +277,78 @@ function _buildMatrixLegs(uint160 base_, string memory prefix_) private returns 
 ```solidity
 function _expectedWrapperTransfer(MatrixLeg memory from_, MatrixLeg memory to_)
     private
-    view
+    pure
     returns (ExpectedWrapperTransfer memory expected_);
 ```
 
-### _projectDebit
+### _holder
 
 
 ```solidity
-function _projectDebit(MatrixLeg memory leg_) private view returns (address);
-```
-
-### _projectCreditForCreditTransfer
-
-
-```solidity
-function _projectCreditForCreditTransfer(MatrixLeg memory leg_) private view returns (address);
+function _holder(MatrixLeg memory leg_) private pure returns (address);
 ```
 
 ### _assertWrapperTransferLogs
 
 
 ```solidity
-function _assertWrapperTransferLogs(ExpectedWrapperTransfer memory expected_, uint256 fromIndex_, uint256 toIndex_)
-    private;
+function _assertWrapperTransferLogs(
+    address root_,
+    ExpectedWrapperTransfer memory expected_,
+    uint256 fromIndex_,
+    uint256 toIndex_
+) private;
+```
+
+### _indexTokenTransferLogs
+
+
+```solidity
+function _indexTokenTransferLogs(address token_, Vm.Log[] memory logs_) private;
+```
+
+### _assertExplorerEventAddressProjection
+
+
+```solidity
+function _assertExplorerEventAddressProjection(address token_, Vm.Log[] memory logs_, address registeredAccount_)
+    private
+    view;
+```
+
+### _isAllowedExplorerEventAddress
+
+
+```solidity
+function _isAllowedExplorerEventAddress(address account_, address registeredAccount_) private view returns (bool);
+```
+
+### _trackIndexedHolder
+
+
+```solidity
+function _trackIndexedHolder(address holder_) private;
+```
+
+### _assertIndexedHolder
+
+
+```solidity
+function _assertIndexedHolder(address token_, address holder_) private view;
+```
+
+### _indexedHolderCount
+
+
+```solidity
+function _indexedHolderCount() private view returns (uint256 count_);
+```
+
+### _indexedSupply
+
+
+```solidity
+function _indexedSupply() private view returns (uint256 supply_);
 ```
 
 ### _matrixCellLabel
@@ -265,6 +388,27 @@ struct ExpectedWrapperTransfer {
     bool emitted;
     address from;
     address to;
+}
+```
+
+### MatrixBuildCache
+
+```solidity
+struct MatrixBuildCache {
+    address debitGroupRelative;
+    address creditGroupRelative;
+    address debitGroup;
+    address creditGroup;
+    address r2d;
+    address r2c;
+    address rd;
+    address rc;
+    string debitGroupName;
+    string creditGroupName;
+    string r2dName;
+    string r2cName;
+    string rdName;
+    string rcName;
 }
 ```
 

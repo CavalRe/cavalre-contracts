@@ -37,7 +37,8 @@ cavalre-contracts/
 
 - **Dispatchable.sol**: Abstract base contract for modules installed behind a dispatcher.
 - **Dispatcher.sol**: Immutable entrypoint that delegates calls to installed modules via `delegatecall`.
-- **Ledger.sol**: Hierarchical double-entry accounting, token-root registration, claim-token registration, transfer routing, and external/native wrap settlement.
+- **Ledger.sol**: Hierarchical double-entry accounting, native/external root registration, transfer routing, and external/native wrap settlement.
+- **LedgerTokenFactory.sol**: Deterministic internal and claim token-root creation.
 - **LedgerERC20.sol**: Optional canonical-root ERC20 surface layered over `LedgerLib` state via the Dispatcher.
 - **TreeView.sol**: Topology/debug surface for account-tree introspection and `debugTree(s)`.
 - **FloatLib.sol**: Custom fixed-point math library for precision arithmetic with dynamic scaling.
@@ -49,10 +50,12 @@ cavalre-contracts/
 - Root token kind is encoded as `Native`, `External`, `Internal`, or `Claim`.
 - Internal and claim roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
 - Native and external roots do not get separate wrapper surfaces.
-- Internal root creation uses `createInternalToken(...)` and is deterministic/idempotent: the same `(name, symbol, decimals)` maps to the same root.
-- Claim root creation uses `createClaimToken(...)`; each claim root references one registered non-claim Ledger leaf account and is deterministic by `(name, symbol, decimals, claimAccount)`.
+- External root registration uses `Ledger.addExternalToken(address[])`.
+- Internal root creation uses `LedgerTokenFactory.createInternalToken(TokenMetadata[])` and is deterministic/idempotent: the same `(name, symbol, decimals, version)` maps to the same root.
+- Claim root creation uses `LedgerTokenFactory.createClaimToken(absoluteClaimAccount, TokenMetadata)`; each claim root references one registered non-claim absolute Ledger leaf account and is deterministic by `(name, symbol, decimals, version)`.
+- `LedgerView` exposes root-registry pagination through `rootCount()`, `rootAt(index)`, and `roots(start, limit)`.
 - Canonical-root ERC20 exposure is optional and illustrated by `examples/LedgerERC20.sol`.
-- Each root auto-registers `address(0)` / `Zero Address` as the default credit source leaf.
+- Each root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as the default credit source leaf; `address(0)` is reserved for ERC20 mint/burn event projection.
 - Account flags are decoded through `LedgerLib.AccountKind` and `LedgerLib.TokenKind`; use exact helpers such as `isUnregisteredAccount`, `isUnregisteredToken`, `isInternal`, `isNative`, `isExternal`, and `isClaim`, plus composite account helpers such as `isGroup`, `isLedger`, and `isCredit`.
 
 ## Installation

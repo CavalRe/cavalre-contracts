@@ -1,5 +1,5 @@
 # IDispatcher
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/modules/dispatcher/IDispatcher.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/dispatcher/IDispatcher.sol)
 
 
 ## Functions
@@ -7,14 +7,14 @@
 
 
 ```solidity
-function addModule(address module_) external;
+function addModule(address[] memory modules_) external;
 ```
 
 ### removeModule
 
 
 ```solidity
-function removeModule(address module_) external;
+function removeModule(address[] memory modules_) external;
 ```
 
 ### modules
@@ -118,6 +118,12 @@ error CommandNotFound(bytes4 command);
 
 ```solidity
 error CommandInWrongModule(bytes4 command, address expectedModule, address actualModule);
+```
+
+### ModuleAlreadyAdded
+
+```solidity
+error ModuleAlreadyAdded(address module);
 ```
 
 ### ModuleNotFound

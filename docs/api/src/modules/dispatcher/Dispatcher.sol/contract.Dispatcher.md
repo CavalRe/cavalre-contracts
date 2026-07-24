@@ -1,5 +1,5 @@
 # Dispatcher
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/modules/dispatcher/Dispatcher.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/dispatcher/Dispatcher.sol)
 
 **Inherits:**
 [IDispatcher](/modules/dispatcher/IDispatcher.sol/interface.IDispatcher.md)
@@ -31,14 +31,14 @@ receive() external payable;
 
 
 ```solidity
-function addModule(address module_) external override;
+function addModule(address[] memory modules_) external override;
 ```
 
 ### removeModule
 
 
 ```solidity
-function removeModule(address module_) external override;
+function removeModule(address[] memory modules_) external override;
 ```
 
 ### owner

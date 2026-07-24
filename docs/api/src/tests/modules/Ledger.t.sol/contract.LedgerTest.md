@@ -1,5 +1,5 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -24,6 +24,20 @@ Dispatcher dispatcher
 
 ```solidity
 TestLedger ledger
+```
+
+
+### ledgerTokenFactory
+
+```solidity
+LedgerTokenFactory ledgerTokenFactory
+```
+
+
+### ledgerTokenFactoryView
+
+```solidity
+LedgerTokenFactoryView ledgerTokenFactoryView
 ```
 
 
@@ -203,6 +217,37 @@ address source_
 function setUp() public;
 ```
 
+### createInternalToken
+
+
+```solidity
+function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
+    internal
+    returns (address _tokenAddress, uint256 _flags);
+```
+
+### createClaimToken
+
+
+```solidity
+function createClaimToken(
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_,
+    address root_,
+    address holderParent_,
+    address relative_,
+    string memory version_
+) internal returns (address _tokenAddress, uint256 _flags);
+```
+
+### addExternalToken
+
+
+```solidity
+function addExternalToken(address token_) internal returns (uint256 _flags);
+```
+
 ### testLedgerInit
 
 
@@ -224,6 +269,20 @@ function testNativeWrapperNotCreatedDuringInit() public view;
 function testLedgerAddNativeTokenIsIdempotentWithoutWrapper() public;
 ```
 
+### testLedgerRootRegistryListsRegisteredRoots
+
+
+```solidity
+function testLedgerRootRegistryListsRegisteredRoots() public view;
+```
+
+### testLedgerRootRegistryTracksAllRootTypesWithoutDuplicates
+
+
+```solidity
+function testLedgerRootRegistryTracksAllRootTypesWithoutDuplicates() public;
+```
+
 ### testLedgerAddNativeTokenUsesConfiguredNativeDecimals
 
 
@@ -238,6 +297,13 @@ function testLedgerAddNativeTokenUsesConfiguredNativeDecimals() public;
 function testLedgerCreateInternalTokenDoesNotRegisterUnderRoot() public;
 ```
 
+### testLedgerTokenFactoryViewPredictsCreatedToken
+
+
+```solidity
+function testLedgerTokenFactoryViewPredictsCreatedToken() public;
+```
+
 ### testLedgerCreateInternalTokenIsIdempotent
 
 
@@ -245,11 +311,25 @@ function testLedgerCreateInternalTokenDoesNotRegisterUnderRoot() public;
 function testLedgerCreateInternalTokenIsIdempotent() public;
 ```
 
+### testLedgerCreateInternalTokenVersionChangesAddressOnly
+
+
+```solidity
+function testLedgerCreateInternalTokenVersionChangesAddressOnly() public;
+```
+
 ### testLedgerCreateClaimTokenIsIdempotent
 
 
 ```solidity
 function testLedgerCreateClaimTokenIsIdempotent() public;
+```
+
+### testLedgerCreateClaimTokenVersionChangesAddressOnly
+
+
+```solidity
+function testLedgerCreateClaimTokenVersionChangesAddressOnly() public;
 ```
 
 ### testLedgerWrapRejectsClaimRoot
@@ -511,11 +591,60 @@ function testLedgerBurn() public;
 function testLedgerWrapExternalToken() public;
 ```
 
+### testLedgerWrapExternalTokenUsesExplicitPayer
+
+
+```solidity
+function testLedgerWrapExternalTokenUsesExplicitPayer() public;
+```
+
 ### testLedgerWrapExternalTokenRejectsDirectValue
 
 
 ```solidity
 function testLedgerWrapExternalTokenRejectsDirectValue() public;
+```
+
+### testLedgerWrapRejectsFeeOnTransferToken
+
+
+```solidity
+function testLedgerWrapRejectsFeeOnTransferToken() public;
+```
+
+### testLedgerUnwrapRejectsFeeOnTransferToken
+
+
+```solidity
+function testLedgerUnwrapRejectsFeeOnTransferToken() public;
+```
+
+### testLedgerHandleNativeWrapsMsgValueToSender
+
+
+```solidity
+function testLedgerHandleNativeWrapsMsgValueToSender() public;
+```
+
+### testLedgerWrapNativeRejectsExplicitNonCallerPayer
+
+
+```solidity
+function testLedgerWrapNativeRejectsExplicitNonCallerPayer() public;
+```
+
+### testLedgerUnwrapNativeUsesExplicitRecipient
+
+
+```solidity
+function testLedgerUnwrapNativeUsesExplicitRecipient() public;
+```
+
+### testDispatcherReceiveWrapsNativeToOriginalSender
+
+
+```solidity
+function testDispatcherReceiveWrapsNativeToOriginalSender() public;
 ```
 
 ### testLedgerEnforceNativeValue
@@ -532,11 +661,32 @@ function testLedgerEnforceNativeValue() public;
 function testLedgerUnwrapExternalToken() public;
 ```
 
+### testLedgerUnwrapExternalTokenUsesExplicitRecipient
+
+
+```solidity
+function testLedgerUnwrapExternalTokenUsesExplicitRecipient() public;
+```
+
+### testLedgerUnwrapExternalTokenRevertsWhenUndercollateralized
+
+
+```solidity
+function testLedgerUnwrapExternalTokenRevertsWhenUndercollateralized() public;
+```
+
 ### testLedgerUnwrapExternalTokenRejectsDirectValue
 
 
 ```solidity
 function testLedgerUnwrapExternalTokenRejectsDirectValue() public;
+```
+
+### testLedgerUnwrapNativeRevertsWhenUndercollateralized
+
+
+```solidity
+function testLedgerUnwrapNativeRevertsWhenUndercollateralized() public;
 ```
 
 ### testLedgerUnwrapExternalTokenAfterNativeWrapAllowsCallValue
@@ -567,11 +717,123 @@ function testLedgerWrapClaimRootReverts() public;
 function testLedgerUnwrapClaimRootReverts() public;
 ```
 
+### testLedgerWrap
+
+
+```solidity
+function testLedgerWrap() public;
+```
+
+### testLedgerWrapUsesExplicitSourceNotCaller
+
+
+```solidity
+function testLedgerWrapUsesExplicitSourceNotCaller() public;
+```
+
+### testLedgerWrapInvalidSourceParentReverts
+
+
+```solidity
+function testLedgerWrapInvalidSourceParentReverts() public;
+```
+
+### testLedgerWrapCrossRootSourceRevertsDifferentRoots
+
+
+```solidity
+function testLedgerWrapCrossRootSourceRevertsDifferentRoots() public;
+```
+
+### testLedgerWrapRequiresCreditSourceAndDebitDestination
+
+
+```solidity
+function testLedgerWrapRequiresCreditSourceAndDebitDestination() public;
+```
+
+### testLedgerUnwrapToDifferentEmptyCreditSourceReverts
+
+
+```solidity
+function testLedgerUnwrapToDifferentEmptyCreditSourceReverts() public;
+```
+
+### testLedgerUnwrapRequiresDebitSourceAndCreditDestination
+
+
+```solidity
+function testLedgerUnwrapRequiresDebitSourceAndCreditDestination() public;
+```
+
+### testLedgerUnwrapDoesNotRequireCallerLedgerBalance
+
+
+```solidity
+function testLedgerUnwrapDoesNotRequireCallerLedgerBalance() public;
+```
+
+### testLedgerWrapNative
+
+
+```solidity
+function testLedgerWrapNative() public;
+```
+
+### testLedgerWrapReentrancyGuard
+
+
+```solidity
+function testLedgerWrapReentrancyGuard() public;
+```
+
+### testLedgerWrapNativeIncorrectValue
+
+
+```solidity
+function testLedgerWrapNativeIncorrectValue() public;
+```
+
+### testLedgerWrapNonNativeRejectsValue
+
+
+```solidity
+function testLedgerWrapNonNativeRejectsValue() public;
+```
+
+### testLedgerUnwrapNative
+
+
+```solidity
+function testLedgerUnwrapNative() public;
+```
+
+### testLedgerUnwrapNativeRejectsValue
+
+
+```solidity
+function testLedgerUnwrapNativeRejectsValue() public;
+```
+
+### testLedgerUnwrapNonNativeRejectsValue
+
+
+```solidity
+function testLedgerUnwrapNonNativeRejectsValue() public;
+```
+
 ### testLedgerTransfer
 
 
 ```solidity
 function testLedgerTransfer() public;
+```
+
+### testLedgerExplicitTransferAuthenticatesBeforeAccounting
+
+
+```solidity
+function testLedgerExplicitTransferAuthenticatesBeforeAccounting() public;
 ```
 
 ### testLedgerTransferAcrossSiblingBranchesPreservesAncestorBalance

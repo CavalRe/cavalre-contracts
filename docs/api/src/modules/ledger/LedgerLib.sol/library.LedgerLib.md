@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/modules/ledger/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/ledger/LedgerLib.sol)
 
 
 ## State Variables
@@ -8,6 +8,20 @@
 ```solidity
 bytes32 private constant STORE_POSITION =
     keccak256(abi.encode(uint256(keccak256("cavalre.storage.Ledger")) - 1)) & ~bytes32(uint256(0xff))
+```
+
+
+### SOURCE_NAME
+
+```solidity
+string internal constant SOURCE_NAME = "Source"
+```
+
+
+### SOURCE_ADDRESS
+
+```solidity
+address internal constant SOURCE_ADDRESS = 0x245f14e61ecde591FD8B445DC8e2bF76da4505E6
 ```
 
 
@@ -131,7 +145,28 @@ function flags(address packedAddress_, AccountKind accountKind_, TokenKind token
 
 
 ```solidity
-function flags(address addr_) internal view returns (uint256);
+function flags(address absolute_) internal view returns (uint256);
+```
+
+### rootCount
+
+
+```solidity
+function rootCount() internal view returns (uint256);
+```
+
+### rootAt
+
+
+```solidity
+function rootAt(uint256 index_) internal view returns (address);
+```
+
+### roots
+
+
+```solidity
+function roots(uint256 start_, uint256 limit_) internal view returns (address[] memory _roots);
 ```
 
 ### accountKind
@@ -155,11 +190,11 @@ function tokenKind(uint256 flags_) internal pure returns (TokenKind);
 function packedAddress(uint256 flags_) internal pure returns (address);
 ```
 
-### parent
+### holderParent
 
 
 ```solidity
-function parent(uint256 flags_) internal pure returns (address);
+function holderParent(uint256 flags_) internal pure returns (address);
 ```
 
 ### isUnregisteredAccount
@@ -222,10 +257,10 @@ function isCredit(uint256 flags_) internal pure returns (bool);
 
 
 ```solidity
-function effectiveFlags(address parent_, address addr_)
+function effectiveFlags(address root_, address holderParent_, address relative_)
     internal
     view
-    returns (uint256 _effectiveFlags, uint256 _originalFlags, address _current);
+    returns (uint256 _effectiveFlags, uint256 _originalFlags, address _absolute);
 ```
 
 ### isUnregisteredToken
@@ -284,24 +319,18 @@ function isClaim(uint256 flags_) internal pure returns (bool);
 function claimAccount(uint256 flags_) internal pure returns (address);
 ```
 
-### claimAccount
-
-
-```solidity
-function claimAccount(address token_) internal view returns (address);
-```
-
 ### checkClaimAccount
 
 
 ```solidity
-function checkClaimAccount(address token_, address parent_, address addr_)
-    internal
-    view
-    returns (address _claimAccount);
+function checkClaimAccount(address claimTokenAddress_, address absoluteClaimAccount_) internal view;
 ```
 
 ### toAddress
+
+Derives a relative address from a human-readable name.
+
+Relative addresses are reusable across token trees and become holder addresses under a holder parent.
 
 
 ```solidity
@@ -310,171 +339,194 @@ function toAddress(string memory name_) internal pure returns (address);
 
 ### toAddress
 
+Derives the next address in an address tree.
+
+Use `toAddress(holderParent, relative)` for holders, and `toAddress(root, holder)` for absolute keys.
+
 
 ```solidity
-function toAddress(address parent_, address ledger_) internal pure returns (address);
+function toAddress(address base_, address relative_) internal pure returns (address);
 ```
 
 ### toAddress
 
+Derives an absolute Ledger storage address in root scope.
+
+First derives the holder from `holderParent_ + relative_`, then projects it through `root_`.
+
 
 ```solidity
-function toAddress(address parent_, string memory name_) internal pure returns (address);
+function toAddress(address root_, address holderParent_, address relative_) internal pure returns (address);
+```
+
+### toAddress
+
+Derives a named relative address in a holder-parent context.
+
+This is a contextual relative value, not an absolute Ledger storage key.
+
+
+```solidity
+function toAddress(address holderParent_, string memory name_) internal pure returns (address);
 ```
 
 ### name
 
 
 ```solidity
-function name(address addr_, string memory name_) internal;
+function name(address absolute_, string memory name_) internal;
 ```
 
 ### symbol
 
 
 ```solidity
-function symbol(address addr_, string memory symbol_) internal;
+function symbol(address absolute_, string memory symbol_) internal;
 ```
 
 ### decimals
 
 
 ```solidity
-function decimals(address addr_, uint8 decimals_) internal;
+function decimals(address absolute_, uint8 decimals_) internal;
 ```
 
 ### name
 
 
 ```solidity
-function name(address addr_) internal view returns (string memory);
+function name(address absolute_) internal view returns (string memory);
 ```
 
 ### symbol
 
 
 ```solidity
-function symbol(address addr_) internal view returns (string memory);
+function symbol(address absolute_) internal view returns (string memory);
 ```
 
 ### decimals
 
 
 ```solidity
-function decimals(address addr_) internal view returns (uint8);
+function decimals(address absolute_) internal view returns (uint8);
 ```
 
 ### root
 
 
 ```solidity
-function root(address addr_) internal view returns (address);
-```
-
-### parent
-
-
-```solidity
-function parent(address addr_) internal view returns (address);
+function root(address absolute_) internal view returns (address);
 ```
 
 ### wrapper
 
 
 ```solidity
-function wrapper(address addr_) internal view returns (address);
+function wrapper(address absolute_) internal view returns (address);
 ```
 
 ### subAccounts
 
 
 ```solidity
-function subAccounts(address addr_) internal view returns (address[] memory);
+function subAccounts(address absolute_) internal view returns (address[] memory);
 ```
 
 ### subAccount
 
 
 ```solidity
-function subAccount(address parent_, uint256 index_) internal view returns (address);
+function subAccount(address absolute_, uint256 index_) internal view returns (address);
 ```
 
 ### hasSubAccount
 
 
 ```solidity
-function hasSubAccount(address addr_) internal view returns (bool);
+function hasSubAccount(address absolute_) internal view returns (bool);
 ```
 
 ### subAccountIndex
 
 
 ```solidity
-function subAccountIndex(address parent_, address addr_) internal view returns (uint32);
+function subAccountIndex(address absolute_) internal view returns (uint32);
+```
+
+### toSubIndex
+
+
+```solidity
+function toSubIndex(uint256 index_) private pure returns (uint32);
 ```
 
 ### debitBalanceOf
 
 
 ```solidity
-function debitBalanceOf(address addr_) internal view returns (uint256);
+function debitBalanceOf(address absolute_) internal view returns (uint256);
 ```
 
 ### creditBalanceOf
 
 
 ```solidity
-function creditBalanceOf(address addr_) internal view returns (uint256);
+function creditBalanceOf(address absolute_) internal view returns (uint256);
 ```
 
 ### balanceOf
 
 
 ```solidity
-function balanceOf(address addr_, bool isCredit_) internal view returns (uint256 _balance);
+function balanceOf(address absolute_, bool isCredit_) internal view returns (uint256 _balance);
 ```
 
 ### totalSupply
 
 
 ```solidity
-function totalSupply(address token_) internal view returns (uint256 _supply);
+function totalSupply(address root_) internal view returns (uint256 _supply);
 ```
 
 ### addSubAccountGroup
 
 
 ```solidity
-function addSubAccountGroup(address parent_, string memory name_, bool isCredit_)
+function addSubAccountGroup(address root_, address holderParent_, string memory name_, bool isCredit_)
     internal
-    returns (address _addr, uint256 _flags);
+    returns (address _holder, uint256 _flags);
 ```
 
 ### addSubAccountGroup
 
 
 ```solidity
-function addSubAccountGroup(address parent_, address addr_, string memory name_, bool isCredit_)
-    internal
-    returns (address _addr, uint256 _flags);
+function addSubAccountGroup(
+    address root_,
+    address holderParent_,
+    address relative_,
+    string memory name_,
+    bool isCredit_
+) internal returns (address _holder, uint256 _flags);
 ```
 
 ### addSubAccount
 
 
 ```solidity
-function addSubAccount(address parent_, string memory name_, bool isCredit_)
+function addSubAccount(address root_, address holderParent_, string memory name_, bool isCredit_)
     internal
-    returns (address _addr, uint256 _flags);
+    returns (address _holder, uint256 _flags);
 ```
 
 ### addSubAccount
 
 
 ```solidity
-function addSubAccount(address parent_, address addr_, string memory name_, bool isCredit_)
+function addSubAccount(address root_, address holderParent_, address relative_, string memory name_, bool isCredit_)
     internal
-    returns (address _addr, uint256 _flags);
+    returns (address _holder, uint256 _flags);
 ```
 
 ### addLedger
@@ -533,61 +585,38 @@ function addNativeToken() internal returns (uint256 _flags);
 function addExternalToken(address token_) internal returns (uint256 _flags);
 ```
 
-### createInternalToken
+### removeSubAccountGroup
 
 
 ```solidity
-function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_)
+function removeSubAccountGroup(address root_, address holderParent_, string memory name_)
     internal
-    returns (address _token, uint256 _flags);
-```
-
-### addClaimToken
-
-
-```solidity
-function addClaimToken(address token_, address parent_, address addr_) internal returns (uint256 _flags);
-```
-
-### createClaimToken
-
-
-```solidity
-function createClaimToken(
-    string memory name_,
-    string memory symbol_,
-    uint8 decimals_,
-    address parent_,
-    address addr_
-) internal returns (address _token, uint256 _flags);
+    returns (address);
 ```
 
 ### removeSubAccountGroup
 
 
 ```solidity
-function removeSubAccountGroup(address parent_, string memory name_) internal returns (address);
-```
-
-### removeSubAccountGroup
-
-
-```solidity
-function removeSubAccountGroup(address parent_, address addr_) internal returns (address _addr);
+function removeSubAccountGroup(address root_, address holderParent_, address relative_)
+    internal
+    returns (address _holder);
 ```
 
 ### removeSubAccount
 
 
 ```solidity
-function removeSubAccount(address parent_, string memory name_) internal returns (address);
+function removeSubAccount(address root_, address holderParent_, string memory name_) internal returns (address);
 ```
 
 ### removeSubAccount
 
 
 ```solidity
-function removeSubAccount(address parent_, address addr_) internal returns (address);
+function removeSubAccount(address root_, address holderParent_, address relative_)
+    internal
+    returns (address _holder);
 ```
 
 ### _update
@@ -607,42 +636,81 @@ function _update(
 
 
 ```solidity
-function setAccountCache(address parent_, address addr_) private view returns (AccountCache memory _acct);
+function setAccountCache(address root_, address holderParent_, address relative_)
+    private
+    view
+    returns (AccountCache memory _acct);
 ```
 
 ### emitWrapperTransfer
 
 
 ```solidity
-function emitWrapperTransfer(address root_, AccountCache memory from_, AccountCache memory to_, uint256 amount_)
-    private;
+function emitWrapperTransfer(
+    address root_,
+    AccountCache memory from_,
+    bool fromIsCredit_,
+    AccountCache memory to_,
+    bool toIsCredit_,
+    uint256 amount_
+) private;
+```
+
+### enforceTransfer
+
+
+```solidity
+function enforceTransfer(
+    address root_,
+    address fromHolderParent_,
+    address from_,
+    address toHolderParent_,
+    address to_
+) internal view returns (address _root, bool _fromIsCredit, bool _toIsCredit);
 ```
 
 ### transfer
 
 
 ```solidity
-function transfer(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
-    internal
-    returns (address _root, bool _fromIsCredit, bool _toIsCredit);
+function transfer(
+    address root_,
+    address fromHolderParent_,
+    address from_,
+    address toHolderParent_,
+    address to_,
+    uint256 amount_
+) internal returns (address _root, bool _fromIsCredit, bool _toIsCredit);
 ```
 
 ### wrap
 
 
 ```solidity
-function wrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
-    internal
-    returns (address _token, bool _fromIsCredit, bool _toIsCredit);
+function wrap(
+    address payer_,
+    address root_,
+    address fromHolderParent_,
+    address from_,
+    address toHolderParent_,
+    address to_,
+    uint256 amount_
+) internal returns (address, bool _fromIsCredit, bool _toIsCredit);
 ```
 
 ### unwrap
 
 
 ```solidity
-function unwrap(address fromParent_, address from_, address toParent_, address to_, uint256 amount_)
-    internal
-    returns (address _token, bool _fromIsCredit, bool _toIsCredit);
+function unwrap(
+    address recipient_,
+    address root_,
+    address fromHolderParent_,
+    address from_,
+    address toHolderParent_,
+    address to_,
+    uint256 amount_
+) internal returns (address, bool _fromIsCredit, bool _toIsCredit);
 ```
 
 ## Structs
@@ -654,6 +722,8 @@ struct Store {
     mapping(address => string) symbol;
     mapping(address => uint8) decimals;
     mapping(address => address) root;
+    address[] roots;
+    mapping(address => uint256) rootIndex;
     mapping(address => address) wrapper;
     mapping(address parent => address[]) subs;
     mapping(address sub => uint32) subIndex;
@@ -671,12 +741,36 @@ struct Store {
 ```solidity
 struct AccountCache {
     uint256 balance;
+    address holder;
     address relative;
     address absolute;
     uint256 flags;
     uint8 depth;
-    bool isCredit;
     bool isUnregistered;
+}
+```
+
+### WrapCache
+
+```solidity
+struct WrapCache {
+    uint256 rootFlags;
+    uint256 balanceBefore;
+    uint256 balanceAfter;
+    uint256 received;
+}
+```
+
+### UnwrapCache
+
+```solidity
+struct UnwrapCache {
+    uint256 rootFlags;
+    uint256 liabilities;
+    uint256 collateral;
+    uint256 balanceBefore;
+    uint256 balanceAfter;
+    uint256 received;
 }
 ```
 

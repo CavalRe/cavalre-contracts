@@ -9,7 +9,9 @@
 - balances + routed transfers
 - wrapper-facing transfer hooks
 - default-source registration per root
+- native/external root registration
 - library-level wrap/unwrap settlement flows
+- deterministic internal/claim root creation via `modules/ledger/LedgerTokenFactory.sol`
 - canonical-root ERC20 surface via `examples/LedgerERC20.sol`
 - topology/debug surface via `modules/tree/TreeView.sol`
 
@@ -25,14 +27,14 @@
 - transfers perform a single coordinated upward walk from source and destination leaves
 - leaf polarity determines which balance column (`debits` or `credits`) each path mutates
 - when both paths converge on the same ancestor on the same side, remaining upward mutations cancel and the walk can stop early
-- internal roots are created deterministically with `CREATE2` via `createInternalToken(...)`, so `(name, symbol, decimals)` uniquely identifies the root and repeated calls are idempotent
+- internal roots are created deterministically with `CREATE2` via `LedgerTokenFactory.createInternalToken(TokenMetadata[])`, so `(name, symbol, decimals, version)` uniquely identifies the root and repeated calls are idempotent
 - internal and claim roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
 - native/external roots are registered as ledger roots without self-wrapped ERC20 surfaces
-- claim roots are created with `createClaimToken(...)`, reference one registered non-claim Ledger leaf account, and are deterministic by `(name, symbol, decimals, claimAccount)`
+- claim roots are created with `LedgerTokenFactory.createClaimToken(absoluteClaimAccount, TokenMetadata)`, reference one registered non-claim absolute Ledger leaf account, and are deterministic by `(name, symbol, decimals, version)`
 - canonical root ERC20 UX is handled by `examples/LedgerERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `LedgerERC20Lib`
 - every root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as its default credit source leaf
 - `address(0)` is not a registered Ledger holder; it is reserved for ERC20 mint/burn event projection
-- `effectiveFlags(parent_, addr_)` returns `(effectiveFlags, originalFlags, absoluteAddress)` for possibly-unregistered derived leaves
+- `effectiveFlags(root_, holderParent_, relative_)` returns `(effectiveFlags, originalFlags, absoluteAddress)` for possibly-unregistered derived leaves
 - `transfer(...)` returns the resolved root plus effective from/to flags
 - 5-arg `transfer(...)` is wrapper/canonical-ERC20 plumbing; 4-arg `transfer(...)` is direct user path
 - both transfer paths reject wrong-polarity sources after `LedgerLib.transfer(...)` resolves effective flags

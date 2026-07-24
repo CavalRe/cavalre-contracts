@@ -1,5 +1,5 @@
 # DispatcherTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5bbebe0228964dbc72fdf4ed69e4da2d6b47fa98/tests/modules/Dispatcher.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/tests/modules/Dispatcher.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md), [ContextUpgradeable](/node_modules/@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol/abstract.ContextUpgradeable.md)
@@ -61,6 +61,13 @@ function testDispatcherInit() public view;
 
 ```solidity
 function testDispatcherAddModule() public;
+```
+
+### testDispatcherRejectsDuplicateModule
+
+
+```solidity
+function testDispatcherRejectsDuplicateModule() public;
 ```
 
 ### testDispatcherVerifyModule
