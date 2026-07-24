@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Dispatchable} from "../dispatcher/Dispatchable.sol";
+import {ILedgerTokenFactory} from "./ILedgerTokenFactory.sol";
 import {LedgerTokenFactoryLib} from "./LedgerTokenFactoryLib.sol";
 
 contract LedgerTokenFactoryView is Dispatchable {
@@ -24,7 +25,7 @@ contract LedgerTokenFactoryView is Dispatchable {
         pure
         returns (bytes32)
     {
-        return LedgerTokenFactoryLib.tokenSalt(name_, symbol_, decimals_, version_);
+        return LedgerTokenFactoryLib.tokenSalt(_tokenMetadata(name_, symbol_, decimals_, version_));
     }
 
     function predictToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
@@ -32,6 +33,16 @@ contract LedgerTokenFactoryView is Dispatchable {
         view
         returns (address)
     {
-        return LedgerTokenFactoryLib.predictToken(name_, symbol_, decimals_, version_);
+        return LedgerTokenFactoryLib.predictToken(_tokenMetadata(name_, symbol_, decimals_, version_));
+    }
+
+    function _tokenMetadata(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
+        private
+        pure
+        returns (ILedgerTokenFactory.TokenMetadata memory _token)
+    {
+        _token = ILedgerTokenFactory.TokenMetadata({
+            name: name_, symbol: symbol_, decimals: decimals_, version: version_
+        });
     }
 }

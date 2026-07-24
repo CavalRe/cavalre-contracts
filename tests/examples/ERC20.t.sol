@@ -22,7 +22,9 @@ contract ERC20Test is Test {
         vm.startPrank(alice);
         erc20 = new ERC20(18);
         dispatcher = new Dispatcher(alice);
-        dispatcher.addModule(address(erc20));
+        address[] memory modules_ = new address[](1);
+        modules_[0] = address(erc20);
+        dispatcher.addModule(modules_);
         erc20 = ERC20(payable(dispatcher));
     }
 

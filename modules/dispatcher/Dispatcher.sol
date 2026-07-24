@@ -2,7 +2,6 @@
 pragma solidity ^0.8.26;
 
 import {DispatcherLib} from "./DispatcherLib.sol";
-import {Dispatchable} from "./Dispatchable.sol";
 import {IDispatcher} from "./IDispatcher.sol";
 
 interface INativeHandler {
@@ -80,14 +79,18 @@ contract Dispatcher is IDispatcher {
 
     // -- Module Management --
 
-    // Installs a verified module and all commands in its manifest.
-    function addModule(address module_) external override {
-        DispatcherLib.addModule(module_);
+    // Installs verified modules and all commands in their manifests.
+    function addModule(address[] memory modules_) external override {
+        for (uint256 i; i < modules_.length; i++) {
+            DispatcherLib.addModule(modules_[i]);
+        }
     }
 
-    // Removes an installed module and all commands in its manifest.
-    function removeModule(address module_) external override {
-        DispatcherLib.removeModule(module_);
+    // Removes installed modules and all commands in their manifests.
+    function removeModule(address[] memory modules_) external override {
+        for (uint256 i; i < modules_.length; i++) {
+            DispatcherLib.removeModule(modules_[i]);
+        }
     }
 
     // -- Inspection --

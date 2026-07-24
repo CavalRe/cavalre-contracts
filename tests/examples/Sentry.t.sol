@@ -28,7 +28,9 @@ contract SentryTest is Test {
 
         dispatcher = new Dispatcher(alice);
         dispatcherAddress = address(dispatcher);
-        dispatcher.addModule(sentryAddress);
+        address[] memory modules_ = new address[](1);
+        modules_[0] = sentryAddress;
+        dispatcher.addModule(modules_);
 
         sentry = Sentry(payable(dispatcher));
     }
@@ -55,8 +57,10 @@ contract SentryTest is Test {
 
     function testSentryWrongOwner() public {
         vm.startPrank(bob);
+        address[] memory modules_ = new address[](1);
+        modules_[0] = sentryAddress;
         vm.expectRevert(abi.encodeWithSelector(IDispatcher.OwnableUnauthorizedAccount.selector, bob));
-        dispatcher.addModule(sentryAddress);
+        dispatcher.addModule(modules_);
     }
 
     function testSentryTransferOwnership() public {

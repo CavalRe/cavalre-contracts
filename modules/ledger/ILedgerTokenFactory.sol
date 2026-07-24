@@ -2,17 +2,18 @@
 pragma solidity ^0.8.26;
 
 interface ILedgerTokenFactory {
-    function createInternalToken(string memory name, string memory symbol, uint8 decimals, string memory version)
-        external
-        returns (address token, uint256 flags);
+    struct TokenMetadata {
+        string name;
+        string symbol;
+        uint8 decimals;
+        string version;
+    }
 
-    function createClaimToken(
-        string memory name,
-        string memory symbol,
-        uint8 decimals,
-        address root,
-        address holderParent,
-        address relative,
-        string memory version
-    ) external returns (address token, uint256 flags);
+    function createInternalToken(TokenMetadata[] memory tokens)
+        external
+        returns (address[] memory tokenAddresses, uint256[] memory flags);
+
+    function createClaimToken(address absoluteClaimAccount, TokenMetadata memory token)
+        external
+        returns (address tokenAddress, uint256 flags);
 }

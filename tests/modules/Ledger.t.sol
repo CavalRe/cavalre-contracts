@@ -6,6 +6,7 @@ pragma solidity ^0.8.26;
 // Adjust paths if your repo layout differs.
 // ─────────────────────────────────────────────────────────────────────────────
 import {ILedger} from "../../modules/ledger/ILedger.sol";
+import {ILedgerTokenFactory} from "../../modules/ledger/ILedgerTokenFactory.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
 import {Ledger} from "../../modules/ledger/Ledger.sol";
 import {LedgerTokenFactory} from "../../modules/ledger/LedgerTokenFactory.sol";
@@ -37,7 +38,7 @@ contract TestLedger is Ledger {
         _signatures[1] = "addSubAccountGroup(address,address,address,string,bool)";
         _signatures[2] = "addSubAccount(address,address,address,string,bool)";
         _signatures[3] = "addNativeToken()";
-        _signatures[4] = "addExternalToken(address)";
+        _signatures[4] = "addExternalToken(address[])";
         _signatures[5] = "removeSubAccountGroup(address,address,address)";
         _signatures[6] = "removeSubAccount(address,address,address)";
         _signatures[7] = "transfer(address,address,address,address,address,uint256)";
@@ -63,7 +64,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
-        _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
+        _selectors[n++] = bytes4(keccak256("addExternalToken(address[])"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
@@ -304,11 +305,13 @@ contract LedgerTest is Test {
         if (isVerbose) console.log("Deploying Dispatcher");
         dispatcher = new Dispatcher(alice);
         if (isVerbose) console.log("Adding Ledger module to Dispatcher");
-        dispatcher.addModule(address(ledger));
-        dispatcher.addModule(address(ledgerTokenFactoryImpl));
-        dispatcher.addModule(address(ledgerTokenFactoryViewImpl));
-        dispatcher.addModule(address(ledgerViewImpl));
-        dispatcher.addModule(address(treeImpl));
+        address[] memory _modules = new address[](5);
+        _modules[0] = address(ledger);
+        _modules[1] = address(ledgerTokenFactoryImpl);
+        _modules[2] = address(ledgerTokenFactoryViewImpl);
+        _modules[3] = address(ledgerViewImpl);
+        _modules[4] = address(treeImpl);
+        dispatcher.addModule(_modules);
         ledger = TestLedger(payable(dispatcher));
         ledgerTokenFactory = LedgerTokenFactory(payable(dispatcher));
         ledgerTokenFactoryView = LedgerTokenFactoryView(payable(dispatcher));
@@ -322,7 +325,7 @@ contract LedgerTest is Test {
         // Add a standalone ledger tree for misc checks
         // testLedger = LedgerLib.toAddress("Test Ledger");
         if (isVerbose) console.log("Creating Test Ledger token");
-        (testLedger,) = ledgerTokenFactory.createInternalToken("Test Ledger", "TL", 18, "");
+        (testLedger,) = createInternalToken("Test Ledger", "TL", 18, "");
         ledger.addSubAccount(testLedger, testLedger, source_, LedgerLib.SOURCE_NAME, true);
         if (isVerbose) console.log("Adding sub-groups to Test Ledger");
         (address testLedger_1_,) =
@@ -333,7 +336,7 @@ contract LedgerTest is Test {
 
         // Add token r1 and its sub-groups
         if (isVerbose) console.log("Creating root token '1'");
-        (r1,) = ledgerTokenFactory.createInternalToken("1", "1", 18, "");
+        (r1,) = createInternalToken("1", "1", 18, "");
         ledger.addSubAccount(r1, r1, source_, LedgerLib.SOURCE_NAME, true);
         if (isVerbose) console.log("Adding sub-group '10' to root token '1'");
         (r10,) = ledger.addSubAccountGroup(r1, r1, LedgerLib.toAddress("10"), "10", false);
@@ -350,10 +353,44 @@ contract LedgerTest is Test {
 
         if (isVerbose) console.log("Creating external token");
         externalToken = new MockERC20("External Token", "EXT", 18);
-        ledger.addExternalToken(address(externalToken));
+        addExternalToken(address(externalToken));
         ledger.addSubAccount(address(externalToken), address(externalToken), source_, LedgerLib.SOURCE_NAME, true);
 
         unlistedToken = new MockERC20("Unlisted Token", "UNL", 18);
+    }
+
+    function createInternalToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
+        internal
+        returns (address _tokenAddress, uint256 _flags)
+    {
+        ILedgerTokenFactory.TokenMetadata[] memory _tokens = new ILedgerTokenFactory.TokenMetadata[](1);
+        _tokens[0] =
+            ILedgerTokenFactory.TokenMetadata({name: name_, symbol: symbol_, decimals: decimals_, version: version_});
+        (address[] memory _tokenAddresses, uint256[] memory _flagsArray) =
+            ledgerTokenFactory.createInternalToken(_tokens);
+        return (_tokenAddresses[0], _flagsArray[0]);
+    }
+
+    function createClaimToken(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        address root_,
+        address holderParent_,
+        address relative_,
+        string memory version_
+    ) internal returns (address _tokenAddress, uint256 _flags) {
+        return ledgerTokenFactory.createClaimToken(
+            LedgerLib.toAddress(root_, holderParent_, relative_),
+            ILedgerTokenFactory.TokenMetadata({name: name_, symbol: symbol_, decimals: decimals_, version: version_})
+        );
+    }
+
+    function addExternalToken(address token_) internal returns (uint256 _flags) {
+        address[] memory _tokens = new address[](1);
+        _tokens[0] = token_;
+        uint256[] memory _flagsArray = ledger.addExternalToken(_tokens);
+        return _flagsArray[0];
     }
 
     // Matches your old “InvalidInitialization” guard
@@ -473,12 +510,12 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
         ledger.addNativeToken();
         ledger.addNativeToken();
-        (address internalToken_,) = ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "");
-        ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "");
-        (address claimToken_,) = ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
-        ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
-        ledger.addExternalToken(address(unlistedToken));
-        ledger.addExternalToken(address(unlistedToken));
+        (address internalToken_,) = createInternalToken("Neutral Token", "NT", 18, "");
+        createInternalToken("Neutral Token", "NT", 18, "");
+        (address claimToken_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        addExternalToken(address(unlistedToken));
+        addExternalToken(address(unlistedToken));
         vm.stopPrank();
 
         assertEq(ledgerView.rootCount(), 8, "root count");
@@ -500,9 +537,11 @@ contract LedgerTest is Test {
         LedgerView ledgerViewImpl_ = new LedgerView();
         TreeView treeImpl_ = new TreeView();
         Dispatcher dispatcher_ = new Dispatcher(alice);
-        dispatcher_.addModule(address(ledgerImpl_));
-        dispatcher_.addModule(address(ledgerViewImpl_));
-        dispatcher_.addModule(address(treeImpl_));
+        address[] memory modules_ = new address[](3);
+        modules_[0] = address(ledgerImpl_);
+        modules_[1] = address(ledgerViewImpl_);
+        modules_[2] = address(treeImpl_);
+        dispatcher_.addModule(modules_);
 
         TestLedger ledger_ = TestLedger(payable(address(dispatcher_)));
         LedgerView ledgerView_ = LedgerView(payable(address(dispatcher_)));
@@ -515,7 +554,7 @@ contract LedgerTest is Test {
 
     function testLedgerCreateInternalTokenDoesNotRegisterUnderRoot() public {
         vm.startPrank(alice);
-        (address token_,) = ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "");
+        (address token_,) = createInternalToken("Neutral Token", "NT", 18, "");
         vm.stopPrank();
 
         address rootAccount_ = LedgerLib.toAddress(address(ledger), token_);
@@ -526,7 +565,7 @@ contract LedgerTest is Test {
         address predictedToken_ = ledgerTokenFactoryView.predictToken("Predict Token", "PRED", 18, "v1");
 
         vm.startPrank(alice);
-        (address token_,) = ledgerTokenFactory.createInternalToken("Predict Token", "PRED", 18, "v1");
+        (address token_,) = createInternalToken("Predict Token", "PRED", 18, "v1");
         vm.stopPrank();
 
         assertEq(token_, predictedToken_, "prediction mismatch");
@@ -534,8 +573,8 @@ contract LedgerTest is Test {
 
     function testLedgerCreateInternalTokenIsIdempotent() public {
         vm.startPrank(alice);
-        (address token_,) = ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "");
-        (address tokenAgain_,) = ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "");
+        (address token_,) = createInternalToken("Neutral Token", "NT", 18, "");
+        (address tokenAgain_,) = createInternalToken("Neutral Token", "NT", 18, "");
         vm.stopPrank();
 
         assertEq(tokenAgain_, token_, "same token");
@@ -548,9 +587,9 @@ contract LedgerTest is Test {
 
     function testLedgerCreateInternalTokenVersionChangesAddressOnly() public {
         vm.startPrank(alice);
-        (address token_,) = ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "");
-        (address versionedToken_,) = ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "v2");
-        (address versionedTokenAgain_,) = ledgerTokenFactory.createInternalToken("Neutral Token", "NT", 18, "v2");
+        (address token_,) = createInternalToken("Neutral Token", "NT", 18, "");
+        (address versionedToken_,) = createInternalToken("Neutral Token", "NT", 18, "v2");
+        (address versionedTokenAgain_,) = createInternalToken("Neutral Token", "NT", 18, "v2");
         vm.stopPrank();
 
         assertNotEq(versionedToken_, token_, "version changes address");
@@ -564,10 +603,8 @@ contract LedgerTest is Test {
 
     function testLedgerCreateClaimTokenIsIdempotent() public {
         vm.startPrank(alice);
-        (address token_, uint256 flags_) =
-            ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
-        (address tokenAgain_, uint256 flagsAgain_) =
-            ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_, uint256 flags_) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address tokenAgain_, uint256 flagsAgain_) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         vm.stopPrank();
 
         assertEq(tokenAgain_, token_, "same token");
@@ -584,12 +621,11 @@ contract LedgerTest is Test {
 
     function testLedgerCreateClaimTokenVersionChangesAddressOnly() public {
         vm.startPrank(alice);
-        (address token_, uint256 flags_) =
-            ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_, uint256 flags_) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         (address versionedToken_, uint256 versionedFlags_) =
-            ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "v2");
+            createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "v2");
         (address versionedTokenAgain_, uint256 versionedFlagsAgain_) =
-            ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "v2");
+            createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "v2");
         vm.stopPrank();
 
         assertNotEq(versionedToken_, token_, "version changes address");
@@ -608,7 +644,7 @@ contract LedgerTest is Test {
 
     function testLedgerWrapRejectsClaimRoot() public {
         vm.startPrank(alice);
-        (address token_,) = ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, token_));
         ledger.wrap(token_, 1);
         vm.stopPrank();
@@ -616,7 +652,7 @@ contract LedgerTest is Test {
 
     function testLedgerUnwrapRejectsClaimRoot() public {
         vm.startPrank(alice);
-        (address token_,) = ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, token_));
         ledger.unwrap(token_, 1);
         vm.stopPrank();
@@ -626,32 +662,39 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
         address relative_ = LedgerLib.toAddress("missingClaimAccount");
         address absolute_ = LedgerLib.toAddress(r1, r1, relative_);
-
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, absolute_));
-        ledgerTokenFactory.createClaimToken("Bad Claim", "BCLM", 18, r1, r1, relative_, "");
+        ledgerTokenFactory.createClaimToken(
+            absolute_, ILedgerTokenFactory.TokenMetadata({name: "Bad Claim", symbol: "BCLM", decimals: 18, version: ""})
+        );
     }
 
     function testLedgerCreateClaimTokenRejectsGroupClaimAccount() public {
         vm.startPrank(alice);
         address relative_ = LedgerLib.toAddress("10");
+        address absolute_ = LedgerLib.toAddress(r1, r1, relative_);
 
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(r1, r10)));
-        ledgerTokenFactory.createClaimToken("Bad Claim", "BCLM", 18, r1, r1, relative_, "");
+        ledgerTokenFactory.createClaimToken(
+            absolute_, ILedgerTokenFactory.TokenMetadata({name: "Bad Claim", symbol: "BCLM", decimals: 18, version: ""})
+        );
     }
 
     function testLedgerCreateClaimTokenRejectsNestedClaimRoot() public {
         vm.startPrank(alice);
-        (address claimToken_,) = ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address claimToken_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         address nestedClaimAccount_ = LedgerLib.toAddress(claimToken_, claimToken_, source_);
 
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, nestedClaimAccount_));
-        ledgerTokenFactory.createClaimToken("Nested Claim", "NCLM", 18, claimToken_, claimToken_, source_, "");
+        ledgerTokenFactory.createClaimToken(
+            nestedClaimAccount_,
+            ILedgerTokenFactory.TokenMetadata({name: "Nested Claim", symbol: "NCLM", decimals: 18, version: ""})
+        );
     }
 
     function testLedgerAddExternalTokenIsIdempotentWithoutWrapper() public {
         vm.startPrank(alice);
-        ledger.addExternalToken(address(unlistedToken));
-        ledger.addExternalToken(address(unlistedToken));
+        addExternalToken(address(unlistedToken));
+        addExternalToken(address(unlistedToken));
         vm.stopPrank();
 
         assertEq(tree.root(address(unlistedToken)), address(unlistedToken), "root registered");
@@ -804,7 +847,7 @@ contract LedgerTest is Test {
     function testLedgerAddSubAccountGroupRejectsFundedCreditLeaf() public {
         vm.startPrank(alice);
 
-        (address creditRoot_,) = ledgerTokenFactory.createInternalToken("Credit Group Root", "CGR", 18, "");
+        (address creditRoot_,) = createInternalToken("Credit Group Root", "CGR", 18, "");
         address relative_ = LedgerLib.toAddress("fundedGroupCredit");
         ledger.mint(creditRoot_, creditRoot_, relative_, 100);
 
@@ -868,7 +911,7 @@ contract LedgerTest is Test {
     function testLedgerAddSubAccountRejectsFundedCreditLeafAsDebit() public {
         vm.startPrank(alice);
 
-        (address creditRoot_,) = ledgerTokenFactory.createInternalToken("Credit Root", "CRT", 18, "");
+        (address creditRoot_,) = createInternalToken("Credit Root", "CRT", 18, "");
         address relative_ = LedgerLib.toAddress("fundedCredit");
         ledger.mint(creditRoot_, creditRoot_, relative_, 100);
 
@@ -1170,7 +1213,7 @@ contract LedgerTest is Test {
         FeeOnTransferToken feeToken_ = new FeeOnTransferToken("Fee Token", "FEE", 18);
 
         vm.startPrank(alice);
-        ledger.addExternalToken(address(feeToken_));
+        addExternalToken(address(feeToken_));
         ledger.addSubAccount(address(feeToken_), address(feeToken_), source_, LedgerLib.SOURCE_NAME, true);
         feeToken_.mint(alice, wrapAmount);
         feeToken_.approve(address(ledger), wrapAmount);
@@ -1198,7 +1241,7 @@ contract LedgerTest is Test {
         FeeOnTransferOutToken feeToken_ = new FeeOnTransferOutToken("Fee Out Token", "FOUT", 18);
 
         vm.startPrank(alice);
-        ledger.addExternalToken(address(feeToken_));
+        addExternalToken(address(feeToken_));
         ledger.addSubAccount(address(feeToken_), address(feeToken_), source_, LedgerLib.SOURCE_NAME, true);
         feeToken_.mint(alice, wrapAmount);
         feeToken_.approve(address(ledger), wrapAmount);
@@ -1476,7 +1519,7 @@ contract LedgerTest is Test {
 
     function testLedgerWrapClaimRootReverts() public {
         vm.startPrank(alice);
-        (address claimRoot_,) = ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address claimRoot_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, claimRoot_));
         ledger.wrap(claimRoot_, 1);
         vm.stopPrank();
@@ -1484,7 +1527,7 @@ contract LedgerTest is Test {
 
     function testLedgerUnwrapClaimRootReverts() public {
         vm.startPrank(alice);
-        (address claimRoot_,) = ledgerTokenFactory.createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address claimRoot_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, claimRoot_));
         ledger.unwrap(claimRoot_, 1);
         vm.stopPrank();
@@ -1763,7 +1806,7 @@ contract LedgerTest is Test {
         // Deploy a token that reenters during transferFrom
         ReenterToken reToken = new ReenterToken("ReToken", "RET", 18);
         reToken.setTarget(address(ledger));
-        ledger.addExternalToken(address(reToken));
+        addExternalToken(address(reToken));
         ledger.addSubAccount(address(reToken), address(reToken), source_, LedgerLib.SOURCE_NAME, true);
 
         // Fund Alice and approve the ledger

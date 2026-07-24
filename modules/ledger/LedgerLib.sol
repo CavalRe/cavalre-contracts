@@ -247,16 +247,11 @@ library LedgerLib {
         return packedAddress(flags_);
     }
 
-    function checkClaimAccount(address newRoot_, address root_, address holderParent_, address relative_)
-        internal
-        view
-        returns (address _claimAccount)
-    {
-        _claimAccount = toAddress(root_, holderParent_, relative_);
-        if (!isLedger(flags(_claimAccount))) revert ILedger.InvalidLedgerAccount(_claimAccount);
-        address _claimedRoot = root(_claimAccount);
-        if (_claimedRoot == newRoot_ || isClaim(flags(_claimedRoot))) {
-            revert ILedger.InvalidLedgerAccount(_claimAccount);
+    function checkClaimAccount(address claimTokenAddress_, address absoluteClaimAccount_) internal view {
+        if (!isLedger(flags(absoluteClaimAccount_))) revert ILedger.InvalidLedgerAccount(absoluteClaimAccount_);
+        address _claimAccountRoot = root(absoluteClaimAccount_);
+        if (_claimAccountRoot == claimTokenAddress_ || isClaim(flags(_claimAccountRoot))) {
+            revert ILedger.InvalidLedgerAccount(absoluteClaimAccount_);
         }
     }
 
@@ -570,23 +565,6 @@ library LedgerLib {
         }
 
         return addLedger(token_, _name, _symbol, _decimals, TokenKind.External, address(0));
-    }
-
-    function addClaimToken(address token_, address root_, address holderParent_, address relative_)
-        internal
-        returns (uint256 _flags)
-    {
-        address _claimAccount = checkClaimAccount(token_, root_, holderParent_, relative_);
-
-        IERC20Metadata _meta = IERC20Metadata(token_);
-        string memory _name = _meta.name();
-        string memory _symbol = _meta.symbol();
-        uint8 _decimals = _meta.decimals();
-        if (!isValidString(_name) || !isValidString(_symbol)) {
-            revert ILedger.InvalidToken(token_, _name, _symbol, _decimals);
-        }
-
-        return addLedger(token_, _name, _symbol, _decimals, TokenKind.Claim, _claimAccount);
     }
 
     function removeSubAccountGroup(address root_, address holderParent_, string memory name_)

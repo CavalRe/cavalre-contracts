@@ -51,7 +51,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _signatures[1] = "addSubAccountGroup(address,address,address,string,bool)";
         _signatures[2] = "addSubAccount(address,address,address,string,bool)";
         _signatures[3] = "addNativeToken()";
-        _signatures[4] = "addExternalToken(address)";
+        _signatures[4] = "addExternalToken(address[])";
         _signatures[5] = "removeSubAccountGroup(address,address,address)";
         _signatures[6] = "removeSubAccount(address,address,address)";
         _signatures[7] = "transfer(address,address,address,address,address,uint256)";
@@ -68,7 +68,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addNativeToken()"));
-        _selectors[n++] = bytes4(keccak256("addExternalToken(address)"));
+        _selectors[n++] = bytes4(keccak256("addExternalToken(address[])"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
@@ -121,9 +121,12 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         return LedgerLib.addNativeToken();
     }
 
-    function addExternalToken(address token_) external returns (uint256 _flags) {
+    function addExternalToken(address[] memory tokens_) external returns (uint256[] memory _flags) {
         enforceIsOwner();
-        return LedgerLib.addExternalToken(token_);
+        _flags = new uint256[](tokens_.length);
+        for (uint256 i; i < tokens_.length; i++) {
+            _flags[i] = LedgerLib.addExternalToken(tokens_[i]);
+        }
     }
 
     function removeSubAccountGroup(address root_, address holderParent_, address relative_) external returns (address) {

@@ -23,7 +23,9 @@ contract TestTokenTest is Test {
         vm.startPrank(alice);
         token = new TestToken(18);
         dispatcher = new Dispatcher(alice);
-        dispatcher.addModule(address(token));
+        address[] memory modules_ = new address[](1);
+        modules_[0] = address(token);
+        dispatcher.addModule(modules_);
 
         token = TestToken(payable(dispatcher));
 

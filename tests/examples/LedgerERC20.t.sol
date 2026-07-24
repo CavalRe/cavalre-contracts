@@ -49,9 +49,11 @@ contract LedgerERC20Test is Test {
         minter = new MintModule();
         dispatcher = new Dispatcher(alice);
 
-        dispatcher.addModule(address(ledgers));
-        dispatcher.addModule(address(token));
-        dispatcher.addModule(address(minter));
+        address[] memory modules_ = new address[](3);
+        modules_[0] = address(ledgers);
+        modules_[1] = address(token);
+        modules_[2] = address(minter);
+        dispatcher.addModule(modules_);
 
         ledgers = Ledger(payable(dispatcher));
         token = ERC20(payable(dispatcher));

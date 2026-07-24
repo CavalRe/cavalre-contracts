@@ -58,7 +58,9 @@ contract DispatcherTest is Test, ContextUpgradeable {
 
         vm.startPrank(bob);
         foo = new Foo();
-        dispatcher.addModule(address(foo));
+        address[] memory _modules = new address[](1);
+        _modules[0] = address(foo);
+        dispatcher.addModule(_modules);
     }
 
     function testDispatcherInit() public view {
@@ -89,20 +91,24 @@ contract DispatcherTest is Test, ContextUpgradeable {
         vm.startPrank(alice);
 
         Bar bar = new Bar();
+        address[] memory _modules = new address[](1);
+        _modules[0] = address(bar);
         vm.expectRevert(abi.encodeWithSelector(IDispatcher.OwnableUnauthorizedAccount.selector, alice));
-        dispatcher.addModule(address(bar));
+        dispatcher.addModule(_modules);
 
         vm.stopPrank();
 
         vm.startPrank(bob);
-        dispatcher.addModule(address(bar));
+        dispatcher.addModule(_modules);
         assertEq(dispatcher.module(TestDispatchableLib.BAR), address(bar), "DispatcherTest: bar() not set");
     }
 
     function testDispatcherRejectsDuplicateModule() public {
         vm.startPrank(bob);
+        address[] memory _modules = new address[](1);
+        _modules[0] = address(foo);
         vm.expectRevert(abi.encodeWithSelector(IDispatcher.ModuleAlreadyAdded.selector, address(foo)));
-        dispatcher.addModule(address(foo));
+        dispatcher.addModule(_modules);
     }
 
     function testDispatcherVerifyModule() public view {
@@ -123,14 +129,17 @@ contract DispatcherTest is Test, ContextUpgradeable {
     }
 
     function testDispatcherRemoveModule() public {
+        address[] memory _modules = new address[](1);
+        _modules[0] = address(foo);
+
         vm.startPrank(alice);
         vm.expectRevert(abi.encodeWithSelector(IDispatcher.OwnableUnauthorizedAccount.selector, alice));
-        dispatcher.removeModule(address(foo));
+        dispatcher.removeModule(_modules);
 
         vm.stopPrank();
 
         vm.startPrank(bob);
-        dispatcher.removeModule(address(foo));
+        dispatcher.removeModule(_modules);
         assertEq(dispatcher.module(TestDispatchableLib.FOO), address(0), "DispatcherTest: foo() not removed");
         assertEq(dispatcher.modules().length, 0, "DispatcherTest: module not removed");
         assertEq(dispatcher.commands().length, 0, "DispatcherTest: commands not removed");
@@ -144,27 +153,34 @@ contract DispatcherTest is Test, ContextUpgradeable {
 
     function testDispatcherRedeployModule() public {
         vm.startPrank(bob);
-        dispatcher.removeModule(address(foo));
+        address[] memory _modules = new address[](1);
+        _modules[0] = address(foo);
+        dispatcher.removeModule(_modules);
 
         Foo foo2 = new Foo();
-        dispatcher.addModule(address(foo2));
+        _modules[0] = address(foo2);
+        dispatcher.addModule(_modules);
 
         assertEq(dispatcher.module(TestDispatchableLib.FOO), address(foo2), "DispatcherTest: foo() not redeployed");
     }
 
     function testDispatcherCannotRemoveStaleModule() public {
         vm.startPrank(bob);
-        dispatcher.removeModule(address(foo));
+        address[] memory _modules = new address[](1);
+        _modules[0] = address(foo);
+        dispatcher.removeModule(_modules);
 
         Foo foo2 = new Foo();
-        dispatcher.addModule(address(foo2));
+        _modules[0] = address(foo2);
+        dispatcher.addModule(_modules);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 IDispatcher.CommandInWrongModule.selector, TestDispatchableLib.FOO, address(foo), address(foo2)
             )
         );
-        dispatcher.removeModule(address(foo));
+        _modules[0] = address(foo);
+        dispatcher.removeModule(_modules);
 
         assertEq(dispatcher.module(TestDispatchableLib.FOO), address(foo2), "DispatcherTest: replacement cleared");
     }

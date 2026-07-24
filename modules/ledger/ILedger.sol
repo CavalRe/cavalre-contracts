@@ -21,7 +21,7 @@ interface ILedger {
 
     function addNativeToken() external returns (uint256 flags);
 
-    function addExternalToken(address token) external returns (uint256 flags);
+    function addExternalToken(address[] memory tokens) external returns (uint256[] memory flags);
 
     function removeSubAccountGroup(address root, address holderParent, address relative) external returns (address);
 

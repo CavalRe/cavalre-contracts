@@ -18,9 +18,9 @@ interface IDispatcher {
     error InvalidSignaturesLength(uint256 expectedLength, uint256 actualLength);
     error InvalidSignature(bytes4 selector, string signature);
 
-    function addModule(address module_) external;
+    function addModule(address[] memory modules_) external;
 
-    function removeModule(address module_) external;
+    function removeModule(address[] memory modules_) external;
 
     function modules() external view returns (address[] memory);
 
