@@ -29,8 +29,6 @@ library LedgerLib {
         mapping(address => string) symbol;
         mapping(address => uint8) decimals;
         mapping(address => address) ledger;
-        address[] ledgers;
-        mapping(address => uint256) ledgerIndex;
         mapping(address => address) wrapper;
         mapping(address parent => address[]) subs;
         mapping(address sub => uint32) subIndex;
@@ -68,7 +66,9 @@ library LedgerLib {
     uint256 constant TOKEN_KIND_MASK = uint256(0x07) << TOKEN_KIND_SHIFT;
     uint256 constant FLAG_DEPTH_SHIFT = 8;
     uint256 constant FLAG_DEPTH_MASK = uint256(0xff) << FLAG_DEPTH_SHIFT;
-    uint256 constant PACK_ADDR_SHIFT = 96; // store address in high 160 bits
+    // High 160-bit lane. Non-ledger accounts pack their parent here.
+    // Ledger parents are derived as ROOT_ADDRESS; claim ledgers reuse this lane for claim-account metadata.
+    uint256 constant PACK_ADDR_SHIFT = 96;
 
     //==================================================================
     //                            Validation
@@ -124,23 +124,24 @@ library LedgerLib {
     }
 
     function ledgerCount() internal view returns (uint256) {
-        return store().ledgers.length;
+        return store().subs[ROOT_ADDRESS].length;
     }
 
     function ledgerAt(uint256 index_) internal view returns (address) {
-        return store().ledgers[index_];
+        return store().subs[ROOT_ADDRESS][index_];
     }
 
     function ledgers(uint256 start_, uint256 limit_) internal view returns (address[] memory _ledgers) {
         Store storage s = store();
-        uint256 _length = s.ledgers.length;
+        address[] storage _ledgerSubs = s.subs[ROOT_ADDRESS];
+        uint256 _length = _ledgerSubs.length;
         if (start_ >= _length) return new address[](0);
 
         uint256 _available = _length - start_;
         uint256 _count = limit_ < _available ? limit_ : _available;
         _ledgers = new address[](_count);
         for (uint256 i; i < _count; ++i) {
-            _ledgers[i] = s.ledgers[start_ + i];
+            _ledgers[i] = _ledgerSubs[start_ + i];
         }
     }
 
@@ -159,6 +160,8 @@ library LedgerLib {
     }
 
     function parent(uint256 flags_) internal pure returns (address) {
+        // All ledgers sit directly under Root. For claim ledgers, packedAddress(flags_) is claim metadata,
+        // so parent() must mask the packed lane and keep topology semantics stable.
         if (isLedger(flags_)) return ROOT_ADDRESS;
         return packedAddress(flags_);
     }
@@ -248,6 +251,8 @@ library LedgerLib {
     }
 
     function claimAccount(uint256 flags_) internal pure returns (address) {
+        // Claim ledgers store their referenced absolute claim account in the packed lane.
+        // Use parent(flags_) for topology; use claimAccount(flags_) for claim metadata.
         if (!isLedger(flags_) || !isClaim(flags_)) return address(0);
         return packedAddress(flags_);
     }
@@ -528,8 +533,6 @@ library LedgerLib {
         s.decimals[ledger_] = decimals_;
         s.ledger[ledger_] = ledger_;
         s.flags[ledger_] = _flags;
-        s.ledgers.push(ledger_);
-        s.ledgerIndex[ledger_] = s.ledgers.length;
         s.subs[ROOT_ADDRESS].push(ledger_);
         s.subIndex[ledger_] = toSubIndex(s.subs[ROOT_ADDRESS].length);
 
