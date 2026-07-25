@@ -8,13 +8,13 @@ interface ILedgerView {
     function nativeName() external view returns (string memory);
     function nativeSymbol() external view returns (string memory);
     function nativeDecimals() external view returns (uint8);
-    function rootCount() external view returns (uint256);
-    function rootAt(uint256 index) external view returns (address);
-    function roots(uint256 start, uint256 limit) external view returns (address[] memory);
-    function debitBalanceOf(address root, address holderParent, address relative) external view returns (uint256);
-    function creditBalanceOf(address root, address holderParent, address relative) external view returns (uint256);
-    function balanceOf(address root, address holderParent, address relative) external view returns (uint256);
-    function totalSupply(address root) external view returns (uint256);
-    function isClaim(address root) external view returns (bool);
-    function claimAccountOf(address root) external view returns (address);
+    function ledgerCount() external view returns (uint256);
+    function ledgerAt(uint256 index) external view returns (address);
+    function ledgers(uint256 start, uint256 limit) external view returns (address[] memory);
+    function debitBalanceOf(address ledger, address parent, address relative) external view returns (uint256);
+    function creditBalanceOf(address ledger, address parent, address relative) external view returns (uint256);
+    function balanceOf(address ledger, address parent, address relative) external view returns (uint256);
+    function totalSupply(address ledger) external view returns (uint256);
+    function isClaim(address ledger) external view returns (bool);
+    function claimAccountOf(address ledger) external view returns (address);
 }

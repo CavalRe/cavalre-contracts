@@ -57,7 +57,7 @@ contract ERC20 is Dispatchable, Initializable {
     function initializeERC20() external initializer {
         enforceIsOwner();
         // ERC-20 surface is only valid once the canonical root has been registered in Ledger state.
-        if (LedgerLib.root(address(this)) != address(this)) {
+        if (LedgerLib.ledger(address(this)) != address(this)) {
             revert ILedger.LedgerUninitialized();
         }
     }

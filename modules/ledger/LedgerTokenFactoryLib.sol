@@ -31,8 +31,10 @@ library LedgerTokenFactoryLib {
         _token = predictToken(token_);
 
         // Idempotent path: the predicted wrapper is already registered as the intended internal root.
-        if (LedgerLib.root(_token) == _token) {
-            _flags = LedgerLib.flags(address(0), LedgerLib.AccountKind.DebitGroup, LedgerLib.TokenKind.Internal, 1);
+        if (LedgerLib.ledger(_token) == _token) {
+            _flags = LedgerLib.flags(
+                LedgerLib.ROOT_ADDRESS, LedgerLib.AccountKind.DebitGroup, LedgerLib.TokenKind.Internal, 2
+            );
             bool _sameFlags = _flags == LedgerLib.flags(_token);
             bool _sameWrapper = LedgerLib.wrapper(_token) == _token;
             if (_sameFlags && _sameWrapper) return (_token, _flags);
@@ -65,9 +67,9 @@ library LedgerTokenFactoryLib {
         _token = predictToken(token_);
         LedgerLib.checkClaimAccount(_token, absoluteClaimAccount_);
 
-        if (LedgerLib.root(_token) == _token) {
+        if (LedgerLib.ledger(_token) == _token) {
             _flags =
-                LedgerLib.flags(absoluteClaimAccount_, LedgerLib.AccountKind.DebitGroup, LedgerLib.TokenKind.Claim, 1);
+                LedgerLib.flags(absoluteClaimAccount_, LedgerLib.AccountKind.DebitGroup, LedgerLib.TokenKind.Claim, 2);
             if (_flags == LedgerLib.flags(_token) && LedgerLib.wrapper(_token) == _token) return (_token, _flags);
             revert ILedger.InvalidToken(_token, token_.name, token_.symbol, token_.decimals);
         }

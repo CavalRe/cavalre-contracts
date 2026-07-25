@@ -96,24 +96,24 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     }
 
     function addSubAccountGroup(
-        address root_,
-        address holderParent_,
+        address ledger_,
+        address parent_,
         address relative_,
         string memory name_,
         bool isCredit_
     ) external returns (address, uint256) {
         enforceIsOwner();
 
-        return LedgerLib.addSubAccountGroup(root_, holderParent_, relative_, name_, isCredit_);
+        return LedgerLib.addSubAccountGroup(ledger_, parent_, relative_, name_, isCredit_);
     }
 
-    function addSubAccount(address root_, address holderParent_, address relative_, string memory name_, bool isCredit_)
+    function addSubAccount(address ledger_, address parent_, address relative_, string memory name_, bool isCredit_)
         external
         returns (address, uint256)
     {
         enforceIsOwner();
 
-        return LedgerLib.addSubAccount(root_, holderParent_, relative_, name_, isCredit_);
+        return LedgerLib.addSubAccount(ledger_, parent_, relative_, name_, isCredit_);
     }
 
     function addNativeToken() external returns (uint256 _flags) {
@@ -129,16 +129,16 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         }
     }
 
-    function removeSubAccountGroup(address root_, address holderParent_, address relative_) external returns (address) {
+    function removeSubAccountGroup(address ledger_, address parent_, address relative_) external returns (address) {
         enforceIsOwner();
 
-        return LedgerLib.removeSubAccountGroup(root_, holderParent_, relative_);
+        return LedgerLib.removeSubAccountGroup(ledger_, parent_, relative_);
     }
 
-    function removeSubAccount(address root_, address holderParent_, address relative_) external returns (address) {
+    function removeSubAccount(address ledger_, address parent_, address relative_) external returns (address) {
         enforceIsOwner();
 
-        return LedgerLib.removeSubAccount(root_, holderParent_, relative_);
+        return LedgerLib.removeSubAccount(ledger_, parent_, relative_);
     }
 
     //===========
@@ -146,37 +146,35 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     //===========
 
     function transfer(
-        address root_,
-        address fromHolderParent_,
+        address ledger_,
+        address fromParent_,
         address from_,
-        address toHolderParent_,
+        address toParent_,
         address to_,
         uint256 amount_
     ) external {
-        (address _root, bool _fromIsCredit, bool _toIsCredit) =
-            LedgerLib.enforceTransfer(root_, fromHolderParent_, from_, toHolderParent_, to_);
+        (address _ledger, bool _fromIsCredit, bool _toIsCredit) =
+            LedgerLib.enforceTransfer(ledger_, fromParent_, from_, toParent_, to_);
         // Wrapper calls must come from the root wrapper; canonical ERC20 may call via address(this).
-        if (msg.sender != LedgerLib.wrapper(_root) && (msg.sender != address(this) || _root != address(this))) {
+        if (msg.sender != LedgerLib.wrapper(_ledger) && (msg.sender != address(this) || _ledger != address(this))) {
             revert ILedger.Unauthorized(msg.sender);
         }
         // Public transfer surfaces may not mint from credit into debit accounts.
         if (_fromIsCredit && !_toIsCredit) {
-            revert ILedger.InvalidLedgerAccount(fromHolderParent_);
+            revert ILedger.InvalidLedgerAccount(fromParent_);
         }
-        LedgerLib.transfer(root_, fromHolderParent_, from_, toHolderParent_, to_, amount_);
+        LedgerLib.transfer(ledger_, fromParent_, from_, toParent_, to_, amount_);
     }
 
-    function transfer(address root_, address fromHolderParent_, address toHolderParent_, address to_, uint256 amount_)
-        external
-    {
+    function transfer(address ledger_, address fromParent_, address toParent_, address to_, uint256 amount_) external {
         // Direct user transfer uses msg.sender as source leaf under fromParent_.
         (, bool _fromIsCredit, bool _toIsCredit) =
-            LedgerLib.enforceTransfer(root_, fromHolderParent_, msg.sender, toHolderParent_, to_);
+            LedgerLib.enforceTransfer(ledger_, fromParent_, msg.sender, toParent_, to_);
         // Public transfers may not mint from credit into debit accounts.
         if (_fromIsCredit && !_toIsCredit) {
-            revert ILedger.InvalidLedgerAccount(fromHolderParent_);
+            revert ILedger.InvalidLedgerAccount(fromParent_);
         }
-        LedgerLib.transfer(root_, fromHolderParent_, msg.sender, toHolderParent_, to_, amount_);
+        LedgerLib.transfer(ledger_, fromParent_, msg.sender, toParent_, to_, amount_);
     }
 
     function wrap(address token_, uint256 amount_)

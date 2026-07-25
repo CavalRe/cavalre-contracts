@@ -10,12 +10,12 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // TreeView Manipulation
     // ─────────────────────────────────────────────────────────────────────────────
-    function addSubAccountGroup(address root, address holderParent, address relative, string memory name, bool isCredit)
+    function addSubAccountGroup(address ledger, address parent, address relative, string memory name, bool isCredit)
         external
         returns (address subAccount, uint256 flags);
 
     /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
-    function addSubAccount(address root, address holderParent, address relative, string memory name, bool isCredit)
+    function addSubAccount(address ledger, address parent, address relative, string memory name, bool isCredit)
         external
         returns (address subAccount, uint256 flags);
 
@@ -23,24 +23,17 @@ interface ILedger {
 
     function addExternalToken(address[] memory tokens) external returns (uint256[] memory flags);
 
-    function removeSubAccountGroup(address root, address holderParent, address relative) external returns (address);
+    function removeSubAccountGroup(address ledger, address parent, address relative) external returns (address);
 
-    function removeSubAccount(address root, address holderParent, address relative) external returns (address);
+    function removeSubAccount(address ledger, address parent, address relative) external returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
     // ─────────────────────────────────────────────────────────────────────────────
-    function transfer(
-        address root,
-        address fromHolderParent,
-        address from,
-        address toHolderParent,
-        address to,
-        uint256 amount
-    ) external;
-
-    function transfer(address root, address fromHolderParent, address toHolderParent, address to, uint256 amount)
+    function transfer(address ledger, address fromParent, address from, address toParent, address to, uint256 amount)
         external;
+
+    function transfer(address ledger, address fromParent, address toParent, address to, uint256 amount) external;
 
     // ─────────────────────────────────────────────────────────────────────────────
     function wrap(address token_, uint256 amount_)
@@ -90,12 +83,12 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Events
     event LedgerAdded(address indexed tokenAddress, string name, string symbol, uint8 decimals);
-    event SubAccountAdded(address indexed root, address indexed parent, address addr, bool isCredit);
-    event SubAccountGroupAdded(address indexed root, address indexed parent, string subName, bool isCredit);
-    event SubAccountRemoved(address indexed root, address indexed parent, address addr);
-    event SubAccountGroupRemoved(address indexed root, address indexed parent, address addr);
-    event Credit(address indexed root, address indexed account, uint256 amount, uint256 balance);
-    event Debit(address indexed root, address indexed account, uint256 amount, uint256 balance);
+    event SubAccountAdded(address indexed ledger, address indexed parent, address addr, bool isCredit);
+    event SubAccountGroupAdded(address indexed ledger, address indexed parent, string subName, bool isCredit);
+    event SubAccountRemoved(address indexed ledger, address indexed parent, address addr);
+    event SubAccountGroupRemoved(address indexed ledger, address indexed parent, address addr);
+    event Credit(address indexed ledger, address indexed account, uint256 amount, uint256 balance);
+    event Debit(address indexed ledger, address indexed account, uint256 amount, uint256 balance);
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Standard ERC-20 events (emitted through library/wrapper)
