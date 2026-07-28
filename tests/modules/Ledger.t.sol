@@ -371,7 +371,7 @@ contract LedgerTest is Test {
         return (_tokenAddresses[0], _flagsArray[0]);
     }
 
-    function createClaimToken(
+    function createReceiptToken(
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
@@ -380,7 +380,7 @@ contract LedgerTest is Test {
         address relative_,
         string memory version_
     ) internal returns (address _tokenAddress, uint256 _flags) {
-        return ledgerTokenFactory.createClaimToken(
+        return ledgerTokenFactory.createReceiptToken(
             LedgerLib.toAddress(ledger_, parent_, relative_),
             ILedgerTokenFactory.TokenMetadata({name: name_, symbol: symbol_, decimals: decimals_, version: version_})
         );
@@ -484,7 +484,7 @@ contract LedgerTest is Test {
         assertTrue(tree.isNative(nativeFlags_), "native flag set");
         assertFalse(tree.isInternal(nativeFlags_), "native not internal");
         assertFalse(tree.isExternal(nativeFlags_), "native not external");
-        assertFalse(tree.isClaim(nativeFlags_), "native not claim");
+        assertFalse(tree.isReceipt(nativeFlags_), "native not receipt");
     }
 
     function testLedgerRootRegistryListsRegisteredRoots() public view {
@@ -519,8 +519,8 @@ contract LedgerTest is Test {
         ledger.addNativeToken();
         (address internalToken_,) = createInternalToken("Neutral Token", "NT", 18, "");
         createInternalToken("Neutral Token", "NT", 18, "");
-        (address claimToken_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
-        createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address receiptToken_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
         addExternalToken(address(unlistedToken));
         addExternalToken(address(unlistedToken));
         vm.stopPrank();
@@ -528,21 +528,21 @@ contract LedgerTest is Test {
         assertEq(ledgerView.ledgerCount(), 8, "root count");
         assertEq(ledgerView.ledgerAt(4), native, "native root");
         assertEq(ledgerView.ledgerAt(5), internalToken_, "internal root");
-        assertEq(ledgerView.ledgerAt(6), claimToken_, "claim root");
+        assertEq(ledgerView.ledgerAt(6), receiptToken_, "receipt token root");
         assertEq(ledgerView.ledgerAt(7), address(unlistedToken), "external root");
 
         address[] memory rootSubs_ = tree.subAccounts(LedgerLib.ROOT_ADDRESS);
         assertEq(rootSubs_.length, 8, "root sub count");
         assertEq(rootSubs_[4], native, "root sub native");
         assertEq(rootSubs_[5], internalToken_, "root sub internal");
-        assertEq(rootSubs_[6], claimToken_, "root sub claim");
+        assertEq(rootSubs_[6], receiptToken_, "root sub receipt");
         assertEq(rootSubs_[7], address(unlistedToken), "root sub external");
 
         address[] memory ledgers_ = ledgerView.ledgers(4, 10);
         assertEq(ledgers_.length, 4, "clipped page length");
         assertEq(ledgers_[0], native, "page native");
         assertEq(ledgers_[1], internalToken_, "page internal");
-        assertEq(ledgers_[2], claimToken_, "page claim");
+        assertEq(ledgers_[2], receiptToken_, "page receipt");
         assertEq(ledgers_[3], address(unlistedToken), "page external");
     }
 
@@ -615,93 +615,91 @@ contract LedgerTest is Test {
         assertEq(tree.wrapper(versionedToken_), versionedToken_, "versioned self wrapped");
     }
 
-    function testLedgerCreateClaimTokenIsIdempotent() public {
+    function testLedgerCreateReceiptTokenIsIdempotent() public {
         vm.startPrank(alice);
-        (address token_, uint256 flags_) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
-        (address tokenAgain_, uint256 flagsAgain_) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_, uint256 flags_) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        (address tokenAgain_, uint256 flagsAgain_) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
         vm.stopPrank();
 
         assertEq(tokenAgain_, token_, "same token");
         assertEq(flagsAgain_, flags_, "same flags");
-        assertFalse(tree.isCredit(flags_), "claim root debit");
-        assertTrue(tree.isClaim(flags_), "claim root");
-        assertTrue(ledgerView.isClaim(token_), "ledger claim view");
-        assertFalse(tree.isInternal(flags_), "claim root not internal");
-        assertEq(tree.claimAccount(flags_), LedgerLib.toAddress(r1, r1, source_), "claim account");
-        assertEq(ledgerView.claimAccountOf(token_), LedgerLib.toAddress(r1, r1, source_), "ledger claim account view");
+        assertFalse(tree.isCredit(flags_), "receipt token root debit");
+        assertTrue(tree.isReceipt(flags_), "receipt token root");
+        assertFalse(tree.isInternal(flags_), "receipt token root not internal");
+        assertEq(tree.receiptAccount(flags_), LedgerLib.toAddress(r1, r1, source_), "receipt account");
         assertEq(tree.ledger(token_), token_, "root registered");
         assertEq(tree.wrapper(token_), token_, "self wrapped");
     }
 
-    function testLedgerCreateClaimTokenVersionChangesAddressOnly() public {
+    function testLedgerCreateReceiptTokenVersionChangesAddressOnly() public {
         vm.startPrank(alice);
-        (address token_, uint256 flags_) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_, uint256 flags_) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
         (address versionedToken_, uint256 versionedFlags_) =
-            createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "v2");
+            createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "v2");
         (address versionedTokenAgain_, uint256 versionedFlagsAgain_) =
-            createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "v2");
+            createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "v2");
         vm.stopPrank();
 
         assertNotEq(versionedToken_, token_, "version changes address");
         assertEq(versionedTokenAgain_, versionedToken_, "versioned token idempotent");
         assertEq(versionedFlagsAgain_, versionedFlags_, "versioned flags stable");
         assertEq(versionedFlags_, flags_, "metadata-independent flags stable");
-        assertEq(ledgerView.name(versionedToken_), "Claim Token", "name stable");
+        assertEq(ledgerView.name(versionedToken_), "Receipt Token", "name stable");
         assertEq(ledgerView.symbol(versionedToken_), "CLM", "symbol stable");
         assertEq(ledgerView.decimals(versionedToken_), 18, "decimals stable");
-        assertEq(
-            ledgerView.claimAccountOf(versionedToken_), LedgerLib.toAddress(r1, r1, source_), "claim account stable"
-        );
+        assertEq(tree.receiptAccount(versionedFlags_), LedgerLib.toAddress(r1, r1, source_), "receipt account stable");
         assertEq(tree.ledger(versionedToken_), versionedToken_, "versioned root registered");
         assertEq(tree.wrapper(versionedToken_), versionedToken_, "versioned self wrapped");
     }
 
-    function testLedgerWrapRejectsClaimRoot() public {
+    function testLedgerWrapRejectsReceiptTokenRoot() public {
         vm.startPrank(alice);
-        (address token_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, token_));
         ledger.wrap(token_, 1);
         vm.stopPrank();
     }
 
-    function testLedgerUnwrapRejectsClaimRoot() public {
+    function testLedgerUnwrapRejectsReceiptTokenRoot() public {
         vm.startPrank(alice);
-        (address token_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
+        (address token_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, token_));
         ledger.unwrap(token_, 1);
         vm.stopPrank();
     }
 
-    function testLedgerCreateClaimTokenRejectsUnregisteredClaimAccount() public {
+    function testLedgerCreateReceiptTokenRejectsUnregisteredReceiptAccount() public {
         vm.startPrank(alice);
-        address relative_ = LedgerLib.toAddress("missingClaimAccount");
+        address relative_ = LedgerLib.toAddress("missingReceiptAccount");
         address absolute_ = LedgerLib.toAddress(r1, r1, relative_);
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, absolute_));
-        ledgerTokenFactory.createClaimToken(
-            absolute_, ILedgerTokenFactory.TokenMetadata({name: "Bad Claim", symbol: "BCLM", decimals: 18, version: ""})
+        ledgerTokenFactory.createReceiptToken(
+            absolute_,
+            ILedgerTokenFactory.TokenMetadata({name: "Bad Receipt", symbol: "BCLM", decimals: 18, version: ""})
         );
     }
 
-    function testLedgerCreateClaimTokenRejectsGroupClaimAccount() public {
+    function testLedgerCreateReceiptTokenRejectsGroupReceiptAccount() public {
         vm.startPrank(alice);
         address relative_ = LedgerLib.toAddress("10");
         address absolute_ = LedgerLib.toAddress(r1, r1, relative_);
 
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(r1, r10)));
-        ledgerTokenFactory.createClaimToken(
-            absolute_, ILedgerTokenFactory.TokenMetadata({name: "Bad Claim", symbol: "BCLM", decimals: 18, version: ""})
+        ledgerTokenFactory.createReceiptToken(
+            absolute_,
+            ILedgerTokenFactory.TokenMetadata({name: "Bad Receipt", symbol: "BCLM", decimals: 18, version: ""})
         );
     }
 
-    function testLedgerCreateClaimTokenRejectsNestedClaimRoot() public {
+    function testLedgerCreateReceiptTokenRejectsNestedReceiptTokenRoot() public {
         vm.startPrank(alice);
-        (address claimToken_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
-        address nestedClaimAccount_ = LedgerLib.toAddress(claimToken_, claimToken_, source_);
+        (address receiptToken_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        address nestedReceiptAccount_ = LedgerLib.toAddress(receiptToken_, receiptToken_, source_);
 
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, nestedClaimAccount_));
-        ledgerTokenFactory.createClaimToken(
-            nestedClaimAccount_,
-            ILedgerTokenFactory.TokenMetadata({name: "Nested Claim", symbol: "NCLM", decimals: 18, version: ""})
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, nestedReceiptAccount_));
+        ledgerTokenFactory.createReceiptToken(
+            nestedReceiptAccount_,
+            ILedgerTokenFactory.TokenMetadata({name: "Nested Receipt", symbol: "NCLM", decimals: 18, version: ""})
         );
     }
 
@@ -734,7 +732,7 @@ contract LedgerTest is Test {
         assertFalse(tree.isUnregisteredToken(internalFlags), "internal token registered");
         assertFalse(tree.isNative(internalFlags), "internal token not native");
         assertFalse(tree.isExternal(internalFlags), "internal token not external");
-        assertFalse(tree.isClaim(internalFlags), "internal token not claim");
+        assertFalse(tree.isReceipt(internalFlags), "internal token not receipt");
         assertTrue(tree.isLedger(internalFlags), "internal root");
         assertEq(LedgerLib.depth(internalFlags), 2, "internal ledger depth");
         assertEq(LedgerLib.parent(internalFlags), LedgerLib.ROOT_ADDRESS, "internal ledger parent");
@@ -750,7 +748,7 @@ contract LedgerTest is Test {
         assertEq(tree.wrapper(address(externalToken)), address(0), "external wrapper unset");
         assertTrue(tree.isExternal(externalFlags), "external flag set");
         assertFalse(tree.isNative(externalFlags), "external token not native");
-        assertFalse(tree.isClaim(externalFlags), "external token not claim");
+        assertFalse(tree.isReceipt(externalFlags), "external token not receipt");
         assertTrue(tree.isLedger(externalFlags), "external root");
         assertEq(LedgerLib.depth(externalFlags), 2, "external ledger depth");
         assertEq(LedgerLib.parent(externalFlags), LedgerLib.ROOT_ADDRESS, "external ledger parent");
@@ -851,7 +849,7 @@ contract LedgerTest is Test {
         address[] memory before_ = tree.subAccounts(r1);
         uint32 index_ = tree.subAccountIndex(LedgerLib.toAddress(r1, added));
         assertEq(added, LedgerLib.toAddress("newSubAccount"), "address mismatch");
-        assertEq(tree.parent(LedgerLib.toAddress(r1, added)), r1, "parent mismatch");
+        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, added))), r1, "parent mismatch");
         assertEq(index_, before_.length, "index should equal #subs");
         assertTrue(tree.hasSubAccount(r1), "r1 should have subs");
         assertEq(tree.flags(LedgerLib.toAddress(r1, added)), flags_, "flags stored");
@@ -995,7 +993,7 @@ contract LedgerTest is Test {
         ledger.removeSubAccountGroup(r1, r10, LedgerLib.toAddress("100"));
 
         if (isVerbose) console.log("Check parent");
-        assertEq(tree.parent(_100), address(0), "parent reset");
+        assertEq(LedgerLib.parent(tree.flags(_100)), address(0), "parent reset");
         if (isVerbose) console.log("Check index");
         assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r100)), 0, "index reset");
         if (isVerbose) console.log("Check name");
@@ -1023,7 +1021,7 @@ contract LedgerTest is Test {
         (address added_,) = ledger.addSubAccountGroup(r1, r1, relative_, "groupByAddr", false);
         ledger.removeSubAccountGroup(r1, r1, relative_);
 
-        assertEq(tree.parent(added_), address(0), "parent reset");
+        assertEq(LedgerLib.parent(tree.flags(added_)), address(0), "parent reset");
         assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, added_)), 0, "index reset");
         assertEq(ledgerView.name(LedgerLib.toAddress(r1, added_)), "", "name cleared");
     }
@@ -1034,7 +1032,7 @@ contract LedgerTest is Test {
         (address added_,) = ledger.addSubAccount(r1, r1, LedgerLib.toAddress("leafByName"), "leafByName", false);
         ledger.removeSubAccount(r1, r1, LedgerLib.toAddress("leafByName"));
 
-        assertEq(tree.parent(added_), address(0), "parent reset");
+        assertEq(LedgerLib.parent(tree.flags(added_)), address(0), "parent reset");
         assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, added_)), 0, "index reset");
         assertEq(ledgerView.name(LedgerLib.toAddress(r1, added_)), "", "name cleared");
     }
@@ -1134,12 +1132,12 @@ contract LedgerTest is Test {
         assertEq(tree.ledger(LedgerLib.toAddress(r1, r110)), r1, "root r110");
         assertEq(tree.ledger(LedgerLib.toAddress(r1, r111)), r1, "root r111");
 
-        assertEq(tree.parent(LedgerLib.toAddress(r1, r10)), r1, "parent r10");
-        assertEq(tree.parent(LedgerLib.toAddress(r1, r11)), r1, "parent r11");
-        assertEq(tree.parent(LedgerLib.toAddress(r1, r100)), r10, "parent r100");
-        assertEq(tree.parent(LedgerLib.toAddress(r1, r101)), r10, "parent r101");
-        assertEq(tree.parent(LedgerLib.toAddress(r1, r110)), r11, "parent r110");
-        assertEq(tree.parent(LedgerLib.toAddress(r1, r111)), r11, "parent r111");
+        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r10))), r1, "parent r10");
+        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r11))), r1, "parent r11");
+        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r100))), r10, "parent r100");
+        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r101))), r10, "parent r101");
+        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r110))), r11, "parent r110");
+        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r111))), r11, "parent r111");
     }
 
     function testLedgerHasSubAccount() public view {
@@ -1569,19 +1567,19 @@ contract LedgerTest is Test {
         );
     }
 
-    function testLedgerWrapClaimRootReverts() public {
+    function testLedgerWrapReceiptTokenRootReverts() public {
         vm.startPrank(alice);
-        (address claimRoot_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, claimRoot_));
-        ledger.wrap(claimRoot_, 1);
+        (address receiptTokenRoot_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, receiptTokenRoot_));
+        ledger.wrap(receiptTokenRoot_, 1);
         vm.stopPrank();
     }
 
-    function testLedgerUnwrapClaimRootReverts() public {
+    function testLedgerUnwrapReceiptTokenRootReverts() public {
         vm.startPrank(alice);
-        (address claimRoot_,) = createClaimToken("Claim Token", "CLM", 18, r1, r1, source_, "");
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, claimRoot_));
-        ledger.unwrap(claimRoot_, 1);
+        (address receiptTokenRoot_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, receiptTokenRoot_));
+        ledger.unwrap(receiptTokenRoot_, 1);
         vm.stopPrank();
     }
 

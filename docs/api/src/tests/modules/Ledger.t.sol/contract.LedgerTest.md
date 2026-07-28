@@ -1,5 +1,5 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -226,16 +226,16 @@ function createInternalToken(string memory name_, string memory symbol_, uint8 d
     returns (address _tokenAddress, uint256 _flags);
 ```
 
-### createClaimToken
+### createReceiptToken
 
 
 ```solidity
-function createClaimToken(
+function createReceiptToken(
     string memory name_,
     string memory symbol_,
     uint8 decimals_,
-    address root_,
-    address holderParent_,
+    address ledger_,
+    address parent_,
     address relative_,
     string memory version_
 ) internal returns (address _tokenAddress, uint256 _flags);
@@ -318,53 +318,53 @@ function testLedgerCreateInternalTokenIsIdempotent() public;
 function testLedgerCreateInternalTokenVersionChangesAddressOnly() public;
 ```
 
-### testLedgerCreateClaimTokenIsIdempotent
+### testLedgerCreateReceiptTokenIsIdempotent
 
 
 ```solidity
-function testLedgerCreateClaimTokenIsIdempotent() public;
+function testLedgerCreateReceiptTokenIsIdempotent() public;
 ```
 
-### testLedgerCreateClaimTokenVersionChangesAddressOnly
+### testLedgerCreateReceiptTokenVersionChangesAddressOnly
 
 
 ```solidity
-function testLedgerCreateClaimTokenVersionChangesAddressOnly() public;
+function testLedgerCreateReceiptTokenVersionChangesAddressOnly() public;
 ```
 
-### testLedgerWrapRejectsClaimRoot
+### testLedgerWrapRejectsReceiptTokenRoot
 
 
 ```solidity
-function testLedgerWrapRejectsClaimRoot() public;
+function testLedgerWrapRejectsReceiptTokenRoot() public;
 ```
 
-### testLedgerUnwrapRejectsClaimRoot
+### testLedgerUnwrapRejectsReceiptTokenRoot
 
 
 ```solidity
-function testLedgerUnwrapRejectsClaimRoot() public;
+function testLedgerUnwrapRejectsReceiptTokenRoot() public;
 ```
 
-### testLedgerCreateClaimTokenRejectsUnregisteredClaimAccount
+### testLedgerCreateReceiptTokenRejectsUnregisteredReceiptAccount
 
 
 ```solidity
-function testLedgerCreateClaimTokenRejectsUnregisteredClaimAccount() public;
+function testLedgerCreateReceiptTokenRejectsUnregisteredReceiptAccount() public;
 ```
 
-### testLedgerCreateClaimTokenRejectsGroupClaimAccount
+### testLedgerCreateReceiptTokenRejectsGroupReceiptAccount
 
 
 ```solidity
-function testLedgerCreateClaimTokenRejectsGroupClaimAccount() public;
+function testLedgerCreateReceiptTokenRejectsGroupReceiptAccount() public;
 ```
 
-### testLedgerCreateClaimTokenRejectsNestedClaimRoot
+### testLedgerCreateReceiptTokenRejectsNestedReceiptTokenRoot
 
 
 ```solidity
-function testLedgerCreateClaimTokenRejectsNestedClaimRoot() public;
+function testLedgerCreateReceiptTokenRejectsNestedReceiptTokenRoot() public;
 ```
 
 ### testLedgerAddExternalTokenIsIdempotentWithoutWrapper
@@ -388,11 +388,32 @@ function testLedgerRootFlagsByTokenType() public view;
 function testLedgerEffectiveFlags() public;
 ```
 
+### testLedgerEffectiveFlagsRejectsUnregisteredLedger
+
+
+```solidity
+function testLedgerEffectiveFlagsRejectsUnregisteredLedger() public;
+```
+
+### testLedgerEffectiveFlagsRejectsUnregisteredParent
+
+
+```solidity
+function testLedgerEffectiveFlagsRejectsUnregisteredParent() public;
+```
+
 ### testLedgerBalanceOfUsesEffectivePolarity
 
 
 ```solidity
 function testLedgerBalanceOfUsesEffectivePolarity() public;
+```
+
+### testLedgerViewBalanceOfRejectsUnregisteredLedgerAndParent
+
+
+```solidity
+function testLedgerViewBalanceOfRejectsUnregisteredLedgerAndParent() public;
 ```
 
 ### testPackedParentAndWrapperMapping
@@ -703,18 +724,18 @@ function testLedgerUnwrapExternalTokenAfterNativeWrapAllowsCallValue() public;
 function testLedgerWrapExternalTokenAfterNativeWrapAllowsCallValue() public;
 ```
 
-### testLedgerWrapClaimRootReverts
+### testLedgerWrapReceiptTokenRootReverts
 
 
 ```solidity
-function testLedgerWrapClaimRootReverts() public;
+function testLedgerWrapReceiptTokenRootReverts() public;
 ```
 
-### testLedgerUnwrapClaimRootReverts
+### testLedgerUnwrapReceiptTokenRootReverts
 
 
 ```solidity
-function testLedgerUnwrapClaimRootReverts() public;
+function testLedgerUnwrapReceiptTokenRootReverts() public;
 ```
 
 ### testLedgerWrap

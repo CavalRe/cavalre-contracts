@@ -1,11 +1,18 @@
 # TreeView
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/tree/TreeView.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/modules/tree/TreeView.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md)
 
 
 ## Functions
+### checkLedgerParent
+
+
+```solidity
+function checkLedgerParent(address ledger_, address parent_) private view;
+```
+
 ### signatures
 
 
@@ -20,18 +27,11 @@ function signatures() external pure override returns (string[] memory _signature
 function selectors() external pure override returns (bytes4[] memory _selectors);
 ```
 
-### root
+### ledger
 
 
 ```solidity
-function root(address absolute_) external view returns (address);
-```
-
-### holderParent
-
-
-```solidity
-function holderParent(address absolute_) external view returns (address);
+function ledger(address absolute_) external view returns (address);
 ```
 
 ### flags
@@ -45,28 +45,28 @@ function flags(address absolute_) external view returns (uint256);
 
 
 ```solidity
-function wrapper(address root_) external view returns (address);
+function wrapper(address ledger_) external view returns (address);
 ```
 
 ### tree
 
 
 ```solidity
-function tree(address root_) external view returns (TreeLib.TreeNode[] memory);
+function tree(address ledger_) external view returns (TreeLib.TreeNode[] memory);
 ```
 
 ### treeNode
 
 
 ```solidity
-function treeNode(address root_) external view returns (TreeLib.TreeNode memory);
+function treeNode(address ledger_) external view returns (TreeLib.TreeNode memory);
 ```
 
 ### treeNode
 
 
 ```solidity
-function treeNode(address root_, address holderParent_, address relative_)
+function treeNode(address ledger_, address parent_, address relative_)
     external
     view
     returns (TreeLib.TreeNode memory);
@@ -135,11 +135,11 @@ function isCreditLedger(uint256 flags_) external pure returns (bool);
 function isGroup(uint256 flags_) external pure returns (bool);
 ```
 
-### isLedger
+### isLedgerAccount
 
 
 ```solidity
-function isLedger(uint256 flags_) external pure returns (bool);
+function isLedgerAccount(uint256 flags_) external pure returns (bool);
 ```
 
 ### isCredit
@@ -153,7 +153,7 @@ function isCredit(uint256 flags_) external pure returns (bool);
 
 
 ```solidity
-function effectiveFlags(address root_, address holderParent_, address relative_)
+function effectiveFlags(address ledger_, address parent_, address relative_)
     external
     view
     returns (uint256, uint256, address);
@@ -187,25 +187,25 @@ function isNative(uint256 flags_) external pure returns (bool);
 function isExternal(uint256 flags_) external pure returns (bool);
 ```
 
-### isRoot
+### isLedger
 
 
 ```solidity
-function isRoot(uint256 flags_) external pure returns (bool);
+function isLedger(uint256 flags_) external pure returns (bool);
 ```
 
-### isClaim
+### isReceipt
 
 
 ```solidity
-function isClaim(uint256 flags_) external pure returns (bool);
+function isReceipt(uint256 flags_) external pure returns (bool);
 ```
 
-### claimAccount
+### receiptAccount
 
 
 ```solidity
-function claimAccount(uint256 flags_) external pure returns (address);
+function receiptAccount(uint256 flags_) external pure returns (address);
 ```
 
 ### subAccounts
@@ -233,13 +233,13 @@ function subAccountIndex(address absolute_) external view returns (uint32);
 
 
 ```solidity
-function debugTree(address root_) external view;
+function debugTree(address ledger_) external view;
 ```
 
 ### debugTrees
 
 
 ```solidity
-function debugTrees(address[] memory roots_) external view;
+function debugTrees(address[] memory ledgers_) external view;
 ```
 

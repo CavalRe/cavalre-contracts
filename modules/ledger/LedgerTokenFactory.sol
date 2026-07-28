@@ -9,14 +9,14 @@ contract LedgerTokenFactory is Dispatchable {
     function signatures() external pure virtual override returns (string[] memory _signatures) {
         _signatures = new string[](2);
         _signatures[0] = "createInternalToken((string,string,uint8,string)[])";
-        _signatures[1] = "createClaimToken(address,(string,string,uint8,string))";
+        _signatures[1] = "createReceiptToken(address,(string,string,uint8,string))";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
         _selectors = new bytes4[](2);
         _selectors[n++] = bytes4(keccak256("createInternalToken((string,string,uint8,string)[])"));
-        _selectors[n++] = bytes4(keccak256("createClaimToken(address,(string,string,uint8,string))"));
+        _selectors[n++] = bytes4(keccak256("createReceiptToken(address,(string,string,uint8,string))"));
         if (n != 2) revert InvalidCommandsLength(n);
     }
 
@@ -33,11 +33,11 @@ contract LedgerTokenFactory is Dispatchable {
         }
     }
 
-    function createClaimToken(address absoluteClaimAccount_, ILedgerTokenFactory.TokenMetadata memory token_)
+    function createReceiptToken(address absoluteReceiptAccount_, ILedgerTokenFactory.TokenMetadata memory token_)
         external
         returns (address _tokenAddress, uint256 _flags)
     {
         enforceIsOwner();
-        (_tokenAddress, _flags) = LedgerTokenFactoryLib.createClaimToken(absoluteClaimAccount_, token_);
+        (_tokenAddress, _flags) = LedgerTokenFactoryLib.createReceiptToken(absoluteReceiptAccount_, token_);
     }
 }

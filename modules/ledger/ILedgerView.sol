@@ -15,6 +15,4 @@ interface ILedgerView {
     function creditBalanceOf(address ledger, address parent, address relative) external view returns (uint256);
     function balanceOf(address ledger, address parent, address relative) external view returns (uint256);
     function totalSupply(address ledger) external view returns (uint256);
-    function isClaim(address ledger) external view returns (bool);
-    function claimAccountOf(address ledger) external view returns (address);
 }

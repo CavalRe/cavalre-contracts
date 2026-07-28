@@ -1,5 +1,5 @@
 # TreeLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/tree/TreeLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/modules/tree/TreeLib.sol)
 
 
 ## Functions
@@ -7,31 +7,28 @@
 
 
 ```solidity
-function node(address root_, address holderParent_, address relative_)
-    internal
-    view
-    returns (TreeNode memory _node);
+function node(address ledger_, address parent_, address relative_) internal view returns (TreeNode memory _node);
 ```
 
 ### tree
 
 
 ```solidity
-function tree(address root_) internal view returns (TreeNode[] memory _nodes);
+function tree(address ledger_) internal view returns (TreeNode[] memory _nodes);
 ```
 
 ### count
 
 
 ```solidity
-function count(address root_, address holderParent_, address relative_) internal view returns (uint256 _count);
+function count(address ledger_, address parent_, address relative_) internal view returns (uint256 _count);
 ```
 
 ### fill
 
 
 ```solidity
-function fill(address root_, address holderParent_, address relative_, TreeNode[] memory nodes_, uint256 n_)
+function fill(address ledger_, address parent_, address relative_, TreeNode[] memory nodes_, uint256 n_)
     internal
     view
     returns (uint256 _n);
@@ -42,8 +39,8 @@ function fill(address root_, address holderParent_, address relative_, TreeNode[
 
 ```solidity
 function logTree(
-    address root_,
-    address holderParent_,
+    address ledger_,
+    address parent_,
     address relative_,
     string memory prefix_,
     bool isFirst_,
@@ -55,14 +52,14 @@ function logTree(
 
 
 ```solidity
-function debugTree(address root_) internal view;
+function debugTree(address ledger_) internal view;
 ```
 
 ### debugTrees
 
 
 ```solidity
-function debugTrees(address[] memory roots_) internal view;
+function debugTrees(address[] memory ledgers_) internal view;
 ```
 
 ## Structs
@@ -70,7 +67,7 @@ function debugTrees(address[] memory roots_) internal view;
 
 ```solidity
 struct TreeCache {
-    bool isRoot;
+    bool isLedger;
     address addr;
     uint256 flags;
     uint256 balance;
@@ -85,7 +82,7 @@ struct TreeCache {
 
 ```solidity
 struct TreeNode {
-    address holderParent;
+    address parent;
     address relative;
     string name;
     bool isCredit;

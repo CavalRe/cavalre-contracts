@@ -1,5 +1,5 @@
 # ILedgerTokenFactory
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/ledger/ILedgerTokenFactory.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/modules/ledger/ILedgerTokenFactory.sol)
 
 
 ## Functions
@@ -12,11 +12,11 @@ function createInternalToken(TokenMetadata[] memory tokens)
     returns (address[] memory tokenAddresses, uint256[] memory flags);
 ```
 
-### createClaimToken
+### createReceiptToken
 
 
 ```solidity
-function createClaimToken(address absoluteClaimAccount, TokenMetadata memory token)
+function createReceiptToken(address absoluteReceiptAccount, TokenMetadata memory token)
     external
     returns (address tokenAddress, uint256 flags);
 ```

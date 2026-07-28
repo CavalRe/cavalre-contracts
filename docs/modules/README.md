@@ -98,15 +98,15 @@ The `Ledger` module owns hierarchical account trees, native/external root regist
 
 - canonical root is always registered at `address(this)` during `initializeLedger(...)`
 - internal roots are self-wrapped at creation, so the returned root address is immediately an ERC20 surface
-- claim roots are also self-wrapped at creation and reference one registered non-claim Ledger leaf account
+- receipt token roots are also self-wrapped at creation and reference one registered non-receipt Ledger leaf account
 - external root registration happens through `Ledger.addExternalToken(address[])`
 - internal root creation happens through `LedgerTokenFactory.createInternalToken(TokenMetadata[])` and is deterministic/idempotent by `(name, symbol, decimals, version)`
-- claim root creation happens through `LedgerTokenFactory.createClaimToken(absoluteClaimAccount, TokenMetadata)` and is deterministic/idempotent by `(name, symbol, decimals, version)`
+- receipt token root creation happens through `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)` and is deterministic/idempotent by `(name, symbol, decimals, version)`
 - native and external roots are registered ledger roots without self-wrapped ERC20 surfaces
 - canonical-root ERC20 behavior lives in the example ERC20 module when installed
 - `LedgerLib.wrap(...)` / `LedgerLib.unwrap(...)` depend on registered roots, not wrapper existence
 - external `Ledger.wrap(token_, amount_)` / `Ledger.unwrap(token_, amount_)` route through the per-root default source leaf
-- wrap/unwrap are valid only for external/native debit roots; internal and claim roots revert
+- wrap/unwrap are valid only for external/native debit roots; internal and receipt token roots revert
 - direct/user and wrapper/ERC20 transfer paths both enforce canonical source polarity after `LedgerLib.transfer(...)`
 
 ## Responsibilities
@@ -125,7 +125,7 @@ The `TreeView` module owns topology/debug reads for ledger trees.
 ## Responsibilities
 
 - root / parent / flags / wrapper lookup
-- enum flag decoding (`AccountKind`, `TokenKind`, packed address, claim account)
+- enum flag decoding (`AccountKind`, `TokenKind`, packed address, receipt account)
 - effective flag resolution for possibly-unregistered leaves
 - child enumeration (`subAccounts`, `hasSubAccount`, `subAccountIndex`)
 - tree visualization via `debugTree(root_)` and `debugTrees(roots_)`
@@ -146,5 +146,5 @@ The example `LedgerERC20` module is the optional ERC20 surface for the canonical
 ## Further Reading
 
 - [Ledger Notes](Ledgers.md)
-- [Claim Token Notes](ClaimTokens.md)
+- [Receipt Token Notes](ReceiptTokens.md)
 - [ERC20 Notes](ERC20.md)

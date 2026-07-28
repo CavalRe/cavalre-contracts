@@ -56,7 +56,7 @@ library LedgerTokenFactoryLib {
         s.wrapper[_token] = _token;
     }
 
-    function createClaimToken(address absoluteClaimAccount_, ILedgerTokenFactory.TokenMetadata memory token_)
+    function createReceiptToken(address absoluteReceiptAccount_, ILedgerTokenFactory.TokenMetadata memory token_)
         internal
         returns (address _token, uint256 _flags)
     {
@@ -65,11 +65,12 @@ library LedgerTokenFactoryLib {
         }
 
         _token = predictToken(token_);
-        LedgerLib.checkClaimAccount(_token, absoluteClaimAccount_);
+        LedgerLib.checkReceiptAccount(_token, absoluteReceiptAccount_);
 
         if (LedgerLib.ledger(_token) == _token) {
-            _flags =
-                LedgerLib.flags(absoluteClaimAccount_, LedgerLib.AccountKind.DebitGroup, LedgerLib.TokenKind.Claim, 2);
+            _flags = LedgerLib.flags(
+                absoluteReceiptAccount_, LedgerLib.AccountKind.DebitGroup, LedgerLib.TokenKind.Receipt, 2
+            );
             if (_flags == LedgerLib.flags(_token) && LedgerLib.wrapper(_token) == _token) return (_token, _flags);
             revert ILedger.InvalidToken(_token, token_.name, token_.symbol, token_.decimals);
         }
@@ -80,7 +81,7 @@ library LedgerTokenFactoryLib {
             new ERC20Wrapper{salt: tokenSalt(token_)}(address(this), token_.name, token_.symbol, token_.decimals)
         );
         _flags = LedgerLib.addLedger(
-            _token, token_.name, token_.symbol, token_.decimals, LedgerLib.TokenKind.Claim, absoluteClaimAccount_
+            _token, token_.name, token_.symbol, token_.decimals, LedgerLib.TokenKind.Receipt, absoluteReceiptAccount_
         );
 
         LedgerLib.Store storage s = LedgerLib.store();

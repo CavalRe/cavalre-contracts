@@ -14,45 +14,43 @@ contract TreeView is Dispatchable {
     }
 
     function signatures() external pure override returns (string[] memory _signatures) {
-        _signatures = new string[](31);
+        _signatures = new string[](30);
         _signatures[0] = "ledger(address)";
-        _signatures[1] = "parent(address)";
-        _signatures[2] = "flags(address)";
-        _signatures[3] = "wrapper(address)";
-        _signatures[4] = "tree(address)";
-        _signatures[5] = "treeNode(address)";
-        _signatures[6] = "treeNode(address,address,address)";
-        _signatures[7] = "accountKind(uint256)";
-        _signatures[8] = "tokenKind(uint256)";
-        _signatures[9] = "packedAddress(uint256)";
-        _signatures[10] = "isUnregisteredAccount(uint256)";
-        _signatures[11] = "isDebitGroup(uint256)";
-        _signatures[12] = "isCreditGroup(uint256)";
-        _signatures[13] = "isDebitLedger(uint256)";
-        _signatures[14] = "isCreditLedger(uint256)";
-        _signatures[15] = "isGroup(uint256)";
-        _signatures[16] = "isLedgerAccount(uint256)";
-        _signatures[17] = "isCredit(uint256)";
-        _signatures[18] = "effectiveFlags(address,address,address)";
-        _signatures[19] = "isUnregisteredToken(uint256)";
-        _signatures[20] = "isInternal(uint256)";
-        _signatures[21] = "isNative(uint256)";
-        _signatures[22] = "isExternal(uint256)";
-        _signatures[23] = "isLedger(uint256)";
-        _signatures[24] = "isClaim(uint256)";
-        _signatures[25] = "claimAccount(uint256)";
-        _signatures[26] = "subAccounts(address)";
-        _signatures[27] = "hasSubAccount(address)";
-        _signatures[28] = "subAccountIndex(address)";
-        _signatures[29] = "debugTree(address)";
-        _signatures[30] = "debugTrees(address[])";
+        _signatures[1] = "flags(address)";
+        _signatures[2] = "wrapper(address)";
+        _signatures[3] = "tree(address)";
+        _signatures[4] = "treeNode(address)";
+        _signatures[5] = "treeNode(address,address,address)";
+        _signatures[6] = "accountKind(uint256)";
+        _signatures[7] = "tokenKind(uint256)";
+        _signatures[8] = "packedAddress(uint256)";
+        _signatures[9] = "isUnregisteredAccount(uint256)";
+        _signatures[10] = "isDebitGroup(uint256)";
+        _signatures[11] = "isCreditGroup(uint256)";
+        _signatures[12] = "isDebitLedger(uint256)";
+        _signatures[13] = "isCreditLedger(uint256)";
+        _signatures[14] = "isGroup(uint256)";
+        _signatures[15] = "isLedgerAccount(uint256)";
+        _signatures[16] = "isCredit(uint256)";
+        _signatures[17] = "effectiveFlags(address,address,address)";
+        _signatures[18] = "isUnregisteredToken(uint256)";
+        _signatures[19] = "isInternal(uint256)";
+        _signatures[20] = "isNative(uint256)";
+        _signatures[21] = "isExternal(uint256)";
+        _signatures[22] = "isLedger(uint256)";
+        _signatures[23] = "isReceipt(uint256)";
+        _signatures[24] = "receiptAccount(uint256)";
+        _signatures[25] = "subAccounts(address)";
+        _signatures[26] = "hasSubAccount(address)";
+        _signatures[27] = "subAccountIndex(address)";
+        _signatures[28] = "debugTree(address)";
+        _signatures[29] = "debugTrees(address[])";
     }
 
     function selectors() external pure override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](31);
+        _selectors = new bytes4[](30);
         _selectors[n++] = bytes4(keccak256("ledger(address)"));
-        _selectors[n++] = bytes4(keccak256("parent(address)"));
         _selectors[n++] = bytes4(keccak256("flags(address)"));
         _selectors[n++] = bytes4(keccak256("wrapper(address)"));
         _selectors[n++] = bytes4(keccak256("tree(address)"));
@@ -75,23 +73,19 @@ contract TreeView is Dispatchable {
         _selectors[n++] = bytes4(keccak256("isNative(uint256)"));
         _selectors[n++] = bytes4(keccak256("isExternal(uint256)"));
         _selectors[n++] = bytes4(keccak256("isLedger(uint256)"));
-        _selectors[n++] = bytes4(keccak256("isClaim(uint256)"));
-        _selectors[n++] = bytes4(keccak256("claimAccount(uint256)"));
+        _selectors[n++] = bytes4(keccak256("isReceipt(uint256)"));
+        _selectors[n++] = bytes4(keccak256("receiptAccount(uint256)"));
         _selectors[n++] = bytes4(keccak256("subAccounts(address)"));
         _selectors[n++] = bytes4(keccak256("hasSubAccount(address)"));
         _selectors[n++] = bytes4(keccak256("subAccountIndex(address)"));
         _selectors[n++] = bytes4(keccak256("debugTree(address)"));
         _selectors[n++] = bytes4(keccak256("debugTrees(address[])"));
 
-        if (n != 31) revert InvalidCommandsLength(n);
+        if (n != 30) revert InvalidCommandsLength(n);
     }
 
     function ledger(address absolute_) external view returns (address) {
         return LedgerLib.ledger(absolute_);
-    }
-
-    function parent(address absolute_) external view returns (address) {
-        return LedgerLib.parent(LedgerLib.flags(absolute_));
     }
 
     function flags(address absolute_) external view returns (uint256) {
@@ -191,12 +185,12 @@ contract TreeView is Dispatchable {
         return LedgerLib.isLedger(flags_);
     }
 
-    function isClaim(uint256 flags_) external pure returns (bool) {
-        return LedgerLib.isClaim(flags_);
+    function isReceipt(uint256 flags_) external pure returns (bool) {
+        return LedgerLib.isReceipt(flags_);
     }
 
-    function claimAccount(uint256 flags_) external pure returns (address) {
-        return LedgerLib.claimAccount(flags_);
+    function receiptAccount(uint256 flags_) external pure returns (address) {
+        return LedgerLib.receiptAccount(flags_);
     }
 
     function subAccounts(address absolute_) external view returns (address[] memory) {

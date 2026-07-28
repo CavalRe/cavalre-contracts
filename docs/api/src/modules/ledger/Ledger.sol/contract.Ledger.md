@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/ledger/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/modules/ledger/Ledger.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md)
@@ -106,8 +106,8 @@ function initializeLedger(string memory name_, string memory symbol_) external i
 
 ```solidity
 function addSubAccountGroup(
-    address root_,
-    address holderParent_,
+    address ledger_,
+    address parent_,
     address relative_,
     string memory name_,
     bool isCredit_
@@ -118,7 +118,7 @@ function addSubAccountGroup(
 
 
 ```solidity
-function addSubAccount(address root_, address holderParent_, address relative_, string memory name_, bool isCredit_)
+function addSubAccount(address ledger_, address parent_, address relative_, string memory name_, bool isCredit_)
     external
     returns (address, uint256);
 ```
@@ -141,14 +141,14 @@ function addExternalToken(address[] memory tokens_) external returns (uint256[] 
 
 
 ```solidity
-function removeSubAccountGroup(address root_, address holderParent_, address relative_) external returns (address);
+function removeSubAccountGroup(address ledger_, address parent_, address relative_) external returns (address);
 ```
 
 ### removeSubAccount
 
 
 ```solidity
-function removeSubAccount(address root_, address holderParent_, address relative_) external returns (address);
+function removeSubAccount(address ledger_, address parent_, address relative_) external returns (address);
 ```
 
 ### transfer
@@ -156,10 +156,10 @@ function removeSubAccount(address root_, address holderParent_, address relative
 
 ```solidity
 function transfer(
-    address root_,
-    address fromHolderParent_,
+    address ledger_,
+    address fromParent_,
     address from_,
-    address toHolderParent_,
+    address toParent_,
     address to_,
     uint256 amount_
 ) external;
@@ -169,8 +169,7 @@ function transfer(
 
 
 ```solidity
-function transfer(address root_, address fromHolderParent_, address toHolderParent_, address to_, uint256 amount_)
-    external;
+function transfer(address ledger_, address fromParent_, address toParent_, address to_, uint256 amount_) external;
 ```
 
 ### wrap

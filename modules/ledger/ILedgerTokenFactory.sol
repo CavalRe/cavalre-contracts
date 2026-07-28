@@ -13,7 +13,7 @@ interface ILedgerTokenFactory {
         external
         returns (address[] memory tokenAddresses, uint256[] memory flags);
 
-    function createClaimToken(address absoluteClaimAccount, TokenMetadata memory token)
+    function createReceiptToken(address absoluteReceiptAccount, TokenMetadata memory token)
         external
         returns (address tokenAddress, uint256 flags);
 }

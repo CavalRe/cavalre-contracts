@@ -1,5 +1,5 @@
 # ERC20WrapperTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/tests/modules/ERC20Wrapper.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/tests/modules/ERC20Wrapper.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -128,11 +128,11 @@ function createInternalToken(string memory name_, string memory symbol_, uint8 d
     returns (address _tokenAddress, uint256 _flags);
 ```
 
-### createClaimToken
+### createReceiptToken
 
 
 ```solidity
-function createClaimToken(
+function createReceiptToken(
     string memory name_,
     string memory symbol_,
     uint8 decimals_,
@@ -171,11 +171,11 @@ function testERC20WrapperMetadata() public view;
 function testERC20WrapperCreateInternalToken() public;
 ```
 
-### testERC20WrapperClaimRootMintTransferBurn
+### testERC20WrapperReceiptTokenRootMintTransferBurn
 
 
 ```solidity
-function testERC20WrapperClaimRootMintTransferBurn() public;
+function testERC20WrapperReceiptTokenRootMintTransferBurn() public;
 ```
 
 ### testERC20WrapperMintTransferBurn
@@ -206,11 +206,11 @@ function testERC20WrapperZeroTransferEmitsTransfer() public;
 function testERC20WrapperTransferMatrix() public;
 ```
 
-### testERC20WrapperClaimRootTransferMatrix
+### testERC20WrapperReceiptTokenRootTransferMatrix
 
 
 ```solidity
-function testERC20WrapperClaimRootTransferMatrix() public;
+function testERC20WrapperReceiptTokenRootTransferMatrix() public;
 ```
 
 ### _assertTransferMatrix

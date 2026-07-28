@@ -11,7 +11,7 @@
 - default-source registration per root
 - native/external root registration
 - library-level wrap/unwrap settlement flows
-- deterministic internal/claim root creation via `modules/ledger/LedgerTokenFactory.sol`
+- deterministic internal/receipt token root creation via `modules/ledger/LedgerTokenFactory.sol`
 - canonical-root ERC20 surface via `examples/LedgerERC20.sol`
 - topology/debug surface via `modules/tree/TreeView.sol`
 
@@ -20,7 +20,7 @@
 - every token ledger has a root
 - canonical root is `address(this)`
 - every registered root is a debit group
-- root token type is encoded as `LedgerLib.TokenKind`: `Native`, `External`, `Internal`, or `Claim`
+- root token type is encoded as `LedgerLib.TokenKind`: `Native`, `External`, `Internal`, or `Receipt`
 - account shape and polarity are encoded as `LedgerLib.AccountKind`: `DebitGroup`, `CreditGroup`, `DebitLedger`, or `CreditLedger`
 - subaccounts are deterministic addresses derived from parent + label/address
 - name-form `addSubAccount*` helpers delegate to addr-form overloads using `toAddress(name_)`
@@ -28,9 +28,9 @@
 - leaf polarity determines which balance column (`debits` or `credits`) each path mutates
 - when both paths converge on the same ancestor on the same side, remaining upward mutations cancel and the walk can stop early
 - internal roots are created deterministically with `CREATE2` via `LedgerTokenFactory.createInternalToken(TokenMetadata[])`, so `(name, symbol, decimals, version)` uniquely identifies the root and repeated calls are idempotent
-- internal and claim roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
+- internal and receipt token roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
 - native/external roots are registered as ledger roots without self-wrapped ERC20 surfaces
-- claim roots are created with `LedgerTokenFactory.createClaimToken(absoluteClaimAccount, TokenMetadata)`, reference one registered non-claim absolute Ledger leaf account, and are deterministic by `(name, symbol, decimals, version)`
+- receipt token roots are created with `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)`, reference one registered non-receipt absolute Ledger leaf account, and are deterministic by `(name, symbol, decimals, version)`
 - canonical root ERC20 UX is handled by `examples/LedgerERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `LedgerERC20Lib`
 - every root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as its default credit source leaf
 - `address(0)` is not a registered Ledger holder; it is reserved for ERC20 mint/burn event projection
@@ -40,7 +40,7 @@
 - both transfer paths reject wrong-polarity sources after `LedgerLib.transfer(...)` resolves effective flags
 - `wrap(token_, amount_)` mints from the default source into `msg.sender`
 - `unwrap(token_, amount_)` burns from `msg.sender` back into the default source
-- `LedgerLib.wrap(...)` / `unwrap(...)` only apply to external/native debit roots; internal and claim roots revert
+- `LedgerLib.wrap(...)` / `unwrap(...)` only apply to external/native debit roots; internal and receipt token roots revert
 - tree/root mutators are intended to be idempotent: exact replays return the same result or become no-ops, while conflicting replays revert
 
 ## Address Derivation
@@ -94,7 +94,7 @@ Special addresses:
 
 - `NATIVE_ADDRESS`
 - per-root default credit source leaf at `LedgerLib.SOURCE_ADDRESS` / `Source`
-- claim root packed address slot stores the referenced absolute claim account
+- receipt token root packed address slot stores the referenced absolute receipt account
 
 ## Events
 
@@ -109,7 +109,7 @@ Primary ledger/accounting events:
 - `SubAccountRemoved`
 - `SubAccountGroupRemoved`
 
-ERC20-style `Transfer` events are emitted by self-wrapped internal/claim token
+ERC20-style `Transfer` events are emitted by self-wrapped internal/receipt token
 contracts through `ERC20Wrapper.emitTransfer(...)`. The Ledger accounting stream
 is `Credit` / `Debit`.
 

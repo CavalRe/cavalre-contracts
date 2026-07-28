@@ -1,5 +1,5 @@
 # TestLedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Ledger](/modules/ledger/Ledger.sol/contract.Ledger.md)
@@ -53,14 +53,14 @@ function initializeTestLedger() external initializer;
 
 
 ```solidity
-function mint(address root_, address toHolderParent_, address to_, uint256 amount_) external;
+function mint(address ledger_, address toParent_, address to_, uint256 amount_) external;
 ```
 
 ### burn
 
 
 ```solidity
-function burn(address root_, address fromHolderParent_, address from_, uint256 amount_) external;
+function burn(address ledger_, address fromParent_, address from_, uint256 amount_) external;
 ```
 
 ### enforceNativeValue
@@ -93,10 +93,10 @@ function wrapThenWrap(address nativeToken_, uint256 nativeAmount_, address exter
 
 ```solidity
 function rawTransfer(
-    address root_,
-    address fromHolderParent_,
+    address ledger_,
+    address fromParent_,
     address from_,
-    address toHolderParent_,
+    address toParent_,
     address to_,
     uint256 amount_
 ) external;
@@ -107,10 +107,10 @@ function rawTransfer(
 
 ```solidity
 function wrapFrom(
-    address root_,
-    address fromHolderParent_,
+    address ledger_,
+    address fromParent_,
     address from_,
-    address toHolderParent_,
+    address toParent_,
     address to_,
     address payer_,
     uint256 amount_
@@ -122,10 +122,10 @@ function wrapFrom(
 
 ```solidity
 function unwrapTo(
-    address root_,
-    address fromHolderParent_,
+    address ledger_,
+    address fromParent_,
     address from_,
-    address toHolderParent_,
+    address toParent_,
     address to_,
     address recipient_,
     uint256 amount_

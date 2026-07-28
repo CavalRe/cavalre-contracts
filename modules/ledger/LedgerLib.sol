@@ -21,7 +21,7 @@ library LedgerLib {
         Native,
         External,
         Internal,
-        Claim
+        Receipt
     }
 
     struct Store {
@@ -67,7 +67,7 @@ library LedgerLib {
     uint256 constant FLAG_DEPTH_SHIFT = 8;
     uint256 constant FLAG_DEPTH_MASK = uint256(0xff) << FLAG_DEPTH_SHIFT;
     // High 160-bit lane. Non-ledger accounts pack their parent here.
-    // Ledger parents are derived as ROOT_ADDRESS; claim ledgers reuse this lane for claim-account metadata.
+    // Ledger parents are derived as ROOT_ADDRESS; receipt ledgers reuse this lane for receipt-account metadata.
     uint256 constant PACK_ADDR_SHIFT = 96;
 
     //==================================================================
@@ -160,7 +160,7 @@ library LedgerLib {
     }
 
     function parent(uint256 flags_) internal pure returns (address) {
-        // All ledgers sit directly under Root. For claim ledgers, packedAddress(flags_) is claim metadata,
+        // All ledgers sit directly under Root. For receipt ledgers, packedAddress(flags_) is receipt metadata,
         // so parent() must mask the packed lane and keep topology semantics stable.
         if (isLedger(flags_)) return ROOT_ADDRESS;
         return packedAddress(flags_);
@@ -246,22 +246,24 @@ library LedgerLib {
         return depth(flags_) == 2 && isGroup(flags_);
     }
 
-    function isClaim(uint256 flags_) internal pure returns (bool) {
-        return tokenKind(flags_) == TokenKind.Claim;
+    function isReceipt(uint256 flags_) internal pure returns (bool) {
+        return tokenKind(flags_) == TokenKind.Receipt;
     }
 
-    function claimAccount(uint256 flags_) internal pure returns (address) {
-        // Claim ledgers store their referenced absolute claim account in the packed lane.
-        // Use parent(flags_) for topology; use claimAccount(flags_) for claim metadata.
-        if (!isLedger(flags_) || !isClaim(flags_)) return address(0);
+    function receiptAccount(uint256 flags_) internal pure returns (address) {
+        // Receipt ledgers store their referenced absolute receipt account in the packed lane.
+        // Use parent(flags_) for topology; use receiptAccount(flags_) for receipt metadata.
+        if (!isLedger(flags_) || !isReceipt(flags_)) return address(0);
         return packedAddress(flags_);
     }
 
-    function checkClaimAccount(address claimTokenAddress_, address absoluteClaimAccount_) internal view {
-        if (!isLedgerAccount(flags(absoluteClaimAccount_))) revert ILedger.InvalidLedgerAccount(absoluteClaimAccount_);
-        address _claimAccountLedger = ledger(absoluteClaimAccount_);
-        if (_claimAccountLedger == claimTokenAddress_ || isClaim(flags(_claimAccountLedger))) {
-            revert ILedger.InvalidLedgerAccount(absoluteClaimAccount_);
+    function checkReceiptAccount(address receiptTokenAddress_, address absoluteReceiptAccount_) internal view {
+        if (!isLedgerAccount(flags(absoluteReceiptAccount_))) {
+            revert ILedger.InvalidLedgerAccount(absoluteReceiptAccount_);
+        }
+        address _receiptAccountLedger = ledger(absoluteReceiptAccount_);
+        if (_receiptAccountLedger == receiptTokenAddress_ || isReceipt(flags(_receiptAccountLedger))) {
+            revert ILedger.InvalidLedgerAccount(absoluteReceiptAccount_);
         }
     }
 

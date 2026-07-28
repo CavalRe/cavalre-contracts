@@ -40,13 +40,13 @@ This keeps canonical-root ERC20 behavior out of `LedgerLib` while preserving `ad
 
 - canonical root uses `examples/LedgerERC20.sol` if ERC20 exposure is desired
 - internal roots are self-wrapped at creation
-- claim roots are self-wrapped at creation
+- receipt token roots are self-wrapped at creation
 - native and external roots are registered ledger roots without self-wrapped ERC20 surfaces
 
 So:
 
 - `LedgerERC20` = canonical-root surface
-- `ERC20Wrapper` = self-wrapped internal/claim-token surface
+- `ERC20Wrapper` = self-wrapped internal/receipt-token surface
 
 ## Testing
 

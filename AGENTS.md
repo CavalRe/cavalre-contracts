@@ -24,6 +24,7 @@ Apply this throughout responses—explanations, status updates, error descriptio
 - Onchain state rule: persist only mutations required for protocol functionality/correctness; prefer deriving analytics/reporting/audit views offchain.
 - Local variable naming: underscore suffix by default. Exception allowed for `*Context memory ctx` / `*Cache memory c`.
 - Style target: minimalist, consistent patterns, minimal locals/helpers, avoid redundant recomputation.
+- Avoid trivial one-line helper functions; prefer one core implementation and call it directly.
 - Section comment style: `// -- Section Name --` (avoid boxed multi-line separators).
 - For commit msg/body requests: first inspect current changes with `git status --short`, `git diff --stat HEAD`, and `git diff --unified=0 HEAD`; `git diff HEAD` excludes untracked files, so include relevant untracked files shown by status and inspect their contents before drafting. Include only changes present in current tracked diff + relevant untracked files, never prior commits or broader session history. Return commit message + body in one single copy-pasteable fenced `text` block by default.
 
@@ -87,7 +88,7 @@ forge clean
 - **Account hierarchy**: Tree structure, parent-child via `LedgerLib.Store`
 - **Debit vs Credit**: Encoded in `LedgerLib.AccountKind`
 - **Group vs Leaf**: Groups (containers) or leaves (actual balances)
-- **Token kind**: Root type encoded in `LedgerLib.TokenKind` (`Native`, `External`, `Internal`, `Claim`)
+- **Token kind**: Root type encoded in `LedgerLib.TokenKind` (`Native`, `External`, `Internal`, `Receipt`)
 - **Registration**: Registered accounts have non-`Unregistered` `AccountKind`
 - **Address taxonomy**: `absolute_` = global storage key, `holder_` = token-local ERC20 holder key, `relative_` = reusable child key. Use `LedgerLib.toAddress(root, holderParent, relative)` for storage keys.
 
@@ -96,9 +97,9 @@ Special addresses / roots:
 - `NATIVE_ADDRESS` - native token (ETH)
 - all registered roots are debit groups
 - each root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as its default credit source leaf; `address(0)` is ERC20 event-only
-- claim-token roots store the referenced absolute claim account in the packed root address slot
+- receipt roots store the referenced absolute receipt account in the packed root address slot
 
-**ERC20Wrapper**: Internal and claim roots are self-wrapped at creation. If a root has a wrapper, the wrapper address is the root address. Native/external roots do not get separate wrapper surfaces.
+**ERC20Wrapper**: Internal and receipt roots are self-wrapped at creation. If a root has a wrapper, the wrapper address is the root address. Native/external roots do not get separate wrapper surfaces.
 
 **ERC20 Example Module**: `examples/LedgerERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `LedgerERC20Lib`; transfers route through `Ledger.transfer(...)`.
 

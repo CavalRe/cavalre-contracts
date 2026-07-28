@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/d0ede1b69895a3bda07d109941a341b13cd3d245/modules/ledger/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/modules/ledger/ILedger.sol)
 
 
 ## Functions
@@ -14,7 +14,7 @@ function initializeLedger(string memory name, string memory symbol) external;
 
 
 ```solidity
-function addSubAccountGroup(address root, address holderParent, address relative, string memory name, bool isCredit)
+function addSubAccountGroup(address ledger, address parent, address relative, string memory name, bool isCredit)
     external
     returns (address subAccount, uint256 flags);
 ```
@@ -23,7 +23,7 @@ function addSubAccountGroup(address root, address holderParent, address relative
 
 
 ```solidity
-function addSubAccount(address root, address holderParent, address relative, string memory name, bool isCredit)
+function addSubAccount(address ledger, address parent, address relative, string memory name, bool isCredit)
     external
     returns (address subAccount, uint256 flags);
 ```
@@ -31,8 +31,8 @@ function addSubAccount(address root, address holderParent, address relative, str
 
 |Name|Type|Description|
 |----|----|-----------|
-|`root`|`address`||
-|`holderParent`|`address`||
+|`ledger`|`address`||
+|`parent`|`address`||
 |`relative`|`address`||
 |`name`|`string`||
 |`isCredit`|`bool`|True for credit-side account, false for debit-side in the double-entry tree.|
@@ -56,36 +56,29 @@ function addExternalToken(address[] memory tokens) external returns (uint256[] m
 
 
 ```solidity
-function removeSubAccountGroup(address root, address holderParent, address relative) external returns (address);
+function removeSubAccountGroup(address ledger, address parent, address relative) external returns (address);
 ```
 
 ### removeSubAccount
 
 
 ```solidity
-function removeSubAccount(address root, address holderParent, address relative) external returns (address);
+function removeSubAccount(address ledger, address parent, address relative) external returns (address);
 ```
 
 ### transfer
 
 
 ```solidity
-function transfer(
-    address root,
-    address fromHolderParent,
-    address from,
-    address toHolderParent,
-    address to,
-    uint256 amount
-) external;
-```
-
-### transfer
-
-
-```solidity
-function transfer(address root, address fromHolderParent, address toHolderParent, address to, uint256 amount)
+function transfer(address ledger, address fromParent, address from, address toParent, address to, uint256 amount)
     external;
+```
+
+### transfer
+
+
+```solidity
+function transfer(address ledger, address fromParent, address toParent, address to, uint256 amount) external;
 ```
 
 ### wrap
@@ -125,37 +118,37 @@ event LedgerAdded(address indexed tokenAddress, string name, string symbol, uint
 ### SubAccountAdded
 
 ```solidity
-event SubAccountAdded(address indexed root, address indexed parent, address addr, bool isCredit);
+event SubAccountAdded(address indexed ledger, address indexed parent, address addr, bool isCredit);
 ```
 
 ### SubAccountGroupAdded
 
 ```solidity
-event SubAccountGroupAdded(address indexed root, address indexed parent, string subName, bool isCredit);
+event SubAccountGroupAdded(address indexed ledger, address indexed parent, string subName, bool isCredit);
 ```
 
 ### SubAccountRemoved
 
 ```solidity
-event SubAccountRemoved(address indexed root, address indexed parent, address addr);
+event SubAccountRemoved(address indexed ledger, address indexed parent, address addr);
 ```
 
 ### SubAccountGroupRemoved
 
 ```solidity
-event SubAccountGroupRemoved(address indexed root, address indexed parent, address addr);
+event SubAccountGroupRemoved(address indexed ledger, address indexed parent, address addr);
 ```
 
 ### Credit
 
 ```solidity
-event Credit(address indexed root, address indexed account, uint256 amount, uint256 balance);
+event Credit(address indexed ledger, address indexed account, uint256 amount, uint256 balance);
 ```
 
 ### Debit
 
 ```solidity
-event Debit(address indexed root, address indexed account, uint256 amount, uint256 balance);
+event Debit(address indexed ledger, address indexed account, uint256 amount, uint256 balance);
 ```
 
 ### Transfer

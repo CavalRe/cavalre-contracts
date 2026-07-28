@@ -1,42 +1,42 @@
-# Claim Tokens
+# Receipt Tokens
 
 ## Summary
 
-A claim token is a Ledger-native token whose supply represents claims on the balance of one registered Ledger leaf account.
+A receipt token is a Ledger-native token whose supply represents receipts on the balance of one registered Ledger leaf account.
 
-Claim tokens are not claims on other tokens directly. They are claims on Ledger accounts. The referenced account's Ledger tree determines the claimed root asset, account polarity, and current account balance.
+Receipt tokens are not receipts on other tokens directly. They are receipts on Ledger accounts. The referenced account's Ledger tree determines the receipted root asset, account polarity, and current account balance.
 
 ```text
-claim token -> registered Ledger leaf account
-claim account -> root asset + polarity + balance
+receipt token -> registered Ledger leaf account
+receipt account -> root asset + polarity + balance
 ```
 
-Ledger records the reference. Consuming protocols define valuation, minting, burning, settlement, and whether a claim token is acceptable in a given protocol role.
+Ledger records the reference. Consuming protocols define valuation, minting, burning, settlement, and whether a receipt token is acceptable in a given protocol role.
 
 ## Terms
 
 - **absolute address**: the canonical Ledger account address derived from its absolute parent and a relative child address.
 - **relative address**: the local child account address supplied under a parent.
 - **root**: a depth-1 group account representing one token tree.
-- **claim token**: a `TokenKind.Claim` root.
-- **claim account**: the registered Ledger leaf referenced by a claim token.
+- **receipt token**: a `TokenKind.Receipt` root.
+- **receipt account**: the registered Ledger leaf referenced by a receipt token.
 
-For a claim-token creation call, `parent_` is an absolute parent account and `addr_` is a relative child account. Ledger derives the referenced absolute claim account:
+For a receipt-token creation call, `parent_` is an absolute parent account and `addr_` is a relative child account. Ledger derives the referenced absolute receipt account:
 
 ```solidity
-claimAccount = LedgerLib.toAddress(parent_, addr_);
+receiptAccount = LedgerLib.toAddress(parent_, addr_);
 ```
 
 ## V1 Decisions
 
 - first deployment only; no deployed-state migration
 - all registered roots are debit groups
-- claim roots are debit groups
-- claim accounts must be registered Ledger leaves
-- group-account and root-account claims are rejected
-- nested claims are rejected
-- claim tokens have exact `TokenKind.Claim` classification and are not `isInternal`
-- claim tokens cannot be wrapped or unwrapped as external custody assets
+- receipt token roots are debit groups
+- receipt accounts must be registered Ledger leaves
+- group-account and root-account receipts are rejected
+- nested receipts are rejected
+- receipt tokens have exact `TokenKind.Receipt` classification and are not `isInternal`
+- receipt tokens cannot be wrapped or unwrapped as external custody assets
 - root token creation does not accept root credit polarity
 - old boolean flag constants are removed
 - downstream packages must migrate from raw flag-bit checks to helpers
@@ -65,7 +65,7 @@ enum TokenKind {
     Native,       // 1
     External,     // 2
     Internal,     // 3
-    Claim         // 4
+    Receipt         // 4
 }
 ```
 
@@ -100,8 +100,8 @@ The packed address slot has two roles:
 
 ```text
 non-root account: packed address = parent account
-non-claim root:   packed address = zero
-claim root:       packed address = claim account
+non-receipt token root:   packed address = zero
+receipt token root:       packed address = receipt account
 ```
 
 Root detection must therefore ignore the packed address and use shape/depth:
@@ -110,7 +110,7 @@ Root detection must therefore ignore the packed address and use shape/depth:
 isRoot(flags_) == depth(flags_) == 1 && isGroup(flags_)
 ```
 
-`parent(flags_)` returns zero for roots, including claim roots. Use `claimAccount(flags_)` to decode a claim root's referenced account.
+`parent(flags_)` returns zero for roots, including receipt token roots. Use `receiptAccount(flags_)` to decode a receipt token root's referenced account.
 
 ## Helpers
 
@@ -133,68 +133,68 @@ isUnregisteredAccount(flags) -> AccountKind.Unregistered
 isUnregisteredToken(flags)   -> TokenKind.Unregistered
 isNative(flags)     -> TokenKind.Native
 isExternal(flags)   -> TokenKind.External
-isClaim(flags)      -> TokenKind.Claim
+isReceipt(flags)      -> TokenKind.Receipt
 isRoot(flags)       -> depth(flags) == 1 && isGroup(flags)
 parent(flags)       -> address(0) for roots, packedAddress(flags) otherwise
-claimAccount(flags) -> packedAddress(flags) for claim roots, address(0) otherwise
+receiptAccount(flags) -> packedAddress(flags) for receipt token roots, address(0) otherwise
 ```
 
-`isInternal(flags)` is exact to `TokenKind.Internal`. Claim tokens are classified by `isClaim(flags)`, and custody logic that needs externally wrapped assets should test `isExternal(flags) || isNative(flags)` explicitly.
+`isInternal(flags)` is exact to `TokenKind.Internal`. Receipt tokens are classified by `isReceipt(flags)`, and custody logic that needs externally wrapped assets should test `isExternal(flags) || isNative(flags)` explicitly.
 
-## Claim Token Model
+## Receipt Token Model
 
-A claim token is a registered root with:
+A receipt token is a registered root with:
 
 ```text
-accountKind(flags(claimToken)) == AccountKind.DebitGroup
-tokenKind(flags(claimToken)) == TokenKind.Claim
-depth(flags(claimToken)) == 1
-packedAddress(flags(claimToken)) == claimAccount
+accountKind(flags(receiptToken)) == AccountKind.DebitGroup
+tokenKind(flags(receiptToken)) == TokenKind.Receipt
+depth(flags(receiptToken)) == 1
+packedAddress(flags(receiptToken)) == receiptAccount
 ```
 
 It behaves like an internal Ledger token for balances, transfers, wrappers, and total supply. The root is self-wrapped at creation.
 
-The claim account is a registered Ledger leaf with:
+The receipt account is a registered Ledger leaf with:
 
 ```text
-accountKind(flags(claimAccount)) == AccountKind.DebitLedger
+accountKind(flags(receiptAccount)) == AccountKind.DebitLedger
     or
-accountKind(flags(claimAccount)) == AccountKind.CreditLedger
+accountKind(flags(receiptAccount)) == AccountKind.CreditLedger
 ```
 
 Use existing Ledger primitives for derived data:
 
-- claimed root: `LedgerLib.root(claimAccount)`
-- claim-account flags: `LedgerLib.flags(claimAccount)`
-- claim-account balance: `LedgerLib.balanceOf(claimAccount, LedgerLib.isCredit(LedgerLib.flags(claimAccount)))`
-- total claim supply: `LedgerLib.totalSupply(claimToken)`
+- receipted root: `LedgerLib.root(receiptAccount)`
+- receipt-account flags: `LedgerLib.flags(receiptAccount)`
+- receipt-account balance: `LedgerLib.balanceOf(receiptAccount, LedgerLib.isCredit(LedgerLib.flags(receiptAccount)))`
+- total receipt supply: `LedgerLib.totalSupply(receiptToken)`
 
 Ledger does not add one-line helpers for values already available through these primitives.
 
-## Claim Invariants
+## Receipt Invariants
 
-A valid claim-token registration satisfies:
+A valid receipt-token registration satisfies:
 
 ```solidity
-accountKind(flags(claimToken)) == AccountKind.DebitGroup;
-tokenKind(flags(claimToken)) == TokenKind.Claim;
-depth(flags(claimToken)) == 1;
-isLedger(flags(claimAccount));
-LedgerLib.root(claimAccount) != claimToken;
-!isClaim(flags(LedgerLib.root(claimAccount)));
+accountKind(flags(receiptToken)) == AccountKind.DebitGroup;
+tokenKind(flags(receiptToken)) == TokenKind.Receipt;
+depth(flags(receiptToken)) == 1;
+isLedger(flags(receiptAccount));
+LedgerLib.root(receiptAccount) != receiptToken;
+!isReceipt(flags(LedgerLib.root(receiptAccount)));
 ```
 
-The claim-account reference is immutable after registration.
+The receipt-account reference is immutable after registration.
 
 V1 rejects:
 
-- unregistered claim accounts
-- group-account claims
-- root-account claims
-- a claim account inside the same claim-token tree
-- a claim account whose root is itself a claim token
-- mutable claim-account references
-- recursive claim valuation or cycle formation
+- unregistered receipt accounts
+- group-account receipts
+- root-account receipts
+- a receipt account inside the same receipt-token tree
+- a receipt account whose root is itself a receipt token
+- mutable receipt-account references
+- recursive receipt valuation or cycle formation
 
 ## Token Impact
 
@@ -243,20 +243,20 @@ packedAddress(rootFlags) == address(0)
 - internal roots remain self-wrapped.
 - credit-side accounting remains represented by non-root `CreditGroup` and `CreditLedger` accounts.
 
-### Claim Roots
+### Receipt Token Roots
 
 ```text
 accountKind(rootFlags) == AccountKind.DebitGroup
-tokenKind(rootFlags) == TokenKind.Claim
+tokenKind(rootFlags) == TokenKind.Receipt
 depth(rootFlags) == 1
-packedAddress(rootFlags) == claimAccount
+packedAddress(rootFlags) == receiptAccount
 ```
 
-- `LedgerTokenFactory.createClaimToken(absoluteClaimAccount, TokenMetadata)` creates debit roots only.
-- claim root address derivation includes `(name, symbol, decimals, version)`.
-- claim roots are self-wrapped.
-- claim roots are classified by `isClaim(flags)` and are not internal by `isInternal(flags)`.
-- `wrap` and `unwrap` reject claim roots.
+- `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)` creates debit roots only.
+- receipt token root address derivation includes `(name, symbol, decimals, version)`.
+- receipt token roots are self-wrapped.
+- receipt token roots are classified by `isReceipt(flags)` and are not internal by `isInternal(flags)`.
+- `wrap` and `unwrap` reject receipt token roots.
 - Ledger records the reference account only; protocol economics live above Ledger.
 
 ### Subaccounts
@@ -277,12 +277,11 @@ accountKind(accountFlags) != AccountKind.Unregistered
 
 ## API Surface
 
-`LedgerLib` claim-token helpers:
+`LedgerLib` receipt-token helpers:
 
 ```solidity
-function isClaim(uint256 flags_) internal pure returns (bool);
-function claimAccount(uint256 flags_) internal pure returns (address);
-function claimAccount(address token_) internal view returns (address);
+function isReceipt(uint256 flags_) internal pure returns (bool);
+function receiptAccount(uint256 flags_) internal pure returns (address);
 ```
 
 `LedgerTokenFactory` exposes:
@@ -299,7 +298,7 @@ function createInternalToken(TokenMetadata[] memory tokens)
     external
     returns (address[] memory tokenAddresses, uint256[] memory flags);
 
-function createClaimToken(address absoluteClaimAccount, TokenMetadata memory token)
+function createReceiptToken(address absoluteReceiptAccount, TokenMetadata memory token)
     external
     returns (address tokenAddress, uint256 flags);
 ```
@@ -318,9 +317,9 @@ function predictToken(string memory name_, string memory symbol_, uint8 decimals
     returns (address);
 ```
 
-`Ledger` exposes root registration for external tokens through `addExternalToken(address[])`, but internal and claim token creation live in `LedgerTokenFactory`.
+`Ledger` exposes root registration for external tokens through `addExternalToken(address[])`, but internal and receipt token creation live in `LedgerTokenFactory`.
 
-`Tree` exposes debug/introspection helpers for enum flags and claim roots:
+`Tree` exposes debug/introspection helpers for enum flags and receipt token roots:
 
 ```solidity
 function accountKind(uint256 flags_) external pure returns (LedgerLib.AccountKind);
@@ -334,8 +333,8 @@ function isCreditLedger(uint256 flags_) external pure returns (bool);
 function isLedger(uint256 flags_) external pure returns (bool);
 function isUnregisteredToken(uint256 flags_) external pure returns (bool);
 function isInternal(uint256 flags_) external pure returns (bool);
-function isClaim(uint256 flags_) external pure returns (bool);
-function claimAccount(uint256 flags_) external pure returns (address);
+function isReceipt(uint256 flags_) external pure returns (bool);
+function receiptAccount(uint256 flags_) external pure returns (address);
 ```
 
 ## Migration Notes
@@ -344,7 +343,7 @@ There are no existing deployments. Here, migration means updating source code, t
 
 Risky source-code migration points:
 
-- `parent(uint256)`: no longer raw packed address for claim roots
+- `parent(uint256)`: no longer raw packed address for receipt token roots
 - `isRoot(uint256)`: no longer requires packed parent to be zero
 - `isExternal(uint256)`: explicit `TokenKind.External`, not a negation
 - `createToken(...)`: renamed to `createInternalToken(...)`
@@ -367,17 +366,17 @@ Use enum masks and helpers instead.
 
 Protocols decide:
 
-- whether a claim token can be a target asset
-- whether a claim token can be a distribution asset
-- whether a claim token can be a reserve/deposit asset
-- how claim-account balances are valued
-- how claim supply is minted, burned, or settled
+- whether a receipt token can be a target asset
+- whether a receipt token can be a distribution asset
+- whether a receipt token can be a reserve/deposit asset
+- how receipt-account balances are valued
+- how receipt supply is minted, burned, or settled
 
-A protocol may be stricter than Ledger. For example, a pool can allow claim tokens as target/distribution tokens while rejecting them as deposit reserve assets.
+A protocol may be stricter than Ledger. For example, a pool can allow receipt tokens as target/distribution tokens while rejecting them as deposit reserve assets.
 
 ## Storage Compatibility
 
-Claim accounts do not add a new storage mapping. The referenced absolute claim account is stored in the packed address slot of the claim root flags.
+Receipt accounts do not add a new storage mapping. The referenced absolute receipt account is stored in the packed address slot of the receipt token root flags.
 
 The v1 launch target is a fresh deployment. No old-flag compatibility layer is required.
 
@@ -388,28 +387,28 @@ Tests should cover:
 - native root flags decode to `DebitGroup + Native`
 - external root flags decode to `DebitGroup + External`
 - internal root flags decode to `DebitGroup + Internal`
-- claim root flags decode to `DebitGroup + Claim`
+- receipt token root flags decode to `DebitGroup + Receipt`
 - debit and credit subaccounts decode to `DebitLedger` / `CreditLedger`
 - group subaccounts decode to `DebitGroup` / `CreditGroup`
-- `parent(flags)` returns zero for all roots, including claim roots
-- `claimAccount(flags)` returns the packed reference only for claim roots
+- `parent(flags)` returns zero for all roots, including receipt token roots
+- `receiptAccount(flags)` returns the packed reference only for receipt token roots
 - `isRoot(flags)` depends on depth and group kind, not packed address
 - transfer parent-walk behavior is unchanged
 - wrap/unwrap behavior is unchanged for native/external roots
-- wrap/unwrap reject internal and claim roots
+- wrap/unwrap reject internal and receipt token roots
 - `createInternalToken(TokenMetadata[])`, `addNativeToken`, and `addExternalToken(address[])` remain idempotent
 - `createInternalToken(TokenMetadata[])` creates debit roots only
-- claim token creation is idempotent
-- claim account cannot be unregistered
-- claim account cannot be a group account
-- claim account cannot be inside the same claim-token tree
-- claim account cannot belong to a claim-token root
+- receipt token creation is idempotent
+- receipt account cannot be unregistered
+- receipt account cannot be a group account
+- receipt account cannot be inside the same receipt-token tree
+- receipt account cannot belong to a receipt-token root
 
 ## Non-Goals For V1
 
-- root-account claims
-- group-account claims
-- mutable claim-account references
-- cross-router or cross-ledger proof claims
+- root-account receipts
+- group-account receipts
+- mutable receipt-account references
+- cross-router or cross-ledger proof receipts
 - recursive valuation helpers in Ledger
 - automatic redemption semantics in Ledger

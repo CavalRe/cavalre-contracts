@@ -108,7 +108,7 @@ contract ERC20WrapperTest is Test {
         return (_tokenAddresses[0], _flagsArray[0]);
     }
 
-    function createClaimToken(
+    function createReceiptToken(
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
@@ -117,7 +117,7 @@ contract ERC20WrapperTest is Test {
         address relative_,
         string memory version_
     ) internal returns (address _tokenAddress, uint256 _flags) {
-        return ledgerTokenFactory.createClaimToken(
+        return ledgerTokenFactory.createReceiptToken(
             LedgerLib.toAddress(root_, holderParent_, relative_),
             ILedgerTokenFactory.TokenMetadata({name: name_, symbol: symbol_, decimals: decimals_, version: version_})
         );
@@ -176,37 +176,38 @@ contract ERC20WrapperTest is Test {
         assertEq(ledgerView.decimals(_newRoot), 18);
     }
 
-    function testERC20WrapperClaimRootMintTransferBurn() public {
+    function testERC20WrapperReceiptTokenRootMintTransferBurn() public {
         vm.startPrank(owner);
-        (address claimToken_,) = createClaimToken("Claim Token", "CLM", 18, address(token), address(token), source_, "");
+        (address receiptToken_,) =
+            createReceiptToken("Receipt Token", "CLM", 18, address(token), address(token), source_, "");
         vm.stopPrank();
 
-        ERC20Wrapper claim = ERC20Wrapper(claimToken_);
+        ERC20Wrapper receipt = ERC20Wrapper(receiptToken_);
 
         vm.prank(owner);
-        vm.expectEmit(true, true, true, true, address(claim));
+        vm.expectEmit(true, true, true, true, address(receipt));
         emit ERC20Wrapper.Transfer(address(0), alice, 1_000);
-        ledgers.mint(claimToken_, claimToken_, alice, 1_000);
+        ledgers.mint(receiptToken_, receiptToken_, alice, 1_000);
 
-        assertEq(claim.totalSupply(), 1_000);
-        assertEq(claim.balanceOf(alice), 1_000);
+        assertEq(receipt.totalSupply(), 1_000);
+        assertEq(receipt.balanceOf(alice), 1_000);
 
         vm.prank(alice);
-        vm.expectEmit(true, true, true, true, address(claim));
+        vm.expectEmit(true, true, true, true, address(receipt));
         emit ERC20Wrapper.Transfer(alice, bob, 400);
-        assertTrue(claim.transfer(bob, 400));
+        assertTrue(receipt.transfer(bob, 400));
 
-        assertEq(claim.balanceOf(alice), 600);
-        assertEq(claim.balanceOf(bob), 400);
-        assertEq(claim.totalSupply(), 1_000);
+        assertEq(receipt.balanceOf(alice), 600);
+        assertEq(receipt.balanceOf(bob), 400);
+        assertEq(receipt.totalSupply(), 1_000);
 
         vm.prank(owner);
-        vm.expectEmit(true, true, true, true, address(claim));
+        vm.expectEmit(true, true, true, true, address(receipt));
         emit ERC20Wrapper.Transfer(bob, address(0), 150);
-        ledgers.burn(claimToken_, claimToken_, bob, 150);
+        ledgers.burn(receiptToken_, receiptToken_, bob, 150);
 
-        assertEq(claim.balanceOf(bob), 250);
-        assertEq(claim.totalSupply(), 850);
+        assertEq(receipt.balanceOf(bob), 250);
+        assertEq(receipt.totalSupply(), 850);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -284,16 +285,17 @@ contract ERC20WrapperTest is Test {
         _assertTransferMatrix(address(token), froms, tos);
     }
 
-    function testERC20WrapperClaimRootTransferMatrix() public {
-        address claimToken_;
+    function testERC20WrapperReceiptTokenRootTransferMatrix() public {
+        address receiptToken_;
 
         vm.startPrank(owner);
-        (claimToken_,) = createClaimToken("Matrix Claim Token", "MCT", 18, address(token), address(token), source_, "");
-        MatrixLeg[] memory froms = _buildMatrixLegs(claimToken_, 0x3000, "claim-from");
-        MatrixLeg[] memory tos = _buildMatrixLegs(claimToken_, 0x4000, "claim-to");
+        (receiptToken_,) =
+            createReceiptToken("Matrix Receipt Token", "MCT", 18, address(token), address(token), source_, "");
+        MatrixLeg[] memory froms = _buildMatrixLegs(receiptToken_, 0x3000, "receipt-from");
+        MatrixLeg[] memory tos = _buildMatrixLegs(receiptToken_, 0x4000, "receipt-to");
         vm.stopPrank();
 
-        _assertTransferMatrix(claimToken_, froms, tos);
+        _assertTransferMatrix(receiptToken_, froms, tos);
     }
 
     function _assertTransferMatrix(address root_, MatrixLeg[] memory froms, MatrixLeg[] memory tos) private {
