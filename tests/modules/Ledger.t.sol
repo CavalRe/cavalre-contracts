@@ -691,16 +691,24 @@ contract LedgerTest is Test {
         );
     }
 
-    function testLedgerCreateReceiptTokenRejectsNestedReceiptTokenRoot() public {
+    function testLedgerCreateReceiptTokenAllowsNestedReceiptTokenRoot() public {
         vm.startPrank(alice);
         (address receiptToken_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
         address nestedReceiptAccount_ = LedgerLib.toAddress(receiptToken_, receiptToken_, source_);
 
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, nestedReceiptAccount_));
-        ledgerTokenFactory.createReceiptToken(
+        (address nestedReceiptToken_, uint256 nestedFlags_) = ledgerTokenFactory.createReceiptToken(
             nestedReceiptAccount_,
             ILedgerTokenFactory.TokenMetadata({name: "Nested Receipt", symbol: "NCLM", decimals: 18, version: ""})
         );
+        (address nestedReceiptTokenAgain_, uint256 nestedFlagsAgain_) = ledgerTokenFactory.createReceiptToken(
+            nestedReceiptAccount_,
+            ILedgerTokenFactory.TokenMetadata({name: "Nested Receipt", symbol: "NCLM", decimals: 18, version: ""})
+        );
+
+        assertEq(nestedReceiptTokenAgain_, nestedReceiptToken_, "nested receipt idempotent token");
+        assertEq(nestedFlagsAgain_, nestedFlags_, "nested receipt idempotent flags");
+        assertTrue(tree.isReceipt(nestedFlags_), "nested receipt token root");
+        assertEq(tree.receiptAccount(nestedFlags_), nestedReceiptAccount_, "nested receipt account");
     }
 
     function testLedgerAddExternalTokenIsIdempotentWithoutWrapper() public {

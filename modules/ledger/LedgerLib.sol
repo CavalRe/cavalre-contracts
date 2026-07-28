@@ -262,7 +262,7 @@ library LedgerLib {
             revert ILedger.InvalidLedgerAccount(absoluteReceiptAccount_);
         }
         address _receiptAccountLedger = ledger(absoluteReceiptAccount_);
-        if (_receiptAccountLedger == receiptTokenAddress_ || isReceipt(flags(_receiptAccountLedger))) {
+        if (_receiptAccountLedger == receiptTokenAddress_) {
             revert ILedger.InvalidLedgerAccount(absoluteReceiptAccount_);
         }
     }
