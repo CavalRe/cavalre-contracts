@@ -15,6 +15,7 @@ import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {Dispatchable} from "../../modules/dispatcher/Dispatchable.sol";
 import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {TreeView} from "../../modules/tree/TreeView.sol";
+import {Float, FloatLib} from "../../math/FloatLib.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {TreeLib} from "../../modules/tree/TreeLib.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -254,6 +255,9 @@ contract ReenterToken is ERC20 {
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 contract LedgerTest is Test {
+    using FloatLib for uint256;
+    using FloatLib for Float;
+
     bool isVerbose;
 
     Dispatcher dispatcher;
@@ -629,6 +633,30 @@ contract LedgerTest is Test {
         assertEq(tree.receiptAccount(flags_), LedgerLib.toAddress(r1, r1, source_), "receipt account");
         assertEq(tree.ledger(token_), token_, "root registered");
         assertEq(tree.wrapper(token_), token_, "self wrapped");
+    }
+
+    function testLedgerViewReceiptTokenReturnsReceiptSnapshot() public {
+        vm.startPrank(alice);
+        address backingRelative_ = LedgerLib.toAddress("Receipt Backing");
+        ledger.addSubAccount(r1, r10, backingRelative_, "Receipt Backing", false);
+        address backingAccount_ = LedgerLib.toAddress(r1, r10, backingRelative_);
+        (address token_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r10, backingRelative_, "");
+        ledger.mint(r1, r10, backingRelative_, 1_000e18);
+        ledger.mint(token_, token_, bob, 400e18);
+        vm.stopPrank();
+
+        LedgerLib.ReceiptToken memory receipt_ = ledgerView.receiptToken(token_);
+
+        assertEq(receipt_.tokenAddress, token_, "token address");
+        assertEq(receipt_.backingLedger, r1, "backing ledger");
+        assertEq(receipt_.backingAccount, backingAccount_, "backing account");
+        assertTrue(receipt_.totalSupply.isEQ(uint256(400e18).toFloat(18)), "total supply");
+        assertTrue(receipt_.backingBalance.isEQ(uint256(1_000e18).toFloat(18)), "backing balance");
+    }
+
+    function testLedgerViewReceiptTokenRejectsNonReceiptLedger() public {
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, r1));
+        ledgerView.receiptToken(r1);
     }
 
     function testLedgerCreateReceiptTokenVersionChangesAddressOnly() public {

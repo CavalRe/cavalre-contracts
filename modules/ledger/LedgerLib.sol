@@ -4,10 +4,13 @@ pragma solidity ^0.8.26;
 import {ERC20Wrapper} from "./ERC20Wrapper.sol";
 import {ILedger} from "./ILedger.sol";
 
+import {Float, FloatLib} from "../../math/FloatLib.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 library LedgerLib {
+    using FloatLib for uint256;
+
     enum AccountKind {
         Unregistered,
         DebitGroup,
@@ -38,6 +41,14 @@ library LedgerLib {
         string nativeName;
         string nativeSymbol;
         uint8 nativeDecimals;
+    }
+
+    struct ReceiptToken {
+        address tokenAddress;
+        Float totalSupply;
+        address backingLedger;
+        address backingAccount;
+        Float backingBalance;
     }
 
     bytes32 private constant STORE_POSITION =
@@ -388,6 +399,18 @@ library LedgerLib {
 
     function totalSupply(address ledger_) internal view returns (uint256 _supply) {
         return debitBalanceOf(ledger_);
+    }
+
+    function receiptToken(address tokenAddress_) internal view returns (ReceiptToken memory _token) {
+        uint256 _flags = flags(tokenAddress_);
+        if (!isLedger(_flags) || !isReceipt(_flags)) revert ILedger.InvalidLedgerAccount(tokenAddress_);
+
+        _token.tokenAddress = tokenAddress_;
+        _token.totalSupply = totalSupply(tokenAddress_).toFloat(decimals(tokenAddress_));
+        _token.backingAccount = receiptAccount(_flags);
+        _token.backingLedger = ledger(_token.backingAccount);
+        _token.backingBalance = balanceOf(_token.backingAccount, isCredit(flags(_token.backingAccount)))
+            .toFloat(decimals(_token.backingLedger));
     }
 
     //==================================================================

@@ -14,7 +14,7 @@ contract LedgerView is Dispatchable, ILedgerView {
     }
 
     function signatures() external pure override returns (string[] memory s) {
-        s = new string[](13);
+        s = new string[](14);
         s[0] = "name(address)";
         s[1] = "symbol(address)";
         s[2] = "decimals(address)";
@@ -28,10 +28,11 @@ contract LedgerView is Dispatchable, ILedgerView {
         s[10] = "creditBalanceOf(address,address,address)";
         s[11] = "balanceOf(address,address,address)";
         s[12] = "totalSupply(address)";
+        s[13] = "receiptToken(address)";
     }
 
     function selectors() external pure override returns (bytes4[] memory s) {
-        s = new bytes4[](13);
+        s = new bytes4[](14);
         s[0] = bytes4(keccak256("name(address)"));
         s[1] = bytes4(keccak256("symbol(address)"));
         s[2] = bytes4(keccak256("decimals(address)"));
@@ -45,6 +46,7 @@ contract LedgerView is Dispatchable, ILedgerView {
         s[10] = bytes4(keccak256("creditBalanceOf(address,address,address)"));
         s[11] = bytes4(keccak256("balanceOf(address,address,address)"));
         s[12] = bytes4(keccak256("totalSupply(address)"));
+        s[13] = bytes4(keccak256("receiptToken(address)"));
     }
 
     function name(address absolute_) external view returns (string memory) {
@@ -101,5 +103,9 @@ contract LedgerView is Dispatchable, ILedgerView {
 
     function totalSupply(address ledger_) external view returns (uint256) {
         return LedgerLib.totalSupply(ledger_);
+    }
+
+    function receiptToken(address tokenAddress_) external view returns (LedgerLib.ReceiptToken memory) {
+        return LedgerLib.receiptToken(tokenAddress_);
     }
 }
