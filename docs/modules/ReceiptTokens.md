@@ -34,7 +34,8 @@ receiptAccount = LedgerLib.toAddress(parent_, addr_);
 - receipt token roots are debit groups
 - receipt accounts must be registered Ledger leaves
 - group-account and root-account receipts are rejected
-- nested receipts are rejected
+- receipt tokens may be backed by a registered leaf under another receipt-token
+  root, but not by a leaf under the receipt token currently being created
 - receipt tokens have exact `TokenKind.Receipt` classification and are not `isInternal`
 - receipt tokens cannot be wrapped or unwrapped as external custody assets
 - root token creation does not accept root credit polarity
@@ -181,7 +182,6 @@ tokenKind(flags(receiptToken)) == TokenKind.Receipt;
 depth(flags(receiptToken)) == 1;
 isLedger(flags(receiptAccount));
 LedgerLib.root(receiptAccount) != receiptToken;
-!isReceipt(flags(LedgerLib.root(receiptAccount)));
 ```
 
 The receipt-account reference is immutable after registration.
@@ -192,9 +192,8 @@ V1 rejects:
 - group-account receipts
 - root-account receipts
 - a receipt account inside the same receipt-token tree
-- a receipt account whose root is itself a receipt token
 - mutable receipt-account references
-- recursive receipt valuation or cycle formation
+- direct self-reference by the receipt token being created
 
 ## Token Impact
 

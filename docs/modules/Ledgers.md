@@ -30,7 +30,7 @@
 - internal roots are created deterministically with `CREATE2` via `LedgerTokenFactory.createInternalToken(TokenMetadata[])`, so `(name, symbol, decimals, version)` uniquely identifies the root and repeated calls are idempotent
 - internal and receipt token roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
 - native/external roots are registered as ledger roots without self-wrapped ERC20 surfaces
-- receipt token roots are created with `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)`, reference one registered non-receipt absolute Ledger leaf account, and are deterministic by `(name, symbol, decimals, version)`
+- receipt token roots are created with `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)`, reference one registered absolute Ledger leaf account outside their own token tree, and are deterministic by `(name, symbol, decimals, version)`
 - canonical root ERC20 UX is handled by `examples/LedgerERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `LedgerERC20Lib`
 - every root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as its default credit source leaf
 - `address(0)` is not a registered Ledger holder; it is reserved for ERC20 mint/burn event projection

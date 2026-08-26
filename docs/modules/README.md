@@ -98,7 +98,7 @@ The `Ledger` module owns hierarchical account trees, native/external root regist
 
 - canonical root is always registered at `address(this)` during `initializeLedger(...)`
 - internal roots are self-wrapped at creation, so the returned root address is immediately an ERC20 surface
-- receipt token roots are also self-wrapped at creation and reference one registered non-receipt Ledger leaf account
+- receipt token roots are also self-wrapped at creation and reference one registered Ledger leaf account outside their own token tree
 - external root registration happens through `Ledger.addExternalToken(address[])`
 - internal root creation happens through `LedgerTokenFactory.createInternalToken(TokenMetadata[])` and is deterministic/idempotent by `(name, symbol, decimals, version)`
 - receipt token root creation happens through `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)` and is deterministic/idempotent by `(name, symbol, decimals, version)`

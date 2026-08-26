@@ -1,11 +1,11 @@
 # ERC20
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/examples/LedgerERC20.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/examples/LedgerERC20.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md)
 
 
-## State Variables
+## Constants
 ### INITIALIZABLE_STORAGE
 
 ```solidity

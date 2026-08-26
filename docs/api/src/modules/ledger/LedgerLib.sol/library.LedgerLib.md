@@ -1,8 +1,8 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/1f2cb104122a5862baec82617fdfb23657167993/modules/ledger/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/LedgerLib.sol)
 
 
-## State Variables
+## Constants
 ### STORE_POSITION
 
 ```solidity
@@ -503,6 +503,13 @@ function balanceOf(address absolute_, bool isCredit_) internal view returns (uin
 function totalSupply(address ledger_) internal view returns (uint256 _supply);
 ```
 
+### receiptToken
+
+
+```solidity
+function receiptToken(address tokenAddress_) internal view returns (ReceiptToken memory _token);
+```
+
 ### addSubAccountGroup
 
 
@@ -738,6 +745,18 @@ struct Store {
     string nativeName;
     string nativeSymbol;
     uint8 nativeDecimals;
+}
+```
+
+### ReceiptToken
+
+```solidity
+struct ReceiptToken {
+    address tokenAddress;
+    Float totalSupply;
+    address backingLedger;
+    address backingAccount;
+    Float backingBalance;
 }
 ```
 

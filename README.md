@@ -52,7 +52,7 @@ cavalre-contracts/
 - Native and external roots do not get separate wrapper surfaces.
 - External root registration uses `Ledger.addExternalToken(address[])`.
 - Internal root creation uses `LedgerTokenFactory.createInternalToken(TokenMetadata[])` and is deterministic/idempotent: the same `(name, symbol, decimals, version)` maps to the same root.
-- Receipt token root creation uses `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)`; each receipt token root references one registered non-receipt absolute Ledger leaf account and is deterministic by `(name, symbol, decimals, version)`.
+- Receipt token root creation uses `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)`; each receipt token root references one registered absolute Ledger leaf account outside its own token tree and is deterministic by `(name, symbol, decimals, version)`.
 - `LedgerView` exposes root-registry pagination through `rootCount()`, `rootAt(index)`, and `roots(start, limit)`.
 - Canonical-root ERC20 exposure is optional and illustrated by `examples/LedgerERC20.sol`.
 - Each root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as the default credit source leaf; `address(0)` is reserved for ERC20 mint/burn event projection.
