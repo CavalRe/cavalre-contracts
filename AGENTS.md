@@ -105,6 +105,12 @@ Special addresses / roots:
 
 **Tree Module**: `modules/tree/TreeView.sol` owns topology/debug reads (`root`, `parent`, `flags`, `effectiveFlags`, `subAccounts`, `debugTree(s)`) so `Ledger` can stay focused on accounting state and mutations.
 
+### Staking Reward Module
+
+`modules/staking/StakingRewardToken.sol` adds fixed-half-life pending/available rewards to empty receipt tokens. `S` and backing account `T` derive from receipt metadata; reward ledger `R` and half-life are configured once. Separate ERC-7201 storage holds reward units and lazy per-holder checkpoints.
+
+`LedgerLib.transfer` invokes the optional Dispatcher `beforeLedgerTransfer` hook. SR uses it for all receipt balance changes and custody protection. Upgrades introducing SR must rebuild/deploy **every module with inlined LedgerLib transfer code**; old code bypasses the hook. Keep the hook installed while programs are active. See `modules/staking/README.md` for transfer, forfeiture, and final-holder semantics.
+
 ### Storage Pattern
 
 ERC-7201 namespaced storage avoids collisions:
@@ -135,6 +141,7 @@ cavalre-contracts/
 ├── modules/
 │   ├── dispatcher/       # Dispatchable/Dispatcher selector router
 │   ├── ledger/           # Hierarchical accounting + ERC20Wrapper
+│   ├── staking/          # Receipt-based staking rewards
 │   └── tree/             # Topology/debug surface
 ├── math/                 # FloatLib + FloatStrings
 ├── utilities/            # Reusable abstract contracts

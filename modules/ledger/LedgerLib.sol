@@ -3,6 +3,8 @@ pragma solidity ^0.8.26;
 
 import {ERC20Wrapper} from "./ERC20Wrapper.sol";
 import {ILedger} from "./ILedger.sol";
+import {ILedgerTransferHook} from "./ILedgerTransferHook.sol";
+import {DispatcherLib} from "../dispatcher/DispatcherLib.sol";
 
 import {Float, FloatLib} from "../../math/FloatLib.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -787,6 +789,10 @@ library LedgerLib {
 
         AccountCache memory _from = setAccountCache(ledger_, fromParent_, from_);
         AccountCache memory _to = setAccountCache(ledger_, toParent_, to_);
+        if (DispatcherLib.store().modules[ILedgerTransferHook.beforeLedgerTransfer.selector] != address(0)) {
+            ILedgerTransferHook(address(this))
+                .beforeLedgerTransfer(_ledger, _from.absolute, _to.absolute, _fromIsCredit, _toIsCredit, amount_);
+        }
         // Emit before same-account no-op so ERC20 self-transfers still produce Transfer(from, from, amount).
         if (_ledger == wrapper(_ledger)) {
             emitWrapperTransfer(_ledger, _from, _fromIsCredit, _to, _toIsCredit, amount_);
