@@ -51,19 +51,19 @@ library StakingRewardLib {
 
     // -- Configuration --
 
-    struct CreateCache {
+    struct CreateStakingRewardTokenCache {
         address rewardAccount;
         uint256 flags;
     }
 
-    function create(
+    function createStakingRewardToken(
         address stakingLedger_,
         address rewardLedger_,
         address stakingAccount_,
         uint256 halfLife_,
         ILedgerTokenFactory.TokenMetadata memory metadata_
     ) internal returns (address token_, uint256 flags_) {
-        CreateCache memory c;
+        CreateStakingRewardTokenCache memory c;
         (token_, flags_) = LedgerTokenFactoryLib.createInternalToken(metadata_);
         Program storage p = store().programs[token_];
         if (p.halfLife != 0) {
@@ -84,8 +84,8 @@ library StakingRewardLib {
         LedgerLib.addSubAccountGroup(rewardLedger_, rewardLedger_, REWARDS, "Staking Rewards", false);
         LedgerLib.addSubAccount(rewardLedger_, REWARDS, token_, "Rewards", false);
         c.rewardAccount = LedgerLib.toAddress(rewardLedger_, REWARDS, token_);
-        reserve(token_, stakingAccount_);
-        reserve(token_, c.rewardAccount);
+        protectCustodyAccount(token_, stakingAccount_);
+        protectCustodyAccount(token_, c.rewardAccount);
         p.rewardLedger = rewardLedger_;
         p.halfLife = halfLife_;
         p.state.updatedAt = block.timestamp;
@@ -95,14 +95,14 @@ library StakingRewardLib {
         );
     }
 
-    function reserve(address token_, address absolute_) private {
+    function protectCustodyAccount(address token_, address absolute_) private {
         if (store().reservedAccounts[absolute_] != address(0) || LedgerLib.balanceOf(absolute_, false) != 0) {
             revert IStakingRewardToken.AccountReserved(absolute_);
         }
         store().reservedAccounts[absolute_] = token_;
     }
 
-    function program(address token_) internal view returns (Program storage p) {
+    function stakingRewardProgram(address token_) internal view returns (Program storage p) {
         p = store().programs[token_];
         if (p.halfLife == 0) revert IStakingRewardToken.NotStakingRewardToken(token_);
     }
@@ -111,7 +111,7 @@ library StakingRewardLib {
 
     /// @dev Whole half-lives use exact binary shifts; only the fractional half-life uses expWad.
     ///      No scheduled periods, keeper, or iteration over holders is required.
-    function decay(uint256 value_, uint256 elapsed_, uint256 halfLife_) internal pure returns (uint256) {
+    function applyHalfLife(uint256 value_, uint256 elapsed_, uint256 halfLife_) internal pure returns (uint256) {
         uint256 halves_ = elapsed_ / halfLife_;
         if (halves_ >= 256) return 0;
         value_ >>= halves_;
@@ -121,29 +121,29 @@ library StakingRewardLib {
         return FixedPointMathLib.fullMulDiv(value_, uint256(FixedPointMathLib.expWad(-int256(fraction_))), WAD);
     }
 
-    function currentState(Program storage p) internal view returns (State memory state_) {
+    function currentRewardState(Program storage p) internal view returns (State memory state_) {
         state_ = p.state;
         uint256 elapsed_ = block.timestamp - state_.updatedAt;
-        state_.pending = decay(state_.pending, elapsed_, p.halfLife);
-        state_.pendingIndex = decay(state_.pendingIndex, elapsed_, p.halfLife);
+        state_.pending = applyHalfLife(state_.pending, elapsed_, p.halfLife);
+        state_.pendingIndex = applyHalfLife(state_.pendingIndex, elapsed_, p.halfLife);
         state_.updatedAt = block.timestamp;
     }
 
-    struct PositionCache {
+    struct CurrentHolderRewardStateCache {
         uint256 elapsed;
         uint256 pendingIndex;
     }
 
-    function currentPosition(State memory position_, State memory state_, uint256 balance_, uint256 halfLife_)
+    function currentHolderRewardState(State memory position_, State memory state_, uint256 balance_, uint256 halfLife_)
         private
         view
         returns (State memory)
     {
-        PositionCache memory c;
+        CurrentHolderRewardStateCache memory c;
         c.elapsed = block.timestamp - position_.updatedAt;
-        c.pendingIndex = decay(position_.pendingIndex, c.elapsed, halfLife_);
+        c.pendingIndex = applyHalfLife(position_.pendingIndex, c.elapsed, halfLife_);
         position_.total += balance_ * (state_.totalIndex - position_.totalIndex);
-        position_.pending = decay(position_.pending, c.elapsed, halfLife_);
+        position_.pending = applyHalfLife(position_.pending, c.elapsed, halfLife_);
         // Independently rounded decay paths can differ by their final precision digits.
         // A negative delta cannot represent newly funded rewards.
         if (state_.pendingIndex > c.pendingIndex) {
@@ -158,7 +158,7 @@ library StakingRewardLib {
 
     // -- Principal --
 
-    struct BackingCache {
+    struct StakingBackingCache {
         address ledger;
         address parent;
         address relative;
@@ -166,8 +166,8 @@ library StakingRewardLib {
         uint256 supply;
     }
 
-    function backing(address token_) private view returns (BackingCache memory c) {
-        address absolute_ = program(token_).stakingAccount;
+    function stakingBacking(address token_) private view returns (StakingBackingCache memory c) {
+        address absolute_ = stakingRewardProgram(token_).stakingAccount;
         c.ledger = LedgerLib.ledger(absolute_);
         c.parent = LedgerLib.parent(LedgerLib.flags(absolute_));
         c.relative = LedgerLib.subAccount(
@@ -179,7 +179,7 @@ library StakingRewardLib {
     }
 
     struct StakeCache {
-        BackingCache backing;
+        StakingBackingCache backing;
         uint256 decimals;
         uint256 shareDecimals;
     }
@@ -189,7 +189,7 @@ library StakingRewardLib {
         returns (uint256 shares_)
     {
         StakeCache memory c;
-        c.backing = backing(token_);
+        c.backing = stakingBacking(token_);
         if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
         if (store().reservedAccounts[LedgerLib.toAddress(c.backing.ledger, holder_)] != address(0)) {
             revert IStakingRewardToken.AccountReserved(LedgerLib.toAddress(c.backing.ledger, holder_));
@@ -206,9 +206,15 @@ library StakingRewardLib {
         if (shares_ == 0) revert IStakingRewardToken.ZeroAmount();
         if (shares_ < minimum_) revert IStakingRewardToken.Slippage(shares_, minimum_);
         LedgerLib.transfer(
-            c.backing.ledger, c.backing.ledger, holder_, c.backing.parent, c.backing.relative, amount_, settleTransfer
+            c.backing.ledger,
+            c.backing.ledger,
+            holder_,
+            c.backing.parent,
+            c.backing.relative,
+            amount_,
+            settleTransferRewards
         );
-        LedgerLib.transfer(token_, token_, LedgerLib.SOURCE_ADDRESS, token_, holder_, shares_, settleTransfer);
+        LedgerLib.transfer(token_, token_, LedgerLib.SOURCE_ADDRESS, token_, holder_, shares_, settleTransferRewards);
         emit IStakingRewardToken.Staked(token_, holder_, amount_, shares_);
     }
 
@@ -216,13 +222,13 @@ library StakingRewardLib {
         internal
         returns (uint256 amount_)
     {
-        BackingCache memory c = backing(token_);
+        StakingBackingCache memory c = stakingBacking(token_);
         if (shares_ == 0) revert IStakingRewardToken.ZeroAmount();
         if (shares_ > c.supply) revert IStakingRewardToken.InsufficientStake();
         amount_ = FixedPointMathLib.fullMulDiv(shares_, c.balance, c.supply);
         if (amount_ < minimum_) revert IStakingRewardToken.Slippage(amount_, minimum_);
-        LedgerLib.transfer(token_, token_, holder_, token_, LedgerLib.SOURCE_ADDRESS, shares_, settleTransfer);
-        LedgerLib.transfer(c.ledger, c.parent, c.relative, c.ledger, holder_, amount_, settleTransfer);
+        LedgerLib.transfer(token_, token_, holder_, token_, LedgerLib.SOURCE_ADDRESS, shares_, settleTransferRewards);
+        LedgerLib.transfer(c.ledger, c.parent, c.relative, c.ledger, holder_, amount_, settleTransferRewards);
         emit IStakingRewardToken.Unstaked(token_, holder_, shares_, amount_);
     }
 
@@ -236,7 +242,7 @@ library StakingRewardLib {
     }
 
     function reward(address token_, address funder_, uint256 amount_) internal {
-        Program storage p = program(token_);
+        Program storage p = stakingRewardProgram(token_);
         if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
         RewardCache memory c;
         if (store().reservedAccounts[LedgerLib.toAddress(p.rewardLedger, funder_)] != address(0)) {
@@ -245,7 +251,7 @@ library StakingRewardLib {
         c.supply = LedgerLib.totalSupply(token_);
         if (c.supply == 0) revert IStakingRewardToken.NoStake();
         c.balance = LedgerLib.balanceOf(LedgerLib.toAddress(p.rewardLedger, REWARDS, token_), false);
-        p.state = currentState(p);
+        p.state = currentRewardState(p);
         c.units = p.state.total == 0
             ? FixedPointMathLib.fullMulDiv(amount_, UNIT_SCALE, 1)
             : FixedPointMathLib.fullMulDiv(amount_, p.state.total, c.balance);
@@ -257,7 +263,7 @@ library StakingRewardLib {
         // Accumulate issued units, not R amounts: forfeiture can change R per unit.
         p.state.totalIndex += c.index;
         p.state.pendingIndex += c.index;
-        LedgerLib.transfer(p.rewardLedger, p.rewardLedger, funder_, REWARDS, token_, amount_, settleTransfer);
+        LedgerLib.transfer(p.rewardLedger, p.rewardLedger, funder_, REWARDS, token_, amount_, settleTransferRewards);
         emit IStakingRewardToken.Rewarded(token_, funder_, amount_, c.units);
     }
 
@@ -269,12 +275,12 @@ library StakingRewardLib {
     }
 
     function claim(address token_, address holder_, uint256 amount_) internal returns (uint256 claimed_) {
-        Program storage p = program(token_);
+        Program storage p = stakingRewardProgram(token_);
         if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
         ClaimCache memory c;
         c.absolute = LedgerLib.toAddress(token_, holder_);
-        p.state = currentState(p);
-        State storage position_ = checkpoint(p, token_, c.absolute, 0);
+        p.state = currentRewardState(p);
+        State storage position_ = settleHolderRewards(p, token_, c.absolute, 0);
         c.available = position_.total - position_.pending;
         if (c.available == 0) revert IStakingRewardToken.InsufficientRewards();
         c.balance = LedgerLib.balanceOf(LedgerLib.toAddress(p.rewardLedger, REWARDS, token_), false);
@@ -289,14 +295,14 @@ library StakingRewardLib {
         position_.total -= c.units;
         p.state.total -= c.units;
         if (p.state.pending > p.state.total) p.state.pending = p.state.total;
-        LedgerLib.transfer(p.rewardLedger, REWARDS, token_, p.rewardLedger, holder_, claimed_, settleTransfer);
+        LedgerLib.transfer(p.rewardLedger, REWARDS, token_, p.rewardLedger, holder_, claimed_, settleTransferRewards);
         emit IStakingRewardToken.Claimed(token_, holder_, claimed_, c.units);
     }
 
     // -- Share Transfers and Forfeiture --
 
     /// @dev The Dispatcher hook protects custody and SR supply changes on ordinary Ledger transfers.
-    function beforeTransfer(
+    function beforeLedgerTransfer(
         address ledger_,
         address from_,
         address to_,
@@ -311,12 +317,12 @@ library StakingRewardLib {
         if (fromIsCredit_ != toIsCredit_ && store().programs[ledger_].halfLife != 0) {
             revert IStakingRewardToken.UnauthorizedTransfer();
         }
-        settleTransfer(ledger_, from_, to_, fromIsCredit_, toIsCredit_, amount_);
+        settleTransferRewards(ledger_, from_, to_, fromIsCredit_, toIsCredit_, amount_);
     }
 
     /// @dev Shared by SR operations and the Dispatcher hook. Settle rewards before changing share balances.
     ///      Transfers behave as sender exits and receiver entries; accrued rewards stay with the sender.
-    function settleTransfer(
+    function settleTransferRewards(
         address ledger_,
         address from_,
         address to_,
@@ -327,12 +333,12 @@ library StakingRewardLib {
         if (from_ == to_ || amount_ == 0) return;
         Program storage p = store().programs[ledger_];
         if (p.halfLife == 0) return;
-        p.state = currentState(p);
-        if (!toIsCredit_) checkpoint(p, ledger_, to_, 0);
-        if (!fromIsCredit_) checkpoint(p, ledger_, from_, amount_);
+        p.state = currentRewardState(p);
+        if (!toIsCredit_) settleHolderRewards(p, ledger_, to_, 0);
+        if (!fromIsCredit_) settleHolderRewards(p, ledger_, from_, amount_);
     }
 
-    struct CheckpointCache {
+    struct SettleHolderRewardsCache {
         uint256 balance;
         uint256 pending;
         uint256 available;
@@ -340,15 +346,15 @@ library StakingRewardLib {
     }
 
     /// @dev Checkpoint one holder and apply any outgoing shares using the same pre-transfer balance.
-    function checkpoint(Program storage p, address token_, address absolute_, uint256 shares_)
+    function settleHolderRewards(Program storage p, address token_, address absolute_, uint256 shares_)
         private
         returns (State storage position_)
     {
-        CheckpointCache memory c;
+        SettleHolderRewardsCache memory c;
         c.balance = LedgerLib.balanceOf(absolute_, false);
         if (shares_ > c.balance) revert IStakingRewardToken.InsufficientStake();
         store().positions[token_][absolute_] =
-            currentPosition(store().positions[token_][absolute_], p.state, c.balance, p.halfLife);
+            currentHolderRewardState(store().positions[token_][absolute_], p.state, c.balance, p.halfLife);
         position_ = store().positions[token_][absolute_];
         if (shares_ == 0) return position_;
         c.pending = FixedPointMathLib.fullMulDiv(position_.pending, shares_, c.balance);
@@ -374,8 +380,12 @@ library StakingRewardLib {
 
     // -- Views --
 
-    function configuration(address token_) internal view returns (IStakingRewardToken.Configuration memory config_) {
-        Program storage p = program(token_);
+    function stakingRewardToken(address token_)
+        internal
+        view
+        returns (IStakingRewardToken.Configuration memory config_)
+    {
+        Program storage p = stakingRewardProgram(token_);
         config_.tokenAddress = token_;
         config_.totalSupply = LedgerLib.totalSupply(token_);
         config_.stakingAccount = p.stakingAccount;
@@ -384,16 +394,16 @@ library StakingRewardLib {
         config_.rewardLedger = p.rewardLedger;
         config_.rewardAccount = LedgerLib.toAddress(p.rewardLedger, REWARDS, token_);
         config_.halfLife = p.halfLife;
-        State memory state_ = currentState(p);
-        config_.rewards = value(state_, state_.total, LedgerLib.balanceOf(config_.rewardAccount, false));
+        State memory state_ = currentRewardState(p);
+        config_.rewards = rewardBalances(state_, state_.total, LedgerLib.balanceOf(config_.rewardAccount, false));
     }
 
     function rewardsOf(address token_, address holder_) internal view returns (IStakingRewardToken.Rewards memory) {
-        Program storage p = program(token_);
-        State memory state_ = currentState(p);
+        Program storage p = stakingRewardProgram(token_);
+        State memory state_ = currentRewardState(p);
         address absolute_ = LedgerLib.toAddress(token_, holder_);
-        return value(
-            currentPosition(
+        return rewardBalances(
+            currentHolderRewardState(
                 store().positions[token_][absolute_], state_, LedgerLib.balanceOf(absolute_, false), p.halfLife
             ),
             state_.total,
@@ -401,7 +411,7 @@ library StakingRewardLib {
         );
     }
 
-    function value(State memory state_, uint256 total_, uint256 balance_)
+    function rewardBalances(State memory state_, uint256 total_, uint256 balance_)
         private
         pure
         returns (IStakingRewardToken.Rewards memory rewards_)

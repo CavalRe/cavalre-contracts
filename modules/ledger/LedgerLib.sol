@@ -785,10 +785,10 @@ library LedgerLib {
         address to_,
         uint256 amount_
     ) internal returns (address, bool, bool) {
-        return transfer(ledger_, fromParent_, from_, toParent_, to_, amount_, beforeTransfer);
+        return transfer(ledger_, fromParent_, from_, toParent_, to_, amount_, dispatchBeforeLedgerTransfer);
     }
 
-    function beforeTransfer(
+    function dispatchBeforeLedgerTransfer(
         address ledger_,
         address from_,
         address to_,

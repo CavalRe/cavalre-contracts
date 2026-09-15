@@ -51,7 +51,10 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
         ILedgerTokenFactory.TokenMetadata memory metadata_
     ) external nonReentrant returns (address, uint256) {
         enforceIsOwner();
-        return StakingRewardLib.create(stakingLedger_, rewardLedger_, stakingAccount_, halfLife_, metadata_);
+        return
+            StakingRewardLib.createStakingRewardToken(
+                stakingLedger_, rewardLedger_, stakingAccount_, halfLife_, metadata_
+            );
     }
 
     function stake(address token_, uint256 amount_, uint256 minimumShares_) external nonReentrant returns (uint256) {
@@ -75,7 +78,7 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
     }
 
     function stakingRewardToken(address token_) external view returns (Configuration memory) {
-        return StakingRewardLib.configuration(token_);
+        return StakingRewardLib.stakingRewardToken(token_);
     }
 
     function rewardsOf(address token_, address holder_) external view returns (Rewards memory) {
@@ -92,6 +95,6 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
     ) external {
         enforceIsDelegated();
         if (msg.sender != address(this)) revert UnauthorizedTransfer();
-        StakingRewardLib.beforeTransfer(ledger_, from_, to_, fromIsCredit_, toIsCredit_, amount_);
+        StakingRewardLib.beforeLedgerTransfer(ledger_, from_, to_, fromIsCredit_, toIsCredit_, amount_);
     }
 }
