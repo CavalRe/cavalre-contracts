@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {LedgerLib} from "../ledger/LedgerLib.sol";
+import {ILedgerTokenFactory} from "../ledger/ILedgerTokenFactory.sol";
 
 interface IStakingRewardToken {
     struct Rewards {
@@ -13,7 +13,11 @@ interface IStakingRewardToken {
     }
 
     struct Configuration {
-        LedgerLib.ReceiptToken receipt;
+        address tokenAddress;
+        uint256 totalSupply;
+        address stakingLedger;
+        address stakingAccount;
+        uint256 stakedBalance;
         address rewardLedger;
         address rewardAccount;
         address forfeitedAccount;
@@ -33,25 +37,38 @@ interface IStakingRewardToken {
     error InsufficientStake();
     error Slippage(uint256 amount, uint256 minimum);
 
-    event StakingRewardTokenConfigured(address indexed token, address indexed rewardLedger, uint256 halfLife);
-    event Staked(address indexed token, address indexed holder, uint256 stake, uint256 receipts);
-    event Unstaked(address indexed token, address indexed holder, uint256 receipts, uint256 stake);
+    event StakingRewardTokenCreated(
+        address indexed token,
+        address indexed stakingLedger,
+        address indexed rewardLedger,
+        address stakingAccount,
+        uint256 halfLife
+    );
+    event Staked(address indexed token, address indexed holder, uint256 stake, uint256 shares);
+    event Unstaked(address indexed token, address indexed holder, uint256 shares, uint256 stake);
     event Rewarded(address indexed token, address indexed funder, uint256 amount, uint256 units);
     event Claimed(address indexed token, address indexed holder, uint256 amount, uint256 units);
     event Forfeited(address indexed token, address indexed account, uint256 pendingUnits, uint256 cancelledUnits);
     event RewardsReserved(address indexed token, uint256 amount);
     event RewardsRecycled(address indexed token, uint256 amount);
 
-    /// @notice Attach immutable reward configuration to an empty receipt token with an empty debit backing account.
-    function configureStakingRewardToken(address token, address rewardLedger, uint256 halfLife) external;
+    /// @notice Create an SR token with immutable S, R, absolute staking account T, and half-life configuration.
+    /// @dev T must be an empty debit leaf on S. Identical creation requests return the existing token.
+    function createStakingRewardToken(
+        address stakingLedger,
+        address rewardLedger,
+        address stakingAccount,
+        uint256 halfLife,
+        ILedgerTokenFactory.TokenMetadata memory metadata
+    ) external returns (address token, uint256 flags);
 
-    /// @notice Deposit S from the caller's Ledger balance and mint principal receipts.
-    function stake(address token, uint256 amount, uint256 minimumReceipts) external returns (uint256 receipts);
+    /// @notice Deposit S from the caller's Ledger balance and mint principal shares.
+    function stake(address token, uint256 amount, uint256 minimumShares) external returns (uint256 shares);
 
-    /// @notice Burn principal receipts, retaining available rewards and forfeiting proportional pending rewards.
-    function unstake(address token, uint256 receipts, uint256 minimumStake) external returns (uint256 amount);
+    /// @notice Burn principal shares, retaining available rewards and forfeiting proportional pending rewards.
+    function unstake(address token, uint256 shares, uint256 minimumStake) external returns (uint256 amount);
 
-    /// @notice Fund pending rewards from the caller's R Ledger balance, allocated to current receipt holders.
+    /// @notice Fund pending rewards from the caller's R Ledger balance, allocated to current share holders.
     function reward(address token, uint256 amount) external;
 
     /// @notice Claim R into the caller's Ledger balance. Use type(uint256).max to burn all available units.
@@ -60,6 +77,7 @@ interface IStakingRewardToken {
     /// @notice Owner reallocates rewards reserved when no other reward-unit holder could receive a forfeiture.
     function recycleRewards(address token, uint256 amount) external;
 
+    /// @notice SR configuration and balances, expressed in each token's raw decimals.
     function stakingRewardToken(address token) external view returns (Configuration memory);
 
     /// @notice Current rewards for a token-local holder key, including holders who have exited.

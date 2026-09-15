@@ -107,9 +107,9 @@ Special addresses / roots:
 
 ### Staking Reward Module
 
-`modules/staking/StakingRewardToken.sol` adds fixed-half-life pending/available rewards to empty receipt tokens. `S` and backing account `T` derive from receipt metadata; reward ledger `R` and half-life are configured once. Separate ERC-7201 storage holds reward units and lazy per-holder checkpoints.
+`modules/staking/StakingRewardToken.sol` creates internal Ledger tokens with fixed-half-life pending/available rewards. `createStakingRewardToken(S, R, T, h, metadata)` owns creation and immutable configuration; no receipt token or installed factory module is required. `T` is an absolute debit leaf on `S`; SR stores `T`, `R`, and `h` and reads `S` from the account's Ledger registration. Separate ERC-7201 storage holds configuration, reward units, and lazy per-holder checkpoints.
 
-`LedgerLib.transfer` invokes the optional Dispatcher `beforeLedgerTransfer` hook. SR uses it for all receipt balance changes and custody protection. Upgrades introducing SR must rebuild/deploy **every module with inlined LedgerLib transfer code**; old code bypasses the hook. Keep the hook installed while programs are active. See `modules/staking/README.md` for transfer, forfeiture, and final-holder semantics.
+`LedgerLib.transfer` invokes the optional Dispatcher `beforeLedgerTransfer` hook. SR uses it for all SR balance changes and custody protection. Upgrades introducing SR must rebuild/deploy **every module with inlined LedgerLib transfer code**; old code bypasses the hook. Keep the hook installed while programs are active. See `modules/staking/README.md` for transfer, forfeiture, and final-holder semantics.
 
 ### Storage Pattern
 
@@ -141,7 +141,7 @@ cavalre-contracts/
 ├── modules/
 │   ├── dispatcher/       # Dispatchable/Dispatcher selector router
 │   ├── ledger/           # Hierarchical accounting + ERC20Wrapper
-│   ├── staking/          # Receipt-based staking rewards
+│   ├── staking/          # Staking-reward token creation and accounting
 │   └── tree/             # Topology/debug surface
 ├── math/                 # FloatLib + FloatStrings
 ├── utilities/            # Reusable abstract contracts

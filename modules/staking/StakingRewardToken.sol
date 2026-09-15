@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import {Dispatchable} from "../dispatcher/Dispatchable.sol";
 import {ILedgerTransferHook} from "../ledger/ILedgerTransferHook.sol";
+import {ILedgerTokenFactory} from "../ledger/ILedgerTokenFactory.sol";
 import {IStakingRewardToken} from "./IStakingRewardToken.sol";
 import {StakingRewardLib} from "./StakingRewardLib.sol";
 import {ReentrancyGuard} from "../../utilities/ReentrancyGuard.sol";
@@ -18,7 +19,7 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
 
     function signatures() external pure virtual override returns (string[] memory signatures_) {
         signatures_ = new string[](9);
-        signatures_[0] = "configureStakingRewardToken(address,address,uint256)";
+        signatures_[0] = "createStakingRewardToken(address,address,address,uint256,(string,string,uint8,string))";
         signatures_[1] = "stake(address,uint256,uint256)";
         signatures_[2] = "unstake(address,uint256,uint256)";
         signatures_[3] = "reward(address,uint256)";
@@ -32,7 +33,7 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
     function selectors() external pure virtual override returns (bytes4[] memory selectors_) {
         uint256 n_;
         selectors_ = new bytes4[](9);
-        selectors_[n_++] = IStakingRewardToken.configureStakingRewardToken.selector;
+        selectors_[n_++] = IStakingRewardToken.createStakingRewardToken.selector;
         selectors_[n_++] = IStakingRewardToken.stake.selector;
         selectors_[n_++] = IStakingRewardToken.unstake.selector;
         selectors_[n_++] = IStakingRewardToken.reward.selector;
@@ -44,22 +45,25 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
         if (n_ != 9) revert InvalidCommandsLength(n_);
     }
 
-    function configureStakingRewardToken(address token_, address rewardLedger_, uint256 halfLife_)
-        external
-        nonReentrant
-    {
+    function createStakingRewardToken(
+        address stakingLedger_,
+        address rewardLedger_,
+        address stakingAccount_,
+        uint256 halfLife_,
+        ILedgerTokenFactory.TokenMetadata memory metadata_
+    ) external nonReentrant returns (address, uint256) {
         enforceIsOwner();
-        StakingRewardLib.configure(token_, rewardLedger_, halfLife_);
+        return StakingRewardLib.create(stakingLedger_, rewardLedger_, stakingAccount_, halfLife_, metadata_);
     }
 
-    function stake(address token_, uint256 amount_, uint256 minimumReceipts_) external nonReentrant returns (uint256) {
+    function stake(address token_, uint256 amount_, uint256 minimumShares_) external nonReentrant returns (uint256) {
         enforceIsDelegated();
-        return StakingRewardLib.stake(token_, msg.sender, amount_, minimumReceipts_);
+        return StakingRewardLib.stake(token_, msg.sender, amount_, minimumShares_);
     }
 
-    function unstake(address token_, uint256 receipts_, uint256 minimumStake_) external nonReentrant returns (uint256) {
+    function unstake(address token_, uint256 shares_, uint256 minimumStake_) external nonReentrant returns (uint256) {
         enforceIsDelegated();
-        return StakingRewardLib.unstake(token_, msg.sender, receipts_, minimumStake_);
+        return StakingRewardLib.unstake(token_, msg.sender, shares_, minimumStake_);
     }
 
     function reward(address token_, uint256 amount_) external nonReentrant {
