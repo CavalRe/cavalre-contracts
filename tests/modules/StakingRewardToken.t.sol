@@ -8,6 +8,7 @@ import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {IDispatcher} from "../../modules/dispatcher/IDispatcher.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
 import {ILedger} from "../../modules/ledger/ILedger.sol";
+import {ILedgerTransferHook} from "../../modules/ledger/ILedgerTransferHook.sol";
 import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {LedgerTokenFactory} from "../../modules/ledger/LedgerTokenFactory.sol";
 import {ILedgerTokenFactory} from "../../modules/ledger/ILedgerTokenFactory.sol";
@@ -154,6 +155,20 @@ contract StakingRewardTokenTest is Test {
 
     function testModuleFitsDeploymentLimit() public {
         assertLe(address(new StakingRewardToken()).code.length, 24_576);
+    }
+
+    function testSROperationsSettleWithoutDispatchingTransferHook() public {
+        vm.expectCall(address(dispatcher), abi.encodeWithSelector(ILedgerTransferHook.beforeLedgerTransfer.selector), 0);
+        stakeFor(ALICE, 100e18);
+        rewards.reward(srToken, 100e6);
+        vm.warp(HALF_LIFE);
+        vm.startPrank(ALICE);
+        assertEq(rewards.claim(srToken, 50e6), 50e6);
+        assertEq(rewards.unstake(srToken, 100e18, 100e18), 100e18);
+        assertEq(rewards.claim(srToken, type(uint256).max), 50e6);
+        vm.stopPrank();
+        assertRewards(ALICE, 0, 0, 0);
+        assertConservation(100e6, 100e6);
     }
 
     function testInvalidConfiguration() public {
@@ -468,6 +483,28 @@ contract StakingRewardTokenTest is Test {
         assertEq(IERC20(srToken).totalSupply(), 100e18);
     }
 
+    function testCannotUnstakeAnotherHoldersShares() public {
+        stakeFor(ALICE, 100e18);
+        stakeFor(BOB, 100e18);
+        rewards.reward(srToken, 120e6);
+        vm.warp(HALF_LIFE);
+        vm.startPrank(BOB);
+        vm.expectRevert(IStakingRewardToken.InsufficientStake.selector);
+        rewards.unstake(srToken, 150e18, 0);
+        vm.expectRevert(IStakingRewardToken.InsufficientStake.selector);
+        rewards.unstake(srToken, 201e18, 0);
+        vm.stopPrank();
+        vm.prank(CAROL);
+        vm.expectRevert(IStakingRewardToken.InsufficientStake.selector);
+        rewards.unstake(srToken, 1e18, 0);
+        assertEq(IERC20(srToken).totalSupply(), 200e18);
+        assertEq(IERC20(srToken).balanceOf(ALICE), 100e18);
+        assertEq(IERC20(srToken).balanceOf(BOB), 100e18);
+        assertRewards(ALICE, 60e6, 30e6, 30e6);
+        assertRewards(BOB, 60e6, 30e6, 30e6);
+        assertConservation(120e6, 0);
+    }
+
     function testCannotDrainBackingOrRewardCustody() public {
         stakeFor(ALICE, 100e18);
         rewards.reward(srToken, 100e6);
@@ -555,6 +592,79 @@ contract StakingRewardTokenTest is Test {
         assertEq(IERC20(rewardToken).balanceOf(ALICE), 200e6);
         assertEq(rewards.stakingRewardToken(second_).rewards.totalUnits, 0);
         assertEq(rewards.stakingRewardToken(srToken).rewards.totalUnits, 0);
+    }
+
+    function testStakingAnotherSRTokenSettlesBothAssetTransfers() public {
+        ledger.addSubAccount(srToken, srToken, BACKING, "Nested Backing", false);
+        (address second_,) = rewards.createStakingRewardToken(
+            srToken,
+            rewardToken,
+            LedgerLib.toAddress(srToken, BACKING),
+            HALF_LIFE,
+            ILedgerTokenFactory.TokenMetadata("Staked SR", "SRSR", 18, "1")
+        );
+        stakeFor(ALICE, 100e18);
+        stakeFor(BOB, 100e18);
+        rewards.reward(srToken, 120e6);
+        vm.warp(HALF_LIFE);
+        vm.prank(ALICE);
+        rewards.stake(second_, 100e18, 100e18);
+        assertRewards(ALICE, 30e6, 0, 30e6);
+        assertRewards(BOB, 90e6, 45e6, 45e6);
+        assertRewards(BACKING, 0, 0, 0);
+        rewards.reward(srToken, 30e6);
+        assertRewards(BACKING, 15e6, 15e6, 0);
+        vm.prank(ALICE);
+        rewards.unstake(second_, 100e18, 100e18);
+        assertEq(IERC20(srToken).balanceOf(ALICE), 100e18);
+        assertEq(IERC20(second_).totalSupply(), 0);
+        assertRewards(BACKING, 0, 0, 0);
+        assertRewards(ALICE, 33_333_333, 0, 33_333_333);
+        assertRewards(BOB, 116_666_666, 66_666_666, 50e6);
+        assertConservation(150e6, 0);
+    }
+
+    struct NestedRewardCache {
+        address token;
+        address holder;
+        IStakingRewardToken.Rewards beforeClaim;
+        IStakingRewardToken.Rewards afterClaim;
+    }
+
+    function testRewardingAnotherSRTokenSettlesFundingAndClaimTransfers() public {
+        NestedRewardCache memory c;
+        ledger.addSubAccount(stakeToken, stakeToken, address(0x52a), "New Backing", false);
+        (c.token,) = rewards.createStakingRewardToken(
+            stakeToken,
+            srToken,
+            LedgerLib.toAddress(stakeToken, address(0x52a)),
+            HALF_LIFE,
+            ILedgerTokenFactory.TokenMetadata("SR Rewards", "SRREW", 18, "1")
+        );
+        c.holder = LedgerLib.toAddress(StakingRewardLib.REWARDS, c.token);
+        stakeFor(ALICE, 100e18);
+        stakeFor(BOB, 100e18);
+        rewards.reward(srToken, 120e6);
+        vm.prank(CAROL);
+        rewards.stake(c.token, 100e18, 100e18);
+        vm.warp(HALF_LIFE);
+        vm.prank(ALICE);
+        rewards.reward(c.token, 100e18);
+        assertRewards(ALICE, 30e6, 0, 30e6);
+        assertRewards(BOB, 90e6, 45e6, 45e6);
+        assertRewards(c.holder, 0, 0, 0);
+        rewards.reward(srToken, 30e6);
+        vm.warp(2 * HALF_LIFE);
+        c.beforeClaim = rewards.rewardsOf(srToken, c.holder);
+        assertRewards(c.holder, 15e6, 7.5e6, 7.5e6);
+        vm.prank(CAROL);
+        assertEq(rewards.claim(c.token, 50e18), 50e18);
+        c.afterClaim = rewards.rewardsOf(srToken, c.holder);
+        assertLt(c.afterClaim.totalUnits, c.beforeClaim.totalUnits);
+        assertEq(c.afterClaim.pendingUnits, c.beforeClaim.pendingUnits / 2);
+        assertApproxEqAbs(c.afterClaim.available, c.beforeClaim.available, 1);
+        assertEq(IERC20(srToken).balanceOf(CAROL), 50e18);
+        assertRewards(CAROL, 0, 0, 0);
     }
 
     function testNativeStakeUsesExistingLedgerCustody() public {

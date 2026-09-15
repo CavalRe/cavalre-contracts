@@ -85,9 +85,13 @@ The holder can immediately claim the full remaining R balance through `claim`. R
 
 SR transfers act as a proportional reward exit for the sender and entry for the receiver. Available rewards stay with the sender; proportional pending rewards are forfeited, with the same final-holder exception for a full transfer. The receiver earns future funding. Self-transfers and zero transfers do not forfeit rewards. Moving SR shares between two distinct accounts controlled by the same person still constitutes an exit/entry.
 
-LedgerLib invokes the optional `beforeLedgerTransfer` Dispatcher selector before changing balances. The SR module authenticates the Dispatcher self-call and checkpoints both affected debit accounts. This covers ERC20 transfer/transferFrom, direct Ledger transfers, and internal LedgerLib transfers, including nested holder accounts. Nested-account applications can use the library with the corresponding token-local holder key to claim or redeem under their own authorization rules.
+The default `LedgerLib.transfer` invokes the optional `beforeLedgerTransfer` Dispatcher selector before changing balances. The SR module authenticates the Dispatcher self-call, rejects protected custody debits and SR supply changes, and runs `settleTransfer`. This covers ERC20 transfer/transferFrom, direct Ledger transfers, and internal LedgerLib transfers, including nested holder accounts.
 
-Staking and reward custody accounts reject unauthorized debits. SR mint/burn and module custody movements use one-use transient authorizations tied to exact Ledger transfers. SR state has its own ERC-7201 namespace; Ledger and Dispatcher storage layouts are unchanged.
+SR operations supply `settleTransfer` directly to the internal Ledger transfer overload. Their asset movements and share mint/burn use the same Ledger validation, accounting, and events, with no Dispatcher round trip or transient transfer authorization. The callback also settles the underlying program when `S` or `R` is another SR token. The callback overload is for trusted module code; it is not exposed through the Ledger ABI.
+
+`settleTransfer` updates aggregate state and checkpoints each affected debit holder at its old balance. A holder checkpoint applies any outgoing shares using that same balance read, including pending forfeiture or the final-holder release. Claims use the same checkpoint with zero outgoing shares.
+
+Nested-account applications can use the library with the corresponding token-local holder key to claim or redeem under their own authorization rules. SR state has its own ERC-7201 namespace; Ledger and Dispatcher storage layouts are unchanged.
 
 **Upgrade requirement:** all modules that transfer through LedgerLib must be rebuilt with the hook-enabled library and deployed together with the SR module. Installing SR beside older, inlined LedgerLib code leaves transfer paths without checkpoints or custody checks. The hook must remain registered while SR programs are active; Dispatcher/module owners retain their existing upgrade authority.
 

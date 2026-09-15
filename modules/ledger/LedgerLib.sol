@@ -784,15 +784,40 @@ library LedgerLib {
         address toParent_,
         address to_,
         uint256 amount_
+    ) internal returns (address, bool, bool) {
+        return transfer(ledger_, fromParent_, from_, toParent_, to_, amount_, beforeTransfer);
+    }
+
+    function beforeTransfer(
+        address ledger_,
+        address from_,
+        address to_,
+        bool fromIsCredit_,
+        bool toIsCredit_,
+        uint256 amount_
+    ) private {
+        if (DispatcherLib.store().modules[ILedgerTransferHook.beforeLedgerTransfer.selector] != address(0)) {
+            ILedgerTransferHook(address(this))
+                .beforeLedgerTransfer(ledger_, from_, to_, fromIsCredit_, toIsCredit_, amount_);
+        }
+    }
+
+    /// @dev Trusted modules may supply their own internal settlement callback instead of dispatching the hook.
+    ///      The callback runs before balances change; Ledger validation, accounting, and events are shared.
+    function transfer(
+        address ledger_,
+        address fromParent_,
+        address from_,
+        address toParent_,
+        address to_,
+        uint256 amount_,
+        function(address, address, address, bool, bool, uint256) internal beforeTransfer_
     ) internal returns (address _ledger, bool _fromIsCredit, bool _toIsCredit) {
         (_ledger, _fromIsCredit, _toIsCredit) = enforceTransfer(ledger_, fromParent_, from_, toParent_, to_);
 
         AccountCache memory _from = setAccountCache(ledger_, fromParent_, from_);
         AccountCache memory _to = setAccountCache(ledger_, toParent_, to_);
-        if (DispatcherLib.store().modules[ILedgerTransferHook.beforeLedgerTransfer.selector] != address(0)) {
-            ILedgerTransferHook(address(this))
-                .beforeLedgerTransfer(_ledger, _from.absolute, _to.absolute, _fromIsCredit, _toIsCredit, amount_);
-        }
+        beforeTransfer_(_ledger, _from.absolute, _to.absolute, _fromIsCredit, _toIsCredit, amount_);
         // Emit before same-account no-op so ERC20 self-transfers still produce Transfer(from, from, amount).
         if (_ledger == wrapper(_ledger)) {
             emitWrapperTransfer(_ledger, _from, _fromIsCredit, _to, _toIsCredit, amount_);
