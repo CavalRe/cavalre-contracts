@@ -45,8 +45,6 @@ library StakingRewardLib {
     // Deliberately truncated hashes, following Ledger's relative account keys.
     // forge-lint: disable-next-line(unsafe-typecast)
     address internal constant REWARDS = address(uint160(uint256(keccak256("Staking Rewards"))));
-    // forge-lint: disable-next-line(unsafe-typecast)
-    address internal constant FORFEITED = address(uint160(uint256(keccak256("Forfeited Rewards"))));
 
     function store() internal pure returns (Store storage s) {
         bytes32 position_ = STORE_POSITION;
@@ -59,7 +57,6 @@ library StakingRewardLib {
 
     struct CreateCache {
         address rewardAccount;
-        address forfeitedAccount;
         uint256 flags;
     }
 
@@ -89,14 +86,10 @@ library StakingRewardLib {
         ) revert IStakingRewardToken.InvalidConfiguration();
 
         LedgerLib.addSubAccountGroup(rewardLedger_, rewardLedger_, REWARDS, "Staking Rewards", false);
-        LedgerLib.addSubAccountGroup(rewardLedger_, rewardLedger_, FORFEITED, "Forfeited Rewards", false);
         LedgerLib.addSubAccount(rewardLedger_, REWARDS, token_, "Rewards", false);
-        LedgerLib.addSubAccount(rewardLedger_, FORFEITED, token_, "Forfeited", false);
         c.rewardAccount = LedgerLib.toAddress(rewardLedger_, REWARDS, token_);
-        c.forfeitedAccount = LedgerLib.toAddress(rewardLedger_, FORFEITED, token_);
         reserve(token_, stakingAccount_);
         reserve(token_, c.rewardAccount);
-        reserve(token_, c.forfeitedAccount);
         p.rewardLedger = rewardLedger_;
         p.halfLife = halfLife_;
         p.state.updatedAt = block.timestamp;
@@ -251,11 +244,11 @@ library StakingRewardLib {
         uint256 index;
     }
 
-    function reward(address token_, address funder_, uint256 amount_, bool recycled_) internal {
+    function reward(address token_, address funder_, uint256 amount_) internal {
         Program storage p = program(token_);
         if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
         RewardCache memory c;
-        if (!recycled_ && store().reservedAccounts[LedgerLib.toAddress(p.rewardLedger, funder_)] != address(0)) {
+        if (store().reservedAccounts[LedgerLib.toAddress(p.rewardLedger, funder_)] != address(0)) {
             revert IStakingRewardToken.AccountReserved(LedgerLib.toAddress(p.rewardLedger, funder_));
         }
         c.supply = LedgerLib.totalSupply(token_);
@@ -273,16 +266,8 @@ library StakingRewardLib {
         // Accumulate issued units, not R amounts: forfeiture can change R per unit.
         p.state.totalIndex += c.index;
         p.state.pendingIndex += c.index;
-        transfer(
-            p.rewardLedger,
-            recycled_ ? FORFEITED : p.rewardLedger,
-            recycled_ ? token_ : funder_,
-            REWARDS,
-            token_,
-            amount_
-        );
+        transfer(p.rewardLedger, p.rewardLedger, funder_, REWARDS, token_, amount_);
         emit IStakingRewardToken.Rewarded(token_, funder_, amount_, c.units);
-        if (recycled_) emit IStakingRewardToken.RewardsRecycled(token_, amount_);
     }
 
     struct ClaimCache {
@@ -357,8 +342,6 @@ library StakingRewardLib {
         uint256 pending;
         uint256 available;
         uint256 cancelled;
-        uint256 rewards;
-        uint256 reserved;
     }
 
     function forfeit(address token_, address absolute_, uint256 shares_) private {
@@ -369,32 +352,22 @@ library StakingRewardLib {
         if (shares_ > c.balance) revert IStakingRewardToken.InsufficientStake();
         c.pending = FixedPointMathLib.fullMulDiv(position_.pending, shares_, c.balance);
         if (c.pending == 0) return;
-        c.available = position_.total - position_.pending;
-        if (position_.total == p.state.total && c.pending == position_.pending) {
-            // No other reward units survive a full pending exit. Preserve earned R and reserve the rest
-            // for explicit future funding; neither confiscate earned R nor leave ownerless backing.
-            c.rewards = LedgerLib.balanceOf(LedgerLib.toAddress(p.rewardLedger, REWARDS, token_), false);
-            c.reserved = c.rewards - FixedPointMathLib.fullMulDiv(c.available, c.rewards, p.state.total);
-            // Retire unredeemable unit dust too, so a zero-backed unit supply cannot block future funding.
-            if (c.reserved == c.rewards) c.available = 0;
-            c.cancelled = position_.total - c.available;
-            position_.total = c.available;
+        if (position_.total == p.state.total && shares_ == c.balance) {
+            // The last reward-unit holder keeps all backing on a full exit.
             position_.pending = 0;
-            p.state.total = c.available;
             p.state.pending = 0;
-            transfer(p.rewardLedger, REWARDS, token_, FORFEITED, token_, c.reserved);
-            emit IStakingRewardToken.RewardsReserved(token_, c.reserved);
-        } else {
-            // Q = F * U / (U - A). Burn Q total units and F pending units, preserving the
-            // exiting holder's available R (up to rounding) while repricing surviving units.
-            c.cancelled = FixedPointMathLib.fullMulDivUp(c.pending, p.state.total, p.state.total - c.available);
-            position_.total -= c.cancelled;
-            position_.pending -= c.pending;
-            p.state.total -= c.cancelled;
-            // Aggregate and individual pending decay round independently.
-            p.state.pending = p.state.pending > c.pending ? p.state.pending - c.pending : 0;
-            if (p.state.pending > p.state.total) p.state.pending = p.state.total;
+            return;
         }
+        c.available = position_.total - position_.pending;
+        // Q = F * U / (U - A). Burn Q total units and F pending units, preserving the
+        // exiting holder's available R (up to rounding) while repricing surviving units.
+        c.cancelled = FixedPointMathLib.fullMulDivUp(c.pending, p.state.total, p.state.total - c.available);
+        position_.total -= c.cancelled;
+        position_.pending -= c.pending;
+        p.state.total -= c.cancelled;
+        // Aggregate and individual pending decay round independently.
+        p.state.pending = p.state.pending > c.pending ? p.state.pending - c.pending : 0;
+        if (p.state.pending > p.state.total) p.state.pending = p.state.total;
         emit IStakingRewardToken.Forfeited(token_, absolute_, c.pending, c.cancelled);
     }
 
@@ -437,9 +410,7 @@ library StakingRewardLib {
         config_.stakedBalance = LedgerLib.balanceOf(p.stakingAccount, false);
         config_.rewardLedger = p.rewardLedger;
         config_.rewardAccount = LedgerLib.toAddress(p.rewardLedger, REWARDS, token_);
-        config_.forfeitedAccount = LedgerLib.toAddress(p.rewardLedger, FORFEITED, token_);
         config_.halfLife = p.halfLife;
-        config_.forfeitedBalance = LedgerLib.balanceOf(config_.forfeitedAccount, false);
         State memory state_ = currentState(p);
         config_.rewards = value(state_, state_.total, LedgerLib.balanceOf(config_.rewardAccount, false));
     }

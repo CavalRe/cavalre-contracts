@@ -18,31 +18,29 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
     }
 
     function signatures() external pure virtual override returns (string[] memory signatures_) {
-        signatures_ = new string[](9);
+        signatures_ = new string[](8);
         signatures_[0] = "createStakingRewardToken(address,address,address,uint256,(string,string,uint8,string))";
         signatures_[1] = "stake(address,uint256,uint256)";
         signatures_[2] = "unstake(address,uint256,uint256)";
         signatures_[3] = "reward(address,uint256)";
         signatures_[4] = "claim(address,uint256)";
-        signatures_[5] = "recycleRewards(address,uint256)";
-        signatures_[6] = "stakingRewardToken(address)";
-        signatures_[7] = "rewardsOf(address,address)";
-        signatures_[8] = "beforeLedgerTransfer(address,address,address,bool,bool,uint256)";
+        signatures_[5] = "stakingRewardToken(address)";
+        signatures_[6] = "rewardsOf(address,address)";
+        signatures_[7] = "beforeLedgerTransfer(address,address,address,bool,bool,uint256)";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory selectors_) {
         uint256 n_;
-        selectors_ = new bytes4[](9);
+        selectors_ = new bytes4[](8);
         selectors_[n_++] = IStakingRewardToken.createStakingRewardToken.selector;
         selectors_[n_++] = IStakingRewardToken.stake.selector;
         selectors_[n_++] = IStakingRewardToken.unstake.selector;
         selectors_[n_++] = IStakingRewardToken.reward.selector;
         selectors_[n_++] = IStakingRewardToken.claim.selector;
-        selectors_[n_++] = IStakingRewardToken.recycleRewards.selector;
         selectors_[n_++] = IStakingRewardToken.stakingRewardToken.selector;
         selectors_[n_++] = IStakingRewardToken.rewardsOf.selector;
         selectors_[n_++] = ILedgerTransferHook.beforeLedgerTransfer.selector;
-        if (n_ != 9) revert InvalidCommandsLength(n_);
+        if (n_ != 8) revert InvalidCommandsLength(n_);
     }
 
     function createStakingRewardToken(
@@ -68,17 +66,12 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
 
     function reward(address token_, uint256 amount_) external nonReentrant {
         enforceIsDelegated();
-        StakingRewardLib.reward(token_, msg.sender, amount_, false);
+        StakingRewardLib.reward(token_, msg.sender, amount_);
     }
 
     function claim(address token_, uint256 amount_) external nonReentrant returns (uint256) {
         enforceIsDelegated();
         return StakingRewardLib.claim(token_, msg.sender, amount_);
-    }
-
-    function recycleRewards(address token_, uint256 amount_) external nonReentrant {
-        enforceIsOwner();
-        StakingRewardLib.reward(token_, msg.sender, amount_, true);
     }
 
     function stakingRewardToken(address token_) external view returns (Configuration memory) {

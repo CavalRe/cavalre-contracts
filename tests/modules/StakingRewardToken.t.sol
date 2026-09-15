@@ -86,8 +86,8 @@ contract StakingRewardTokenTest is Test {
         assertEq(config_.totalSupply, 100e18);
         assertEq(config_.stakedBalance, 100e18);
         assertEq(config_.rewardLedger, rewardToken);
+        assertEq(config_.rewardAccount, LedgerLib.toAddress(rewardToken, StakingRewardLib.REWARDS, srToken));
         assertEq(config_.halfLife, HALF_LIFE);
-        assertEq(config_.forfeitedBalance, 0);
     }
 
     function testConfigurationCannotChange() public {
@@ -148,6 +148,7 @@ contract StakingRewardTokenTest is Test {
         vm.startPrank(ALICE);
         assertEq(rewards.claim(second_, 50e6), 50e6);
         assertEq(rewards.unstake(second_, 100e18, 100e18), 100e18);
+        assertEq(rewards.claim(second_, type(uint256).max), 50e6);
         vm.stopPrank();
     }
 
@@ -276,24 +277,80 @@ contract StakingRewardTokenTest is Test {
         assertRewards(BOB, 72e6, 36e6, 36e6);
     }
 
-    function testFinalHolderKeepsEarnedRewardsAndReservesForfeiture() public {
+    function testFinalHolderReceivesAllRemainingRewards() public {
+        stakeFor(ALICE, 100e18);
+        rewards.reward(srToken, 100e6);
+        vm.warp(HALF_LIFE);
+        uint256 units_ = rewards.rewardsOf(srToken, ALICE).totalUnits;
+        vm.prank(ALICE);
+        rewards.unstake(srToken, 100e18, 100e18);
+        assertRewards(ALICE, 100e6, 0, 100e6);
+        assertEq(rewards.rewardsOf(srToken, ALICE).totalUnits, units_);
+        assertEq(rewards.stakingRewardToken(srToken).rewards.totalUnits, units_);
+        assertEq(rewards.stakingRewardToken(srToken).rewards.pendingUnits, 0);
+        assertConservation(100e6, 0);
+        vm.prank(ALICE);
+        assertEq(rewards.claim(srToken, type(uint256).max), 100e6);
+        assertEq(IERC20(rewardToken).balanceOf(ALICE), 100e6);
+        assertConservation(100e6, 100e6);
+        stakeFor(BOB, 100e18);
+        assertRewards(BOB, 0, 0, 0);
+        rewards.reward(srToken, 50e6);
+        assertRewards(BOB, 50e6, 50e6, 0);
+        assertConservation(150e6, 100e6);
+    }
+
+    function testPartialSoleHolderExitRetainsPendingRewards() public {
         stakeFor(ALICE, 100e18);
         rewards.reward(srToken, 100e6);
         vm.warp(HALF_LIFE);
         vm.prank(ALICE);
-        rewards.unstake(srToken, 100e18, 100e18);
-        assertRewards(ALICE, 50e6, 0, 50e6);
-        assertEq(rewards.stakingRewardToken(srToken).forfeitedBalance, 50e6);
+        rewards.unstake(srToken, 50e18, 50e18);
+        assertRewards(ALICE, 100e6, 50e6, 50e6);
+        assertConservation(100e6, 0);
         vm.prank(ALICE);
-        assertEq(rewards.claim(srToken, type(uint256).max), 50e6);
+        rewards.unstake(srToken, 50e18, 50e18);
+        assertRewards(ALICE, 100e6, 0, 100e6);
+        assertConservation(100e6, 0);
+    }
+
+    function testLastStakerForfeitsToExitedRewardHolder() public {
+        stakeFor(ALICE, 100e18);
         stakeFor(BOB, 100e18);
-        assertRewards(BOB, 0, 0, 0);
+        rewards.reward(srToken, 120e6);
+        vm.warp(HALF_LIFE);
+        vm.prank(ALICE);
+        rewards.unstake(srToken, 100e18, 100e18);
+        assertRewards(ALICE, 30e6, 0, 30e6);
+        assertRewards(BOB, 90e6, 45e6, 45e6);
         vm.prank(BOB);
-        vm.expectRevert(abi.encodeWithSelector(IDispatcher.OwnableUnauthorizedAccount.selector, BOB));
-        rewards.recycleRewards(srToken, 50e6);
-        rewards.recycleRewards(srToken, 50e6);
+        rewards.unstake(srToken, 100e18, 100e18);
+        assertRewards(ALICE, 75e6, 0, 75e6);
+        assertRewards(BOB, 45e6, 0, 45e6);
+        assertConservation(120e6, 0);
+        vm.prank(ALICE);
+        uint256 claimed_ = rewards.claim(srToken, type(uint256).max);
+        vm.prank(BOB);
+        claimed_ += rewards.claim(srToken, type(uint256).max);
+        assertEq(claimed_, 120e6);
+        assertConservation(120e6, claimed_);
+    }
+
+    function testNewStakerDoesNotPreventFinalRewardHolderRelease() public {
+        stakeFor(ALICE, 100e18);
+        rewards.reward(srToken, 100e6);
+        stakeFor(BOB, 100e18);
+        vm.prank(ALICE);
+        rewards.unstake(srToken, 100e18, 100e18);
+        assertRewards(ALICE, 100e6, 0, 100e6);
+        assertRewards(BOB, 0, 0, 0);
+        rewards.reward(srToken, 50e6);
+        assertRewards(ALICE, 100e6, 0, 100e6);
         assertRewards(BOB, 50e6, 50e6, 0);
-        assertEq(rewards.stakingRewardToken(srToken).forfeitedBalance, 0);
+        vm.prank(ALICE);
+        assertEq(rewards.claim(srToken, type(uint256).max), 100e6);
+        assertRewards(BOB, 50e6, 50e6, 0);
+        assertConservation(150e6, 100e6);
     }
 
     function testImmediateFinalExitAndRestart() public {
@@ -301,23 +358,29 @@ contract StakingRewardTokenTest is Test {
         rewards.reward(srToken, 7);
         vm.prank(ALICE);
         rewards.unstake(srToken, 3, 3);
-        assertRewards(ALICE, 0, 0, 0);
-        assertEq(rewards.stakingRewardToken(srToken).forfeitedBalance, 7);
+        assertRewards(ALICE, 7, 0, 7);
+        vm.prank(ALICE);
+        assertEq(rewards.claim(srToken, type(uint256).max), 7);
         stakeFor(BOB, 5);
         rewards.reward(srToken, 13);
         assertRewards(BOB, 13, 13, 0);
+        assertConservation(20, 7);
     }
 
-    function testFinalExitRetiresZeroValueUnitDust() public {
+    function testFinalExitMakesSmallPendingRewardClaimable() public {
         stakeFor(ALICE, 3);
         rewards.reward(srToken, 1);
         vm.warp(1);
         vm.prank(ALICE);
         rewards.unstake(srToken, 3, 3);
+        assertRewards(ALICE, 1, 0, 1);
+        vm.prank(ALICE);
+        assertEq(rewards.claim(srToken, type(uint256).max), 1);
         assertEq(rewards.stakingRewardToken(srToken).rewards.totalUnits, 0);
         stakeFor(BOB, 5);
         rewards.reward(srToken, 1);
         assertRewards(BOB, 1, 1, 0);
+        assertConservation(2, 1);
     }
 
     function testFullyAvailableFinalExitHasNoDivisionByZero() public {
@@ -353,7 +416,7 @@ contract StakingRewardTokenTest is Test {
         IERC20(srToken).approve(CAROL, 100e18);
         vm.prank(CAROL);
         IERC20(srToken).transferFrom(ALICE, BOB, 100e18);
-        assertRewards(ALICE, 50e6, 0, 50e6);
+        assertRewards(ALICE, 100e6, 0, 100e6);
         assertRewards(BOB, 0, 0, 0);
     }
 
@@ -363,7 +426,7 @@ contract StakingRewardTokenTest is Test {
         vm.warp(HALF_LIFE);
         vm.prank(ALICE);
         ledger.transfer(srToken, srToken, srToken, BOB, 100e18);
-        assertRewards(ALICE, 50e6, 0, 50e6);
+        assertRewards(ALICE, 100e6, 0, 100e6);
         assertRewards(BOB, 0, 0, 0);
     }
 
@@ -374,7 +437,7 @@ contract StakingRewardTokenTest is Test {
         rewards.reward(srToken, 100e6);
         vm.warp(HALF_LIFE);
         ledger.rawTransfer(srToken, srToken, ALICE, group_, BOB, 100e18);
-        assertRewards(ALICE, 50e6, 0, 50e6);
+        assertRewards(ALICE, 100e6, 0, 100e6);
         assertRewards(LedgerLib.toAddress(group_, BOB), 0, 0, 0);
         rewards.reward(srToken, 40e6);
         assertRewards(LedgerLib.toAddress(group_, BOB), 40e6, 40e6, 0);
@@ -487,10 +550,11 @@ contract StakingRewardTokenTest is Test {
         vm.startPrank(ALICE);
         rewards.claim(second_, 50e6);
         rewards.unstake(second_, 100e18, 100e6);
+        assertEq(rewards.claim(second_, type(uint256).max), 50e6);
         vm.stopPrank();
-        assertEq(IERC20(rewardToken).balanceOf(ALICE), 150e6);
-        assertEq(rewards.stakingRewardToken(second_).forfeitedBalance, 50e6);
-        assertEq(rewards.stakingRewardToken(srToken).forfeitedBalance, 0);
+        assertEq(IERC20(rewardToken).balanceOf(ALICE), 200e6);
+        assertEq(rewards.stakingRewardToken(second_).rewards.totalUnits, 0);
+        assertEq(rewards.stakingRewardToken(srToken).rewards.totalUnits, 0);
     }
 
     function testNativeStakeUsesExistingLedgerCustody() public {
@@ -531,7 +595,7 @@ contract StakingRewardTokenTest is Test {
         c.config = rewards.stakingRewardToken(srToken);
         assertEq(c.alice.totalUnits + c.bob.totalUnits + c.carol.totalUnits, c.config.rewards.totalUnits);
         assertLe(c.alice.total + c.bob.total + c.carol.total, c.config.rewards.total);
-        assertEq(c.config.rewards.total + c.config.forfeitedBalance + claimed_, funded_);
+        assertEq(c.config.rewards.total + claimed_, funded_);
         assertLe(c.alice.pendingUnits, c.alice.totalUnits);
         assertLe(c.bob.pendingUnits, c.bob.totalUnits);
         assertLe(c.carol.pendingUnits, c.carol.totalUnits);

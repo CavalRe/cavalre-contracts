@@ -20,9 +20,7 @@ interface IStakingRewardToken {
         uint256 stakedBalance;
         address rewardLedger;
         address rewardAccount;
-        address forfeitedAccount;
         uint256 halfLife;
-        uint256 forfeitedBalance;
         Rewards rewards;
     }
 
@@ -49,8 +47,6 @@ interface IStakingRewardToken {
     event Rewarded(address indexed token, address indexed funder, uint256 amount, uint256 units);
     event Claimed(address indexed token, address indexed holder, uint256 amount, uint256 units);
     event Forfeited(address indexed token, address indexed account, uint256 pendingUnits, uint256 cancelledUnits);
-    event RewardsReserved(address indexed token, uint256 amount);
-    event RewardsRecycled(address indexed token, uint256 amount);
 
     /// @notice Create an SR token with immutable S, R, absolute staking account T, and half-life configuration.
     /// @dev T must be an empty debit leaf on S. Identical creation requests return the existing token.
@@ -66,6 +62,7 @@ interface IStakingRewardToken {
     function stake(address token, uint256 amount, uint256 minimumShares) external returns (uint256 shares);
 
     /// @notice Burn principal shares, retaining available rewards and forfeiting proportional pending rewards.
+    /// @dev On a full exit by the last reward-unit holder, all remaining rewards become available to them.
     function unstake(address token, uint256 shares, uint256 minimumStake) external returns (uint256 amount);
 
     /// @notice Fund pending rewards from the caller's R Ledger balance, allocated to current share holders.
@@ -73,9 +70,6 @@ interface IStakingRewardToken {
 
     /// @notice Claim R into the caller's Ledger balance. Use type(uint256).max to burn all available units.
     function claim(address token, uint256 amount) external returns (uint256 claimed);
-
-    /// @notice Owner reallocates rewards reserved when no other reward-unit holder could receive a forfeiture.
-    function recycleRewards(address token, uint256 amount) external;
 
     /// @notice SR configuration and balances, expressed in each token's raw decimals.
     function stakingRewardToken(address token) external view returns (Configuration memory);
