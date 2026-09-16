@@ -23,7 +23,7 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
         signatures_[1] = "stake(address,uint256,uint256)";
         signatures_[2] = "unstake(address,uint256,uint256)";
         signatures_[3] = "reward(address,uint256)";
-        signatures_[4] = "claim(address,uint256)";
+        signatures_[4] = "claim(address)";
         signatures_[5] = "stakingRewardToken(address)";
         signatures_[6] = "rewardsOf(address,address)";
         signatures_[7] = "beforeLedgerTransfer(address,address,address,bool,bool,uint256)";
@@ -72,9 +72,9 @@ contract StakingRewardToken is Dispatchable, ReentrancyGuard, IStakingRewardToke
         StakingRewardLib.reward(token_, msg.sender, amount_);
     }
 
-    function claim(address token_, uint256 amount_) external nonReentrant returns (uint256) {
+    function claim(address token_) external nonReentrant returns (uint256) {
         enforceIsDelegated();
-        return StakingRewardLib.claim(token_, msg.sender, amount_);
+        return StakingRewardLib.claim(token_, msg.sender);
     }
 
     function stakingRewardToken(address token_) external view returns (Configuration memory) {

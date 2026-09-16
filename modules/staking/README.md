@@ -10,7 +10,7 @@ The SR token represents principal shares. It is an internal Ledger token with an
 2. Register an empty debit leaf `T` on the `S` ledger.
 3. The SR module owner calls `createStakingRewardToken(S, R, T, h, metadata)`, passing `T` as an absolute account address. The module creates the internal token and ERC20 wrapper and returns its address and flags. It reuses the generic internal-token factory library; an installed LedgerTokenFactory module is not required.
 4. Holders call `stake(srToken, amountS, minimumShares)` and `unstake(srToken, shares, minimumS)`.
-5. Anyone can call `reward(srToken, amountR)` when SR supply is positive. Holders call `claim(srToken, amountR)`, or pass `type(uint256).max` to claim all available units.
+5. Anyone can call `reward(srToken, amountR)` when SR supply is positive. Holders call `claim(srToken)` to redeem all available reward units; there is no amount parameter.
 
 Metadata uses the shared `TokenMetadata` shape: name, symbol, decimals, and version. Identical creation requests return the same token without resetting balances or rewards. A different configuration for the same token identity reverts. Initial supply and `T` balance must be zero, and SR programs cannot share reserved staking accounts. `T`, `R`, and `h` are stored in SR state; `S` is validated against and read from `T`'s Ledger registration.
 
@@ -22,64 +22,78 @@ Principal shares mint pro rata to the existing staking balance, with decimal nor
 
 ## Accounting
 
-Let `U` be total reward units, `P` pending units, `B` funded R balance, `L` SR supply, and `u`, `p`, `l` the corresponding holder quantities. Let `I` and `J` be cumulative total and decaying pending unit indices.
+The [unit-first derivation](https://caval.re/blog/staking-rewards) defines the accumulators and action rules. Hats denote reward **units**; unhatted rewards are amounts of `R`. In particular, $U_i$ is unclaimed reward-token backing and $\hat U_i$ is outstanding unclaimed units. Neither is cumulative funding $T_i$.
 
-Between actions, over elapsed time `dt`:
+### Stored and derived values
 
-```text
-d = 2^(-dt / h)
-P <- P * d
-J <- J * d
-```
+Each program and each holder use the same five-field `Checkpoint`. For a holder, the accumulators are snapshots of the shared accumulators at that holder's last checkpoint.
 
-Whole half-lives use binary shifts; fractional half-lives use Solady's `expWad`. Each action updates aggregate state and only the holders it touches. There are no scheduled periods or loops over holders.
+| Checkpoint field | Aggregate notation | Holder notation |
+| --- | --- | --- |
+| `unclaimedUnits` | $\hat U_i$ | $\hat U_i^j$ |
+| `pendingUnits` | $\hat P_i$ | $\hat P_i^j$ |
+| `unclaimedAccumulator` | $\phi_i^{\hat U}$ | Saved $\phi_i^{\hat U}$ |
+| `pendingAccumulator` | $e^{-rt}\phi_i^{\hat P}$ | Saved $e^{-rt}\phi_i^{\hat P}$ |
+| `updatedAt` | Aggregate checkpoint time | Holder checkpoint time |
 
-Funding `b` R issues units at the existing R/unit price:
+Here $r=\ln(2)/h$. `pendingAccumulator` stores the decaying form, so the implementation uses elapsed time and never evaluates an ever-growing $e^{rt}$. Aggregate `pendingUnits` is retained for constant-time aggregate pending/available views; the core action amounts do not depend on it.
 
-```text
-q = b * U / B                 if U > 0
-q = b * 10^36                otherwise
-i = floor(q / L)
-q = i * L
-U <- U + q; P <- P + q
-I <- I + i; J <- J + i
-```
+Ledger supplies the SR share supply $S_i$, holder share balance $S_i^j$, staked principal, and reward backing $U_i$. Outstanding reward units and the other checkpoint fields remain in the SR namespace. Cumulative funding $T_i$ and claims $C_i$ are not stored; reward, claim, and Ledger events supply historical accounting. Available units, per-unit value, and holder token amounts are derived.
 
-Integral unit-per-share indices make issued units exactly equal total holder allocations, including holders not yet checkpointed. Funding too small to increment the index reverts. Rounding issuance down slightly increases existing unit value. `10^36` is internal unit precision, not a token-decimal assumption; quantities that overflow uint256 revert.
+`Rewards.unclaimedUnits` and `Rewards.unclaimed` expose current outstanding units and their token value. They replace the former `totalUnits` and `total` field names without changing the return tuple's types or order. The checkpoint renames also preserve the existing storage field widths, order, and namespace.
 
-A holder checkpoint uses its saved indices and time:
+### Time and funding
 
-```text
-u <- u + l * (I - I_saved)
-p <- p * d + l * (J - J_saved * d)
-I_saved <- I; J_saved <- J
-```
+Between actions, aggregate pending units and the stored pending accumulator decay by $2^{-\Delta t/h}$. Whole half-lives use binary shifts; fractional half-lives use Solady's `expWad`. Each action updates the aggregate checkpoint and only the holders it touches. There are no scheduled periods or loops over holders.
 
-Decay uses finite precision. Negative pending-index differences caused by independently rounded decay paths contribute zero, and pending cannot exceed total units. Aggregate pending is independently rounded. Available token value is `floor((u - p) * B / U)`.
+Funding $\Delta T_i$ issues units at the existing token-per-unit value:
 
-A specified-amount claim burns `ceil(amountR * U / B)` available units. A claim-all burns all available units and pays their floored R value, allowing removal of unredeemable unit dust.
+$$
+\Delta\hat U_i=\Delta T_i\frac{\hat U_i}{U_i}.
+$$
 
-On an exit of fraction `f` of a holder's SR shares, except for a full exit by the last reward-unit holder:
+If there are no outstanding units, initial issuance is $\Delta T_i\times10^{36}$. This unit scale is an implementation precision choice, independent of token decimals. The implementation floors issuance, then rounds it down to a multiple of the current raw SR supply. Both stored accumulators increment by issued units divided by that supply; `unclaimedUnits` and `pendingUnits` increase by the issued units.
 
-```text
-F = floor(p * f)
-A = u - p
-Q = ceil(F * U / (U - A))
-u <- u - Q; p <- p - F
-U <- U - Q; P <- P - F
-```
+Integral unit-per-share increments make issued units exactly equal total holder allocations, including holders not yet checkpointed. Funding too small to increment the accumulators reverts. Rounding issuance down slightly increases existing unit value; quantities that overflow uint256 revert.
 
-This preserves the exiting holder's available R value up to rounding. Retained R backs fewer units, benefiting surviving reward-unit holders, including exited holders with unclaimed rewards. Later funding must therefore accumulate **units**, not R amounts.
+### Holder checkpoints
 
-On a full exit by the last reward-unit holder (`f = 1` and `u = U`), all remaining rewards become available to that holder:
+Before changing a holder's share balance, `currentHolderRewardCheckpoint` reconstructs their rewards using the **old** Ledger share balance:
 
-```text
-p <- 0; P <- 0
-u, U, B remain unchanged
-availableR = B
-```
+1. Add that balance times the change in `unclaimedAccumulator` to their saved `unclaimedUnits`.
+2. Decay their saved `pendingUnits` and saved `pendingAccumulator` from their checkpoint time to now.
+3. Add the old share balance times the difference between the current shared pending accumulator and the decayed saved accumulator to their pending units.
+4. Save the current shared accumulators and timestamp.
 
-The holder can immediately claim the full remaining R balance through `claim`. Rewards stay in the existing reward account until claimed. A partial exit still uses the normal forfeiture formula. The last reward-unit holder may differ from the last staker: exited holders can retain unclaimed rewards, and new stakers may have no reward units yet.
+This reconstructs prior allocations; it does not issue aggregate units again. Independently rounded decay paths can differ, so a negative pending-accumulator difference contributes zero. Holder pending units are bounded by their unclaimed units. Aggregate pending decays independently and is likewise bounded after claims and forfeitures.
+
+### Claim all
+
+After checkpointing, `claim(srToken)` cancels all $\hat A_i^j=\hat U_i^j-\hat P_i^j$ available units and pays
+
+$$
+\left\lfloor\hat A_i^j\frac{U_i}{\hat U_i}\right\rfloor.
+$$
+
+The holder's unclaimed units become exactly their pending units. Their pending units and stake are unchanged. The same available-unit count is removed from the aggregate, and the payout is transferred from the reward account to the holder. The accumulators receive no allocation increment.
+
+A claim with no available units reverts. Available units whose token value rounds to zero can still be cleared; residual backing benefits the remaining units. Claiming the entire outstanding unit supply drains the remaining reward backing. Claims remain separate from principal withdrawals, so exited holders can claim later.
+
+### Unstake and transfer
+
+For an ordinary exit, remove the fraction of pending units corresponding to the outgoing shares. Its mathematical change is
+
+$$
+\Delta\hat P_i^j=\frac{\Delta S_i^j}{S_i^j}\hat P_i^j,
+\qquad
+\Delta\hat U_i^j=\frac{\hat U_i}{\hat U_i-\hat A_i^j}\Delta\hat P_i^j.
+$$
+
+Both changes are negative. The implementation floors the pending-unit removal and rounds the unclaimed-unit cancellation up, applying the same removals to the aggregate. The reward backing stays in its existing account. This preserves the exiting holder's available token value up to rounding and reprices surviving units. Later funding therefore accumulates **units**, not token amounts. No forfeiture account or unallocated-reward balance is needed.
+
+On a full exit by the sole reward-unit holder ($\hat U_i^j=\hat U_i>0$), holder and aggregate pending units become zero; unclaimed units and reward backing remain unchanged. The holder can immediately claim the full remaining reward balance. A partial exit uses ordinary forfeiture. The sole reward-unit holder can differ from the last staker: exited holders can retain unclaimed units, and new stakers may have no reward units yet.
+
+An SR transfer applies the same exit rules to the sender and checkpoints the recipient before moving shares. Funding touches no holder checkpoint; staking, claiming, and unstaking touch one; transfers touch their two endpoints. After complete redemption, later funding uses initial issuance again. Accumulator history and holder snapshots can remain in place without a reset or holder loop.
 
 ## Transfers and integration
 
@@ -94,5 +108,7 @@ SR operations supply `settleTransferRewards` directly to the internal Ledger tra
 Nested-account applications can use the library with the corresponding token-local holder key to claim or redeem under their own authorization rules. SR state has its own ERC-7201 namespace; Ledger and Dispatcher storage layouts are unchanged.
 
 **Upgrade requirement:** all modules that transfer through LedgerLib must be rebuilt with the hook-enabled library and deployed together with the SR module. Installing SR beside older, inlined LedgerLib code leaves transfer paths without checkpoints or custody checks. The hook must remain registered while SR programs are active; Dispatcher/module owners retain their existing upgrade authority.
+
+The claim ABI is now `claim(address)`. When replacing an installed version, remove the old module through Dispatcher before registering the replacement so `claim(address,uint256)` is removed with its old manifest. Clients must use the new claim signature and reward field names.
 
 Funding policy, fee routing, treasury sales, and Multiswap pool selection remain application concerns outside this module.

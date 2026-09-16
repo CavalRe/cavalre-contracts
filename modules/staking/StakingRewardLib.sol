@@ -8,31 +8,34 @@ import {ILedgerTokenFactory} from "../ledger/ILedgerTokenFactory.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 library StakingRewardLib {
-    struct State {
-        uint256 total;
-        uint256 pending;
-        uint256 totalIndex;
-        uint256 pendingIndex;
+    struct Checkpoint {
+        // Outstanding unclaimed units (hat U) and pending units (hat P), not token amounts.
+        uint256 unclaimedUnits;
+        uint256 pendingUnits;
+        // phi^(hat U): cumulative issued units per share.
+        uint256 unclaimedAccumulator;
+        // exp(-r * updatedAt) * phi^(hat P): the decaying pending accumulator.
+        uint256 pendingAccumulator;
         uint256 updatedAt;
     }
 
     struct Program {
         address rewardLedger;
         uint256 halfLife;
-        State state;
+        Checkpoint checkpoint;
         address stakingAccount;
     }
 
     struct Store {
         mapping(address token => Program) programs;
-        mapping(address token => mapping(address absolute => State)) positions;
+        mapping(address token => mapping(address absolute => Checkpoint)) positions;
         mapping(address absolute => address token) reservedAccounts;
     }
 
     bytes32 private constant STORE_POSITION =
         keccak256(abi.encode(uint256(keccak256("cavalre.storage.StakingRewardToken")) - 1)) & ~bytes32(uint256(0xff));
 
-    // Index increments are integral units per raw share. Quantizing issuance to supply * index
+    // Accumulator increments are integral units per raw share. Quantizing issuance to supply * increment
     // makes total units exactly equal the sum of holder units, including lazy holder checkpoints.
     uint256 internal constant UNIT_SCALE = 1e36;
     uint256 private constant WAD = 1e18;
@@ -88,7 +91,7 @@ library StakingRewardLib {
         protectCustodyAccount(token_, c.rewardAccount);
         p.rewardLedger = rewardLedger_;
         p.halfLife = halfLife_;
-        p.state.updatedAt = block.timestamp;
+        p.checkpoint.updatedAt = block.timestamp;
         p.stakingAccount = stakingAccount_;
         emit IStakingRewardToken.StakingRewardTokenCreated(
             token_, stakingLedger_, rewardLedger_, stakingAccount_, halfLife_
@@ -121,37 +124,38 @@ library StakingRewardLib {
         return FixedPointMathLib.fullMulDiv(value_, uint256(FixedPointMathLib.expWad(-int256(fraction_))), WAD);
     }
 
-    function currentRewardState(Program storage p) internal view returns (State memory state_) {
-        state_ = p.state;
-        uint256 elapsed_ = block.timestamp - state_.updatedAt;
-        state_.pending = applyHalfLife(state_.pending, elapsed_, p.halfLife);
-        state_.pendingIndex = applyHalfLife(state_.pendingIndex, elapsed_, p.halfLife);
-        state_.updatedAt = block.timestamp;
+    function currentRewardCheckpoint(Program storage p) internal view returns (Checkpoint memory checkpoint_) {
+        checkpoint_ = p.checkpoint;
+        uint256 elapsed_ = block.timestamp - checkpoint_.updatedAt;
+        checkpoint_.pendingUnits = applyHalfLife(checkpoint_.pendingUnits, elapsed_, p.halfLife);
+        checkpoint_.pendingAccumulator = applyHalfLife(checkpoint_.pendingAccumulator, elapsed_, p.halfLife);
+        checkpoint_.updatedAt = block.timestamp;
     }
 
-    struct CurrentHolderRewardStateCache {
+    struct CurrentHolderRewardCheckpointCache {
         uint256 elapsed;
-        uint256 pendingIndex;
+        uint256 pendingAccumulator;
     }
 
-    function currentHolderRewardState(State memory position_, State memory state_, uint256 balance_, uint256 halfLife_)
-        private
-        view
-        returns (State memory)
-    {
-        CurrentHolderRewardStateCache memory c;
+    function currentHolderRewardCheckpoint(
+        Checkpoint memory position_,
+        Checkpoint memory checkpoint_,
+        uint256 balance_,
+        uint256 halfLife_
+    ) private view returns (Checkpoint memory) {
+        CurrentHolderRewardCheckpointCache memory c;
         c.elapsed = block.timestamp - position_.updatedAt;
-        c.pendingIndex = applyHalfLife(position_.pendingIndex, c.elapsed, halfLife_);
-        position_.total += balance_ * (state_.totalIndex - position_.totalIndex);
-        position_.pending = applyHalfLife(position_.pending, c.elapsed, halfLife_);
+        c.pendingAccumulator = applyHalfLife(position_.pendingAccumulator, c.elapsed, halfLife_);
+        position_.unclaimedUnits += balance_ * (checkpoint_.unclaimedAccumulator - position_.unclaimedAccumulator);
+        position_.pendingUnits = applyHalfLife(position_.pendingUnits, c.elapsed, halfLife_);
         // Independently rounded decay paths can differ by their final precision digits.
         // A negative delta cannot represent newly funded rewards.
-        if (state_.pendingIndex > c.pendingIndex) {
-            position_.pending += balance_ * (state_.pendingIndex - c.pendingIndex);
+        if (checkpoint_.pendingAccumulator > c.pendingAccumulator) {
+            position_.pendingUnits += balance_ * (checkpoint_.pendingAccumulator - c.pendingAccumulator);
         }
-        if (position_.pending > position_.total) position_.pending = position_.total;
-        position_.totalIndex = state_.totalIndex;
-        position_.pendingIndex = state_.pendingIndex;
+        if (position_.pendingUnits > position_.unclaimedUnits) position_.pendingUnits = position_.unclaimedUnits;
+        position_.unclaimedAccumulator = checkpoint_.unclaimedAccumulator;
+        position_.pendingAccumulator = checkpoint_.pendingAccumulator;
         position_.updatedAt = block.timestamp;
         return position_;
     }
@@ -238,7 +242,7 @@ library StakingRewardLib {
         uint256 supply;
         uint256 balance;
         uint256 units;
-        uint256 index;
+        uint256 increment;
     }
 
     function reward(address token_, address funder_, uint256 amount_) internal {
@@ -251,18 +255,18 @@ library StakingRewardLib {
         c.supply = LedgerLib.totalSupply(token_);
         if (c.supply == 0) revert IStakingRewardToken.NoStake();
         c.balance = LedgerLib.balanceOf(LedgerLib.toAddress(p.rewardLedger, REWARDS, token_), false);
-        p.state = currentRewardState(p);
-        c.units = p.state.total == 0
+        p.checkpoint = currentRewardCheckpoint(p);
+        c.units = p.checkpoint.unclaimedUnits == 0
             ? FixedPointMathLib.fullMulDiv(amount_, UNIT_SCALE, 1)
-            : FixedPointMathLib.fullMulDiv(amount_, p.state.total, c.balance);
-        c.index = c.units / c.supply;
-        if (c.index == 0) revert IStakingRewardToken.ZeroAmount();
-        c.units = c.index * c.supply;
-        p.state.total += c.units;
-        p.state.pending += c.units;
+            : FixedPointMathLib.fullMulDiv(amount_, p.checkpoint.unclaimedUnits, c.balance);
+        c.increment = c.units / c.supply;
+        if (c.increment == 0) revert IStakingRewardToken.ZeroAmount();
+        c.units = c.increment * c.supply;
+        p.checkpoint.unclaimedUnits += c.units;
+        p.checkpoint.pendingUnits += c.units;
         // Accumulate issued units, not R amounts: forfeiture can change R per unit.
-        p.state.totalIndex += c.index;
-        p.state.pendingIndex += c.index;
+        p.checkpoint.unclaimedAccumulator += c.increment;
+        p.checkpoint.pendingAccumulator += c.increment;
         LedgerLib.transfer(p.rewardLedger, p.rewardLedger, funder_, REWARDS, token_, amount_, settleTransferRewards);
         emit IStakingRewardToken.Rewarded(token_, funder_, amount_, c.units);
     }
@@ -270,33 +274,26 @@ library StakingRewardLib {
     struct ClaimCache {
         address absolute;
         uint256 balance;
-        uint256 available;
-        uint256 units;
+        uint256 availableUnits;
     }
 
-    function claim(address token_, address holder_, uint256 amount_) internal returns (uint256 claimed_) {
+    function claim(address token_, address holder_) internal returns (uint256 claimed_) {
         Program storage p = stakingRewardProgram(token_);
-        if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
         ClaimCache memory c;
         c.absolute = LedgerLib.toAddress(token_, holder_);
-        p.state = currentRewardState(p);
-        State storage position_ = settleHolderRewards(p, token_, c.absolute, 0);
-        c.available = position_.total - position_.pending;
-        if (c.available == 0) revert IStakingRewardToken.InsufficientRewards();
+        p.checkpoint = currentRewardCheckpoint(p);
+        Checkpoint storage position_ = settleHolderRewards(p, token_, c.absolute, 0);
+        c.availableUnits = position_.unclaimedUnits - position_.pendingUnits;
+        if (c.availableUnits == 0) revert IStakingRewardToken.InsufficientRewards();
         c.balance = LedgerLib.balanceOf(LedgerLib.toAddress(p.rewardLedger, REWARDS, token_), false);
-        if (amount_ == type(uint256).max) {
-            c.units = c.available;
-            claimed_ = FixedPointMathLib.fullMulDiv(c.units, c.balance, p.state.total);
-        } else {
-            c.units = FixedPointMathLib.fullMulDivUp(amount_, p.state.total, c.balance);
-            if (c.units > c.available) revert IStakingRewardToken.InsufficientRewards();
-            claimed_ = amount_;
+        claimed_ = FixedPointMathLib.fullMulDiv(c.availableUnits, c.balance, p.checkpoint.unclaimedUnits);
+        position_.unclaimedUnits = position_.pendingUnits;
+        p.checkpoint.unclaimedUnits -= c.availableUnits;
+        if (p.checkpoint.pendingUnits > p.checkpoint.unclaimedUnits) {
+            p.checkpoint.pendingUnits = p.checkpoint.unclaimedUnits;
         }
-        position_.total -= c.units;
-        p.state.total -= c.units;
-        if (p.state.pending > p.state.total) p.state.pending = p.state.total;
         LedgerLib.transfer(p.rewardLedger, REWARDS, token_, p.rewardLedger, holder_, claimed_, settleTransferRewards);
-        emit IStakingRewardToken.Claimed(token_, holder_, claimed_, c.units);
+        emit IStakingRewardToken.Claimed(token_, holder_, claimed_, c.availableUnits);
     }
 
     // -- Share Transfers and Forfeiture --
@@ -333,49 +330,54 @@ library StakingRewardLib {
         if (from_ == to_ || amount_ == 0) return;
         Program storage p = store().programs[ledger_];
         if (p.halfLife == 0) return;
-        p.state = currentRewardState(p);
+        p.checkpoint = currentRewardCheckpoint(p);
         if (!toIsCredit_) settleHolderRewards(p, ledger_, to_, 0);
         if (!fromIsCredit_) settleHolderRewards(p, ledger_, from_, amount_);
     }
 
     struct SettleHolderRewardsCache {
         uint256 balance;
-        uint256 pending;
-        uint256 available;
-        uint256 cancelled;
+        uint256 pendingUnits;
+        uint256 availableUnits;
+        uint256 cancelledUnits;
     }
 
     /// @dev Checkpoint one holder and apply any outgoing shares using the same pre-transfer balance.
     function settleHolderRewards(Program storage p, address token_, address absolute_, uint256 shares_)
         private
-        returns (State storage position_)
+        returns (Checkpoint storage position_)
     {
         SettleHolderRewardsCache memory c;
         c.balance = LedgerLib.balanceOf(absolute_, false);
         if (shares_ > c.balance) revert IStakingRewardToken.InsufficientStake();
         store().positions[token_][absolute_] =
-            currentHolderRewardState(store().positions[token_][absolute_], p.state, c.balance, p.halfLife);
+            currentHolderRewardCheckpoint(store().positions[token_][absolute_], p.checkpoint, c.balance, p.halfLife);
         position_ = store().positions[token_][absolute_];
         if (shares_ == 0) return position_;
-        c.pending = FixedPointMathLib.fullMulDiv(position_.pending, shares_, c.balance);
-        if (c.pending == 0) return position_;
-        if (position_.total == p.state.total && shares_ == c.balance) {
+        c.pendingUnits = FixedPointMathLib.fullMulDiv(position_.pendingUnits, shares_, c.balance);
+        if (c.pendingUnits == 0) return position_;
+        if (position_.unclaimedUnits == p.checkpoint.unclaimedUnits && shares_ == c.balance) {
             // The last reward-unit holder keeps all backing on a full exit.
-            position_.pending = 0;
-            p.state.pending = 0;
+            position_.pendingUnits = 0;
+            p.checkpoint.pendingUnits = 0;
             return position_;
         }
-        c.available = position_.total - position_.pending;
-        // Q = F * U / (U - A). Burn Q total units and F pending units, preserving the
-        // exiting holder's available R (up to rounding) while repricing surviving units.
-        c.cancelled = FixedPointMathLib.fullMulDivUp(c.pending, p.state.total, p.state.total - c.available);
-        position_.total -= c.cancelled;
-        position_.pending -= c.pending;
-        p.state.total -= c.cancelled;
+        c.availableUnits = position_.unclaimedUnits - position_.pendingUnits;
+        // Cancel unclaimed units to preserve the holder's available R (up to rounding)
+        // while repricing surviving units. The reward backing remains in its Ledger account.
+        c.cancelledUnits = FixedPointMathLib.fullMulDivUp(
+            c.pendingUnits, p.checkpoint.unclaimedUnits, p.checkpoint.unclaimedUnits - c.availableUnits
+        );
+        position_.unclaimedUnits -= c.cancelledUnits;
+        position_.pendingUnits -= c.pendingUnits;
+        p.checkpoint.unclaimedUnits -= c.cancelledUnits;
         // Aggregate and individual pending decay round independently.
-        p.state.pending = p.state.pending > c.pending ? p.state.pending - c.pending : 0;
-        if (p.state.pending > p.state.total) p.state.pending = p.state.total;
-        emit IStakingRewardToken.Forfeited(token_, absolute_, c.pending, c.cancelled);
+        p.checkpoint.pendingUnits =
+            p.checkpoint.pendingUnits > c.pendingUnits ? p.checkpoint.pendingUnits - c.pendingUnits : 0;
+        if (p.checkpoint.pendingUnits > p.checkpoint.unclaimedUnits) {
+            p.checkpoint.pendingUnits = p.checkpoint.unclaimedUnits;
+        }
+        emit IStakingRewardToken.Forfeited(token_, absolute_, c.pendingUnits, c.cancelledUnits);
     }
 
     // -- Views --
@@ -394,33 +396,36 @@ library StakingRewardLib {
         config_.rewardLedger = p.rewardLedger;
         config_.rewardAccount = LedgerLib.toAddress(p.rewardLedger, REWARDS, token_);
         config_.halfLife = p.halfLife;
-        State memory state_ = currentRewardState(p);
-        config_.rewards = rewardBalances(state_, state_.total, LedgerLib.balanceOf(config_.rewardAccount, false));
+        Checkpoint memory checkpoint_ = currentRewardCheckpoint(p);
+        config_.rewards =
+            rewardBalances(checkpoint_, checkpoint_.unclaimedUnits, LedgerLib.balanceOf(config_.rewardAccount, false));
     }
 
     function rewardsOf(address token_, address holder_) internal view returns (IStakingRewardToken.Rewards memory) {
         Program storage p = stakingRewardProgram(token_);
-        State memory state_ = currentRewardState(p);
+        Checkpoint memory checkpoint_ = currentRewardCheckpoint(p);
         address absolute_ = LedgerLib.toAddress(token_, holder_);
         return rewardBalances(
-            currentHolderRewardState(
-                store().positions[token_][absolute_], state_, LedgerLib.balanceOf(absolute_, false), p.halfLife
+            currentHolderRewardCheckpoint(
+                store().positions[token_][absolute_], checkpoint_, LedgerLib.balanceOf(absolute_, false), p.halfLife
             ),
-            state_.total,
+            checkpoint_.unclaimedUnits,
             LedgerLib.balanceOf(LedgerLib.toAddress(p.rewardLedger, REWARDS, token_), false)
         );
     }
 
-    function rewardBalances(State memory state_, uint256 total_, uint256 balance_)
+    function rewardBalances(Checkpoint memory checkpoint_, uint256 unclaimedUnits_, uint256 balance_)
         private
         pure
         returns (IStakingRewardToken.Rewards memory rewards_)
     {
-        rewards_.totalUnits = state_.total;
-        rewards_.pendingUnits = state_.pending;
-        if (total_ == 0) return rewards_;
-        rewards_.total = FixedPointMathLib.fullMulDiv(state_.total, balance_, total_);
-        rewards_.pending = FixedPointMathLib.fullMulDiv(state_.pending, balance_, total_);
-        rewards_.available = FixedPointMathLib.fullMulDiv(state_.total - state_.pending, balance_, total_);
+        rewards_.unclaimedUnits = checkpoint_.unclaimedUnits;
+        rewards_.pendingUnits = checkpoint_.pendingUnits;
+        if (unclaimedUnits_ == 0) return rewards_;
+        rewards_.unclaimed = FixedPointMathLib.fullMulDiv(checkpoint_.unclaimedUnits, balance_, unclaimedUnits_);
+        rewards_.pending = FixedPointMathLib.fullMulDiv(checkpoint_.pendingUnits, balance_, unclaimedUnits_);
+        rewards_.available = FixedPointMathLib.fullMulDiv(
+            checkpoint_.unclaimedUnits - checkpoint_.pendingUnits, balance_, unclaimedUnits_
+        );
     }
 }

@@ -5,9 +5,9 @@ import {ILedgerTokenFactory} from "../ledger/ILedgerTokenFactory.sol";
 
 interface IStakingRewardToken {
     struct Rewards {
-        uint256 totalUnits;
+        uint256 unclaimedUnits;
         uint256 pendingUnits;
-        uint256 total;
+        uint256 unclaimed;
         uint256 pending;
         uint256 available;
     }
@@ -68,8 +68,9 @@ interface IStakingRewardToken {
     /// @notice Fund pending rewards from the caller's R Ledger balance, allocated to current share holders.
     function reward(address token, uint256 amount) external;
 
-    /// @notice Claim R into the caller's Ledger balance. Use type(uint256).max to burn all available units.
-    function claim(address token, uint256 amount) external returns (uint256 claimed);
+    /// @notice Redeem all available reward units into the caller's R Ledger balance.
+    /// @dev Pays the floored token value and leaves pending units unchanged, even if the payout rounds to zero.
+    function claim(address token) external returns (uint256 claimed);
 
     /// @notice SR configuration and balances, expressed in each token's raw decimals.
     function stakingRewardToken(address token) external view returns (Configuration memory);
