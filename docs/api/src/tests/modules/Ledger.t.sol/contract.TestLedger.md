@@ -1,5 +1,5 @@
 # TestLedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Ledger](/modules/ledger/Ledger.sol/contract.Ledger.md)
@@ -130,12 +130,5 @@ function unwrapTo(
     address recipient_,
     uint256 amount_
 ) external;
-```
-
-### receive
-
-
-```solidity
-receive() external payable;
 ```
 

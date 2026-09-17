@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/modules/ledger/LedgerLib.sol)
 
 
 ## Constants
@@ -694,6 +694,38 @@ function transfer(
     address toParent_,
     address to_,
     uint256 amount_
+) internal returns (address, bool, bool);
+```
+
+### dispatchBeforeLedgerTransfer
+
+
+```solidity
+function dispatchBeforeLedgerTransfer(
+    address ledger_,
+    address from_,
+    address to_,
+    bool fromIsCredit_,
+    bool toIsCredit_,
+    uint256 amount_
+) private;
+```
+
+### transfer
+
+Trusted modules may supply their own internal settlement callback instead of dispatching the hook.
+The callback runs before balances change; Ledger validation, accounting, and events are shared.
+
+
+```solidity
+function transfer(
+    address ledger_,
+    address fromParent_,
+    address from_,
+    address toParent_,
+    address to_,
+    uint256 amount_,
+    function(address, address, address, bool, bool, uint256) internal beforeTransfer_
 ) internal returns (address _ledger, bool _fromIsCredit, bool _toIsCredit);
 ```
 

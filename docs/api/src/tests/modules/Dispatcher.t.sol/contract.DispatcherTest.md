@@ -1,5 +1,5 @@
 # DispatcherTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/tests/modules/Dispatcher.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/tests/modules/Dispatcher.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md), [ContextUpgradeable](/node_modules/@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol/abstract.ContextUpgradeable.md)
@@ -47,6 +47,34 @@ Foo foo
 
 ```solidity
 function setUp() public;
+```
+
+### testDispatcherReceiveRoute
+
+
+```solidity
+function testDispatcherReceiveRoute() public;
+```
+
+### testDispatcherReceiveBubblesRevert
+
+
+```solidity
+function testDispatcherReceiveBubblesRevert() public;
+```
+
+### testDispatcherRejectsNonemptyReceiveKey
+
+
+```solidity
+function testDispatcherRejectsNonemptyReceiveKey() public;
+```
+
+### testDispatcherRejectsInvalidReceiveManifest
+
+
+```solidity
+function testDispatcherRejectsInvalidReceiveManifest() public;
 ```
 
 ### testDispatcherInit

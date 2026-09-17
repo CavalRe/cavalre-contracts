@@ -5,6 +5,7 @@
 - [TestDispatchableLib](Dispatcher.t.sol/library.TestDispatchableLib.md)
 - [Foo](Dispatcher.t.sol/contract.Foo.md)
 - [Bar](Dispatcher.t.sol/contract.Bar.md)
+- [Receiver](Dispatcher.t.sol/contract.Receiver.md)
 - [DispatcherTest](Dispatcher.t.sol/contract.DispatcherTest.md)
 - [ERC20WrapperTest](ERC20Wrapper.t.sol/contract.ERC20WrapperTest.md)
 - [TestLedger](Ledger.t.sol/contract.TestLedger.md)
@@ -13,4 +14,5 @@
 - [FeeOnTransferOutToken](Ledger.t.sol/contract.FeeOnTransferOutToken.md)
 - [ReenterToken](Ledger.t.sol/contract.ReenterToken.md)
 - [LedgerTest](Ledger.t.sol/contract.LedgerTest.md)
+- [StakingRewardTokenTest](StakingRewardToken.t.sol/contract.StakingRewardTokenTest.md)
 - [StorageSlotsTest](StorageSlots.t.sol/contract.StorageSlotsTest.md)

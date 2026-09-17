@@ -1,5 +1,5 @@
 # Ledger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/Ledger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/modules/ledger/Ledger.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md)
@@ -183,11 +183,11 @@ function wrap(address token_, uint256 amount_)
     returns (address _token, bool _fromIsCredit, bool _toIsCredit);
 ```
 
-### handleNative
+### receive
 
 
 ```solidity
-function handleNative() external payable nonReentrant;
+receive() external payable nonReentrant;
 ```
 
 ### unwrap

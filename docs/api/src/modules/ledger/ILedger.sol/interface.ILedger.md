@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/modules/ledger/ILedger.sol)
 
 
 ## Functions
@@ -99,13 +99,6 @@ function unwrap(address token_, uint256 amount_)
     external
     payable
     returns (address token, bool fromIsCredit, bool toIsCredit);
-```
-
-### handleNative
-
-
-```solidity
-function handleNative() external payable;
 ```
 
 ## Events
