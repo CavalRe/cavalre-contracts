@@ -1,24 +1,14 @@
 # IReceiptToken
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/receipt/IReceiptToken.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/c13afbe04b25a0f1a9e4978856e437faf4de4c45/modules/receipt/IReceiptToken.sol)
 
 
 ## Functions
 ### cancelReceipt
 
-Cancel the caller's raw receipt quantity without releasing backing.
+Cancel raw receipt units without releasing backing; the wrapper authenticates the holder.
 
+Only the token's registered wrapper may call; ERC20 allowance alone is insufficient.
 Zero amounts revert. Cancelling the entire supply leaves any backing unassigned.
-
-
-```solidity
-function cancelReceipt(address token, uint256 receipts) external;
-```
-
-### cancelReceipt
-
-Registered wrapper callback; the wrapper authenticates the holder.
-
-Only the token's registered wrapper may call this overload; ERC20 allowance alone is insufficient.
 
 
 ```solidity

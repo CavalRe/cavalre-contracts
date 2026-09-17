@@ -1,5 +1,5 @@
 # ReceiptTokenTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/tests/modules/ReceiptToken.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/c13afbe04b25a0f1a9e4978856e437faf4de4c45/tests/modules/ReceiptToken.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -147,6 +147,27 @@ function testSourceBacking() public;
 function testCancellationAuthorizationAndOrphanBacking() public;
 ```
 
+### testRemovedCancellationSelectorCannotBurnReceipts
+
+
+```solidity
+function testRemovedCancellationSelectorCannotBurnReceipts() public;
+```
+
+### testRegisteredDebitCustodyReceiptOperations
+
+
+```solidity
+function testRegisteredDebitCustodyReceiptOperations() public;
+```
+
+### testNestedDebitCustodyReceiptOperations
+
+
+```solidity
+function testNestedDebitCustodyReceiptOperations() public;
+```
+
 ### testUnauthorizedIssueAndRedemption
 
 
@@ -196,11 +217,11 @@ function testFactoryPredictionIdempotenceAndInternalSeparation() public;
 function testSharedAllowanceAndRemovedTransferSelector() public;
 ```
 
-### testRegisteredSourceCannotBeIssuedReceipts
+### testInvalidHoldersCannotIssueRedeemOrCancel
 
 
 ```solidity
-function testRegisteredSourceCannotBeIssuedReceipts() public;
+function testInvalidHoldersCannotIssueRedeemOrCancel() public;
 ```
 
 ### testInitialZeroDecimalsAndFloorIssuance

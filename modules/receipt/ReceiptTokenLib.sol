@@ -178,13 +178,11 @@ library ReceiptTokenLib {
         emit IReceiptToken.ReceiptCancelled(token_, holder_, receipts_);
     }
 
-    /// @dev Direct, unregistered holders inherit debit polarity from the receipt root. Reject
-    /// registered leaves/groups (including Source) so issue/cancel/redeem cannot target them.
+    /// @dev Accept effective debit holders and registered debit leaves, including nested custody.
+    /// Reject zero, credit accounts (including Source), and groups.
     function checkHolder(address token_, address holder_) private view {
-        if (
-            holder_ == address(0)
-                || !LedgerLib.isUnregisteredAccount(LedgerLib.flags(LedgerLib.toAddress(token_, holder_)))
-        ) {
+        uint256 flags_ = LedgerLib.flags(LedgerLib.toAddress(token_, holder_));
+        if (holder_ == address(0) || (!LedgerLib.isUnregisteredAccount(flags_) && !LedgerLib.isDebitLedger(flags_))) {
             revert IReceiptToken.InvalidReceiptHolder(holder_);
         }
     }

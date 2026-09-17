@@ -1,5 +1,5 @@
 # ReceiptTokenLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/receipt/ReceiptTokenLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/c13afbe04b25a0f1a9e4978856e437faf4de4c45/modules/receipt/ReceiptTokenLib.sol)
 
 Receipt arithmetic and Ledger accounting for trusted consuming modules.
 
@@ -161,8 +161,8 @@ function cancel(address token_, address holder_, uint256 receipts_) internal;
 
 ### checkHolder
 
-Direct, unregistered holders inherit debit polarity from the receipt root. Reject
-registered leaves/groups (including Source) so issue/cancel/redeem cannot target them.
+Accept effective debit holders and registered debit leaves, including nested custody.
+Reject zero, credit accounts (including Source), and groups.
 
 
 ```solidity

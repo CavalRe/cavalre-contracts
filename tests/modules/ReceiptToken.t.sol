@@ -276,17 +276,85 @@ contract ReceiptTokenTest is Test {
     function testCancellationAuthorizationAndOrphanBacking() public {
         create(false, 18, 18, false);
         app_.issue(address(token_), alice_, 100, false);
+        vm.prank(alice_);
+        token_.approve(bob_, 100);
         vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, bob_));
         vm.prank(bob_);
+        receipt_.cancelReceipt(address(token_), alice_, 10);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, alice_));
+        vm.prank(alice_);
         receipt_.cancelReceipt(address(token_), alice_, 10);
         vm.prank(alice_);
         token_.cancel(40);
         assertEq(token_.totalSupply(), 60);
         assertEq(token_.receiptState().backing, 100);
         vm.prank(alice_);
-        receipt_.cancelReceipt(address(token_), 60);
+        token_.cancel(60);
         vm.expectRevert(abi.encodeWithSelector(IReceiptToken.InvalidReceiptState.selector, 0, 100));
         app_.issue(address(token_), bob_, 1, false);
+    }
+
+    function testRemovedCancellationSelectorCannotBurnReceipts() public {
+        create(false, 18, 18, false);
+        app_.issue(address(token_), alice_, 100, false);
+        bytes4 selector_ = bytes4(keccak256("cancelReceipt(address,uint256)"));
+        assertEq(dispatcher_.module(selector_), address(0));
+        vm.prank(alice_);
+        (bool success_, bytes memory result_) =
+            address(dispatcher_).call(abi.encodeWithSelector(selector_, address(token_), 100));
+        assertFalse(success_);
+        assertEq(result_, abi.encodeWithSelector(IDispatcher.CommandNotFound.selector, selector_));
+        assertEq(token_.balanceOf(alice_), 100);
+        assertEq(token_.totalSupply(), 100);
+        assertEq(token_.receiptState().backing, 100);
+        vm.prank(alice_);
+        token_.cancel(100);
+        assertEq(token_.totalSupply(), 0);
+        assertEq(token_.receiptState().backing, 100);
+    }
+
+    function testRegisteredDebitCustodyReceiptOperations() public {
+        create(false, 18, 18, false);
+        Ledger(payable(address(dispatcher_))).addSubAccount(address(token_), address(token_), bob_, "Custody", false);
+        assertEq(app_.issue(address(token_), bob_, 100, false), 100);
+        vm.prank(bob_);
+        assertEq(app_.redeem(address(token_), 25, false), 25);
+        assertEq(token_.receiptState().backing, 75);
+        vm.prank(bob_);
+        token_.cancel(25);
+        assertEq(token_.balanceOf(bob_), 50);
+        assertEq(token_.totalSupply(), 50);
+        assertEq(token_.receiptState().backing, 75);
+        vm.prank(bob_);
+        assertEq(app_.redeem(address(token_), 50, false), 75);
+        assertEq(token_.totalSupply(), 0);
+        assertEq(token_.receiptState().backing, 0);
+    }
+
+    function testNestedDebitCustodyReceiptOperations() public {
+        create(false, 18, 18, false);
+        Ledger ledger_ = Ledger(payable(address(dispatcher_)));
+        address group_ = address(0xcafe);
+        // Holder polarity comes from the leaf even beneath a credit group.
+        ledger_.addSubAccountGroup(address(token_), address(token_), group_, "Custody Group", true);
+        (address holder_,) = ledger_.addSubAccount(address(token_), group_, bob_, "Custody", false);
+        assertEq(holder_, LedgerLib.toAddress(group_, bob_));
+        assertEq(app_.issue(address(token_), holder_, 100, false), 100);
+        app_.issue(address(token_), alice_, 20, false);
+        vm.prank(alice_);
+        token_.transfer(holder_, 20);
+        assertEq(token_.balanceOf(holder_), 120);
+        vm.prank(holder_);
+        assertEq(app_.redeem(address(token_), 20, false), 20);
+        vm.prank(holder_);
+        token_.cancel(50);
+        assertEq(token_.balanceOf(holder_), 50);
+        assertEq(token_.totalSupply(), 50);
+        assertEq(token_.receiptState().backing, 100);
+        vm.prank(holder_);
+        assertEq(app_.redeem(address(token_), 50, false), 100);
+        assertEq(token_.totalSupply(), 0);
+        assertEq(token_.receiptState().backing, 0);
     }
 
     function testUnauthorizedIssueAndRedemption() public {
@@ -402,10 +470,28 @@ contract ReceiptTokenTest is Test {
         assertEq(token_.totalSupply(), 100);
     }
 
-    function testRegisteredSourceCannotBeIssuedReceipts() public {
+    function testInvalidHoldersCannotIssueRedeemOrCancel() public {
         create(false, 18, 18, false);
-        vm.expectRevert(abi.encodeWithSelector(IReceiptToken.InvalidReceiptHolder.selector, LedgerLib.SOURCE_ADDRESS));
-        app_.issue(address(token_), LedgerLib.SOURCE_ADDRESS, 1, false);
+        Ledger ledger_ = Ledger(payable(address(dispatcher_)));
+        address[5] memory holders_ = [address(0), LedgerLib.SOURCE_ADDRESS, address(0xc), address(0xd), address(0xcc)];
+        ledger_.addSubAccount(address(token_), address(token_), holders_[2], "Credit Leaf", true);
+        ledger_.addSubAccountGroup(address(token_), address(token_), holders_[3], "Debit Group", false);
+        ledger_.addSubAccountGroup(address(token_), address(token_), holders_[4], "Credit Group", true);
+        app_.issue(address(token_), alice_, 100, false);
+        for (uint256 i_; i_ < holders_.length; ++i_) {
+            bytes memory error_ = abi.encodeWithSelector(IReceiptToken.InvalidReceiptHolder.selector, holders_[i_]);
+            vm.expectRevert(error_);
+            app_.issue(address(token_), holders_[i_], 1, false);
+            vm.expectRevert(error_);
+            vm.prank(holders_[i_]);
+            app_.redeem(address(token_), 1, false);
+            vm.expectRevert(error_);
+            vm.prank(holders_[i_]);
+            token_.cancel(1);
+        }
+        assertEq(token_.balanceOf(alice_), 100);
+        assertEq(token_.totalSupply(), 100);
+        assertEq(token_.receiptState().backing, 100);
     }
 
     function testInitialZeroDecimalsAndFloorIssuance() public {

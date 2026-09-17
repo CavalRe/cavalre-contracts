@@ -2,8 +2,12 @@
 
 A receipt is an ordinary Internal-token Ledger debit group directly under Root
 (depth 2), with a registered
-`Source` credit leaf. Holders are unregistered effective debit accounts; issuance
-does not register holders. Ledger owns supply and balances.
+`Source` credit leaf. Wallet holders use unregistered effective debit accounts;
+issuance does not register them. Registered debit custody leaves, including nested
+accounts, can also receive issuance, redeem and cancel receipts. Library holder
+arguments are token-local keys; nested custody uses `LedgerLib.toAddress(parent, relative)`.
+Zero addresses, credit accounts and groups are invalid holders for these operations.
+Ledger owns supply and balances.
 
 ReceiptTokenLib stores one immutable absolute, registered backing leaf account
 in the receipt ledger's packed address field. It can be nested, debit or credit, including a
@@ -23,10 +27,11 @@ accounts within the receipt's own ledger remain invalid backing references.
   `LedgerView.receiptToken` / `LedgerLib.ReceiptToken` snapshot; callers use
   `IReceiptTokenView.State` and the respective ledger decimals. No ERC20 interface
   is required on the backing ledger.
-- Install `ReceiptToken` for `cancelReceipt(token, receipts)` (caller only) and
-  `cancelReceipt(token, holder, receipts)` (registered wrapper callback only).
-  Wrapper cancellation always uses its caller; an ERC20 allowance does not grant
-  another account cancellation rights.
+- Install `ReceiptToken` for `cancelReceipt(token, holder, receipts)`, callable
+  only by the registered wrapper. Holders call `ReceiptWrapper.cancel(receipts)`;
+  the wrapper supplies its caller as the holder. An ERC20 allowance does not grant
+  another account cancellation rights. There is no direct holder cancellation
+  entry point on the Dispatcher.
 - `ReceiptTokenLib.issue(token, holder, backing, data, settle)` and
   `redeem(token, holder, receipts, data, settle)` are internal composition APIs.
   They return the issued receipt quantity or released backing quantity.

@@ -7,23 +7,16 @@ import {ILedger} from "../ledger/ILedger.sol";
 import {IReceiptToken} from "./IReceiptToken.sol";
 import {ReceiptTokenLib} from "./ReceiptTokenLib.sol";
 
-/// @notice Permissionless self-cancellation only. Applications expose authorized issue/redeem settlement.
+/// @notice Wrapper-authorized cancellation. Applications expose authorized issue/redeem settlement.
 contract ReceiptToken is Dispatchable, IReceiptToken {
     function signatures() external pure override returns (string[] memory signatures_) {
-        signatures_ = new string[](2);
-        signatures_[0] = "cancelReceipt(address,uint256)";
-        signatures_[1] = "cancelReceipt(address,address,uint256)";
+        signatures_ = new string[](1);
+        signatures_[0] = "cancelReceipt(address,address,uint256)";
     }
 
     function selectors() external pure override returns (bytes4[] memory selectors_) {
-        selectors_ = new bytes4[](2);
-        selectors_[0] = bytes4(keccak256("cancelReceipt(address,uint256)"));
-        selectors_[1] = bytes4(keccak256("cancelReceipt(address,address,uint256)"));
-    }
-
-    /// @inheritdoc IReceiptToken
-    function cancelReceipt(address token_, uint256 receipts_) external {
-        ReceiptTokenLib.cancel(token_, msg.sender, receipts_);
+        selectors_ = new bytes4[](1);
+        selectors_[0] = IReceiptToken.cancelReceipt.selector;
     }
 
     /// @inheritdoc IReceiptToken
