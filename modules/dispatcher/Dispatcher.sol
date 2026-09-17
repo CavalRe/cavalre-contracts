@@ -4,10 +4,6 @@ pragma solidity ^0.8.26;
 import {DispatcherLib} from "./DispatcherLib.sol";
 import {IDispatcher} from "./IDispatcher.sol";
 
-interface INativeHandler {
-    function handleNative() external payable;
-}
-
 /*
  * Dispatcher is the immutable entrypoint for a modular, delegatecall-based contract system.
  *
@@ -26,7 +22,8 @@ interface INativeHandler {
  *    Each command reports its module address, canonical Solidity signature, and selector.
  * 5. For every command, confirm `module(command.selector)` equals `command.module`.
  * 6. Inspect `verifyModule(module_)` to independently validate that a module's signatures hash to
- *    its selectors. `signatures(module_)` and `selectors(module_)` expose the same validated data.
+ *    its selectors, except the reserved `receive()` entry at bytes4(0).
+ *    `signatures(module_)` and `selectors(module_)` expose the same validated data.
  *
  * These read functions are declared directly on Dispatcher so they are available in a verified
  * block explorer ABI without requiring the caller to know a module ABI in advance.
@@ -44,6 +41,7 @@ contract Dispatcher is IDispatcher {
 
     // Routes an undeclared selector to its installed module with delegatecall.
     fallback() external payable {
+        if (msg.sig == bytes4(0)) revert CommandNotFound(msg.sig);
         address module_ = DispatcherLib.module(msg.sig);
         if (module_ == address(0)) revert CommandNotFound(msg.sig);
 
@@ -57,20 +55,14 @@ contract Dispatcher is IDispatcher {
         }
     }
 
-    // Routes native value to the installed `handleNative()` command.
+    // Routes empty calldata to the module registered under the reserved receive key.
     receive() external payable {
-        address module_ = DispatcherLib.module(INativeHandler.handleNative.selector);
-        if (module_ == address(0)) revert CommandNotFound(INativeHandler.handleNative.selector);
-
-        bytes4 selector_ = INativeHandler.handleNative.selector;
+        address module_ = DispatcherLib.module(bytes4(0));
+        if (module_ == address(0)) revert CommandNotFound(bytes4(0));
 
         assembly {
-            mstore(0x00, selector_)
-
-            let result := delegatecall(gas(), module_, 0x00, 0x04, 0, 0)
-
+            let result := delegatecall(gas(), module_, 0, 0, 0, 0)
             returndatacopy(0, 0, returndatasize())
-
             switch result
             case 0 { revert(0, returndatasize()) }
             default { return(0, returndatasize()) }

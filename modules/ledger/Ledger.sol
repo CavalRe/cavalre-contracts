@@ -58,7 +58,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _signatures[8] = "transfer(address,address,address,address,uint256)";
         _signatures[9] = "wrap(address,uint256)";
         _signatures[10] = "unwrap(address,uint256)";
-        _signatures[11] = "handleNative()";
+        _signatures[11] = "receive()";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
@@ -75,7 +75,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("handleNative()"));
+        _selectors[n++] = bytes4(0);
 
         if (n != 12) revert InvalidCommandsLength(n);
     }
@@ -190,7 +190,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         return LedgerLib.wrap(msg.sender, token_, token_, LedgerLib.SOURCE_ADDRESS, token_, msg.sender, amount_);
     }
 
-    function handleNative() external payable nonReentrant {
+    receive() external payable nonReentrant {
         LedgerLib.wrap(
             msg.sender,
             LedgerLib.NATIVE_ADDRESS,

@@ -45,6 +45,29 @@ contract Bar is Dispatchable {
     }
 }
 
+contract Receiver is Dispatchable {
+    event Received(address sender, uint256 value);
+    error ReceiveRejected();
+
+    function signatures() external pure override returns (string[] memory signatures_) {
+        signatures_ = new string[](1);
+        signatures_[0] = "receive()";
+    }
+
+    function selectors() external pure override returns (bytes4[] memory selectors_) {
+        selectors_ = new bytes4[](1);
+        selectors_[0] = bytes4(0);
+    }
+
+    receive() external payable {
+        if (msg.value == 7) revert ReceiveRejected();
+        emit Received(msg.sender, msg.value);
+    }
+
+    // A permissive module fallback must not expose the reserved receive route.
+    fallback() external payable {}
+}
+
 contract DispatcherTest is Test, ContextUpgradeable {
     address alice = address(1);
     address bob = address(2);
@@ -61,6 +84,77 @@ contract DispatcherTest is Test, ContextUpgradeable {
         address[] memory _modules = new address[](1);
         _modules[0] = address(foo);
         dispatcher.addModule(_modules);
+    }
+
+    function testDispatcherReceiveRoute() public {
+        Receiver receiver_ = new Receiver();
+        address[] memory modules_ = new address[](1);
+        modules_[0] = address(receiver_);
+        dispatcher.addModule(modules_);
+        assertEq(dispatcher.module(bytes4(0)), address(receiver_));
+        DispatcherLib.Command[] memory commands_ = dispatcher.commands(modules_);
+        assertEq(commands_[0].selector, bytes4(0));
+        assertEq(commands_[0].signature, "receive()");
+
+        vm.deal(bob, 1 ether);
+        vm.expectEmit(address(dispatcher));
+        emit Receiver.Received(bob, 1 ether);
+        (bool success_,) = address(dispatcher).call{value: 1 ether}("");
+        assertTrue(success_);
+        assertEq(address(dispatcher).balance, 1 ether);
+        assertEq(address(receiver_).balance, 0);
+
+        Receiver replacement_ = new Receiver();
+        modules_[0] = address(replacement_);
+        vm.expectRevert(
+            abi.encodeWithSelector(IDispatcher.CommandAlreadySet.selector, bytes4(0), address(replacement_))
+        );
+        dispatcher.addModule(modules_);
+
+        modules_[0] = address(receiver_);
+        dispatcher.removeModule(modules_);
+        assertEq(dispatcher.module(bytes4(0)), address(0));
+        (bool removedSuccess_, bytes memory data_) = address(dispatcher).call("");
+        assertFalse(removedSuccess_);
+        assertEq(data_, abi.encodeWithSelector(IDispatcher.CommandNotFound.selector, bytes4(0)));
+    }
+
+    function testDispatcherReceiveBubblesRevert() public {
+        address[] memory modules_ = new address[](1);
+        modules_[0] = address(new Receiver());
+        dispatcher.addModule(modules_);
+        vm.deal(bob, 7);
+        (bool success_, bytes memory data_) = address(dispatcher).call{value: 7}("");
+        assertFalse(success_);
+        assertEq(data_, abi.encodeWithSelector(Receiver.ReceiveRejected.selector));
+        assertEq(address(dispatcher).balance, 0);
+    }
+
+    function testDispatcherRejectsNonemptyReceiveKey() public {
+        address[] memory modules_ = new address[](1);
+        modules_[0] = address(new Receiver());
+        dispatcher.addModule(modules_);
+        for (uint256 length_ = 1; length_ <= 5; length_++) {
+            (bool success_, bytes memory data_) = address(dispatcher).call(new bytes(length_));
+            assertFalse(success_);
+            assertEq(data_, abi.encodeWithSelector(IDispatcher.CommandNotFound.selector, bytes4(0)));
+        }
+    }
+
+    function testDispatcherRejectsInvalidReceiveManifest() public {
+        bytes4[] memory selectors_ = new bytes4[](1);
+        selectors_[0] = bytes4(0);
+        vm.mockCall(address(foo), abi.encodeWithSelector(Dispatchable.selectors.selector), abi.encode(selectors_));
+        vm.expectRevert(abi.encodeWithSelector(IDispatcher.InvalidSignature.selector, bytes4(0), "foo()"));
+        dispatcher.verifyModule(address(foo));
+
+        string[] memory signatures_ = new string[](1);
+        signatures_[0] = "receive()";
+        selectors_[0] = bytes4(keccak256("receive()"));
+        vm.mockCall(address(foo), abi.encodeWithSelector(Dispatchable.signatures.selector), abi.encode(signatures_));
+        vm.mockCall(address(foo), abi.encodeWithSelector(Dispatchable.selectors.selector), abi.encode(selectors_));
+        vm.expectRevert(abi.encodeWithSelector(IDispatcher.InvalidSignature.selector, selectors_[0], "receive()"));
+        dispatcher.verifyModule(address(foo));
     }
 
     function testDispatcherInit() public view {

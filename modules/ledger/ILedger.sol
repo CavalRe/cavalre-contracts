@@ -46,8 +46,6 @@ interface ILedger {
         payable
         returns (address token, bool fromIsCredit, bool toIsCredit);
 
-    function handleNative() external payable;
-
     // ─────────────────────────────────────────────────────────────────────────────
     // Custom errors
     // ─────────────────────────────────────────────────────────────────────────────

@@ -100,9 +100,14 @@ library DispatcherLib {
             revert IDispatcher.InvalidSignaturesLength(_selectors.length, _signatures.length);
         }
         for (uint256 i = 0; i < _selectors.length; i++) {
-            if (bytes4(keccak256(bytes(_signatures[i]))) != _selectors[i]) {
-                revert IDispatcher.InvalidSignature(_selectors[i], _signatures[i]);
+            bytes32 signatureHash_ = keccak256(bytes(_signatures[i]));
+            // receive() has no ABI selector; reserve zero exclusively for its manifest entry.
+            if (signatureHash_ == keccak256("receive()")) {
+                if (_selectors[i] == bytes4(0)) continue;
+            } else if (_selectors[i] != bytes4(0) && bytes4(signatureHash_) == _selectors[i]) {
+                continue;
             }
+            revert IDispatcher.InvalidSignature(_selectors[i], _signatures[i]);
         }
     }
 

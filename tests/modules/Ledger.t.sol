@@ -46,7 +46,7 @@ contract TestLedger is Ledger {
         _signatures[8] = "transfer(address,address,address,address,uint256)";
         _signatures[9] = "wrap(address,uint256)";
         _signatures[10] = "unwrap(address,uint256)";
-        _signatures[11] = "handleNative()";
+        _signatures[11] = "receive()";
         _signatures[12] = "mint(address,address,address,uint256)";
         _signatures[13] = "burn(address,address,address,uint256)";
         _signatures[14] = "enforceNativeValue(uint256)";
@@ -72,7 +72,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("handleNative()"));
+        _selectors[n++] = bytes4(0);
         // Extra test-exposing commands
         _selectors[n++] = bytes4(keccak256("mint(address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("burn(address,address,address,uint256)"));
@@ -172,8 +172,6 @@ contract TestLedger is Ledger {
     ) external {
         LedgerLib.unwrap(recipient_, ledger_, fromParent_, from_, toParent_, to_, amount_);
     }
-
-    receive() external payable {}
 }
 
 contract MockERC20 is ERC20 {
@@ -1349,22 +1347,6 @@ contract LedgerTest is Test {
             "ledger balance should roll back"
         );
         assertEq(ledgerView.totalSupply(address(feeToken_)), wrapAmount, "total supply should roll back");
-    }
-
-    function testLedgerHandleNativeWrapsMsgValueToSender() public {
-        uint256 wrapAmount = 1 ether;
-
-        vm.startPrank(alice);
-        ledger.addNativeToken();
-        vm.stopPrank();
-
-        vm.deal(bob, wrapAmount);
-        vm.prank(bob);
-        ledger.handleNative{value: wrapAmount}();
-
-        assertEq(address(dispatcher).balance, wrapAmount, "dispatcher native balance");
-        assertEq(ledgerView.debitBalanceOf(native, native, bob), wrapAmount, "bob native ledger balance");
-        assertEq(ledgerView.totalSupply(native), wrapAmount, "native total supply");
     }
 
     function testLedgerWrapNativeRejectsExplicitNonCallerPayer() public {
