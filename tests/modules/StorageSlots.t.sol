@@ -5,7 +5,7 @@ import {Test} from "forge-std/src/Test.sol";
 
 contract StorageSlotsTest is Test {
     function testStorageSlotsAreUnique() public pure {
-        bytes32[] memory slots_ = new bytes32[](8);
+        bytes32[] memory slots_ = new bytes32[](11);
         slots_[0] = _erc7201("cavalre.storage.Dispatcher");
         slots_[1] = _erc7201("cavalre.storage.Ledger");
         slots_[2] = _erc7201("cavalre.storage.Ledger.Initializable");
@@ -14,6 +14,10 @@ contract StorageSlotsTest is Test {
         slots_[5] = _erc7201("cavalre.storage.ERC20.Initializable");
         slots_[6] = _erc7201("cavalre.storage.ERC4626.Initializable");
         slots_[7] = _erc7201("cavalre.storage.LedgerERC20.Initializable");
+
+        slots_[8] = _erc7201("cavalre.storage.StakingRewardToken");
+        slots_[9] = _erc7201("cavalre.storage.StakingRewardToken.ReentrancyGuard");
+        slots_[10] = _erc7201("cavalre.storage.ERC20");
 
         for (uint256 i_; i_ < slots_.length; i_++) {
             for (uint256 j_ = i_ + 1; j_ < slots_.length; j_++) {

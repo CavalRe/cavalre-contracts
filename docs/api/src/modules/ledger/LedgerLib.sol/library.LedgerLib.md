@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/modules/ledger/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/ledger/LedgerLib.sol)
 
 
 ## Constants
@@ -319,27 +319,6 @@ function isExternal(uint256 flags_) internal pure returns (bool);
 function isLedger(uint256 flags_) internal pure returns (bool);
 ```
 
-### isReceipt
-
-
-```solidity
-function isReceipt(uint256 flags_) internal pure returns (bool);
-```
-
-### receiptAccount
-
-
-```solidity
-function receiptAccount(uint256 flags_) internal pure returns (address);
-```
-
-### checkReceiptAccount
-
-
-```solidity
-function checkReceiptAccount(address receiptTokenAddress_, address absoluteReceiptAccount_) internal view;
-```
-
 ### toAddress
 
 Derives a relative address from a human-readable name.
@@ -501,13 +480,6 @@ function balanceOf(address absolute_, bool isCredit_) internal view returns (uin
 
 ```solidity
 function totalSupply(address ledger_) internal view returns (uint256 _supply);
-```
-
-### receiptToken
-
-
-```solidity
-function receiptToken(address tokenAddress_) internal view returns (ReceiptToken memory _token);
 ```
 
 ### addSubAccountGroup
@@ -780,18 +752,6 @@ struct Store {
 }
 ```
 
-### ReceiptToken
-
-```solidity
-struct ReceiptToken {
-    address tokenAddress;
-    Float totalSupply;
-    address backingLedger;
-    address backingAccount;
-    Float backingBalance;
-}
-```
-
 ### AccountCache
 
 ```solidity
@@ -850,8 +810,7 @@ enum TokenKind {
     Unregistered,
     Native,
     External,
-    Internal,
-    Receipt
+    Internal
 }
 ```
 

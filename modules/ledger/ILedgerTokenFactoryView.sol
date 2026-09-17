@@ -11,4 +11,8 @@ interface ILedgerTokenFactoryView {
         external
         view
         returns (address token);
+    function predictReceiptToken(string memory name, string memory symbol, uint8 decimals, string memory version)
+        external
+        view
+        returns (address token);
 }

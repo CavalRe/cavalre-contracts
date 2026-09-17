@@ -1,5 +1,5 @@
 # ILedgerTokenFactoryView
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/ILedgerTokenFactoryView.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/ledger/ILedgerTokenFactoryView.sol)
 
 
 ## Functions
@@ -18,6 +18,16 @@ function tokenSalt(string memory name, string memory symbol, uint8 decimals, str
 
 ```solidity
 function predictToken(string memory name, string memory symbol, uint8 decimals, string memory version)
+    external
+    view
+    returns (address token);
+```
+
+### predictReceiptToken
+
+
+```solidity
+function predictReceiptToken(string memory name, string memory symbol, uint8 decimals, string memory version)
     external
     view
     returns (address token);

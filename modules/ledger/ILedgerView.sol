@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {LedgerLib} from "./LedgerLib.sol";
-
 interface ILedgerView {
     function name(address absolute) external view returns (string memory);
     function symbol(address absolute) external view returns (string memory);
@@ -17,5 +15,4 @@ interface ILedgerView {
     function creditBalanceOf(address ledger, address parent, address relative) external view returns (uint256);
     function balanceOf(address ledger, address parent, address relative) external view returns (uint256);
     function totalSupply(address ledger) external view returns (uint256);
-    function receiptToken(address tokenAddress) external view returns (LedgerLib.ReceiptToken memory);
 }

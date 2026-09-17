@@ -71,7 +71,7 @@ contract ERC20Wrapper {
     }
 
     // -------------------------------------------------------------------------
-    // Allowance (delegated to Ledger)
+    // Allowances (stored in this wrapper)
     // -------------------------------------------------------------------------
 
     function allowance(address owner_, address spender_) public view returns (uint256) {

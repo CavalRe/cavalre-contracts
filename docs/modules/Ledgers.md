@@ -20,7 +20,8 @@
 - every token ledger has a root
 - canonical root is `address(this)`
 - every registered root is a debit group
-- root token type is encoded as `LedgerLib.TokenKind`: `Native`, `External`, `Internal`, or `Receipt`
+- token-kind packing, registration and reads use `LedgerLib.TokenKind`: `Unregistered` (0), `Native` (1), `External` (2), and `Internal` (3)
+- receipts are ordinary internal tokens; their immutable backing reference uses the packed address field, interpreted only by `ReceiptTokenLib`
 - account shape and polarity are encoded as `LedgerLib.AccountKind`: `DebitGroup`, `CreditGroup`, `DebitLedger`, or `CreditLedger`
 - subaccounts are deterministic addresses derived from parent + label/address
 - name-form `addSubAccount*` helpers delegate to addr-form overloads using `toAddress(name_)`
@@ -28,7 +29,8 @@
 - leaf polarity determines which balance column (`debits` or `credits`) each path mutates
 - when both paths converge on the same ancestor on the same side, remaining upward mutations cancel and the walk can stop early
 - internal roots are created deterministically with `CREATE2` via `LedgerTokenFactory.createInternalToken(TokenMetadata[])`, so `(name, symbol, decimals, version)` uniquely identifies the root and repeated calls are idempotent
-- internal and receipt token roots are self-wrapped at creation so the root address is immediately usable as an ERC20 surface
+- internal roots use `ERC20Wrapper`; receipt roots use `ReceiptWrapper`, inheriting the shared ERC20 surface
+- receipt conversion and issue/redeem/cancel composition live in `modules/receipt`; see [Receipt tokens](ReceiptTokens.md)
 - native/external roots are registered as ledger roots without self-wrapped ERC20 surfaces
 - receipt token roots are created with `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)`, reference one registered absolute Ledger leaf account outside their own token tree, and are deterministic by `(name, symbol, decimals, version)`
 - canonical root ERC20 UX is handled by `examples/LedgerERC20.sol`, which reads metadata/supply/balances from `LedgerLib` and keeps allowances in `LedgerERC20Lib`
@@ -36,8 +38,8 @@
 - `address(0)` is not a registered Ledger holder; it is reserved for ERC20 mint/burn event projection
 - `effectiveFlags(root_, holderParent_, relative_)` returns `(effectiveFlags, originalFlags, absoluteAddress)` for possibly-unregistered derived leaves
 - `transfer(...)` returns the resolved root plus effective from/to flags
-- 5-arg `transfer(...)` is wrapper/canonical-ERC20 plumbing; 4-arg `transfer(...)` is direct user path
-- both transfer paths reject wrong-polarity sources after `LedgerLib.transfer(...)` resolves effective flags
+- the six-argument `transfer(...)` is an authorized wrapper/canonical-ERC20 callback; the public five-argument overload is removed
+- the callback rejects credit-to-debit minting; trusted modules use `LedgerLib.transfer(...)` for authorized accounting
 - `wrap(token_, amount_)` mints from the default source into `msg.sender`
 - `unwrap(token_, amount_)` burns from `msg.sender` back into the default source
 - `LedgerLib.wrap(...)` / `unwrap(...)` only apply to external/native debit roots; internal and receipt token roots revert
@@ -94,7 +96,7 @@ Special addresses:
 
 - `NATIVE_ADDRESS`
 - per-root default credit source leaf at `LedgerLib.SOURCE_ADDRESS` / `Source`
-- receipt token root packed address slot stores the referenced absolute receipt account
+- each ledger root has a module-defined packed address slot; non-ledger accounts use that slot for their parent
 
 ## Events
 

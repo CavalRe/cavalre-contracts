@@ -1,413 +1,148 @@
-# Receipt Tokens
+# Receipt tokens
 
-## Summary
+A receipt is an ordinary Internal-token Ledger debit group directly under Root
+(depth 2), with a registered
+`Source` credit leaf. Holders are unregistered effective debit accounts; issuance
+does not register holders. Ledger owns supply and balances.
 
-A receipt token is a Ledger-native token whose supply represents receipts on the balance of one registered Ledger leaf account.
+ReceiptTokenLib stores one immutable absolute, registered backing leaf account
+in the receipt ledger's packed address field. It can be nested, debit or credit, including a
+Source account. Derive its ledger with `LedgerLib.ledger(backingAccount)` and read
+its net balance using its registered polarity. The backing ledger need not be a
+token: a Scale ledger can back LP receipts. Groups, unregistered accounts and
+accounts within the receipt's own ledger remain invalid backing references.
 
-Receipt tokens are not receipts on other tokens directly. They are receipts on Ledger accounts. The referenced account's Ledger tree determines the receipted root asset, account polarity, and current account balance.
+## Components and API
 
-```text
-receipt token -> registered Ledger leaf account
-receipt account -> root asset + polarity + balance
-```
+- `ReceiptWrapper` inherits `ERC20Wrapper`: shared metadata, allowances, balance
+  views, transfers and Ledger-emitted ERC20 events. It adds `receiptState()`,
+  `convertToReceipts(backing)`, `convertToBacking(receipts)` and `cancel(receipts)`.
+- Install `ReceiptTokenView` for the corresponding token-address-parameterized
+  views. `receiptState(token)` returns backing account, backing ledger, raw supply
+  and raw backing quantity. This replaces the former Float-valued
+  `LedgerView.receiptToken` / `LedgerLib.ReceiptToken` snapshot; callers use
+  `IReceiptTokenView.State` and the respective ledger decimals. No ERC20 interface
+  is required on the backing ledger.
+- Install `ReceiptToken` for `cancelReceipt(token, receipts)` (caller only) and
+  `cancelReceipt(token, holder, receipts)` (registered wrapper callback only).
+  Wrapper cancellation always uses its caller; an ERC20 allowance does not grant
+  another account cancellation rights.
+- `ReceiptTokenLib.issue(token, holder, backing, data, settle)` and
+  `redeem(token, holder, receipts, data, settle)` are internal composition APIs.
+  They return the issued receipt quantity or released backing quantity.
+  `cancel(token, holder, receipts)` burns without releasing backing.
 
-Ledger records the reference. Consuming protocols define valuation, minting, burning, settlement, and whether a receipt token is acceptable in a given protocol role.
+No public generic issue/redeem endpoint exists: a backing reference is not
+permission to spend or change that account. Consuming modules expose their own
+authorized settlement endpoints and use the library.
 
-## Terms
+## Settlement boundary
 
-- **absolute address**: the canonical Ledger account address derived from its absolute parent and a relative child address.
-- **relative address**: the local child account address supplied under a parent.
-- **root**: a depth-1 group account representing one token tree.
-- **receipt token**: a `TokenKind.Receipt` root.
-- **receipt account**: the registered Ledger leaf referenced by a receipt token.
+Issue reads the existing ratio, calls a trusted internal settlement callback to
+add backing, verifies the exact backing increase and unchanged supply, then
+transfers receipt Source credit into the holder's debit balance.
 
-For a receipt-token creation call, `parent_` is an absolute parent account and `addr_` is a relative child account. Ledger derives the referenced absolute receipt account:
+Redeem quotes the pre-burn ratio, burns the authorized holder's receipts, calls
+settlement to release backing, then verifies the exact backing decrease and
+expected supply. A mismatch reverts the entire operation. Callback type is
+`function(address token, uint256 backing, bytes memory data) internal`.
 
-```solidity
-receiptAccount = LedgerLib.toAddress(parent_, addr_);
-```
+Consumers must independently authorize issuance, holder burns and backing
+movements, enforce slippage limits, and guard reentrancy across their entire
+operation (including callbacks and external custody calls). Delta checks do not
+replace authorization or reentrancy protection. Trusted installed modules can
+already mutate Ledger; this library does not sandbox them.
 
-## V1 Decisions
+Token-backed settlement can handle asset custody and Ledger transfers. Scale
+settlement can update pool accounting without invoking an ERC20. The library
+never assumes deposit/withdraw mechanics, counterparties or an external asset.
+It never calls an arbitrary user-supplied settlement target.
 
-- first deployment only; no deployed-state migration
-- all registered roots are debit groups
-- receipt token roots are debit groups
-- receipt accounts must be registered Ledger leaves
-- group-account and root-account receipts are rejected
-- receipt tokens may be backed by a registered leaf under another receipt-token
-  root, but not by a leaf under the receipt token currently being created
-- receipt tokens have exact `TokenKind.Receipt` classification and are not `isInternal`
-- receipt tokens cannot be wrapped or unwrapped as external custody assets
-- root token creation does not accept root credit polarity
-- old boolean flag constants are removed
-- downstream packages must migrate from raw flag-bit checks to helpers
+Receipt mint/burn operations use the normal `LedgerLib.transfer` path, preserving
+installed SR transfer hooks. Public five-argument Ledger transfer remains absent;
+the authorized six-argument wrapper callback and native/external receive, wrap
+and unwrap behavior are unchanged. SR integration is separate work.
 
-## Flag Model
+## Arithmetic and boundary policy
 
-Ledger flags encode two classifications.
-
-`AccountKind` describes whether an address is unregistered, a group account, or a leaf ledger account, including debit/credit polarity:
-
-```solidity
-enum AccountKind {
-    Unregistered, // 0
-    DebitGroup,   // 1
-    CreditGroup,  // 2
-    DebitLedger,  // 3
-    CreditLedger  // 4
-}
-```
-
-`TokenKind` describes the token type of a registered root:
-
-```solidity
-enum TokenKind {
-    Unregistered, // 0 / non-root / no token semantics
-    Native,       // 1
-    External,     // 2
-    Internal,     // 3
-    Receipt         // 4
-}
-```
-
-This avoids ambiguous interpretations such as `!isGroup(flags)` meaning either "ledger account" or "unregistered address".
-
-All registered roots are encoded as:
+All arguments/results are raw integer quantities in the corresponding ledger's
+decimals. Exact full-precision integer `Math.mulDiv` rounds down:
 
 ```text
-accountKind(rootFlags) == AccountKind.DebitGroup
-depth(rootFlags) == 1
+issued receipts = added backing * existing supply / existing backing
+released backing = redeemed receipts * existing backing / existing supply
 ```
 
-Credit polarity remains available for non-root group accounts and leaf ledger accounts.
-
-## Flag Packing
-
-Current packing:
-
-```solidity
-uint256 constant ACCOUNT_KIND_SHIFT = 0;
-uint256 constant ACCOUNT_KIND_MASK = uint256(0x07) << ACCOUNT_KIND_SHIFT;
-
-uint256 constant TOKEN_KIND_SHIFT = 3;
-uint256 constant TOKEN_KIND_MASK = uint256(0x07) << TOKEN_KIND_SHIFT;
-
-uint256 constant FLAG_DEPTH_SHIFT = 8;
-uint256 constant FLAG_DEPTH_MASK = uint256(0xff) << FLAG_DEPTH_SHIFT;
-uint256 constant PACK_ADDR_SHIFT = 96;
-```
-
-The packed address slot has two roles:
-
-```text
-non-root account: packed address = parent account
-non-receipt token root:   packed address = zero
-receipt token root:       packed address = receipt account
-```
-
-Root detection must therefore ignore the packed address and use shape/depth:
-
-```solidity
-isRoot(flags_) == depth(flags_) == 1 && isGroup(flags_)
-```
-
-`parent(flags_)` returns zero for roots, including receipt token roots. Use `receiptAccount(flags_)` to decode a receipt token root's referenced account.
-
-## Helpers
-
-`LedgerLib` exposes enum accessors:
-
-```solidity
-function accountKind(uint256 flags_) internal pure returns (AccountKind);
-function tokenKind(uint256 flags_) internal pure returns (TokenKind);
-function packedAddress(uint256 flags_) internal pure returns (address);
-```
-
-Compatibility helpers are defined over the enums:
-
-```solidity
-isGroup(flags)      -> DebitGroup or CreditGroup
-isLedger(flags)     -> DebitLedger or CreditLedger
-isCredit(flags)     -> CreditGroup or CreditLedger
-isInternal(flags)   -> TokenKind.Internal
-isUnregisteredAccount(flags) -> AccountKind.Unregistered
-isUnregisteredToken(flags)   -> TokenKind.Unregistered
-isNative(flags)     -> TokenKind.Native
-isExternal(flags)   -> TokenKind.External
-isReceipt(flags)      -> TokenKind.Receipt
-isRoot(flags)       -> depth(flags) == 1 && isGroup(flags)
-parent(flags)       -> address(0) for roots, packedAddress(flags) otherwise
-receiptAccount(flags) -> packedAddress(flags) for receipt token roots, address(0) otherwise
-```
-
-`isInternal(flags)` is exact to `TokenKind.Internal`. Receipt tokens are classified by `isReceipt(flags)`, and custody logic that needs externally wrapped assets should test `isExternal(flags) || isNative(flags)` explicitly.
-
-## Receipt Token Model
-
-A receipt token is a registered root with:
-
-```text
-accountKind(flags(receiptToken)) == AccountKind.DebitGroup
-tokenKind(flags(receiptToken)) == TokenKind.Receipt
-depth(flags(receiptToken)) == 1
-packedAddress(flags(receiptToken)) == receiptAccount
-```
-
-It behaves like an internal Ledger token for balances, transfers, wrappers, and total supply. The root is self-wrapped at creation.
-
-The receipt account is a registered Ledger leaf with:
-
-```text
-accountKind(flags(receiptAccount)) == AccountKind.DebitLedger
-    or
-accountKind(flags(receiptAccount)) == AccountKind.CreditLedger
-```
-
-Use existing Ledger primitives for derived data:
-
-- receipted root: `LedgerLib.root(receiptAccount)`
-- receipt-account flags: `LedgerLib.flags(receiptAccount)`
-- receipt-account balance: `LedgerLib.balanceOf(receiptAccount, LedgerLib.isCredit(LedgerLib.flags(receiptAccount)))`
-- total receipt supply: `LedgerLib.totalSupply(receiptToken)`
-
-Ledger does not add one-line helpers for values already available through these primitives.
-
-## Receipt Invariants
-
-A valid receipt-token registration satisfies:
-
-```solidity
-accountKind(flags(receiptToken)) == AccountKind.DebitGroup;
-tokenKind(flags(receiptToken)) == TokenKind.Receipt;
-depth(flags(receiptToken)) == 1;
-isLedger(flags(receiptAccount));
-LedgerLib.root(receiptAccount) != receiptToken;
-```
-
-The receipt-account reference is immutable after registration.
-
-V1 rejects:
-
-- unregistered receipt accounts
-- group-account receipts
-- root-account receipts
-- a receipt account inside the same receipt-token tree
-- mutable receipt-account references
-- direct self-reference by the receipt token being created
-
-## Token Impact
-
-The enum refactor changes flag interpretation for every Ledger account. Intended behavior for native, external, and internal roots remains unchanged when callers use helpers instead of raw bit checks.
-
-### Native Roots
-
-```text
-accountKind(rootFlags) == AccountKind.DebitGroup
-tokenKind(rootFlags) == TokenKind.Native
-depth(rootFlags) == 1
-packedAddress(rootFlags) == address(0)
-```
-
-- `addNativeToken` remains idempotent.
-- wrapper behavior remains unchanged.
-- `wrap` requires exact `msg.value`.
-- `unwrap` transfers native value to `msg.sender`.
-- subaccounts keep debit/credit polarity through `AccountKind`.
-
-### External Roots
-
-```text
-accountKind(rootFlags) == AccountKind.DebitGroup
-tokenKind(rootFlags) == TokenKind.External
-depth(rootFlags) == 1
-packedAddress(rootFlags) == address(0)
-```
-
-- `addExternalToken(address[])` remains idempotent for matching ERC20 metadata.
-- external roots are not self-wrapped; custody movement is handled by `wrap` / `unwrap`.
-- `wrap` uses `safeTransferFrom`.
-- `unwrap` uses `safeTransfer`.
-- `isExternal(flags)` is an explicit `TokenKind.External` check.
-
-### Internal Roots
-
-```text
-accountKind(rootFlags) == AccountKind.DebitGroup
-tokenKind(rootFlags) == TokenKind.Internal
-depth(rootFlags) == 1
-packedAddress(rootFlags) == address(0)
-```
-
-- `LedgerTokenFactory.createInternalToken(TokenMetadata[])` creates debit roots only.
-- internal roots remain self-wrapped.
-- credit-side accounting remains represented by non-root `CreditGroup` and `CreditLedger` accounts.
-
-### Receipt Token Roots
-
-```text
-accountKind(rootFlags) == AccountKind.DebitGroup
-tokenKind(rootFlags) == TokenKind.Receipt
-depth(rootFlags) == 1
-packedAddress(rootFlags) == receiptAccount
-```
-
-- `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)` creates debit roots only.
-- receipt token root address derivation includes `(name, symbol, decimals, version)`.
-- receipt token roots are self-wrapped.
-- receipt token roots are classified by `isReceipt(flags)` and are not internal by `isInternal(flags)`.
-- `wrap` and `unwrap` reject receipt token roots.
-- Ledger records the reference account only; protocol economics live above Ledger.
-
-### Subaccounts
-
-Subaccounts do not need their own token kind. Token kind is derived from the root:
-
-```solidity
-tokenKind(flags(root(account_)))
-```
-
-For non-root accounts:
-
-```text
-packedAddress(accountFlags) == parent(account)
-depth(accountFlags) > 1
-accountKind(accountFlags) != AccountKind.Unregistered
-```
-
-## API Surface
-
-`LedgerLib` receipt-token helpers:
-
-```solidity
-function isReceipt(uint256 flags_) internal pure returns (bool);
-function receiptAccount(uint256 flags_) internal pure returns (address);
-```
-
-`LedgerTokenFactory` exposes:
-
-```solidity
-struct TokenMetadata {
-    string name;
-    string symbol;
-    uint8 decimals;
-    string version;
-}
-
-function createInternalToken(TokenMetadata[] memory tokens)
-    external
-    returns (address[] memory tokenAddresses, uint256[] memory flags);
-
-function createReceiptToken(address absoluteReceiptAccount, TokenMetadata memory token)
-    external
-    returns (address tokenAddress, uint256 flags);
-```
-
-`LedgerTokenFactoryView` exposes deterministic token helpers:
-
-```solidity
-function tokenSalt(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
-    external
-    pure
-    returns (bytes32);
-
-function predictToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
-    external
-    view
-    returns (address);
-```
-
-`Ledger` exposes root registration for external tokens through `addExternalToken(address[])`, but internal and receipt token creation live in `LedgerTokenFactory`.
-
-`Tree` exposes debug/introspection helpers for enum flags and receipt token roots:
-
-```solidity
-function accountKind(uint256 flags_) external pure returns (LedgerLib.AccountKind);
-function tokenKind(uint256 flags_) external pure returns (LedgerLib.TokenKind);
-function packedAddress(uint256 flags_) external pure returns (address);
-function isUnregisteredAccount(uint256 flags_) external pure returns (bool);
-function isDebitGroup(uint256 flags_) external pure returns (bool);
-function isCreditGroup(uint256 flags_) external pure returns (bool);
-function isDebitLedger(uint256 flags_) external pure returns (bool);
-function isCreditLedger(uint256 flags_) external pure returns (bool);
-function isLedger(uint256 flags_) external pure returns (bool);
-function isUnregisteredToken(uint256 flags_) external pure returns (bool);
-function isInternal(uint256 flags_) external pure returns (bool);
-function isReceipt(uint256 flags_) external pure returns (bool);
-function receiptAccount(uint256 flags_) external pure returns (address);
-```
-
-## Migration Notes
-
-There are no existing deployments. Here, migration means updating source code, tests, docs, and downstream packages.
-
-Risky source-code migration points:
-
-- `parent(uint256)`: no longer raw packed address for receipt token roots
-- `isRoot(uint256)`: no longer requires packed parent to be zero
-- `isExternal(uint256)`: explicit `TokenKind.External`, not a negation
-- `createToken(...)`: renamed to `createInternalToken(...)`
-- `createInternalToken(...)`: no longer accepts root credit polarity
-- raw `FLAG_IS_*` bit reads: migrate to helpers or enum accessors
-
-Removed boolean flag constants:
-
-```solidity
-FLAG_IS_GROUP
-FLAG_IS_CREDIT
-FLAG_IS_INTERNAL
-FLAG_IS_NATIVE
-FLAG_IS_REGISTERED
-```
-
-Use enum masks and helpers instead.
-
-## Protocol Responsibilities
-
-Protocols decide:
-
-- whether a receipt token can be a target asset
-- whether a receipt token can be a distribution asset
-- whether a receipt token can be a reserve/deposit asset
-- how receipt-account balances are valued
-- how receipt supply is minted, burned, or settled
-
-A protocol may be stricter than Ledger. For example, a pool can allow receipt tokens as target/distribution tokens while rejecting them as deposit reserve assets.
-
-## Storage Compatibility
-
-Receipt accounts do not add a new storage mapping. The referenced absolute receipt account is stored in the packed address slot of the receipt token root flags.
-
-The v1 launch target is a fresh deployment. No old-flag compatibility layer is required.
-
-## Required Coverage
-
-Tests should cover:
-
-- native root flags decode to `DebitGroup + Native`
-- external root flags decode to `DebitGroup + External`
-- internal root flags decode to `DebitGroup + Internal`
-- receipt token root flags decode to `DebitGroup + Receipt`
-- debit and credit subaccounts decode to `DebitLedger` / `CreditLedger`
-- group subaccounts decode to `DebitGroup` / `CreditGroup`
-- `parent(flags)` returns zero for all roots, including receipt token roots
-- `receiptAccount(flags)` returns the packed reference only for receipt token roots
-- `isRoot(flags)` depends on depth and group kind, not packed address
-- transfer parent-walk behavior is unchanged
-- wrap/unwrap behavior is unchanged for native/external roots
-- wrap/unwrap reject internal and receipt token roots
-- `createInternalToken(TokenMetadata[])`, `addNativeToken`, and `addExternalToken(address[])` remain idempotent
-- `createInternalToken(TokenMetadata[])` creates debit roots only
-- receipt token creation is idempotent
-- receipt account cannot be unregistered
-- receipt account cannot be a group account
-- receipt account cannot be inside the same receipt-token tree
-- receipt account cannot belong to a receipt-token root
-
-## Non-Goals For V1
-
-- root-account receipts
-- group-account receipts
-- mutable receipt-account references
-- cross-router or cross-ledger proof receipts
-- recursive valuation helpers in Ledger
-- automatic redemption semantics in Ledger
+Existing ratios already incorporate decimals. Decimal rescaling only applies to
+an empty receipt (both supply and backing zero): one whole receipt per whole
+backing unit. Scaling up uses checked multiplication, scaling down floors. Decimal
+differences above 77 revert instead of overflowing `10**difference`; equal decimal
+counts, including zero, work. Results exceeding uint256 revert.
+
+- Positive supply and backing use the existing ratio.
+- Zero supply with positive backing rejects issuance/conversion: no implicit gift
+  of orphan backing to a new first holder.
+- Positive supply with zero backing rejects issuance. Redemption returns zero and
+  can burn worthless receipts; cancellation is also available.
+- Zero-quantity conversions return zero for a valid receipt. Zero mutations revert.
+- Issuance that rounds to zero receipts reverts. Redemption that rounds to zero
+  with positive backing reverts; intentional donation uses cancellation.
+- Full redemption releases all backing exactly. Partial-redemption rounding stays
+  with remaining holders. The last holder receives the remainder.
+- Cancellation reduces supply only. Cancelling the last receipt leaves orphan
+  backing and blocks reinitialization until application policy resolves it.
+- Pure conversion quotes may exceed supply; actual redemption cannot exceed
+  supply or the authorized holder's balance.
+
+The initial 1:1 unit ratio, donation/orphan recovery and recapitalization after
+complete backing loss are explicit economic policy boundaries. Applications must
+choose any recovery workflow; this foundation grants no recovery spending power.
+There are no virtual shares or assets and no generic anti-donation mechanism.
+Applications opening issuance to untrusted users must address first-deposit and
+backing-donation economics and set minimum receipt/output amounts.
+
+## Factory and storage
+
+`LedgerTokenFactory.createReceiptToken(absoluteBackingAccount, TokenMetadata)` now
+deploys `ReceiptWrapper`. Shared metadata remains `(name, symbol, decimals,
+version)`, with the same metadata salt. Use
+`LedgerTokenFactoryView.predictReceiptToken(name, symbol, decimals, version)`.
+`predictToken(...)` continues to predict ordinary internal `ERC20Wrapper` roots.
+Different creation bytecode separates receipt/internal addresses for identical
+metadata. Backing is intentionally not in the salt; recreating a receipt with
+identical metadata and different backing reverts. Matching creation is idempotent;
+an occupied, unregistered predicted address is rejected.
+
+All repository receipt creation callers go through this factory library. SR
+continues to create ordinary internal tokens.
+
+ReceiptTokenLib owns registration and backing eligibility validation. Its internal
+`register` function creates a `TokenKind.Internal` ledger through
+`LedgerLib.addLedger`, supplying the backing account as the packed address.
+No receipt discriminator, receipt bit, namespace or separate mapping exists.
+An ordinary internal root packs `ROOT_ADDRESS`; a receipt root packs its backing
+account. `LedgerLib.parent` still returns `ROOT_ADDRESS` for either root, so this
+metadata does not change ledger topology.
+
+`LedgerLib.TokenKind` contains Unregistered (0), Native (1), External (2) and
+Internal (3). Flag packing and registration accept that enum; `LedgerLib.tokenKind`
+and `TreeView.tokenKind` return it. LedgerLib has no receipt-specific code or
+FloatLib dependency: it packs and reads the address without interpreting it.
+
+Receipt inspection is address-based: `ReceiptTokenView.isReceipt(address token)`
+and `receiptAccount(address token)` interpret the token's Ledger flags in receipt
+code. A receipt must be an Internal ledger with a packed reference to a registered
+backing leaf outside its own ledger. Root, zero, unregistered, group and self-ledger
+references do not identify receipts. Unknown addresses and ordinary internal tokens
+return false / zero; `receiptState` rejects them.
+
+Ledger's registration replay checks preserve the backing reference: matching
+metadata and flags are idempotent, while a changed backing reference or metadata
+reverts. An existing ordinary internal root cannot be silently adopted because its
+packed Root reference differs from the proposed backing account. The reference
+remains after complete redemption or cancellation. The backing ledger, polarity,
+balance, receipt supply and holder balances are all derived from Ledger.
+
+Ledger and Dispatcher storage structs, slots and bit positions are unchanged.
+Receipt code adds no storage. The wrapper only inherits shared ERC20
+metadata/allowance storage; it adds no accounting storage.

@@ -1,5 +1,5 @@
 # LedgerTokenFactoryLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/LedgerTokenFactoryLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/ledger/LedgerTokenFactoryLib.sol)
 
 
 ## Functions
@@ -12,9 +12,22 @@ function tokenSalt(ILedgerTokenFactory.TokenMetadata memory token_) internal pur
 
 ### predictToken
 
+Predict an ordinary internal ERC20Wrapper; receipts use different creation bytecode.
+
 
 ```solidity
 function predictToken(ILedgerTokenFactory.TokenMetadata memory token_) internal view returns (address _token);
+```
+
+### predictReceiptToken
+
+Predict a ReceiptWrapper using shared metadata identity and dedicated creation bytecode.
+
+Backing is not part of the salt. Reusing metadata with different backing must fail registration.
+
+
+```solidity
+function predictReceiptToken(ILedgerTokenFactory.TokenMetadata memory token_) internal view returns (address);
 ```
 
 ### createInternalToken
@@ -27,6 +40,10 @@ function createInternalToken(ILedgerTokenFactory.TokenMetadata memory token_)
 ```
 
 ### createReceiptToken
+
+Deploy or replay a receipt wrapper and register its immutable backing through receipt code.
+
+Trusted internal composition: the consuming module must authorize token creation.
 
 
 ```solidity

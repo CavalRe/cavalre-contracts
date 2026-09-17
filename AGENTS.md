@@ -88,7 +88,7 @@ forge clean
 - **Account hierarchy**: Tree structure, parent-child via `LedgerLib.Store`
 - **Debit vs Credit**: Encoded in `LedgerLib.AccountKind`
 - **Group vs Leaf**: Groups (containers) or leaves (actual balances)
-- **Token kind**: Root type encoded in `LedgerLib.TokenKind` (`Native`, `External`, `Internal`, `Receipt`)
+- **Token kind**: Typed `LedgerLib.TokenKind` enum (`Unregistered`, `Native`, `External`, `Internal`); receipts are ordinary internal tokens.
 - **Registration**: Registered accounts have non-`Unregistered` `AccountKind`
 - **Address taxonomy**: `absolute_` = global storage key, `holder_` = token-local ERC20 holder key, `relative_` = reusable child key. Use `LedgerLib.toAddress(root, holderParent, relative)` for storage keys.
 
@@ -97,13 +97,17 @@ Special addresses / roots:
 - `NATIVE_ADDRESS` - native token (ETH)
 - all registered roots are debit groups
 - each root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as its default credit source leaf; `address(0)` is ERC20 event-only
-- receipt roots store the referenced absolute receipt account in the packed root address slot
+- ledger root packed address slots hold module-defined metadata; parent topology is derived independently
 
-**ERC20Wrapper**: Internal and receipt roots are self-wrapped at creation. If a root has a wrapper, the wrapper address is the root address. Native/external roots do not get separate wrapper surfaces.
+**ERC20Wrapper / ReceiptWrapper**: Internal roots use ERC20Wrapper; receipt roots use the dedicated ReceiptWrapper subclass. Both are self-wrapped at creation. If a root has a wrapper, the wrapper address is the root address. Native/external roots do not get separate wrapper surfaces.
 
 **ERC20 Example Module**: `examples/LedgerERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `LedgerERC20Lib`; transfers route through `Ledger.transfer(...)`.
 
 **Tree Module**: `modules/tree/TreeView.sol` owns topology/debug reads (`root`, `parent`, `flags`, `effectiveFlags`, `subAccounts`, `debugTree(s)`) so `Ledger` can stay focused on accounting state and mutations.
+
+### Receipt Module
+
+`modules/receipt/ReceiptTokenLib.sol` composes proportional issue/redeem with trusted internal settlement callbacks; consuming modules authorize issuance, burns and backing movements and guard reentrancy. Backing can be a non-token ledger such as Scale. ReceiptToken exposes self-cancellation and a wrapper-only callback; ReceiptTokenView exposes conversions and state. Use `predictReceiptToken` for receipt CREATE2 addresses; `predictToken` remains internal-token-only. ReceiptTokenLib interprets the Internal ledger's packed address as its immutable registered backing leaf; ordinary internal roots pack Root. No separate receipt storage is needed. `isReceipt(address)` and `receiptAccount(address)` belong to ReceiptTokenView, not TreeView; no receipt kind or bit exists. Ledger retains all supply, balances and backing accounting. See `docs/modules/ReceiptTokens.md` for zero-state and rounding policies.
 
 ### Staking Reward Module
 

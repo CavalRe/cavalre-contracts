@@ -125,10 +125,12 @@ The `TreeView` module owns topology/debug reads for ledger trees.
 ## Responsibilities
 
 - root / parent / flags / wrapper lookup
-- enum flag decoding (`AccountKind`, `TokenKind`, packed address, receipt account)
+- generic flag decoding (`AccountKind`, `TokenKind`, packed address)
 - effective flag resolution for possibly-unregistered leaves
 - child enumeration (`subAccounts`, `hasSubAccount`, `subAccountIndex`)
 - tree visualization via `debugTree(root_)` and `debugTrees(roots_)`
+
+Receipt-specific classification and backing-reference reads belong to `ReceiptTokenView`.
 
 `TreeLib` now reads directly from `LedgerLib`; callers no longer pass a `Ledger` handle into `debugTree(s)`.
 

@@ -6,13 +6,10 @@ import {ILedger} from "./ILedger.sol";
 import {ILedgerTransferHook} from "./ILedgerTransferHook.sol";
 import {DispatcherLib} from "../dispatcher/DispatcherLib.sol";
 
-import {Float, FloatLib} from "../../math/FloatLib.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 library LedgerLib {
-    using FloatLib for uint256;
-
     enum AccountKind {
         Unregistered,
         DebitGroup,
@@ -25,8 +22,7 @@ library LedgerLib {
         Unregistered,
         Native,
         External,
-        Internal,
-        Receipt
+        Internal
     }
 
     struct Store {
@@ -43,14 +39,6 @@ library LedgerLib {
         string nativeName;
         string nativeSymbol;
         uint8 nativeDecimals;
-    }
-
-    struct ReceiptToken {
-        address tokenAddress;
-        Float totalSupply;
-        address backingLedger;
-        address backingAccount;
-        Float backingBalance;
     }
 
     bytes32 private constant STORE_POSITION =
@@ -80,7 +68,7 @@ library LedgerLib {
     uint256 constant FLAG_DEPTH_SHIFT = 8;
     uint256 constant FLAG_DEPTH_MASK = uint256(0xff) << FLAG_DEPTH_SHIFT;
     // High 160-bit lane. Non-ledger accounts pack their parent here.
-    // Ledger parents are derived as ROOT_ADDRESS; receipt ledgers reuse this lane for receipt-account metadata.
+    // Ledger parents are derived as ROOT_ADDRESS; their packed lane is module-defined metadata.
     uint256 constant PACK_ADDR_SHIFT = 96;
 
     //==================================================================
@@ -173,8 +161,7 @@ library LedgerLib {
     }
 
     function parent(uint256 flags_) internal pure returns (address) {
-        // All ledgers sit directly under Root. For receipt ledgers, packedAddress(flags_) is receipt metadata,
-        // so parent() must mask the packed lane and keep topology semantics stable.
+        // All ledgers sit directly under Root, regardless of their packed metadata.
         if (isLedger(flags_)) return ROOT_ADDRESS;
         return packedAddress(flags_);
     }
@@ -257,27 +244,6 @@ library LedgerLib {
 
     function isLedger(uint256 flags_) internal pure returns (bool) {
         return depth(flags_) == 2 && isGroup(flags_);
-    }
-
-    function isReceipt(uint256 flags_) internal pure returns (bool) {
-        return tokenKind(flags_) == TokenKind.Receipt;
-    }
-
-    function receiptAccount(uint256 flags_) internal pure returns (address) {
-        // Receipt ledgers store their referenced absolute receipt account in the packed lane.
-        // Use parent(flags_) for topology; use receiptAccount(flags_) for receipt metadata.
-        if (!isLedger(flags_) || !isReceipt(flags_)) return address(0);
-        return packedAddress(flags_);
-    }
-
-    function checkReceiptAccount(address receiptTokenAddress_, address absoluteReceiptAccount_) internal view {
-        if (!isLedgerAccount(flags(absoluteReceiptAccount_))) {
-            revert ILedger.InvalidLedgerAccount(absoluteReceiptAccount_);
-        }
-        address _receiptAccountLedger = ledger(absoluteReceiptAccount_);
-        if (_receiptAccountLedger == receiptTokenAddress_) {
-            revert ILedger.InvalidLedgerAccount(absoluteReceiptAccount_);
-        }
     }
 
     //==================================================================
@@ -401,18 +367,6 @@ library LedgerLib {
 
     function totalSupply(address ledger_) internal view returns (uint256 _supply) {
         return debitBalanceOf(ledger_);
-    }
-
-    function receiptToken(address tokenAddress_) internal view returns (ReceiptToken memory _token) {
-        uint256 _flags = flags(tokenAddress_);
-        if (!isLedger(_flags) || !isReceipt(_flags)) revert ILedger.InvalidLedgerAccount(tokenAddress_);
-
-        _token.tokenAddress = tokenAddress_;
-        _token.totalSupply = totalSupply(tokenAddress_).toFloat(decimals(tokenAddress_));
-        _token.backingAccount = receiptAccount(_flags);
-        _token.backingLedger = ledger(_token.backingAccount);
-        _token.backingBalance = balanceOf(_token.backingAccount, isCredit(flags(_token.backingAccount)))
-            .toFloat(decimals(_token.backingLedger));
     }
 
     //==================================================================

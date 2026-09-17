@@ -39,6 +39,7 @@ cavalre-contracts/
 - **Dispatcher.sol**: Immutable entrypoint that delegates calls to installed modules via `delegatecall`.
 - **Ledger.sol**: Hierarchical double-entry accounting, native/external root registration, transfer routing, and external/native wrap settlement.
 - **LedgerTokenFactory.sol**: Deterministic internal and receipt token-root creation.
+- **ReceiptToken / ReceiptTokenView**: Shared receipt arithmetic, cancellation and application-controlled settlement composition; dedicated `ReceiptWrapper` inherits ERC20 behavior. See [receipt tokens](docs/modules/ReceiptTokens.md).
 - **LedgerERC20.sol**: Optional canonical-root ERC20 surface layered over `LedgerLib` state via the Dispatcher.
 - **TreeView.sol**: Topology/debug surface for account-tree introspection and `debugTree(s)`.
 - **FloatLib.sol**: Custom fixed-point math library for precision arithmetic with dynamic scaling.
@@ -47,7 +48,7 @@ cavalre-contracts/
 
 - Canonical root is always registered during `initializeLedger(...)`.
 - All registered roots are debit groups.
-- Root token kind is encoded as `Native`, `External`, `Internal`, or `Receipt`.
+- Ledger uses typed token kinds (`Native`, `External`, `Internal`); receipts are internal tokens whose packed address references a registered backing account, interpreted by receipt code.
 - Internal and receipt token roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
 - Native and external roots do not get separate wrapper surfaces.
 - External root registration uses `Ledger.addExternalToken(address[])`.
@@ -56,7 +57,7 @@ cavalre-contracts/
 - `LedgerView` exposes root-registry pagination through `rootCount()`, `rootAt(index)`, and `roots(start, limit)`.
 - Canonical-root ERC20 exposure is optional and illustrated by `examples/LedgerERC20.sol`.
 - Each root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as the default credit source leaf; `address(0)` is reserved for ERC20 mint/burn event projection.
-- Account flags are decoded through `LedgerLib.AccountKind` and `LedgerLib.TokenKind`; use exact helpers such as `isUnregisteredAccount`, `isUnregisteredToken`, `isInternal`, `isNative`, `isExternal`, and `isReceipt`, plus composite account helpers such as `isGroup`, `isLedger`, and `isCredit`.
+- Ledger decodes typed account and token kinds. `ReceiptTokenLib` owns backing registration and interpretation of the packed reference; address-based receipt inspection lives in `ReceiptTokenView`.
 
 ## Installation
 

@@ -7,6 +7,7 @@ pragma solidity ^0.8.26;
 // ─────────────────────────────────────────────────────────────────────────────
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {ILedgerTokenFactory} from "../../modules/ledger/ILedgerTokenFactory.sol";
+import {ReceiptTokenView} from "../../modules/receipt/ReceiptTokenView.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
 import {Ledger} from "../../modules/ledger/Ledger.sol";
 import {LedgerTokenFactory} from "../../modules/ledger/LedgerTokenFactory.sol";
@@ -16,7 +17,6 @@ import {Dispatchable} from "../../modules/dispatcher/Dispatchable.sol";
 import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {IDispatcher} from "../../modules/dispatcher/IDispatcher.sol";
 import {TreeView} from "../../modules/tree/TreeView.sol";
-import {Float, FloatLib} from "../../math/FloatLib.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {TreeLib} from "../../modules/tree/TreeLib.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -252,9 +252,6 @@ contract ReenterToken is ERC20 {
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 contract LedgerTest is Test {
-    using FloatLib for uint256;
-    using FloatLib for Float;
-
     bool isVerbose;
 
     Dispatcher dispatcher;
@@ -293,6 +290,8 @@ contract LedgerTest is Test {
     address r111;
     address source_;
 
+    ReceiptTokenView internal receiptView;
+
     function setUp() public {
         isVerbose = false;
 
@@ -306,18 +305,20 @@ contract LedgerTest is Test {
         if (isVerbose) console.log("Deploying Dispatcher");
         dispatcher = new Dispatcher(alice);
         if (isVerbose) console.log("Adding Ledger module to Dispatcher");
-        address[] memory _modules = new address[](5);
+        address[] memory _modules = new address[](6);
         _modules[0] = address(ledger);
         _modules[1] = address(ledgerTokenFactoryImpl);
         _modules[2] = address(ledgerTokenFactoryViewImpl);
         _modules[3] = address(ledgerViewImpl);
         _modules[4] = address(treeImpl);
+        _modules[5] = address(new ReceiptTokenView());
         dispatcher.addModule(_modules);
         ledger = TestLedger(payable(dispatcher));
         ledgerTokenFactory = LedgerTokenFactory(payable(dispatcher));
         ledgerTokenFactoryView = LedgerTokenFactoryView(payable(dispatcher));
         ledgerView = LedgerView(payable(address(dispatcher)));
         tree = TreeView(payable(address(dispatcher)));
+        receiptView = ReceiptTokenView(address(dispatcher));
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledger.initializeTestLedger();
@@ -485,7 +486,7 @@ contract LedgerTest is Test {
         assertTrue(tree.isNative(nativeFlags_), "native flag set");
         assertFalse(tree.isInternal(nativeFlags_), "native not internal");
         assertFalse(tree.isExternal(nativeFlags_), "native not external");
-        assertFalse(tree.isReceipt(nativeFlags_), "native not receipt");
+        assertFalse(receiptView.isReceipt(native), "native not receipt");
     }
 
     function testLedgerRootRegistryListsRegisteredRoots() public view {
@@ -625,35 +626,11 @@ contract LedgerTest is Test {
         assertEq(tokenAgain_, token_, "same token");
         assertEq(flagsAgain_, flags_, "same flags");
         assertFalse(tree.isCredit(flags_), "receipt token root debit");
-        assertTrue(tree.isReceipt(flags_), "receipt token root");
-        assertFalse(tree.isInternal(flags_), "receipt token root not internal");
-        assertEq(tree.receiptAccount(flags_), LedgerLib.toAddress(r1, r1, source_), "receipt account");
+        assertTrue(receiptView.isReceipt(token_), "receipt token root");
+        assertTrue(tree.isInternal(flags_), "receipt token root internal");
+        assertEq(receiptView.receiptAccount(token_), LedgerLib.toAddress(r1, r1, source_), "receipt account");
         assertEq(tree.ledger(token_), token_, "root registered");
         assertEq(tree.wrapper(token_), token_, "self wrapped");
-    }
-
-    function testLedgerViewReceiptTokenReturnsReceiptSnapshot() public {
-        vm.startPrank(alice);
-        address backingRelative_ = LedgerLib.toAddress("Receipt Backing");
-        ledger.addSubAccount(r1, r10, backingRelative_, "Receipt Backing", false);
-        address backingAccount_ = LedgerLib.toAddress(r1, r10, backingRelative_);
-        (address token_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r10, backingRelative_, "");
-        ledger.mint(r1, r10, backingRelative_, 1_000e18);
-        ledger.mint(token_, token_, bob, 400e18);
-        vm.stopPrank();
-
-        LedgerLib.ReceiptToken memory receipt_ = ledgerView.receiptToken(token_);
-
-        assertEq(receipt_.tokenAddress, token_, "token address");
-        assertEq(receipt_.backingLedger, r1, "backing ledger");
-        assertEq(receipt_.backingAccount, backingAccount_, "backing account");
-        assertTrue(receipt_.totalSupply.isEQ(uint256(400e18).toFloat(18)), "total supply");
-        assertTrue(receipt_.backingBalance.isEQ(uint256(1_000e18).toFloat(18)), "backing balance");
-    }
-
-    function testLedgerViewReceiptTokenRejectsNonReceiptLedger() public {
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, r1));
-        ledgerView.receiptToken(r1);
     }
 
     function testLedgerCreateReceiptTokenVersionChangesAddressOnly() public {
@@ -672,7 +649,9 @@ contract LedgerTest is Test {
         assertEq(ledgerView.name(versionedToken_), "Receipt Token", "name stable");
         assertEq(ledgerView.symbol(versionedToken_), "CLM", "symbol stable");
         assertEq(ledgerView.decimals(versionedToken_), 18, "decimals stable");
-        assertEq(tree.receiptAccount(versionedFlags_), LedgerLib.toAddress(r1, r1, source_), "receipt account stable");
+        assertEq(
+            receiptView.receiptAccount(versionedToken_), LedgerLib.toAddress(r1, r1, source_), "receipt account stable"
+        );
         assertEq(tree.ledger(versionedToken_), versionedToken_, "versioned root registered");
         assertEq(tree.wrapper(versionedToken_), versionedToken_, "versioned self wrapped");
     }
@@ -732,8 +711,8 @@ contract LedgerTest is Test {
 
         assertEq(nestedReceiptTokenAgain_, nestedReceiptToken_, "nested receipt idempotent token");
         assertEq(nestedFlagsAgain_, nestedFlags_, "nested receipt idempotent flags");
-        assertTrue(tree.isReceipt(nestedFlags_), "nested receipt token root");
-        assertEq(tree.receiptAccount(nestedFlags_), nestedReceiptAccount_, "nested receipt account");
+        assertTrue(receiptView.isReceipt(nestedReceiptToken_), "nested receipt token root");
+        assertEq(receiptView.receiptAccount(nestedReceiptToken_), nestedReceiptAccount_, "nested receipt account");
     }
 
     function testLedgerAddExternalTokenIsIdempotentWithoutWrapper() public {
@@ -765,7 +744,7 @@ contract LedgerTest is Test {
         assertFalse(tree.isUnregisteredToken(internalFlags), "internal token registered");
         assertFalse(tree.isNative(internalFlags), "internal token not native");
         assertFalse(tree.isExternal(internalFlags), "internal token not external");
-        assertFalse(tree.isReceipt(internalFlags), "internal token not receipt");
+        assertFalse(receiptView.isReceipt(r1), "internal token not receipt");
         assertTrue(tree.isLedger(internalFlags), "internal root");
         assertEq(LedgerLib.depth(internalFlags), 2, "internal ledger depth");
         assertEq(LedgerLib.parent(internalFlags), LedgerLib.ROOT_ADDRESS, "internal ledger parent");
@@ -781,7 +760,7 @@ contract LedgerTest is Test {
         assertEq(tree.wrapper(address(externalToken)), address(0), "external wrapper unset");
         assertTrue(tree.isExternal(externalFlags), "external flag set");
         assertFalse(tree.isNative(externalFlags), "external token not native");
-        assertFalse(tree.isReceipt(externalFlags), "external token not receipt");
+        assertFalse(receiptView.isReceipt(address(externalToken)), "external token not receipt");
         assertTrue(tree.isLedger(externalFlags), "external root");
         assertEq(LedgerLib.depth(externalFlags), 2, "external ledger depth");
         assertEq(LedgerLib.parent(externalFlags), LedgerLib.ROOT_ADDRESS, "external ledger parent");

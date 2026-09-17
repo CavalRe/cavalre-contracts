@@ -9,6 +9,7 @@ import {IDispatcher} from "../../modules/dispatcher/IDispatcher.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {ILedgerTransferHook} from "../../modules/ledger/ILedgerTransferHook.sol";
+import {ReceiptTokenView} from "../../modules/receipt/ReceiptTokenView.sol";
 import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {LedgerTokenFactory} from "../../modules/ledger/LedgerTokenFactory.sol";
 import {ILedgerTokenFactory} from "../../modules/ledger/ILedgerTokenFactory.sol";
@@ -122,11 +123,14 @@ contract StakingRewardTokenTest is Test {
         );
         assertEq(token_, srToken);
         assertTrue(LedgerLib.isInternal(flags_));
-        assertFalse(LedgerLib.isReceipt(flags_));
         assertEq(IERC20(token_).totalSupply(), 100e18);
         assertRewards(ALICE, 100e6, 50e6, 50e6);
+        address[] memory modules_ = new address[](1);
+        modules_[0] = address(new ReceiptTokenView());
+        dispatcher.addModule(modules_);
+        assertFalse(ReceiptTokenView(address(dispatcher)).isReceipt(token_));
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, token_));
-        ledgerView.receiptToken(token_);
+        ReceiptTokenView(address(dispatcher)).receiptState(token_);
     }
 
     function testCreationDoesNotRequireFactoryModule() public {

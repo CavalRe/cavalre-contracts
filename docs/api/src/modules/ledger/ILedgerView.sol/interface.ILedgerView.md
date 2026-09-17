@@ -1,5 +1,5 @@
 # ILedgerView
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/ILedgerView.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/ledger/ILedgerView.sol)
 
 
 ## Functions
@@ -92,12 +92,5 @@ function balanceOf(address ledger, address parent, address relative) external vi
 
 ```solidity
 function totalSupply(address ledger) external view returns (uint256);
-```
-
-### receiptToken
-
-
-```solidity
-function receiptToken(address tokenAddress) external view returns (LedgerLib.ReceiptToken memory);
 ```
 

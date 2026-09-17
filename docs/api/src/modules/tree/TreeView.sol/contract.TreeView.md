@@ -1,5 +1,5 @@
 # TreeView
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/tree/TreeView.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/tree/TreeView.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md)
@@ -192,20 +192,6 @@ function isExternal(uint256 flags_) external pure returns (bool);
 
 ```solidity
 function isLedger(uint256 flags_) external pure returns (bool);
-```
-
-### isReceipt
-
-
-```solidity
-function isReceipt(uint256 flags_) external pure returns (bool);
-```
-
-### receiptAccount
-
-
-```solidity
-function receiptAccount(uint256 flags_) external pure returns (address);
 ```
 
 ### subAccounts
