@@ -309,11 +309,11 @@ function testWrapperTransferSettlesBothHolders() public;
 function testWrapperTransferFromSettlesRewards() public;
 ```
 
-### testDirectLedgerTransferSettlesRewards
+### testDirectLedgerTransferIsUnavailable
 
 
 ```solidity
-function testDirectLedgerTransferSettlesRewards() public;
+function testDirectLedgerTransferIsUnavailable() public;
 ```
 
 ### testInternalLedgerTransfersToNestedHoldersSettleRewards

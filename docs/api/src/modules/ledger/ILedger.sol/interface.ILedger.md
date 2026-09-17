@@ -74,13 +74,6 @@ function transfer(address ledger, address fromParent, address from, address toPa
     external;
 ```
 
-### transfer
-
-
-```solidity
-function transfer(address ledger, address fromParent, address toParent, address to, uint256 amount) external;
-```
-
 ### wrap
 
 

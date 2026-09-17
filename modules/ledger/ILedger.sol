@@ -33,8 +33,6 @@ interface ILedger {
     function transfer(address ledger, address fromParent, address from, address toParent, address to, uint256 amount)
         external;
 
-    function transfer(address ledger, address fromParent, address toParent, address to, uint256 amount) external;
-
     // ─────────────────────────────────────────────────────────────────────────────
     function wrap(address token_, uint256 amount_)
         external

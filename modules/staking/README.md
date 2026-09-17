@@ -99,7 +99,9 @@ An SR transfer applies the same exit rules to the sender and checkpoints the rec
 
 SR transfers act as a proportional reward exit for the sender and entry for the receiver. Available rewards stay with the sender; proportional pending rewards are forfeited, with the same final-holder exception for a full transfer. The receiver earns future funding. Self-transfers and zero transfers do not forfeit rewards. Moving SR shares between two distinct accounts controlled by the same person still constitutes an exit/entry.
 
-The default `LedgerLib.transfer` invokes the optional `beforeLedgerTransfer` Dispatcher selector before changing balances. The SR module authenticates the Dispatcher self-call, rejects protected custody debits and SR supply changes, and runs `settleTransferRewards`. This covers ERC20 transfer/transferFrom, direct Ledger transfers, and internal LedgerLib transfers, including nested holder accounts.
+Holders transfer SR shares through the token wrapper's `transfer` and `transferFrom`. Ledger exposes only the six-argument transfer callback, restricted to the registered wrapper or a Dispatcher self-call for its own ledger. The five-argument direct user transfer is not exposed. Public `receive`, `wrap`, and `unwrap` remain available for registered native/external assets.
+
+The default `LedgerLib.transfer` invokes the optional `beforeLedgerTransfer` Dispatcher selector before changing balances. The SR module authenticates the Dispatcher self-call, rejects protected custody debits and SR supply changes, and runs `settleTransferRewards`. This covers ERC20 transfer/transferFrom, authorized Ledger callbacks, and internal LedgerLib transfers, including nested holder accounts.
 
 SR operations supply `settleTransferRewards` directly to the internal Ledger transfer overload. Their asset movements and share mint/burn use the same Ledger validation, accounting, and events, with no Dispatcher round trip or transient transfer authorization. The callback also settles the underlying program when `S` or `R` is another SR token. The callback overload is for trusted module code; it is not exposed through the Ledger ABI.
 

@@ -14,6 +14,7 @@ import {LedgerTokenFactoryView} from "../../modules/ledger/LedgerTokenFactoryVie
 import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {Dispatchable} from "../../modules/dispatcher/Dispatchable.sol";
 import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
+import {IDispatcher} from "../../modules/dispatcher/IDispatcher.sol";
 import {TreeView} from "../../modules/tree/TreeView.sol";
 import {Float, FloatLib} from "../../math/FloatLib.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
@@ -34,7 +35,7 @@ contract TestLedger is Ledger {
 
     // Keep command registry so Dispatcher can “register” the module (if you use it)
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](20);
+        _signatures = new string[](19);
         _signatures[0] = "initializeTestLedger()";
         _signatures[1] = "addSubAccountGroup(address,address,address,string,bool)";
         _signatures[2] = "addSubAccount(address,address,address,string,bool)";
@@ -43,23 +44,22 @@ contract TestLedger is Ledger {
         _signatures[5] = "removeSubAccountGroup(address,address,address)";
         _signatures[6] = "removeSubAccount(address,address,address)";
         _signatures[7] = "transfer(address,address,address,address,address,uint256)";
-        _signatures[8] = "transfer(address,address,address,address,uint256)";
-        _signatures[9] = "wrap(address,uint256)";
-        _signatures[10] = "unwrap(address,uint256)";
-        _signatures[11] = "receive()";
-        _signatures[12] = "mint(address,address,address,uint256)";
-        _signatures[13] = "burn(address,address,address,uint256)";
-        _signatures[14] = "enforceNativeValue(uint256)";
-        _signatures[15] = "wrapThenUnwrap(address,uint256,address,uint256)";
-        _signatures[16] = "wrapThenWrap(address,uint256,address,uint256)";
-        _signatures[17] = "rawTransfer(address,address,address,address,address,uint256)";
-        _signatures[18] = "wrapFrom(address,address,address,address,address,address,uint256)";
-        _signatures[19] = "unwrapTo(address,address,address,address,address,address,uint256)";
+        _signatures[8] = "wrap(address,uint256)";
+        _signatures[9] = "unwrap(address,uint256)";
+        _signatures[10] = "receive()";
+        _signatures[11] = "mint(address,address,address,uint256)";
+        _signatures[12] = "burn(address,address,address,uint256)";
+        _signatures[13] = "enforceNativeValue(uint256)";
+        _signatures[14] = "wrapThenUnwrap(address,uint256,address,uint256)";
+        _signatures[15] = "wrapThenWrap(address,uint256,address,uint256)";
+        _signatures[16] = "rawTransfer(address,address,address,address,address,uint256)";
+        _signatures[17] = "wrapFrom(address,address,address,address,address,address,uint256)";
+        _signatures[18] = "unwrapTo(address,address,address,address,address,address,uint256)";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](20);
+        _selectors = new bytes4[](19);
         // From Ledger
         _selectors[n++] = bytes4(keccak256("initializeTestLedger()"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,address,string,bool)"));
@@ -69,7 +69,6 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         _selectors[n++] = bytes4(0);
@@ -82,7 +81,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("rawTransfer(address,address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrapFrom(address,address,address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrapTo(address,address,address,address,address,address,uint256)"));
-        if (n != 20) revert InvalidCommandsLength(n);
+        if (n != 19) revert InvalidCommandsLength(n);
     }
 
     function initializeTestLedger() external initializer {
@@ -1969,8 +1968,9 @@ contract LedgerTest is Test {
 
         // Mint → transfer to bob under the same root
         ledger.mint(dispatcherRoot, dispatcherRoot, alice, 1000);
-        // elm: fromParent = dispatcherRoot, toParent = dispatcherRoot, to = bob
-        ledger.transfer(dispatcherRoot, dispatcherRoot, dispatcherRoot, bob, 700);
+        vm.stopPrank();
+        vm.startPrank(dispatcherRoot);
+        ledger.transfer(dispatcherRoot, dispatcherRoot, alice, dispatcherRoot, bob, 700);
 
         assertEq(ledgerView.debitBalanceOf(dispatcherRoot, dispatcherRoot, alice), 300, "alice");
         assertEq(ledgerView.debitBalanceOf(dispatcherRoot, dispatcherRoot, bob), 700, "bob");
@@ -1983,7 +1983,31 @@ contract LedgerTest is Test {
             )
         );
         // attempt: fromParent=dispatcherRoot, toParent=testLedgerRoot (different root)
-        ledger.transfer(dispatcherRoot, dispatcherRoot, testLedgerRoot, bob, 100);
+        ledger.transfer(dispatcherRoot, dispatcherRoot, alice, testLedgerRoot, bob, 100);
+    }
+
+    function testLedgerRejectsRemovedTransferSelector() public {
+        vm.startPrank(alice);
+        ledger.mint(r1, r1, alice, 1000);
+
+        // Exercise the production manifest, not the test module's overridden manifest.
+        address[] memory modules_ = new address[](1);
+        modules_[0] = dispatcher.module(TestLedger.initializeTestLedger.selector);
+        dispatcher.removeModule(modules_);
+        modules_[0] = address(new Ledger(18, "Ethereum", "ETH", 18));
+        dispatcher.addModule(modules_);
+
+        bytes4 selector_ = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
+        (bool success_, bytes memory data_) =
+            address(dispatcher).call(abi.encodeWithSelector(selector_, r1, r1, r1, bob, 400));
+        assertFalse(success_);
+        assertEq(data_, abi.encodeWithSelector(IDispatcher.CommandNotFound.selector, selector_));
+        assertEq(ledgerView.balanceOf(r1, r1, alice), 1000);
+        assertEq(ledgerView.balanceOf(r1, r1, bob), 0);
+
+        assertTrue(ERC20(r1).transfer(bob, 400));
+        assertEq(ledgerView.balanceOf(r1, r1, alice), 600);
+        assertEq(ledgerView.balanceOf(r1, r1, bob), 400);
     }
 
     function testLedgerExplicitTransferAuthenticatesBeforeAccounting() public {
@@ -1997,7 +2021,9 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
 
         ledger.mint(r1, r100, alice, 1000);
-        ledger.transfer(r1, r100, r101, bob, 400);
+        vm.stopPrank();
+        vm.prank(r1);
+        ledger.transfer(r1, r100, alice, r101, bob, 400);
 
         assertEq(ledgerView.debitBalanceOf(r1, r100, alice), 600, "r100/alice debited");
         assertEq(ledgerView.debitBalanceOf(r1, r101, bob), 400, "r101/bob credited");
@@ -2031,13 +2057,15 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
 
         ledger.mint(r1, r100, alice, 1000);
+        vm.stopPrank();
 
         bytes32 legacyTransferTopic = keccak256("Transfer(address,address,uint256)");
         bytes32 creditTopic = keccak256("Credit(address,address,uint256,uint256)");
         bytes32 debitTopic = keccak256("Debit(address,address,uint256,uint256)");
 
         vm.recordLogs();
-        ledger.transfer(r1, r100, r101, bob, 400);
+        vm.prank(r1);
+        ledger.transfer(r1, r100, alice, r101, bob, 400);
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         uint256 legacyTransferCount;
@@ -2059,30 +2087,33 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
 
         ledger.mint(r1, r100, alice, 1000);
+        vm.stopPrank();
 
         vm.expectEmit(true, true, false, true, address(ledger));
         emit ILedger.Credit(r1, LedgerLib.toAddress(r1, LedgerLib.toAddress(r100, alice)), 400, 600);
         vm.expectEmit(true, true, false, true, address(ledger));
         emit ILedger.Debit(r1, LedgerLib.toAddress(r1, LedgerLib.toAddress(r101, bob)), 400, 400);
-        ledger.transfer(r1, r100, r101, bob, 400);
+        vm.prank(r1);
+        ledger.transfer(r1, r100, alice, r101, bob, 400);
     }
 
     function testLedgerTransferRejectsCreditFromParent() public {
-        vm.startPrank(alice);
+        vm.startPrank(r1);
         address sourceParent_ = LedgerLib.toAddress(r1, source_);
 
         vm.expectRevert(
             abi.encodeWithSelector(ILedger.DifferentRoots.selector, LedgerLib.toAddress(r1, sourceParent_), r1)
         );
-        ledger.transfer(r1, sourceParent_, r1, bob, 1);
+        ledger.transfer(r1, sourceParent_, alice, r1, bob, 1);
     }
 
     function testLedgerTransferAllowsBurnToZeroAddress() public {
         vm.startPrank(alice);
 
         ledger.mint(r1, r100, alice, 1000);
-
-        ledger.transfer(r1, r100, r1, source_, 400);
+        vm.stopPrank();
+        vm.prank(r1);
+        ledger.transfer(r1, r100, alice, r1, source_, 400);
 
         assertEq(ledgerView.debitBalanceOf(r1, r100, alice), 600, "alice debited");
         assertEq(ledgerView.creditBalanceOf(r1, r1, source_), 600, "source supply burned");
@@ -2106,9 +2137,9 @@ contract LedgerTest is Test {
         ledger.addSubAccount(r1, r10, creditLeaf_, "creditLeaf", true);
         vm.stopPrank();
 
-        vm.prank(creditLeaf_);
+        vm.prank(r1);
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, r10));
-        ledger.transfer(r1, r10, r100, bob, 400);
+        ledger.transfer(r1, r10, creditLeaf_, r100, bob, 400);
     }
 
     function testLedgerTransferAllowsBurnToCreditLeaf() public {
@@ -2118,8 +2149,9 @@ contract LedgerTest is Test {
         ledger.addSubAccount(r1, r10, creditLeaf_, "creditLeaf", true);
         ledger.mint(r1, r100, alice, 1000);
         ledger.rawTransfer(r1, r10, creditLeaf_, r1, source_, 400);
-
-        ledger.transfer(r1, r100, r10, creditLeaf_, 400);
+        vm.stopPrank();
+        vm.prank(r1);
+        ledger.transfer(r1, r100, alice, r10, creditLeaf_, 400);
 
         assertEq(ledgerView.debitBalanceOf(r1, r100, alice), 600, "alice debited");
         assertEq(ledgerView.creditBalanceOf(r1, r10, creditLeaf_), 0, "credit target burned");
@@ -2137,8 +2169,8 @@ contract LedgerTest is Test {
         ledger.rawTransfer(r1, r10, otherCreditLeaf_, r1, source_, 400);
         vm.stopPrank();
 
-        vm.prank(creditLeaf_);
-        ledger.transfer(r1, r10, r10, otherCreditLeaf_, 150);
+        vm.prank(r1);
+        ledger.transfer(r1, r10, creditLeaf_, r10, otherCreditLeaf_, 150);
 
         assertEq(ledgerView.creditBalanceOf(r1, r10, creditLeaf_), 150, "credit source increased");
         assertEq(ledgerView.creditBalanceOf(r1, r10, otherCreditLeaf_), 250, "credit target decreased");
@@ -2148,7 +2180,9 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
 
         ledger.mint(r1, r100, alice, 1000);
+        vm.stopPrank();
 
+        vm.prank(r1);
         vm.expectRevert(
             abi.encodeWithSelector(
                 ILedger.InsufficientBalance.selector,
@@ -2158,6 +2192,6 @@ contract LedgerTest is Test {
                 1001
             )
         );
-        ledger.transfer(r1, r100, r101, bob, 1001);
+        ledger.transfer(r1, r100, alice, r101, bob, 1001);
     }
 }

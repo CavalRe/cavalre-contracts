@@ -477,13 +477,19 @@ contract StakingRewardTokenTest is Test {
         assertRewards(BOB, 0, 0, 0);
     }
 
-    function testDirectLedgerTransferSettlesRewards() public {
+    function testDirectLedgerTransferIsUnavailable() public {
         stakeFor(ALICE, 100e18);
         rewards.reward(srToken, 100e6);
         vm.warp(HALF_LIFE);
+        bytes4 selector_ = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         vm.prank(ALICE);
-        ledger.transfer(srToken, srToken, srToken, BOB, 100e18);
-        assertRewards(ALICE, 100e6, 0, 100e6);
+        (bool success_, bytes memory data_) =
+            address(dispatcher).call(abi.encodeWithSelector(selector_, srToken, srToken, srToken, BOB, 100e18));
+        assertFalse(success_);
+        assertEq(data_, abi.encodeWithSelector(IDispatcher.CommandNotFound.selector, selector_));
+        assertEq(IERC20(srToken).balanceOf(ALICE), 100e18);
+        assertEq(IERC20(srToken).balanceOf(BOB), 0);
+        assertRewards(ALICE, 100e6, 50e6, 50e6);
         assertRewards(BOB, 0, 0, 0);
     }
 
@@ -519,7 +525,7 @@ contract StakingRewardTokenTest is Test {
         ledger.mint(srToken, srToken, BOB, 1e18);
         vm.prank(ALICE);
         vm.expectRevert(IStakingRewardToken.UnauthorizedTransfer.selector);
-        ledger.transfer(srToken, srToken, srToken, LedgerLib.SOURCE_ADDRESS, 1e18);
+        IERC20(srToken).transfer(LedgerLib.SOURCE_ADDRESS, 1e18);
         vm.expectRevert(IStakingRewardToken.UnauthorizedTransfer.selector);
         ledger.burn(srToken, srToken, ALICE, 1e18);
         assertEq(IERC20(srToken).totalSupply(), 100e18);
@@ -582,7 +588,7 @@ contract StakingRewardTokenTest is Test {
     function testSlippageAndDonations() public {
         stakeFor(ALICE, 100e18);
         ledger.mint(stakeToken, stakeToken, address(this), 100e18);
-        ledger.transfer(stakeToken, stakeToken, stakeToken, BACKING, 100e18);
+        IERC20(stakeToken).transfer(BACKING, 100e18);
         vm.prank(BOB);
         vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.Slippage.selector, 50e18, 100e18));
         rewards.stake(srToken, 100e18, 100e18);

@@ -46,7 +46,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
     }
 
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](12);
+        _signatures = new string[](11);
         _signatures[0] = "initializeLedger(string,string)";
         _signatures[1] = "addSubAccountGroup(address,address,address,string,bool)";
         _signatures[2] = "addSubAccount(address,address,address,string,bool)";
@@ -55,15 +55,14 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _signatures[5] = "removeSubAccountGroup(address,address,address)";
         _signatures[6] = "removeSubAccount(address,address,address)";
         _signatures[7] = "transfer(address,address,address,address,address,uint256)";
-        _signatures[8] = "transfer(address,address,address,address,uint256)";
-        _signatures[9] = "wrap(address,uint256)";
-        _signatures[10] = "unwrap(address,uint256)";
-        _signatures[11] = "receive()";
+        _signatures[8] = "wrap(address,uint256)";
+        _signatures[9] = "unwrap(address,uint256)";
+        _signatures[10] = "receive()";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](12);
+        _selectors = new bytes4[](11);
         _selectors[n++] = bytes4(keccak256("initializeLedger(string,string)"));
         _selectors[n++] = bytes4(keccak256("addSubAccountGroup(address,address,address,string,bool)"));
         _selectors[n++] = bytes4(keccak256("addSubAccount(address,address,address,string,bool)"));
@@ -72,12 +71,11 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
-        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         _selectors[n++] = bytes4(0);
 
-        if (n != 12) revert InvalidCommandsLength(n);
+        if (n != 11) revert InvalidCommandsLength(n);
     }
 
     function initializeLedger_unchained(string memory name_, string memory symbol_) public onlyInitializing {
@@ -164,17 +162,6 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
             revert ILedger.InvalidLedgerAccount(fromParent_);
         }
         LedgerLib.transfer(ledger_, fromParent_, from_, toParent_, to_, amount_);
-    }
-
-    function transfer(address ledger_, address fromParent_, address toParent_, address to_, uint256 amount_) external {
-        // Direct user transfer uses msg.sender as source leaf under fromParent_.
-        (, bool _fromIsCredit, bool _toIsCredit) =
-            LedgerLib.enforceTransfer(ledger_, fromParent_, msg.sender, toParent_, to_);
-        // Public transfers may not mint from credit into debit accounts.
-        if (_fromIsCredit && !_toIsCredit) {
-            revert ILedger.InvalidLedgerAccount(fromParent_);
-        }
-        LedgerLib.transfer(ledger_, fromParent_, msg.sender, toParent_, to_, amount_);
     }
 
     function wrap(address token_, uint256 amount_)

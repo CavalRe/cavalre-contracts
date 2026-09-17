@@ -469,18 +469,11 @@ contract ERC20WrapperTest is Test {
 
     // ─────────────────────────────────────────────────────────────────────────
     // Reverts: direct calls into wrapper transfer path MUST fail
-    // We intentionally call LedgerLib.transfer first in Ledger.transfer(...) so
-    // root/flags/root-mismatch validation stays centralized there.
     // ─────────────────────────────────────────────────────────────────────────
     function testERC20WrapperLedgerWrapperFunctionsUnauthorized() public {
-        bool isVerbose = false;
-
-        // Any external calling Ledger.*Wrapper (not the token itself) should revert
-        if (isVerbose) {
-            console.log("Expect revert: Ledger.*Wrapper transfer called externally");
-        }
-        vm.expectRevert();
-        ledgers.transfer(address(token), alice, address(token), bob, 1);
+        vm.prank(carol);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, carol));
+        ledgers.transfer(address(token), address(token), alice, address(token), bob, 1);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

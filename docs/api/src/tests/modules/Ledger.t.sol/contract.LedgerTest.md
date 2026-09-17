@@ -857,6 +857,13 @@ function testLedgerUnwrapNonNativeRejectsValue() public;
 function testLedgerTransfer() public;
 ```
 
+### testLedgerRejectsRemovedTransferSelector
+
+
+```solidity
+function testLedgerRejectsRemovedTransferSelector() public;
+```
+
 ### testLedgerExplicitTransferAuthenticatesBeforeAccounting
 
 

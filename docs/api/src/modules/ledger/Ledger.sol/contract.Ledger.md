@@ -165,13 +165,6 @@ function transfer(
 ) external;
 ```
 
-### transfer
-
-
-```solidity
-function transfer(address ledger_, address fromParent_, address toParent_, address to_, uint256 amount_) external;
-```
-
 ### wrap
 
 
