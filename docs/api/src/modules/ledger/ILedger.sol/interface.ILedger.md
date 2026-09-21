@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/ledger/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/ILedger.sol)
 
 
 ## Functions
@@ -12,6 +12,8 @@ function initializeLedger(string memory name, string memory symbol) external;
 
 ### addSubAccountGroup
 
+Register a group under an absolute parent; return its absolute accounting address.
+
 
 ```solidity
 function addSubAccountGroup(address ledger, address parent, address relative, string memory name, bool isCredit)
@@ -20,6 +22,8 @@ function addSubAccountGroup(address ledger, address parent, address relative, st
 ```
 
 ### addSubAccount
+
+Register a leaf under an absolute parent; return its absolute accounting address.
 
 
 ```solidity
@@ -67,6 +71,10 @@ function removeSubAccount(address ledger, address parent, address relative) exte
 ```
 
 ### transfer
+
+Authenticated ERC20 callback restricted to direct accounts (both parents equal ledger).
+
+Authorized modules use LedgerLib.transfer with explicit absolute parents for deeper postings.
 
 
 ```solidity

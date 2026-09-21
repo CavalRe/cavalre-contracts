@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/ledger/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/LedgerLib.sol)
 
 
 ## Constants
@@ -110,11 +110,11 @@ function store() internal pure returns (Store storage s);
 function isZeroAddress(address addr_) internal pure returns (bool);
 ```
 
-### checkZeroAddress
+### enforceNonZeroAddress
 
 
 ```solidity
-function checkZeroAddress(address addr_) internal pure;
+function enforceNonZeroAddress(address addr_) internal pure;
 ```
 
 ### isValidString
@@ -124,11 +124,11 @@ function checkZeroAddress(address addr_) internal pure;
 function isValidString(string memory str_) internal pure returns (bool);
 ```
 
-### checkString
+### enforceValidString
 
 
 ```solidity
-function checkString(string memory str_) internal pure;
+function enforceValidString(string memory str_) internal pure;
 ```
 
 ### enforceNativeValue
@@ -136,13 +136,6 @@ function checkString(string memory str_) internal pure;
 
 ```solidity
 function enforceNativeValue(uint256 expected_) internal view;
-```
-
-### checkLedgers
-
-
-```solidity
-function checkLedgers(address a_, address b_) internal view returns (address);
 ```
 
 ### flags
@@ -323,7 +316,7 @@ function isLedger(uint256 flags_) internal pure returns (bool);
 
 Derives a relative address from a human-readable name.
 
-Relative addresses are reusable across token trees and become holder addresses under a holder parent.
+Relative addresses are reusable child keys; direct children supply ERC20 custody holder addresses.
 
 
 ```solidity
@@ -332,31 +325,20 @@ function toAddress(string memory name_) internal pure returns (address);
 
 ### toAddress
 
-Derives the next address in an address tree.
+Derives an absolute accounting address from its absolute parent and relative child.
 
-Use `toAddress(parent, relative)` for holders, and `toAddress(ledger, holder)` for absolute keys.
+H(g,r): hash the 40 packed bytes of the absolute parent and relative child; retain the low 160 bits.
 
 
 ```solidity
-function toAddress(address base_, address relative_) internal pure returns (address);
+function toAddress(address parent_, address relative_) internal pure returns (address);
 ```
 
 ### toAddress
 
-Derives an absolute Ledger storage address in ledger scope.
+Derives an absolute accounting address from its absolute parent and a child name.
 
-First derives the holder from `parent_ + relative_`, then projects it through `ledger_`.
-
-
-```solidity
-function toAddress(address ledger_, address parent_, address relative_) internal pure returns (address);
-```
-
-### toAddress
-
-Derives a named relative address in a parent context.
-
-This is a contextual relative value, not an absolute Ledger storage key.
+Equivalent to toAddress(parent_, toAddress(name_)).
 
 
 ```solidity
@@ -406,6 +388,9 @@ function decimals(address absolute_) internal view returns (uint8);
 ```
 
 ### ledger
+
+Custody flags pack the ledger as their parent. Roots identify themselves by their flags;
+unregistered leaves require explicit parent context and retain no address-only ledger lookup.
 
 
 ```solidity
@@ -488,7 +473,7 @@ function totalSupply(address ledger_) internal view returns (uint256 _supply);
 ```solidity
 function addSubAccountGroup(address ledger_, address parent_, string memory name_, bool isCredit_)
     internal
-    returns (address _holder, uint256 _flags);
+    returns (address _absolute, uint256 _flags);
 ```
 
 ### addSubAccountGroup
@@ -501,7 +486,7 @@ function addSubAccountGroup(
     address relative_,
     string memory name_,
     bool isCredit_
-) internal returns (address _holder, uint256 _flags);
+) internal returns (address _absolute, uint256 _flags);
 ```
 
 ### addSubAccount
@@ -510,7 +495,7 @@ function addSubAccountGroup(
 ```solidity
 function addSubAccount(address ledger_, address parent_, string memory name_, bool isCredit_)
     internal
-    returns (address _holder, uint256 _flags);
+    returns (address _absolute, uint256 _flags);
 ```
 
 ### addSubAccount
@@ -519,7 +504,7 @@ function addSubAccount(address ledger_, address parent_, string memory name_, bo
 ```solidity
 function addSubAccount(address ledger_, address parent_, address relative_, string memory name_, bool isCredit_)
     internal
-    returns (address _holder, uint256 _flags);
+    returns (address _absolute, uint256 _flags);
 ```
 
 ### addLedger
@@ -531,8 +516,7 @@ function addLedger(
     string memory name_,
     string memory symbol_,
     uint8 decimals_,
-    TokenKind tokenKind_,
-    address packedAddress_
+    TokenKind tokenKind_
 ) internal returns (uint256 _flags);
 ```
 
@@ -591,7 +575,7 @@ function removeSubAccountGroup(address ledger_, address parent_, string memory n
 ```solidity
 function removeSubAccountGroup(address ledger_, address parent_, address relative_)
     internal
-    returns (address _holder);
+    returns (address _absolute);
 ```
 
 ### removeSubAccount
@@ -605,7 +589,9 @@ function removeSubAccount(address ledger_, address parent_, string memory name_)
 
 
 ```solidity
-function removeSubAccount(address ledger_, address parent_, address relative_) internal returns (address _holder);
+function removeSubAccount(address ledger_, address parent_, address relative_)
+    internal
+    returns (address _absolute);
 ```
 
 ### _update
@@ -625,79 +611,45 @@ function _update(
 
 
 ```solidity
-function setAccountCache(address ledger_, address parent_, address relative_)
-    private
+function setAccountCache(uint256 flags_, address relative_) private pure returns (AccountCache memory _acct);
+```
+
+### custody
+
+Token roots have stored depth 2 because of the enclosing global Root.
+Custodians are their direct children (article depth 2, stored depth 3).
+
+
+```solidity
+function custody(address ledger_, uint256 flags_, address relative_)
+    internal
     view
-    returns (AccountCache memory _acct);
+    returns (address holder_, bool isCredit_);
 ```
 
 ### emitWrapperTransfer
 
 
 ```solidity
-function emitWrapperTransfer(
-    address ledger_,
-    AccountCache memory from_,
-    bool fromIsCredit_,
-    AccountCache memory to_,
-    bool toIsCredit_,
-    uint256 amount_
-) private;
-```
-
-### enforceTransfer
-
-
-```solidity
-function enforceTransfer(address ledger_, address fromParent_, address from_, address toParent_, address to_)
-    internal
-    view
-    returns (address _ledger, bool _fromIsCredit, bool _toIsCredit);
+function emitWrapperTransfer(address ledger_, AccountCache memory from_, AccountCache memory to_, uint256 amount_)
+    private;
 ```
 
 ### transfer
+
+Callers resolve effective flags for both endpoints on ledger_ before calling.
+Flags carry each absolute parent, depth and polarity, including unregistered leaves.
+This internal posting reuses that validated metadata; callers own authorization.
 
 
 ```solidity
 function transfer(
     address ledger_,
-    address fromParent_,
+    uint256 fromFlags_,
     address from_,
-    address toParent_,
+    uint256 toFlags_,
     address to_,
     uint256 amount_
-) internal returns (address, bool, bool);
-```
-
-### dispatchBeforeLedgerTransfer
-
-
-```solidity
-function dispatchBeforeLedgerTransfer(
-    address ledger_,
-    address from_,
-    address to_,
-    bool fromIsCredit_,
-    bool toIsCredit_,
-    uint256 amount_
-) private;
-```
-
-### transfer
-
-Trusted modules may supply their own internal settlement callback instead of dispatching the hook.
-The callback runs before balances change; Ledger validation, accounting, and events are shared.
-
-
-```solidity
-function transfer(
-    address ledger_,
-    address fromParent_,
-    address from_,
-    address toParent_,
-    address to_,
-    uint256 amount_,
-    function(address, address, address, bool, bool, uint256) internal beforeTransfer_
 ) internal returns (address _ledger, bool _fromIsCredit, bool _toIsCredit);
 ```
 
@@ -739,7 +691,8 @@ struct Store {
     mapping(address => string) name;
     mapping(address => string) symbol;
     mapping(address => uint8) decimals;
-    mapping(address => address) ledger;
+    // Registered accounts point to their absolute depth-3 custodian; ledger roots have no entry.
+    mapping(address absolute => address custodyAccount) custody;
     mapping(address => address) wrapper;
     mapping(address parent => address[]) subs;
     mapping(address sub => uint32) subIndex;
@@ -757,12 +710,10 @@ struct Store {
 ```solidity
 struct AccountCache {
     uint256 balance;
-    address holder;
     address relative;
     address absolute;
     uint256 flags;
     uint8 depth;
-    bool isUnregistered;
 }
 ```
 

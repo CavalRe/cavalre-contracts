@@ -7,7 +7,7 @@ pragma solidity ^0.8.26;
 // ─────────────────────────────────────────────────────────────────────────────
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {ILedgerTokenFactory} from "../../modules/ledger/ILedgerTokenFactory.sol";
-import {ReceiptTokenView} from "../../modules/receipt/ReceiptTokenView.sol";
+import {ShareTokenView} from "../../modules/share/ShareTokenView.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
 import {Ledger} from "../../modules/ledger/Ledger.sol";
 import {LedgerTokenFactory} from "../../modules/ledger/LedgerTokenFactory.sol";
@@ -91,19 +91,23 @@ contract TestLedger is Ledger {
 
     function mint(address ledger_, address toParent_, address to_, uint256 amount_) external {
         uint256 _tokenFlags = LedgerLib.flags(ledger_);
+        (uint256 toFlags_,,) = LedgerLib.effectiveFlags(ledger_, toParent_, to_);
+        (uint256 sourceFlags_,,) = LedgerLib.effectiveFlags(ledger_, ledger_, LedgerLib.SOURCE_ADDRESS);
         if (LedgerLib.isCredit(_tokenFlags)) {
-            LedgerLib.transfer(ledger_, toParent_, to_, ledger_, LedgerLib.SOURCE_ADDRESS, amount_);
+            LedgerLib.transfer(ledger_, toFlags_, to_, sourceFlags_, LedgerLib.SOURCE_ADDRESS, amount_);
         } else {
-            LedgerLib.transfer(ledger_, ledger_, LedgerLib.SOURCE_ADDRESS, toParent_, to_, amount_);
+            LedgerLib.transfer(ledger_, sourceFlags_, LedgerLib.SOURCE_ADDRESS, toFlags_, to_, amount_);
         }
     }
 
     function burn(address ledger_, address fromParent_, address from_, uint256 amount_) external {
         uint256 _tokenFlags = LedgerLib.flags(ledger_);
+        (uint256 fromFlags_,,) = LedgerLib.effectiveFlags(ledger_, fromParent_, from_);
+        (uint256 sourceFlags_,,) = LedgerLib.effectiveFlags(ledger_, ledger_, LedgerLib.SOURCE_ADDRESS);
         if (LedgerLib.isCredit(_tokenFlags)) {
-            LedgerLib.transfer(ledger_, ledger_, LedgerLib.SOURCE_ADDRESS, fromParent_, from_, amount_);
+            LedgerLib.transfer(ledger_, sourceFlags_, LedgerLib.SOURCE_ADDRESS, fromFlags_, from_, amount_);
         } else {
-            LedgerLib.transfer(ledger_, fromParent_, from_, ledger_, LedgerLib.SOURCE_ADDRESS, amount_);
+            LedgerLib.transfer(ledger_, fromFlags_, from_, sourceFlags_, LedgerLib.SOURCE_ADDRESS, amount_);
         }
     }
 
@@ -145,7 +149,9 @@ contract TestLedger is Ledger {
         address to_,
         uint256 amount_
     ) external {
-        LedgerLib.transfer(ledger_, fromParent_, from_, toParent_, to_, amount_);
+        (uint256 fromFlags_,,) = LedgerLib.effectiveFlags(ledger_, fromParent_, from_);
+        (uint256 toFlags_,,) = LedgerLib.effectiveFlags(ledger_, toParent_, to_);
+        LedgerLib.transfer(ledger_, fromFlags_, from_, toFlags_, to_, amount_);
     }
 
     function wrapFrom(
@@ -290,7 +296,7 @@ contract LedgerTest is Test {
     address r111;
     address source_;
 
-    ReceiptTokenView internal receiptView;
+    ShareTokenView internal shareView;
 
     function setUp() public {
         isVerbose = false;
@@ -311,14 +317,14 @@ contract LedgerTest is Test {
         _modules[2] = address(ledgerTokenFactoryViewImpl);
         _modules[3] = address(ledgerViewImpl);
         _modules[4] = address(treeImpl);
-        _modules[5] = address(new ReceiptTokenView());
+        _modules[5] = address(new ShareTokenView());
         dispatcher.addModule(_modules);
         ledger = TestLedger(payable(dispatcher));
         ledgerTokenFactory = LedgerTokenFactory(payable(dispatcher));
         ledgerTokenFactoryView = LedgerTokenFactoryView(payable(dispatcher));
         ledgerView = LedgerView(payable(address(dispatcher)));
         tree = TreeView(payable(address(dispatcher)));
-        receiptView = ReceiptTokenView(address(dispatcher));
+        shareView = ShareTokenView(address(dispatcher));
 
         if (isVerbose) console.log("Initializing Test Ledger");
         ledger.initializeTestLedger();
@@ -369,23 +375,25 @@ contract LedgerTest is Test {
         _tokens[0] =
             ILedgerTokenFactory.TokenMetadata({name: name_, symbol: symbol_, decimals: decimals_, version: version_});
         (address[] memory _tokenAddresses, uint256[] memory _flagsArray) =
-            ledgerTokenFactory.createInternalToken(_tokens);
+            ledgerTokenFactory.createInternalTokens(_tokens);
         return (_tokenAddresses[0], _flagsArray[0]);
     }
 
-    function createReceiptToken(
+    function createShareToken(
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        address ledger_,
         address parent_,
         address relative_,
         string memory version_
     ) internal returns (address _tokenAddress, uint256 _flags) {
-        return ledgerTokenFactory.createReceiptToken(
-            LedgerLib.toAddress(ledger_, parent_, relative_),
+        ILedgerTokenFactory.ShareTokenConfig[] memory tokens_ = new ILedgerTokenFactory.ShareTokenConfig[](1);
+        tokens_[0] = ILedgerTokenFactory.ShareTokenConfig(
+            LedgerLib.toAddress(parent_, relative_),
             ILedgerTokenFactory.TokenMetadata({name: name_, symbol: symbol_, decimals: decimals_, version: version_})
         );
+        (address[] memory tokenAddresses_, uint256[] memory flags_) = ledgerTokenFactory.createShareTokens(tokens_);
+        return (tokenAddresses_[0], flags_[0]);
     }
 
     function addExternalToken(address token_) internal returns (uint256 _flags) {
@@ -425,8 +433,8 @@ contract LedgerTest is Test {
         assertEq(ledgerView.symbol(address(dispatcher)), "LEDGER", "ledger symbol");
         assertEq(tree.subAccounts(testLedger).length, 2, "Subaccounts (testLedger)");
         assertEq(tree.subAccounts(r1).length, 3, "Subaccounts (r1)");
-        assertEq(tree.subAccounts(LedgerLib.toAddress(r1, r10)).length, 2, "Subaccounts (r10)");
-        assertEq(tree.subAccounts(LedgerLib.toAddress(r1, r11)).length, 2, "Subaccounts (r11)");
+        assertEq(tree.subAccounts(r10).length, 2, "Subaccounts (r10)");
+        assertEq(tree.subAccounts(r11).length, 2, "Subaccounts (r11)");
 
         TreeLib.TreeNode memory rootNode_ = tree.treeNode(r1);
         assertEq(rootNode_.parent, address(0), "node root parent");
@@ -451,12 +459,12 @@ contract LedgerTest is Test {
         assertEq(treeNodes_[2].relative, _10, "tree preorder child");
         assertEq(treeNodes_[2].parent, r1, "tree preorder child parent");
 
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r10)), 2, "idx(r10)");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r11)), 3, "idx(r11)");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r100)), 1, "idx(r100)");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r101)), 2, "idx(r101)");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r110)), 1, "idx(r110)");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r111)), 2, "idx(r111)");
+        assertEq(tree.subAccountIndex(r10), 2, "idx(r10)");
+        assertEq(tree.subAccountIndex(r11), 3, "idx(r11)");
+        assertEq(tree.subAccountIndex(r100), 1, "idx(r100)");
+        assertEq(tree.subAccountIndex(r101), 2, "idx(r101)");
+        assertEq(tree.subAccountIndex(r110), 1, "idx(r110)");
+        assertEq(tree.subAccountIndex(r111), 2, "idx(r111)");
     }
 
     function testNativeWrapperNotCreatedDuringInit() public view {
@@ -479,6 +487,7 @@ contract LedgerTest is Test {
         assertEq(ledgerView.nativeDecimals(), 18, "native decimals");
         assertEq(ledgerView.decimals(native), 18, "decimals");
         uint256 nativeFlags_ = tree.flags(native);
+        assertEq(LedgerLib.parent(nativeFlags_), LedgerLib.ROOT_ADDRESS, "native ledger parent");
         assertEq(
             uint256(tree.accountKind(nativeFlags_)), uint256(LedgerLib.AccountKind.DebitGroup), "native debit root"
         );
@@ -486,7 +495,7 @@ contract LedgerTest is Test {
         assertTrue(tree.isNative(nativeFlags_), "native flag set");
         assertFalse(tree.isInternal(nativeFlags_), "native not internal");
         assertFalse(tree.isExternal(nativeFlags_), "native not external");
-        assertFalse(receiptView.isReceipt(native), "native not receipt");
+        assertFalse(shareView.isShareToken(native), "native not share");
     }
 
     function testLedgerRootRegistryListsRegisteredRoots() public view {
@@ -521,8 +530,8 @@ contract LedgerTest is Test {
         ledger.addNativeToken();
         (address internalToken_,) = createInternalToken("Neutral Token", "NT", 18, "");
         createInternalToken("Neutral Token", "NT", 18, "");
-        (address receiptToken_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
-        createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        (address shareToken_,) = createShareToken("Share Token", "CLM", 18, r1, source_, "");
+        createShareToken("Share Token", "CLM", 18, r1, source_, "");
         addExternalToken(address(unlistedToken));
         addExternalToken(address(unlistedToken));
         vm.stopPrank();
@@ -530,21 +539,21 @@ contract LedgerTest is Test {
         assertEq(ledgerView.ledgerCount(), 8, "root count");
         assertEq(ledgerView.ledgerAt(4), native, "native root");
         assertEq(ledgerView.ledgerAt(5), internalToken_, "internal root");
-        assertEq(ledgerView.ledgerAt(6), receiptToken_, "receipt token root");
+        assertEq(ledgerView.ledgerAt(6), shareToken_, "share token root");
         assertEq(ledgerView.ledgerAt(7), address(unlistedToken), "external root");
 
         address[] memory rootSubs_ = tree.subAccounts(LedgerLib.ROOT_ADDRESS);
         assertEq(rootSubs_.length, 8, "root sub count");
         assertEq(rootSubs_[4], native, "root sub native");
         assertEq(rootSubs_[5], internalToken_, "root sub internal");
-        assertEq(rootSubs_[6], receiptToken_, "root sub receipt");
+        assertEq(rootSubs_[6], shareToken_, "root sub share");
         assertEq(rootSubs_[7], address(unlistedToken), "root sub external");
 
         address[] memory ledgers_ = ledgerView.ledgers(4, 10);
         assertEq(ledgers_.length, 4, "clipped page length");
         assertEq(ledgers_[0], native, "page native");
         assertEq(ledgers_[1], internalToken_, "page internal");
-        assertEq(ledgers_[2], receiptToken_, "page receipt");
+        assertEq(ledgers_[2], shareToken_, "page share");
         assertEq(ledgers_[3], address(unlistedToken), "page external");
     }
 
@@ -578,7 +587,7 @@ contract LedgerTest is Test {
     }
 
     function testLedgerTokenFactoryViewPredictsCreatedToken() public {
-        address predictedToken_ = ledgerTokenFactoryView.predictToken("Predict Token", "PRED", 18, "v1");
+        address predictedToken_ = ledgerTokenFactoryView.predictERC20TokenAddress("Predict Token", "PRED", 18, "v1");
 
         vm.startPrank(alice);
         (address token_,) = createInternalToken("Predict Token", "PRED", 18, "v1");
@@ -617,102 +626,112 @@ contract LedgerTest is Test {
         assertEq(tree.wrapper(versionedToken_), versionedToken_, "versioned self wrapped");
     }
 
-    function testLedgerCreateReceiptTokenIsIdempotent() public {
+    function testLedgerCreateShareTokenIsIdempotent() public {
         vm.startPrank(alice);
-        (address token_, uint256 flags_) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
-        (address tokenAgain_, uint256 flagsAgain_) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        (address token_, uint256 flags_) = createShareToken("Share Token", "CLM", 18, r1, source_, "");
+        (address tokenAgain_, uint256 flagsAgain_) = createShareToken("Share Token", "CLM", 18, r1, source_, "");
         vm.stopPrank();
 
         assertEq(tokenAgain_, token_, "same token");
         assertEq(flagsAgain_, flags_, "same flags");
-        assertFalse(tree.isCredit(flags_), "receipt token root debit");
-        assertTrue(receiptView.isReceipt(token_), "receipt token root");
-        assertTrue(tree.isInternal(flags_), "receipt token root internal");
-        assertEq(receiptView.receiptAccount(token_), LedgerLib.toAddress(r1, r1, source_), "receipt account");
+        assertFalse(tree.isCredit(flags_), "share token root debit");
+        assertTrue(shareView.isShareToken(token_), "share token root");
+        assertTrue(tree.isInternal(flags_), "share token root internal");
+        assertEq(shareView.backingAccount(token_), LedgerLib.toAddress(r1, source_), "backing account");
         assertEq(tree.ledger(token_), token_, "root registered");
         assertEq(tree.wrapper(token_), token_, "self wrapped");
     }
 
-    function testLedgerCreateReceiptTokenVersionChangesAddressOnly() public {
+    function testLedgerCreateShareTokenVersionChangesAddressOnly() public {
         vm.startPrank(alice);
-        (address token_, uint256 flags_) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        (address token_, uint256 flags_) = createShareToken("Share Token", "CLM", 18, r1, source_, "");
         (address versionedToken_, uint256 versionedFlags_) =
-            createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "v2");
+            createShareToken("Share Token", "CLM", 18, r1, source_, "v2");
         (address versionedTokenAgain_, uint256 versionedFlagsAgain_) =
-            createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "v2");
+            createShareToken("Share Token", "CLM", 18, r1, source_, "v2");
         vm.stopPrank();
 
         assertNotEq(versionedToken_, token_, "version changes address");
         assertEq(versionedTokenAgain_, versionedToken_, "versioned token idempotent");
         assertEq(versionedFlagsAgain_, versionedFlags_, "versioned flags stable");
         assertEq(versionedFlags_, flags_, "metadata-independent flags stable");
-        assertEq(ledgerView.name(versionedToken_), "Receipt Token", "name stable");
+        assertEq(ledgerView.name(versionedToken_), "Share Token", "name stable");
         assertEq(ledgerView.symbol(versionedToken_), "CLM", "symbol stable");
         assertEq(ledgerView.decimals(versionedToken_), 18, "decimals stable");
-        assertEq(
-            receiptView.receiptAccount(versionedToken_), LedgerLib.toAddress(r1, r1, source_), "receipt account stable"
-        );
+        assertEq(shareView.backingAccount(versionedToken_), LedgerLib.toAddress(r1, source_), "backing account stable");
         assertEq(tree.ledger(versionedToken_), versionedToken_, "versioned root registered");
         assertEq(tree.wrapper(versionedToken_), versionedToken_, "versioned self wrapped");
     }
 
-    function testLedgerWrapRejectsReceiptTokenRoot() public {
+    function testLedgerWrapRejectsShareTokenRoot() public {
         vm.startPrank(alice);
-        (address token_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        (address token_,) = createShareToken("Share Token", "CLM", 18, r1, source_, "");
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, token_));
         ledger.wrap(token_, 1);
         vm.stopPrank();
     }
 
-    function testLedgerUnwrapRejectsReceiptTokenRoot() public {
+    function testLedgerUnwrapRejectsShareTokenRoot() public {
         vm.startPrank(alice);
-        (address token_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
+        (address token_,) = createShareToken("Share Token", "CLM", 18, r1, source_, "");
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, token_));
         ledger.unwrap(token_, 1);
         vm.stopPrank();
     }
 
-    function testLedgerCreateReceiptTokenRejectsUnregisteredReceiptAccount() public {
+    function testLedgerCreateShareTokenRejectsUnregisteredBackingAccount() public {
         vm.startPrank(alice);
-        address relative_ = LedgerLib.toAddress("missingReceiptAccount");
-        address absolute_ = LedgerLib.toAddress(r1, r1, relative_);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, absolute_));
-        ledgerTokenFactory.createReceiptToken(
-            absolute_,
-            ILedgerTokenFactory.TokenMetadata({name: "Bad Receipt", symbol: "BCLM", decimals: 18, version: ""})
+        address relative_ = LedgerLib.toAddress("missingBackingAccount");
+        address absolute_ = LedgerLib.toAddress(r1, relative_);
+        ILedgerTokenFactory.ShareTokenConfig[] memory tokens_ = new ILedgerTokenFactory.ShareTokenConfig[](1);
+        tokens_[0] = ILedgerTokenFactory.ShareTokenConfig(
+            absolute_, ILedgerTokenFactory.TokenMetadata({name: "Bad Share", symbol: "BCLM", decimals: 18, version: ""})
         );
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, absolute_));
+        ledgerTokenFactory.createShareTokens(tokens_);
     }
 
-    function testLedgerCreateReceiptTokenRejectsGroupReceiptAccount() public {
+    function testLedgerCreateShareTokenRejectsGroupBackingAccount() public {
         vm.startPrank(alice);
         address relative_ = LedgerLib.toAddress("10");
-        address absolute_ = LedgerLib.toAddress(r1, r1, relative_);
+        address absolute_ = LedgerLib.toAddress(r1, relative_);
 
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(r1, r10)));
-        ledgerTokenFactory.createReceiptToken(
-            absolute_,
-            ILedgerTokenFactory.TokenMetadata({name: "Bad Receipt", symbol: "BCLM", decimals: 18, version: ""})
+        ILedgerTokenFactory.ShareTokenConfig[] memory tokens_ = new ILedgerTokenFactory.ShareTokenConfig[](1);
+        tokens_[0] = ILedgerTokenFactory.ShareTokenConfig(
+            absolute_, ILedgerTokenFactory.TokenMetadata({name: "Bad Share", symbol: "BCLM", decimals: 18, version: ""})
         );
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, r10));
+        ledgerTokenFactory.createShareTokens(tokens_);
     }
 
-    function testLedgerCreateReceiptTokenAllowsNestedReceiptTokenRoot() public {
+    function testLedgerCreateShareTokenAllowsNestedShareTokenRoot() public {
         vm.startPrank(alice);
-        (address receiptToken_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
-        address nestedReceiptAccount_ = LedgerLib.toAddress(receiptToken_, receiptToken_, source_);
+        address shareToken_ = ledgerTokenFactoryView.predictShareTokenAddress("Share Token", "CLM", 18, "");
+        address nestedBackingAccount_ = LedgerLib.toAddress(shareToken_, source_);
 
-        (address nestedReceiptToken_, uint256 nestedFlags_) = ledgerTokenFactory.createReceiptToken(
-            nestedReceiptAccount_,
-            ILedgerTokenFactory.TokenMetadata({name: "Nested Receipt", symbol: "NCLM", decimals: 18, version: ""})
+        ILedgerTokenFactory.ShareTokenConfig[] memory tokens_ = new ILedgerTokenFactory.ShareTokenConfig[](2);
+        tokens_[0] = ILedgerTokenFactory.ShareTokenConfig(
+            LedgerLib.toAddress(r1, source_),
+            ILedgerTokenFactory.TokenMetadata({name: "Share Token", symbol: "CLM", decimals: 18, version: ""})
         );
-        (address nestedReceiptTokenAgain_, uint256 nestedFlagsAgain_) = ledgerTokenFactory.createReceiptToken(
-            nestedReceiptAccount_,
-            ILedgerTokenFactory.TokenMetadata({name: "Nested Receipt", symbol: "NCLM", decimals: 18, version: ""})
+        tokens_[1] = ILedgerTokenFactory.ShareTokenConfig(
+            nestedBackingAccount_,
+            ILedgerTokenFactory.TokenMetadata({name: "Nested Share", symbol: "NCLM", decimals: 18, version: ""})
         );
+        (address[] memory tokenAddresses_, uint256[] memory flags_) = ledgerTokenFactory.createShareTokens(tokens_);
+        (address[] memory again_, uint256[] memory flagsAgain_) = ledgerTokenFactory.createShareTokens(tokens_);
 
-        assertEq(nestedReceiptTokenAgain_, nestedReceiptToken_, "nested receipt idempotent token");
-        assertEq(nestedFlagsAgain_, nestedFlags_, "nested receipt idempotent flags");
-        assertTrue(receiptView.isReceipt(nestedReceiptToken_), "nested receipt token root");
-        assertEq(receiptView.receiptAccount(nestedReceiptToken_), nestedReceiptAccount_, "nested receipt account");
+        assertEq(tokenAddresses_.length, 2, "two shares created");
+        assertEq(flags_.length, 2, "one flags entry per share");
+        assertEq(tokenAddresses_[0], shareToken_, "first share created before nested backing validation");
+        assertEq(tokenAddresses_[1], ledgerTokenFactoryView.predictShareTokenAddress("Nested Share", "NCLM", 18, ""));
+        assertEq(again_, tokenAddresses_, "batch token addresses idempotent");
+        assertEq(flagsAgain_, flags_, "batch flags idempotent");
+        assertTrue(shareView.isShareToken(tokenAddresses_[1]), "nested share token root");
+        assertEq(shareView.backingAccount(tokenAddresses_[0]), tokens_[0].backingAccount);
+        assertEq(shareView.backingAccount(tokenAddresses_[1]), nestedBackingAccount_, "nested backing account");
+        assertEq(flags_[0], tree.flags(tokenAddresses_[0]));
+        assertEq(flags_[1], tree.flags(tokenAddresses_[1]));
     }
 
     function testLedgerAddExternalTokenIsIdempotentWithoutWrapper() public {
@@ -744,7 +763,7 @@ contract LedgerTest is Test {
         assertFalse(tree.isUnregisteredToken(internalFlags), "internal token registered");
         assertFalse(tree.isNative(internalFlags), "internal token not native");
         assertFalse(tree.isExternal(internalFlags), "internal token not external");
-        assertFalse(receiptView.isReceipt(r1), "internal token not receipt");
+        assertFalse(shareView.isShareToken(r1), "internal token not share");
         assertTrue(tree.isLedger(internalFlags), "internal root");
         assertEq(LedgerLib.depth(internalFlags), 2, "internal ledger depth");
         assertEq(LedgerLib.parent(internalFlags), LedgerLib.ROOT_ADDRESS, "internal ledger parent");
@@ -760,7 +779,7 @@ contract LedgerTest is Test {
         assertEq(tree.wrapper(address(externalToken)), address(0), "external wrapper unset");
         assertTrue(tree.isExternal(externalFlags), "external flag set");
         assertFalse(tree.isNative(externalFlags), "external token not native");
-        assertFalse(receiptView.isReceipt(address(externalToken)), "external token not receipt");
+        assertFalse(shareView.isShareToken(address(externalToken)), "external token not share");
         assertTrue(tree.isLedger(externalFlags), "external root");
         assertEq(LedgerLib.depth(externalFlags), 2, "external ledger depth");
         assertEq(LedgerLib.parent(externalFlags), LedgerLib.ROOT_ADDRESS, "external ledger parent");
@@ -771,7 +790,7 @@ contract LedgerTest is Test {
         assertTrue(tree.isUnregisteredAccount(emptyFlags), "zero account unregistered");
         assertTrue(tree.isUnregisteredToken(emptyFlags), "zero token unregistered");
 
-        address childAccount_ = LedgerLib.toAddress(r1, r10);
+        address childAccount_ = r10;
         uint256 childFlags = tree.flags(childAccount_);
         assertTrue(tree.isDebitGroup(childFlags), "child debit group");
         assertFalse(tree.isLedger(childFlags), "child not root");
@@ -786,7 +805,7 @@ contract LedgerTest is Test {
         (uint256 debitFlags_, uint256 debitOriginalFlags_, address debitAddr_) =
             tree.effectiveFlags(r1, r1, LedgerLib.toAddress("missingDebit"));
 
-        assertEq(debitAddr_, LedgerLib.toAddress(r1, r1, LedgerLib.toAddress("missingDebit")), "absolute address");
+        assertEq(debitAddr_, LedgerLib.toAddress(r1, LedgerLib.toAddress("missingDebit")), "absolute address");
         assertEq(debitOriginalFlags_, 0, "unregistered original flags");
         assertFalse(tree.isCredit(debitFlags_), "inherits debit parent");
         assertEq(LedgerLib.parent(debitFlags_), r1, "inherits parent");
@@ -794,7 +813,7 @@ contract LedgerTest is Test {
         assertEq(LedgerLib.depth(debitFlags_), 3, "direct missing leaf depth");
         ledger.addSubAccount(r1, r1, source_, LedgerLib.SOURCE_NAME, true);
         (uint256 sourceFlags_, uint256 sourceOriginalFlags_,) = tree.effectiveFlags(r1, r1, source_);
-        address sourceAccount_ = LedgerLib.toAddress(r1, r1, source_);
+        address sourceAccount_ = LedgerLib.toAddress(r1, source_);
         assertTrue(tree.isCredit(sourceFlags_), "registered credit leaf");
         assertEq(sourceOriginalFlags_, sourceFlags_, "registered effective flags");
         assertTrue(tree.isLedgerAccount(sourceFlags_), "direct source is ledger account");
@@ -840,13 +859,35 @@ contract LedgerTest is Test {
     }
 
     function testPackedParentAndWrapperMapping() public view {
-        assertEq(address(uint160(tree.flags(LedgerLib.toAddress(r1, r10)) >> 96)), r1, "packed parent r10");
-        assertEq(address(uint160(tree.flags(LedgerLib.toAddress(r1, r100)) >> 96)), r10, "packed parent r100");
+        assertEq(address(uint160(tree.flags(r10) >> 96)), r1, "packed parent r10");
+        assertEq(address(uint160(tree.flags(r100) >> 96)), r10, "packed parent r100");
         assertEq(address(uint160(tree.flags(r1) >> 96)), LedgerLib.ROOT_ADDRESS, "packed parent root");
 
         assertEq(tree.wrapper(r10), address(0), "non-root wrapper unset");
         assertEq(tree.wrapper(r1), r1, "internal root wrapper");
         assertEq(tree.wrapper(address(externalToken)), address(0), "external root wrapper unset");
+    }
+
+    function testAccountViewsRejectParentFromDifferentLedger() public {
+        vm.startPrank(alice);
+        address credit_ = LedgerLib.toAddress("Scoped Credit");
+        ledger.addSubAccount(r1, r100, credit_, "Scoped Credit", true);
+        ledger.mint(r1, r100, alice, 100);
+        ledger.rawTransfer(r1, r100, credit_, r100, bob, 40);
+        assertEq(ledgerView.debitBalanceOf(r1, r100, alice), 100);
+        assertEq(ledgerView.creditBalanceOf(r1, r100, credit_), 40);
+
+        bytes memory error_ = abi.encodeWithSelector(ILedger.DifferentRoots.selector, testLedger, r100);
+        vm.expectRevert(error_);
+        ledgerView.debitBalanceOf(testLedger, r100, alice);
+        vm.expectRevert(error_);
+        ledgerView.creditBalanceOf(testLedger, r100, credit_);
+        vm.expectRevert(error_);
+        ledgerView.balanceOf(testLedger, r100, alice);
+        vm.expectRevert(error_);
+        tree.effectiveFlags(testLedger, r100, alice);
+        vm.expectRevert(error_);
+        tree.treeNode(testLedger, r100, alice);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -859,13 +900,13 @@ contract LedgerTest is Test {
         (address added, uint256 flags_) =
             ledger.addSubAccountGroup(r1, r1, LedgerLib.toAddress("newSubAccount"), "newSubAccount", false);
         address[] memory before_ = tree.subAccounts(r1);
-        uint32 index_ = tree.subAccountIndex(LedgerLib.toAddress(r1, added));
-        assertEq(added, LedgerLib.toAddress("newSubAccount"), "address mismatch");
-        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, added))), r1, "parent mismatch");
+        uint32 index_ = tree.subAccountIndex(added);
+        assertEq(added, LedgerLib.toAddress(r1, LedgerLib.toAddress("newSubAccount")), "address mismatch");
+        assertEq(LedgerLib.parent(tree.flags(added)), r1, "parent mismatch");
         assertEq(index_, before_.length, "index should equal #subs");
         assertTrue(tree.hasSubAccount(r1), "r1 should have subs");
-        assertEq(tree.flags(LedgerLib.toAddress(r1, added)), flags_, "flags stored");
-        assertEq(ledgerView.name(LedgerLib.toAddress(r1, added)), "newSubAccount", "name stored");
+        assertEq(tree.flags(added), flags_, "flags stored");
+        assertEq(ledgerView.name(added), "newSubAccount", "name stored");
 
         (address idempotent, uint256 flagsAgain_) =
             ledger.addSubAccountGroup(r1, r1, LedgerLib.toAddress("newSubAccount"), "newSubAccount", false);
@@ -874,8 +915,8 @@ contract LedgerTest is Test {
         assertEq(flagsAgain_, flags_, "same flags");
         assertEq(after_.length, before_.length, "child count stable");
         assertEq(after_[after_.length - 1], before_[before_.length - 1], "child ordering stable");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, added)), index_, "index stable");
-        assertEq(ledgerView.name(LedgerLib.toAddress(r1, added)), "newSubAccount", "name stable");
+        assertEq(tree.subAccountIndex(added), index_, "index stable");
+        assertEq(ledgerView.name(added), "newSubAccount", "name stable");
     }
 
     function testLedgerAddSubAccountGroupAddressFormIsIdempotent() public {
@@ -884,7 +925,7 @@ contract LedgerTest is Test {
         address relative_ = LedgerLib.toAddress("groupByAddr");
         (address added_, uint256 flags_) = ledger.addSubAccountGroup(r1, r1, relative_, "groupByAddr", false);
         address[] memory before_ = tree.subAccounts(r1);
-        uint32 index_ = tree.subAccountIndex(LedgerLib.toAddress(r1, added_));
+        uint32 index_ = tree.subAccountIndex(added_);
         (address addedAgain_, uint256 flagsAgain_) = ledger.addSubAccountGroup(r1, r1, relative_, "groupByAddr", false);
         address[] memory after_ = tree.subAccounts(r1);
 
@@ -892,8 +933,8 @@ contract LedgerTest is Test {
         assertEq(flagsAgain_, flags_, "same flags");
         assertEq(after_.length, before_.length, "child count stable");
         assertEq(after_[after_.length - 1], relative_, "no duplicate child");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, added_)), index_, "index stable");
-        assertEq(ledgerView.name(LedgerLib.toAddress(r1, added_)), "groupByAddr", "name stable");
+        assertEq(tree.subAccountIndex(added_), index_, "index stable");
+        assertEq(ledgerView.name(added_), "groupByAddr", "name stable");
     }
 
     function testLedgerAddSubAccountGroupRejectsFundedDebitLeaf() public {
@@ -923,7 +964,7 @@ contract LedgerTest is Test {
         address relative_ = LedgerLib.toAddress("leafSubAccount");
         (address added_,) = ledger.addSubAccount(r1, r1, LedgerLib.toAddress("leafSubAccount"), "leafSubAccount", false);
 
-        assertEq(added_, relative_, "address mismatch");
+        assertEq(added_, LedgerLib.toAddress(r1, relative_), "address mismatch");
         assertEq(tree.subAccounts(r1)[tree.subAccounts(r1).length - 1], relative_, "relative addr stored");
     }
 
@@ -934,7 +975,7 @@ contract LedgerTest is Test {
             ledger.addSubAccount(r1, r1, LedgerLib.toAddress("leafSubAccount"), "leafSubAccount", false);
         address relative_ = LedgerLib.toAddress("leafSubAccount");
         address[] memory before_ = tree.subAccounts(r1);
-        uint32 index_ = tree.subAccountIndex(LedgerLib.toAddress(r1, added_));
+        uint32 index_ = tree.subAccountIndex(added_);
         (address addedAgain_, uint256 flagsAgain_) =
             ledger.addSubAccount(r1, r1, LedgerLib.toAddress("leafSubAccount"), "leafSubAccount", false);
         address[] memory after_ = tree.subAccounts(r1);
@@ -943,8 +984,8 @@ contract LedgerTest is Test {
         assertEq(flagsAgain_, flags_, "same flags");
         assertEq(after_.length, before_.length, "child count stable");
         assertEq(after_[after_.length - 1], relative_, "no duplicate child");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, added_)), index_, "index stable");
-        assertEq(ledgerView.name(LedgerLib.toAddress(r1, added_)), "leafSubAccount", "name stable");
+        assertEq(tree.subAccountIndex(added_), index_, "index stable");
+        assertEq(ledgerView.name(added_), "leafSubAccount", "name stable");
     }
 
     function testLedgerAddSubAccountRegistersFundedDebitLeaf() public {
@@ -955,7 +996,7 @@ contract LedgerTest is Test {
 
         (address added_, uint256 flags_) = ledger.addSubAccount(r1, r1, relative_, "fundedDebit", false);
 
-        assertEq(added_, relative_, "registered addr");
+        assertEq(added_, LedgerLib.toAddress(r1, relative_), "registered addr");
         assertFalse(tree.isCredit(flags_), "registered debit");
         assertEq(ledgerView.balanceOf(r1, r1, relative_), 100, "balance preserved");
     }
@@ -1007,7 +1048,7 @@ contract LedgerTest is Test {
         if (isVerbose) console.log("Check parent");
         assertEq(LedgerLib.parent(tree.flags(_100)), address(0), "parent reset");
         if (isVerbose) console.log("Check index");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r100)), 0, "index reset");
+        assertEq(tree.subAccountIndex(r100), 0, "index reset");
         if (isVerbose) console.log("Check name");
         assertEq(ledgerView.name(_100), "", "name cleared");
         if (isVerbose) console.log("Check hasSubAccount");
@@ -1021,9 +1062,13 @@ contract LedgerTest is Test {
         address removedAgain_ = ledger.removeSubAccountGroup(r1, r10, LedgerLib.toAddress("100"));
 
         assertEq(removedAgain_, removed_, "same address");
-        assertEq(tree.flags(LedgerLib.toAddress(r1, removed_)), 0, "cleared");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r100)), 0, "index reset");
-        assertEq(tree.subAccounts(LedgerLib.toAddress(r1, r10)).length, 1, "child count stable");
+        assertEq(tree.flags(removed_), 0, "cleared");
+        assertEq(tree.ledger(removed_), address(0), "custody cleared");
+        assertEq(tree.subAccountIndex(r100), 0, "index reset");
+        assertEq(tree.subAccounts(r10).length, 1, "child count stable");
+        (address recreated_,) = ledger.addSubAccountGroup(r1, r10, LedgerLib.toAddress("100"), "100", false);
+        assertEq(recreated_, removed_);
+        assertEq(tree.ledger(recreated_), r1, "inherited custody restored");
     }
 
     function testLedgerRemoveSubAccountGroupAddressForm() public {
@@ -1031,11 +1076,16 @@ contract LedgerTest is Test {
 
         address relative_ = LedgerLib.toAddress("groupByAddr");
         (address added_,) = ledger.addSubAccountGroup(r1, r1, relative_, "groupByAddr", false);
+        assertEq(tree.ledger(added_), r1);
         ledger.removeSubAccountGroup(r1, r1, relative_);
 
         assertEq(LedgerLib.parent(tree.flags(added_)), address(0), "parent reset");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, added_)), 0, "index reset");
-        assertEq(ledgerView.name(LedgerLib.toAddress(r1, added_)), "", "name cleared");
+        assertEq(tree.ledger(added_), address(0), "custody cleared");
+        assertEq(tree.subAccountIndex(added_), 0, "index reset");
+        assertEq(ledgerView.name(added_), "", "name cleared");
+        (address recreated_,) = ledger.addSubAccountGroup(r1, r1, relative_, "groupByAddr", false);
+        assertEq(recreated_, added_);
+        assertEq(tree.ledger(recreated_), r1, "self custody restored");
     }
 
     function testLedgerRemoveSubAccountNameDelegatesToAddressForm() public {
@@ -1045,8 +1095,8 @@ contract LedgerTest is Test {
         ledger.removeSubAccount(r1, r1, LedgerLib.toAddress("leafByName"));
 
         assertEq(LedgerLib.parent(tree.flags(added_)), address(0), "parent reset");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, added_)), 0, "index reset");
-        assertEq(ledgerView.name(LedgerLib.toAddress(r1, added_)), "", "name cleared");
+        assertEq(tree.subAccountIndex(added_), 0, "index reset");
+        assertEq(ledgerView.name(added_), "", "name cleared");
     }
 
     function testLedgerRemoveSubAccountIsIdempotent() public {
@@ -1058,24 +1108,28 @@ contract LedgerTest is Test {
 
         assertEq(removed_, added_, "removed address");
         assertEq(removedAgain_, removed_, "same address");
-        assertEq(tree.flags(LedgerLib.toAddress(r1, removed_)), 0, "cleared");
+        assertEq(tree.flags(removed_), 0, "cleared");
+        assertEq(tree.ledger(removed_), address(0), "custody cleared");
         assertEq(tree.subAccounts(r1).length, 3, "child count stable");
+        (address recreated_,) = ledger.addSubAccount(r1, r1, LedgerLib.toAddress("leafToRemove"), "leafToRemove", false);
+        assertEq(recreated_, removed_);
+        assertEq(tree.ledger(recreated_), r1, "self custody restored");
     }
 
     function testLedgerRemoveSubAccountMissingGroupIsIdempotent() public {
         vm.startPrank(alice);
         address nonExistent = LedgerLib.toAddress("nope");
         address removed_ = ledger.removeSubAccountGroup(r1, r1, LedgerLib.toAddress("nope"));
-        assertEq(removed_, nonExistent, "same address");
-        assertEq(tree.flags(LedgerLib.toAddress(r1, removed_)), 0, "still absent");
+        assertEq(removed_, LedgerLib.toAddress(r1, nonExistent), "same address");
+        assertEq(tree.flags(removed_), 0, "still absent");
     }
 
     function testLedgerRemoveSubAccountMissingLeafIsIdempotent() public {
         vm.startPrank(alice);
         address relative_ = LedgerLib.toAddress("missingLeaf");
         address removed_ = ledger.removeSubAccount(r1, r1, LedgerLib.toAddress("missingLeaf"));
-        assertEq(removed_, relative_, "same address");
-        assertEq(tree.flags(LedgerLib.toAddress(r1, removed_)), 0, "still absent");
+        assertEq(removed_, LedgerLib.toAddress(r1, relative_), "same address");
+        assertEq(tree.flags(removed_), 0, "still absent");
     }
 
     function testLedgerRemoveSubAccountWithChildrenReverts() public {
@@ -1083,9 +1137,7 @@ contract LedgerTest is Test {
         (address parentWithChild,) =
             ledger.addSubAccountGroup(r1, r1, LedgerLib.toAddress("parentWithChild"), "parentWithChild", false);
         ledger.addSubAccountGroup(r1, parentWithChild, LedgerLib.toAddress("sub"), "sub", false);
-        vm.expectRevert(
-            abi.encodeWithSelector(ILedger.HasSubAccount.selector, LedgerLib.toAddress(r1, parentWithChild))
-        );
+        vm.expectRevert(abi.encodeWithSelector(ILedger.HasSubAccount.selector, parentWithChild));
         ledger.removeSubAccountGroup(r1, r1, LedgerLib.toAddress("parentWithChild"));
     }
 
@@ -1093,7 +1145,7 @@ contract LedgerTest is Test {
         vm.startPrank(alice);
         ledger.mint(r1, r100, alice, 1000);
 
-        vm.expectRevert(abi.encodeWithSelector(ILedger.HasBalance.selector, LedgerLib.toAddress(r1, r100)));
+        vm.expectRevert(abi.encodeWithSelector(ILedger.HasBalance.selector, r100));
         ledger.removeSubAccountGroup(r1, r10, LedgerLib.toAddress("100"));
     }
 
@@ -1129,33 +1181,33 @@ contract LedgerTest is Test {
         assertEq(subs[before - 3], _s1, "first remains s1");
         assertEq(subs[before - 2], _s3, "second becomes s3");
 
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r1, _s1)), before - 2, "s1 idx");
-        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, r1, _s3)), before - 1, "s3 idx");
+        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, _s1)), before - 2, "s1 idx");
+        assertEq(tree.subAccountIndex(LedgerLib.toAddress(r1, _s3)), before - 1, "s3 idx");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Parents / roots / hasSubAccount
     // ─────────────────────────────────────────────────────────────────────────
     function testLedgerParents() public view {
-        assertEq(tree.ledger(LedgerLib.toAddress(r1, r10)), r1, "root r10");
-        assertEq(tree.ledger(LedgerLib.toAddress(r1, r11)), r1, "root r11");
-        assertEq(tree.ledger(LedgerLib.toAddress(r1, r100)), r1, "root r100");
-        assertEq(tree.ledger(LedgerLib.toAddress(r1, r101)), r1, "root r101");
-        assertEq(tree.ledger(LedgerLib.toAddress(r1, r110)), r1, "root r110");
-        assertEq(tree.ledger(LedgerLib.toAddress(r1, r111)), r1, "root r111");
+        assertEq(tree.ledger(r10), r1, "root r10");
+        assertEq(tree.ledger(r11), r1, "root r11");
+        assertEq(tree.ledger(r100), r1, "root r100");
+        assertEq(tree.ledger(r101), r1, "root r101");
+        assertEq(tree.ledger(r110), r1, "root r110");
+        assertEq(tree.ledger(r111), r1, "root r111");
 
-        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r10))), r1, "parent r10");
-        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r11))), r1, "parent r11");
-        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r100))), r10, "parent r100");
-        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r101))), r10, "parent r101");
-        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r110))), r11, "parent r110");
-        assertEq(LedgerLib.parent(tree.flags(LedgerLib.toAddress(r1, r111))), r11, "parent r111");
+        assertEq(LedgerLib.parent(tree.flags(r10)), r1, "parent r10");
+        assertEq(LedgerLib.parent(tree.flags(r11)), r1, "parent r11");
+        assertEq(LedgerLib.parent(tree.flags(r100)), r10, "parent r100");
+        assertEq(LedgerLib.parent(tree.flags(r101)), r10, "parent r101");
+        assertEq(LedgerLib.parent(tree.flags(r110)), r11, "parent r110");
+        assertEq(LedgerLib.parent(tree.flags(r111)), r11, "parent r111");
     }
 
     function testLedgerHasSubAccount() public view {
         assertTrue(tree.hasSubAccount(r1), "r1");
-        assertTrue(tree.hasSubAccount(LedgerLib.toAddress(r1, r10)), "r10");
-        assertTrue(tree.hasSubAccount(LedgerLib.toAddress(r1, r11)), "r11");
+        assertTrue(tree.hasSubAccount(r10), "r10");
+        assertTrue(tree.hasSubAccount(r11), "r11");
         assertFalse(tree.hasSubAccount(r100), "r100");
         assertFalse(tree.hasSubAccount(r101), "r101");
         assertFalse(tree.hasSubAccount(r110), "r110");
@@ -1563,19 +1615,19 @@ contract LedgerTest is Test {
         );
     }
 
-    function testLedgerWrapReceiptTokenRootReverts() public {
+    function testLedgerWrapShareTokenRootReverts() public {
         vm.startPrank(alice);
-        (address receiptTokenRoot_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, receiptTokenRoot_));
-        ledger.wrap(receiptTokenRoot_, 1);
+        (address shareTokenRoot_,) = createShareToken("Share Token", "CLM", 18, r1, source_, "");
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, shareTokenRoot_));
+        ledger.wrap(shareTokenRoot_, 1);
         vm.stopPrank();
     }
 
-    function testLedgerUnwrapReceiptTokenRootReverts() public {
+    function testLedgerUnwrapShareTokenRootReverts() public {
         vm.startPrank(alice);
-        (address receiptTokenRoot_,) = createReceiptToken("Receipt Token", "CLM", 18, r1, r1, source_, "");
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, receiptTokenRoot_));
-        ledger.unwrap(receiptTokenRoot_, 1);
+        (address shareTokenRoot_,) = createShareToken("Share Token", "CLM", 18, r1, source_, "");
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, shareTokenRoot_));
+        ledger.unwrap(shareTokenRoot_, 1);
         vm.stopPrank();
     }
 
@@ -1709,13 +1761,7 @@ contract LedgerTest is Test {
         externalToken.mint(alice, wrapAmount);
         externalToken.approve(address(ledger), wrapAmount);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ILedger.DifferentRoots.selector,
-                LedgerLib.toAddress(address(externalToken), alice),
-                address(externalToken)
-            )
-        );
+        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
         ledger.wrapFrom(address(externalToken), alice, alice, address(externalToken), alice, alice, wrapAmount);
         vm.stopPrank();
     }
@@ -1728,11 +1774,7 @@ contract LedgerTest is Test {
         externalToken.approve(address(ledger), wrapAmount);
 
         // r1 belongs to a different root tree than externalToken.
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ILedger.DifferentRoots.selector, LedgerLib.toAddress(address(externalToken), r1), address(externalToken)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, address(externalToken), r1));
         ledger.wrapFrom(address(externalToken), r1, alice, address(externalToken), alice, alice, wrapAmount);
         vm.stopPrank();
     }
@@ -1769,7 +1811,7 @@ contract LedgerTest is Test {
                 ILedger.InsufficientBalance.selector,
                 address(externalToken),
                 totalParent,
-                LedgerLib.toAddress(address(externalToken), totalParent, explicitSource_),
+                LedgerLib.toAddress(totalParent, explicitSource_),
                 wrapAmount
             )
         );
@@ -1955,12 +1997,8 @@ contract LedgerTest is Test {
         assertEq(ledgerView.debitBalanceOf(dispatcherRoot, dispatcherRoot, bob), 700, "bob");
         assertEq(ledgerView.totalSupply(dispatcherRoot), 1000, "supply");
 
-        // Different roots should revert
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ILedger.DifferentRoots.selector, dispatcherRoot, LedgerLib.toAddress(dispatcherRoot, testLedgerRoot)
-            )
-        );
+        // Public callbacks require both parents to equal the authenticated token root.
+        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
         // attempt: fromParent=dispatcherRoot, toParent=testLedgerRoot (different root)
         ledger.transfer(dispatcherRoot, dispatcherRoot, alice, testLedgerRoot, bob, 100);
     }
@@ -2002,7 +2040,7 @@ contract LedgerTest is Test {
         ledger.mint(r1, r100, alice, 1000);
         vm.stopPrank();
         vm.prank(r1);
-        ledger.transfer(r1, r100, alice, r101, bob, 400);
+        ledger.rawTransfer(r1, r100, alice, r101, bob, 400);
 
         assertEq(ledgerView.debitBalanceOf(r1, r100, alice), 600, "r100/alice debited");
         assertEq(ledgerView.debitBalanceOf(r1, r101, bob), 400, "r101/bob credited");
@@ -2044,7 +2082,7 @@ contract LedgerTest is Test {
 
         vm.recordLogs();
         vm.prank(r1);
-        ledger.transfer(r1, r100, alice, r101, bob, 400);
+        ledger.rawTransfer(r1, r100, alice, r101, bob, 400);
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         uint256 legacyTransferCount;
@@ -2069,20 +2107,18 @@ contract LedgerTest is Test {
         vm.stopPrank();
 
         vm.expectEmit(true, true, false, true, address(ledger));
-        emit ILedger.Credit(r1, LedgerLib.toAddress(r1, LedgerLib.toAddress(r100, alice)), 400, 600);
+        emit ILedger.Credit(r1, LedgerLib.toAddress(r100, alice), 400, 600);
         vm.expectEmit(true, true, false, true, address(ledger));
-        emit ILedger.Debit(r1, LedgerLib.toAddress(r1, LedgerLib.toAddress(r101, bob)), 400, 400);
+        emit ILedger.Debit(r1, LedgerLib.toAddress(r101, bob), 400, 400);
         vm.prank(r1);
-        ledger.transfer(r1, r100, alice, r101, bob, 400);
+        ledger.rawTransfer(r1, r100, alice, r101, bob, 400);
     }
 
     function testLedgerTransferRejectsCreditFromParent() public {
         vm.startPrank(r1);
         address sourceParent_ = LedgerLib.toAddress(r1, source_);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(ILedger.DifferentRoots.selector, LedgerLib.toAddress(r1, sourceParent_), r1)
-        );
+        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
         ledger.transfer(r1, sourceParent_, alice, r1, bob, 1);
     }
 
@@ -2092,7 +2128,7 @@ contract LedgerTest is Test {
         ledger.mint(r1, r100, alice, 1000);
         vm.stopPrank();
         vm.prank(r1);
-        ledger.transfer(r1, r100, alice, r1, source_, 400);
+        ledger.rawTransfer(r1, r100, alice, r1, source_, 400);
 
         assertEq(ledgerView.debitBalanceOf(r1, r100, alice), 600, "alice debited");
         assertEq(ledgerView.creditBalanceOf(r1, r1, source_), 600, "source supply burned");
@@ -2105,20 +2141,22 @@ contract LedgerTest is Test {
         vm.stopPrank();
 
         vm.prank(r1);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, r1));
-        ledger.transfer(r1, r1, source_, r100, bob, 400);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(r1, source_)));
+        ledger.transfer(r1, r1, source_, r1, bob, 400);
     }
 
     function testLedgerTransferRejectsMintFromCreditLeaf() public {
         address creditLeaf_ = LedgerLib.toAddress("creditLeaf");
 
         vm.startPrank(alice);
-        ledger.addSubAccount(r1, r10, creditLeaf_, "creditLeaf", true);
+        ledger.addSubAccount(r1, r1, creditLeaf_, "creditLeaf", true);
         vm.stopPrank();
 
         vm.prank(r1);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, r10));
-        ledger.transfer(r1, r10, creditLeaf_, r100, bob, 400);
+        vm.expectRevert(
+            abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(r1, creditLeaf_))
+        );
+        ledger.transfer(r1, r1, creditLeaf_, r1, bob, 400);
     }
 
     function testLedgerTransferAllowsBurnToCreditLeaf() public {
@@ -2130,7 +2168,7 @@ contract LedgerTest is Test {
         ledger.rawTransfer(r1, r10, creditLeaf_, r1, source_, 400);
         vm.stopPrank();
         vm.prank(r1);
-        ledger.transfer(r1, r100, alice, r10, creditLeaf_, 400);
+        ledger.rawTransfer(r1, r100, alice, r10, creditLeaf_, 400);
 
         assertEq(ledgerView.debitBalanceOf(r1, r100, alice), 600, "alice debited");
         assertEq(ledgerView.creditBalanceOf(r1, r10, creditLeaf_), 0, "credit target burned");
@@ -2149,7 +2187,7 @@ contract LedgerTest is Test {
         vm.stopPrank();
 
         vm.prank(r1);
-        ledger.transfer(r1, r10, creditLeaf_, r10, otherCreditLeaf_, 150);
+        ledger.rawTransfer(r1, r10, creditLeaf_, r10, otherCreditLeaf_, 150);
 
         assertEq(ledgerView.creditBalanceOf(r1, r10, creditLeaf_), 150, "credit source increased");
         assertEq(ledgerView.creditBalanceOf(r1, r10, otherCreditLeaf_), 250, "credit target decreased");
@@ -2164,13 +2202,9 @@ contract LedgerTest is Test {
         vm.prank(r1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ILedger.InsufficientBalance.selector,
-                r1,
-                r100,
-                LedgerLib.toAddress(r1, LedgerLib.toAddress(r100, alice)),
-                1001
+                ILedger.InsufficientBalance.selector, r1, r100, LedgerLib.toAddress(r100, alice), 1001
             )
         );
-        ledger.transfer(r1, r100, alice, r101, bob, 1001);
+        ledger.rawTransfer(r1, r100, alice, r101, bob, 1001);
     }
 }

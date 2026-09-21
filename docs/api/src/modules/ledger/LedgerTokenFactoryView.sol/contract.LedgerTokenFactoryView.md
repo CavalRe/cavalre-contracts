@@ -1,5 +1,5 @@
 # LedgerTokenFactoryView
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/ledger/LedgerTokenFactoryView.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/LedgerTokenFactoryView.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md)
@@ -30,24 +30,28 @@ function tokenSalt(string memory name_, string memory symbol_, uint8 decimals_, 
     returns (bytes32);
 ```
 
-### predictToken
+### predictERC20TokenAddress
 
 
 ```solidity
-function predictToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
-    external
-    view
-    returns (address);
+function predictERC20TokenAddress(
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_,
+    string memory version_
+) external view returns (address);
 ```
 
-### predictReceiptToken
+### predictShareTokenAddress
 
 
 ```solidity
-function predictReceiptToken(string memory name_, string memory symbol_, uint8 decimals_, string memory version_)
-    external
-    view
-    returns (address);
+function predictShareTokenAddress(
+    string memory name_,
+    string memory symbol_,
+    uint8 decimals_,
+    string memory version_
+) external view returns (address);
 ```
 
 ### _tokenMetadata

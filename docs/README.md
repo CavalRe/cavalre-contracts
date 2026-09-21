@@ -6,7 +6,7 @@ Documentation entrypoint for this repo.
 
 - [Modules Overview](modules/README.md)
 - [Ledger Notes](modules/Ledgers.md)
-- [Receipt Token Notes](modules/ReceiptTokens.md)
+- [Share Token Notes](modules/ShareTokens.md)
 - [ERC20 Notes](modules/ERC20.md)
 - [Accounting Model Redesign Notes](modules/AccountingModelRedesign.md)
 - [Accounting Model Implementation Plan](modules/AccountingModelImplementationPlan.md)

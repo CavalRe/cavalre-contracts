@@ -16,10 +16,12 @@ interface IStakingRewardToken {
         address tokenAddress;
         uint256 totalSupply;
         address stakingLedger;
-        address stakingAccount;
+        address stakingGroup;
         uint256 stakedBalance;
         address rewardLedger;
+        address rewardGroup;
         address rewardAccount;
+        address rewardShareToken;
         uint256 halfLife;
         Rewards rewards;
     }
@@ -37,9 +39,9 @@ interface IStakingRewardToken {
 
     event StakingRewardTokenCreated(
         address indexed token,
-        address indexed stakingLedger,
-        address indexed rewardLedger,
-        address stakingAccount,
+        address indexed stakingGroup,
+        address indexed rewardGroup,
+        address rewardShareToken,
         uint256 halfLife
     );
     event Staked(address indexed token, address indexed holder, uint256 stake, uint256 shares);
@@ -48,20 +50,19 @@ interface IStakingRewardToken {
     event Claimed(address indexed token, address indexed holder, uint256 amount, uint256 units);
     event Forfeited(address indexed token, address indexed account, uint256 pendingUnits, uint256 cancelledUnits);
 
-    /// @notice Create an SR token with immutable S, R, absolute staking account T, and half-life configuration.
-    /// @dev T must be an empty debit leaf on S. Identical creation requests return the existing token.
+    /// @notice Create an ERC20 wrapper over actual stakes beneath an absolute staking group.
+    /// @dev Configure two registered debit groups and a positive half-life. The staking group starts empty.
     function createStakingRewardToken(
-        address stakingLedger,
-        address rewardLedger,
-        address stakingAccount,
+        address stakingGroup,
+        address rewardGroup,
         uint256 halfLife,
         ILedgerTokenFactory.TokenMetadata memory metadata
-    ) external returns (address token, uint256 flags);
+    ) external returns (address token);
 
-    /// @notice Deposit S from the caller's Ledger balance and mint principal shares.
+    /// @notice Transfer actual staking tokens from the caller's wallet account into their staking account.
     function stake(address token, uint256 amount, uint256 minimumShares) external returns (uint256 shares);
 
-    /// @notice Burn principal shares, retaining available rewards and forfeiting proportional pending rewards.
+    /// @notice Withdraw actual staking tokens, retaining available rewards and forfeiting proportional pending rewards.
     /// @dev On a full exit by the last reward-unit holder, all remaining rewards become available to them.
     function unstake(address token, uint256 shares, uint256 minimumStake) external returns (uint256 amount);
 
@@ -72,10 +73,16 @@ interface IStakingRewardToken {
     /// @dev Pays the floored token value and leaves pending units unchanged, even if the payout rounds to zero.
     function claim(address token) external returns (uint256 claimed);
 
+    /// @notice Transfer direct SR balances after settling sender and recipient rewards.
+    /// @dev Only the token's registered wrapper may call. The wrapper owns allowance checks.
+    function transfer(address token, address from, address to, uint256 amount) external;
+
     /// @notice SR configuration and balances, expressed in each token's raw decimals.
     function stakingRewardToken(address token) external view returns (Configuration memory);
 
-    /// @notice Current rewards for a token-local holder key, including holders who have exited.
+    /// @notice Current rewards for a direct holder, including holders who have exited.
     /// @dev Token amounts use R's raw decimals; units are internal accounting quantities.
     function rewardsOf(address token, address holder) external view returns (Rewards memory);
+    /// @notice Rewards for an internal leaf with explicit absolute parent context.
+    function rewardsOfAccount(address token, address parent, address relative) external view returns (Rewards memory);
 }

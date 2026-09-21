@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+/// @dev Account queries take an absolute ledger, absolute parent and relative child key.
 interface ILedgerView {
     function name(address absolute) external view returns (string memory);
     function symbol(address absolute) external view returns (string memory);

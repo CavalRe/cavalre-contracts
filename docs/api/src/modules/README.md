@@ -3,6 +3,6 @@
 # Contents
 - [dispatcher](/modules/dispatcher)
 - [ledger](/modules/ledger)
-- [receipt](/modules/receipt)
+- [share](/modules/share)
 - [staking](/modules/staking)
 - [tree](/modules/tree)

@@ -89,7 +89,7 @@ library DispatcherLib {
         return store().moduleList;
     }
 
-    function verifyModule(address module_)
+    function enforceModuleManifest(address module_)
         internal
         pure
         returns (bytes4[] memory _selectors, string[] memory _signatures)
@@ -112,11 +112,11 @@ library DispatcherLib {
     }
 
     function signatures(address module_) internal pure returns (string[] memory _signatures) {
-        (, _signatures) = verifyModule(module_);
+        (, _signatures) = enforceModuleManifest(module_);
     }
 
     function selectors(address module_) internal pure returns (bytes4[] memory _selectors) {
-        (_selectors,) = verifyModule(module_);
+        (_selectors,) = enforceModuleManifest(module_);
     }
 
     function commands() internal view returns (Command[] memory _commands) {
@@ -126,14 +126,14 @@ library DispatcherLib {
     function commands(address[] memory modules_) internal pure returns (Command[] memory _commands) {
         uint256 n;
         for (uint256 i = 0; i < modules_.length; i++) {
-            (bytes4[] memory _selectors,) = verifyModule(modules_[i]);
+            (bytes4[] memory _selectors,) = enforceModuleManifest(modules_[i]);
             n += _selectors.length;
         }
         _commands = new Command[](n);
         uint256 k;
         for (uint256 i = 0; i < modules_.length; i++) {
             address _module = modules_[i];
-            (bytes4[] memory _selectors, string[] memory _signatures) = verifyModule(_module);
+            (bytes4[] memory _selectors, string[] memory _signatures) = enforceModuleManifest(_module);
             for (uint256 j = 0; j < _selectors.length; j++) {
                 _commands[k++] = Command({module: _module, signature: _signatures[j], selector: _selectors[j]});
             }
@@ -149,6 +149,6 @@ library DispatcherLib {
         if (s.owners[address(this)] != msg.sender) {
             revert IDispatcher.OwnableUnauthorizedAccount(msg.sender);
         }
-        (_selectors, _signatures) = verifyModule(module_);
+        (_selectors, _signatures) = enforceModuleManifest(module_);
     }
 }

@@ -1,5 +1,5 @@
 # ERC20
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/examples/LedgerERC20.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/examples/LedgerERC20.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [Initializable](/node_modules/@openzeppelin/contracts/proxy/utils/Initializable.sol/abstract.Initializable.md)
@@ -126,6 +126,13 @@ function transfer(address to_, uint256 amount_) external returns (bool);
 
 ```solidity
 function transferFrom(address from_, address to_, uint256 amount_) external returns (bool);
+```
+
+### emitTransfer
+
+
+```solidity
+function emitTransfer(address from_, address to_, uint256 amount_) external;
 ```
 
 ### _approve

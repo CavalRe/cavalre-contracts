@@ -21,7 +21,7 @@ import {IDispatcher} from "./IDispatcher.sol";
  * 4. Read `commands()` for all modules, or `commands(modules_)` in module batches when needed.
  *    Each command reports its module address, canonical Solidity signature, and selector.
  * 5. For every command, confirm `module(command.selector)` equals `command.module`.
- * 6. Inspect `verifyModule(module_)` to independently validate that a module's signatures hash to
+ * 6. Inspect `enforceModuleManifest(module_)` to independently validate that a module's signatures hash to
  *    its selectors, except the reserved `receive()` entry at bytes4(0).
  *    `signatures(module_)` and `selectors(module_)` expose the same validated data.
  *
@@ -103,13 +103,13 @@ contract Dispatcher is IDispatcher {
     }
 
     // Validates a module's selector/signature manifest and returns both arrays.
-    function verifyModule(address module_)
+    function enforceModuleManifest(address module_)
         external
         pure
         override
         returns (bytes4[] memory selectors_, string[] memory signatures_)
     {
-        return DispatcherLib.verifyModule(module_);
+        return DispatcherLib.enforceModuleManifest(module_);
     }
 
     // Returns a module's validated canonical Solidity signatures.

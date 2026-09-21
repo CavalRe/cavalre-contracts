@@ -1,8 +1,8 @@
 # StakingRewardToken
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/modules/staking/StakingRewardToken.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/staking/StakingRewardToken.sol)
 
 **Inherits:**
-[Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [IStakingRewardToken](/modules/staking/IStakingRewardToken.sol/interface.IStakingRewardToken.md), [ILedgerTransferHook](/modules/ledger/ILedgerTransferHook.sol/interface.ILedgerTransferHook.md)
+[Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [IStakingRewardToken](/modules/staking/IStakingRewardToken.sol/interface.IStakingRewardToken.md)
 
 
 ## Constants
@@ -78,6 +78,13 @@ function reward(address token_, uint256 amount_) external nonReentrant;
 function claim(address token_) external nonReentrant returns (uint256);
 ```
 
+### transfer
+
+
+```solidity
+function transfer(address token_, address from_, address to_, uint256 amount_) external nonReentrant;
+```
+
 ### stakingRewardToken
 
 
@@ -92,17 +99,13 @@ function stakingRewardToken(address token_) external view returns (Configuration
 function rewardsOf(address token_, address holder_) external view returns (Rewards memory);
 ```
 
-### beforeLedgerTransfer
+### rewardsOfAccount
 
 
 ```solidity
-function beforeLedgerTransfer(
-    address ledger_,
-    address from_,
-    address to_,
-    bool fromIsCredit_,
-    bool toIsCredit_,
-    uint256 amount_
-) external;
+function rewardsOfAccount(address token_, address parent_, address relative_)
+    external
+    view
+    returns (Rewards memory);
 ```
 

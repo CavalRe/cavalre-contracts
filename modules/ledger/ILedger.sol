@@ -10,10 +10,12 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // TreeView Manipulation
     // ─────────────────────────────────────────────────────────────────────────────
+    /// @notice Register a group under an absolute parent; return its absolute accounting address.
     function addSubAccountGroup(address ledger, address parent, address relative, string memory name, bool isCredit)
         external
         returns (address subAccount, uint256 flags);
 
+    /// @notice Register a leaf under an absolute parent; return its absolute accounting address.
     /// @param isCredit True for credit-side account, false for debit-side in the double-entry tree.
     function addSubAccount(address ledger, address parent, address relative, string memory name, bool isCredit)
         external
@@ -30,6 +32,8 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
     // ─────────────────────────────────────────────────────────────────────────────
+    /// @notice Authenticated ERC20 callback restricted to direct accounts (both parents equal ledger).
+    /// @dev Authorized modules use LedgerLib.transfer with explicit absolute parents for deeper postings.
     function transfer(address ledger, address fromParent, address from, address toParent, address to, uint256 amount)
         external;
 

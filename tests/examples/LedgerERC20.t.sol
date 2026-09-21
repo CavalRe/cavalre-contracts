@@ -24,7 +24,9 @@ contract MintModule is Dispatchable {
 
     function mintCanonical(address to_, uint256 amount_) external {
         enforceIsOwner();
-        LedgerLib.transfer(address(this), address(this), LedgerLib.SOURCE_ADDRESS, address(this), to_, amount_);
+        (uint256 sourceFlags_,,) = LedgerLib.effectiveFlags(address(this), address(this), LedgerLib.SOURCE_ADDRESS);
+        (uint256 toFlags_,,) = LedgerLib.effectiveFlags(address(this), address(this), to_);
+        LedgerLib.transfer(address(this), sourceFlags_, LedgerLib.SOURCE_ADDRESS, toFlags_, to_, amount_);
     }
 }
 
@@ -104,6 +106,8 @@ contract LedgerERC20Test is Test {
         bytes32 debitTopic = keccak256("Debit(address,address,uint256,uint256)");
 
         vm.recordLogs();
+        vm.expectEmit(true, true, false, true, address(dispatcher));
+        emit ILedger.Transfer(alice, alice, 250);
         assertTrue(token.transfer(alice, 250));
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
@@ -127,13 +131,9 @@ contract LedgerERC20Test is Test {
         minter.mintCanonical(alice, 1000);
 
         vm.expectEmit(true, true, true, true, address(dispatcher));
-        emit ILedger.Credit(
-            address(dispatcher), LedgerLib.toAddress(address(dispatcher), address(dispatcher), alice), 0, 1000
-        );
+        emit ILedger.Credit(address(dispatcher), LedgerLib.toAddress(address(dispatcher), alice), 0, 1000);
         vm.expectEmit(true, true, true, true, address(dispatcher));
-        emit ILedger.Debit(
-            address(dispatcher), LedgerLib.toAddress(address(dispatcher), address(dispatcher), bob), 0, 0
-        );
+        emit ILedger.Debit(address(dispatcher), LedgerLib.toAddress(address(dispatcher), bob), 0, 0);
         assertTrue(token.transfer(bob, 0));
 
         assertEq(token.balanceOf(alice), 1000);
@@ -176,9 +176,26 @@ contract LedgerERC20Test is Test {
         vm.stopPrank();
 
         vm.startPrank(source_);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, address(dispatcher)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(address(dispatcher), source_)
+            )
+        );
         token.transfer(bob, 1);
         vm.stopPrank();
+
+        vm.startPrank(alice);
+        for (uint256 amount_; amount_ < 2; ++amount_) {
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(address(dispatcher), source_)
+                )
+            );
+            token.transfer(source_, amount_);
+        }
+        vm.stopPrank();
+        assertEq(token.balanceOf(alice), 1000);
+        assertEq(token.totalSupply(), 1000);
     }
 
     function testERC20TransferFromRejectsCanonicalCreditLeafSender() public {
@@ -190,8 +207,37 @@ contract LedgerERC20Test is Test {
         token.approve(bob, 10);
 
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, address(dispatcher)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(address(dispatcher), source_)
+            )
+        );
         token.transferFrom(source_, charlie, 1);
         vm.stopPrank();
+        assertEq(token.allowance(source_, bob), 10);
+
+        vm.prank(alice);
+        token.approve(bob, 10);
+        vm.startPrank(bob);
+        for (uint256 amount_; amount_ < 2; ++amount_) {
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(address(dispatcher), source_)
+                )
+            );
+            token.transferFrom(alice, source_, amount_);
+        }
+        vm.stopPrank();
+        assertEq(token.allowance(alice, bob), 10);
+        assertEq(token.balanceOf(alice), 1000);
+        assertEq(token.totalSupply(), 1000);
+    }
+
+    function testCanonicalSelfBalanceCheckAndCallbackAuthentication() public {
+        vm.startPrank(alice);
+        vm.expectRevert();
+        token.transfer(alice, 1);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, alice));
+        token.emitTransfer(alice, bob, 1);
     }
 }

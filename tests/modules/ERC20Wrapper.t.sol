@@ -104,23 +104,25 @@ contract ERC20WrapperTest is Test {
         _tokens[0] =
             ILedgerTokenFactory.TokenMetadata({name: name_, symbol: symbol_, decimals: decimals_, version: version_});
         (address[] memory _tokenAddresses, uint256[] memory _flagsArray) =
-            ledgerTokenFactory.createInternalToken(_tokens);
+            ledgerTokenFactory.createInternalTokens(_tokens);
         return (_tokenAddresses[0], _flagsArray[0]);
     }
 
-    function createReceiptToken(
+    function createShareToken(
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        address root_,
-        address holderParent_,
+        address parent_,
         address relative_,
         string memory version_
     ) internal returns (address _tokenAddress, uint256 _flags) {
-        return ledgerTokenFactory.createReceiptToken(
-            LedgerLib.toAddress(root_, holderParent_, relative_),
+        ILedgerTokenFactory.ShareTokenConfig[] memory tokens_ = new ILedgerTokenFactory.ShareTokenConfig[](1);
+        tokens_[0] = ILedgerTokenFactory.ShareTokenConfig(
+            LedgerLib.toAddress(parent_, relative_),
             ILedgerTokenFactory.TokenMetadata({name: name_, symbol: symbol_, decimals: decimals_, version: version_})
         );
+        (address[] memory tokenAddresses_, uint256[] memory flags_) = ledgerTokenFactory.createShareTokens(tokens_);
+        return (tokenAddresses_[0], flags_[0]);
     }
 
     function addExternalToken(address token_) internal returns (uint256 _flags) {
@@ -176,38 +178,37 @@ contract ERC20WrapperTest is Test {
         assertEq(ledgerView.decimals(_newRoot), 18);
     }
 
-    function testERC20WrapperReceiptTokenRootMintTransferBurn() public {
+    function testERC20WrapperShareTokenRootMintTransferBurn() public {
         vm.startPrank(owner);
-        (address receiptToken_,) =
-            createReceiptToken("Receipt Token", "CLM", 18, address(token), address(token), source_, "");
+        (address shareToken_,) = createShareToken("Share Token", "CLM", 18, address(token), source_, "");
         vm.stopPrank();
 
-        ERC20Wrapper receipt = ERC20Wrapper(receiptToken_);
+        ERC20Wrapper share = ERC20Wrapper(shareToken_);
 
         vm.prank(owner);
-        vm.expectEmit(true, true, true, true, address(receipt));
+        vm.expectEmit(true, true, true, true, address(share));
         emit ERC20Wrapper.Transfer(address(0), alice, 1_000);
-        ledgers.mint(receiptToken_, receiptToken_, alice, 1_000);
+        ledgers.mint(shareToken_, shareToken_, alice, 1_000);
 
-        assertEq(receipt.totalSupply(), 1_000);
-        assertEq(receipt.balanceOf(alice), 1_000);
+        assertEq(share.totalSupply(), 1_000);
+        assertEq(share.balanceOf(alice), 1_000);
 
         vm.prank(alice);
-        vm.expectEmit(true, true, true, true, address(receipt));
+        vm.expectEmit(true, true, true, true, address(share));
         emit ERC20Wrapper.Transfer(alice, bob, 400);
-        assertTrue(receipt.transfer(bob, 400));
+        assertTrue(share.transfer(bob, 400));
 
-        assertEq(receipt.balanceOf(alice), 600);
-        assertEq(receipt.balanceOf(bob), 400);
-        assertEq(receipt.totalSupply(), 1_000);
+        assertEq(share.balanceOf(alice), 600);
+        assertEq(share.balanceOf(bob), 400);
+        assertEq(share.totalSupply(), 1_000);
 
         vm.prank(owner);
-        vm.expectEmit(true, true, true, true, address(receipt));
+        vm.expectEmit(true, true, true, true, address(share));
         emit ERC20Wrapper.Transfer(bob, address(0), 150);
-        ledgers.burn(receiptToken_, receiptToken_, bob, 150);
+        ledgers.burn(shareToken_, shareToken_, bob, 150);
 
-        assertEq(receipt.balanceOf(bob), 250);
-        assertEq(receipt.totalSupply(), 850);
+        assertEq(share.balanceOf(bob), 250);
+        assertEq(share.totalSupply(), 850);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -285,17 +286,16 @@ contract ERC20WrapperTest is Test {
         _assertTransferMatrix(address(token), froms, tos);
     }
 
-    function testERC20WrapperReceiptTokenRootTransferMatrix() public {
-        address receiptToken_;
+    function testERC20WrapperShareTokenRootTransferMatrix() public {
+        address shareToken_;
 
         vm.startPrank(owner);
-        (receiptToken_,) =
-            createReceiptToken("Matrix Receipt Token", "MCT", 18, address(token), address(token), source_, "");
-        MatrixLeg[] memory froms = _buildMatrixLegs(receiptToken_, 0x3000, "receipt-from");
-        MatrixLeg[] memory tos = _buildMatrixLegs(receiptToken_, 0x4000, "receipt-to");
+        (shareToken_,) = createShareToken("Matrix Share Token", "MCT", 18, address(token), source_, "");
+        MatrixLeg[] memory froms = _buildMatrixLegs(shareToken_, 0x3000, "share-from");
+        MatrixLeg[] memory tos = _buildMatrixLegs(shareToken_, 0x4000, "share-to");
         vm.stopPrank();
 
-        _assertTransferMatrix(receiptToken_, froms, tos);
+        _assertTransferMatrix(shareToken_, froms, tos);
     }
 
     function _assertTransferMatrix(address root_, MatrixLeg[] memory froms, MatrixLeg[] memory tos) private {
@@ -307,6 +307,45 @@ contract ERC20WrapperTest is Test {
                 ledgers.rawTransfer(root_, froms[i].parent, froms[i].relative, tos[j].parent, tos[j].relative, 0);
                 _assertWrapperTransferLogs(root_, expected, i, j);
             }
+        }
+
+        // The same credit leaves remain available internally, but neither public
+        // ERC20 endpoint may be credit-sided, even for zero-value transfers.
+        ERC20Wrapper wrapper_ = ERC20Wrapper(root_);
+        address[2] memory credits_ = [source_, froms[4].relative];
+        for (uint256 i_; i_ < credits_.length; ++i_) {
+            ledgers.rawTransfer(root_, root_, credits_[i_], root_, alice, 10);
+            uint256 supply_ = wrapper_.totalSupply();
+            uint256 balance_ = wrapper_.balanceOf(alice);
+            uint256 credit_ = wrapper_.balanceOf(credits_[i_]);
+            bytes memory error_ =
+                abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(root_, credits_[i_]));
+            vm.prank(alice);
+            wrapper_.approve(bob, 10);
+            vm.prank(credits_[i_]);
+            wrapper_.approve(bob, 10);
+
+            vm.recordLogs();
+            for (uint256 amount_; amount_ < 2; ++amount_) {
+                vm.prank(alice);
+                vm.expectRevert(error_);
+                wrapper_.transfer(credits_[i_], amount_);
+                vm.prank(credits_[i_]);
+                vm.expectRevert(error_);
+                wrapper_.transfer(alice, amount_);
+                vm.prank(bob);
+                vm.expectRevert(error_);
+                wrapper_.transferFrom(alice, credits_[i_], amount_);
+                vm.prank(bob);
+                vm.expectRevert(error_);
+                wrapper_.transferFrom(credits_[i_], alice, amount_);
+            }
+            assertEq(vm.getRecordedLogs().length, 0);
+            assertEq(wrapper_.allowance(alice, bob), 10);
+            assertEq(wrapper_.allowance(credits_[i_], bob), 10);
+            assertEq(wrapper_.balanceOf(alice), balance_);
+            assertEq(wrapper_.balanceOf(credits_[i_]), credit_);
+            assertEq(wrapper_.totalSupply(), supply_);
         }
     }
 
@@ -552,16 +591,22 @@ contract ERC20WrapperTest is Test {
 
     function _expectedWrapperTransfer(MatrixLeg memory from_, MatrixLeg memory to_)
         private
-        pure
+        view
         returns (ExpectedWrapperTransfer memory expected_)
     {
         expected_.from = from_.isCredit ? address(0) : _holder(from_);
         expected_.to = to_.isCredit ? address(0) : _holder(to_);
+        if (from_.isCredit && to_.isCredit) {
+            expected_.from = _holder(to_);
+            expected_.to = _holder(from_);
+        }
         expected_.emitted = true;
     }
 
-    function _holder(MatrixLeg memory leg_) private pure returns (address) {
-        return leg_.depth == 2 ? leg_.relative : LedgerLib.toAddress(leg_.parent, leg_.relative);
+    function _holder(MatrixLeg memory leg_) private view returns (address) {
+        if (leg_.depth == 2) return leg_.relative;
+        address root_ = tree.ledger(leg_.parent);
+        return tree.subAccounts(root_)[tree.subAccountIndex(leg_.parent) - 1];
     }
 
     function _assertWrapperTransferLogs(

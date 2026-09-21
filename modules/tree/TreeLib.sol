@@ -35,7 +35,7 @@ library TreeLib {
 
     function node(address ledger_, address parent_, address relative_) internal view returns (TreeNode memory _node) {
         bool _isRoot = LedgerLib.isZeroAddress(parent_);
-        address _absolute = _isRoot ? ledger_ : LedgerLib.toAddress(ledger_, parent_, relative_);
+        address _absolute = _isRoot ? ledger_ : LedgerLib.toAddress(parent_, relative_);
         uint256 _flags;
         _node.parent = parent_;
         _node.relative = relative_;
@@ -57,12 +57,11 @@ library TreeLib {
 
     function count(address ledger_, address parent_, address relative_) internal view returns (uint256 _count) {
         bool _isRoot = LedgerLib.isZeroAddress(parent_);
-        address _absolute = _isRoot ? ledger_ : LedgerLib.toAddress(ledger_, parent_, relative_);
-        address _holder = _isRoot ? ledger_ : (parent_ == ledger_ ? relative_ : LedgerLib.toAddress(parent_, relative_));
+        address _absolute = _isRoot ? ledger_ : LedgerLib.toAddress(parent_, relative_);
         _count = 1;
         address[] memory _subs = LedgerLib.subAccounts(_absolute);
         for (uint256 i = 0; i < _subs.length; i++) {
-            _count += count(ledger_, _holder, _subs[i]);
+            _count += count(ledger_, _absolute, _subs[i]);
         }
     }
 
@@ -76,11 +75,10 @@ library TreeLib {
         _n = n_ + 1;
 
         bool _isRoot = LedgerLib.isZeroAddress(parent_);
-        address _absolute = _isRoot ? ledger_ : LedgerLib.toAddress(ledger_, parent_, relative_);
-        address _holder = _isRoot ? ledger_ : (parent_ == ledger_ ? relative_ : LedgerLib.toAddress(parent_, relative_));
+        address _absolute = _isRoot ? ledger_ : LedgerLib.toAddress(parent_, relative_);
         address[] memory _subs = LedgerLib.subAccounts(_absolute);
         for (uint256 i = 0; i < _subs.length; i++) {
-            _n = fill(ledger_, _holder, _subs[i], nodes_, _n);
+            _n = fill(ledger_, _absolute, _subs[i], nodes_, _n);
         }
     }
 
@@ -95,7 +93,7 @@ library TreeLib {
         TreeCache memory c;
 
         c.isLedger = LedgerLib.isZeroAddress(parent_);
-        c.addr = c.isLedger ? ledger_ : LedgerLib.toAddress(ledger_, parent_, relative_);
+        c.addr = c.isLedger ? ledger_ : LedgerLib.toAddress(parent_, relative_);
         c.flags = LedgerLib.flags(c.addr);
         if (c.isLedger) {
             c.balance = LedgerLib.totalSupply(c.addr);
@@ -127,10 +125,8 @@ library TreeLib {
         c.subPrefix = string(abi.encodePacked(prefix_, isFirst_ ? "" : (isLast_ ? "   " : unicode"│  ")));
 
         c.subs = LedgerLib.subAccounts(c.addr);
-        address _holder =
-            c.isLedger ? ledger_ : (parent_ == ledger_ ? relative_ : LedgerLib.toAddress(parent_, relative_));
         for (uint256 i = 0; i < c.subs.length; i++) {
-            logTree(ledger_, _holder, c.subs[i], c.subPrefix, false, i == c.subs.length - 1);
+            logTree(ledger_, c.addr, c.subs[i], c.subPrefix, false, i == c.subs.length - 1);
         }
     }
 

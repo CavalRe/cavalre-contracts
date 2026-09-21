@@ -86,7 +86,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         );
 
         // Canonical root is always registered at the dispatcher address; ERC20 exposure remains an optional module.
-        LedgerLib.addLedger(address(this), name_, symbol_, 18, LedgerLib.TokenKind.Internal, address(0));
+        LedgerLib.addLedger(address(this), name_, symbol_, 18, LedgerLib.TokenKind.Internal);
     }
 
     function initializeLedger(string memory name_, string memory symbol_) external initializer {
@@ -151,17 +151,22 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         address to_,
         uint256 amount_
     ) external {
-        (address _ledger, bool _fromIsCredit, bool _toIsCredit) =
-            LedgerLib.enforceTransfer(ledger_, fromParent_, from_, toParent_, to_);
         // Wrapper calls must come from the root wrapper; canonical ERC20 may call via address(this).
-        if (msg.sender != LedgerLib.wrapper(_ledger) && (msg.sender != address(this) || _ledger != address(this))) {
+        if (msg.sender != LedgerLib.wrapper(ledger_) && (msg.sender != address(this) || ledger_ != address(this))) {
             revert ILedger.Unauthorized(msg.sender);
         }
-        // Public transfer surfaces may not mint from credit into debit accounts.
-        if (_fromIsCredit && !_toIsCredit) {
-            revert ILedger.InvalidLedgerAccount(fromParent_);
+        // Public transfers require debit endpoints; credit accounts, including Source,
+        // are reserved for authorized internal postings.
+        (uint256 fromFlags_,, address fromAbsolute_) = LedgerLib.effectiveFlags(ledger_, fromParent_, from_);
+        (uint256 toFlags_,, address toAbsolute_) = LedgerLib.effectiveFlags(ledger_, toParent_, to_);
+        if (from_ == address(0) || LedgerLib.isCredit(fromFlags_)) {
+            revert ILedger.InvalidLedgerAccount(fromAbsolute_);
         }
-        LedgerLib.transfer(ledger_, fromParent_, from_, toParent_, to_, amount_);
+        if (to_ == address(0) || LedgerLib.isCredit(toFlags_)) {
+            revert ILedger.InvalidLedgerAccount(toAbsolute_);
+        }
+        // Reuse the resolved metadata for leaf validation, accounting and events.
+        LedgerLib.transfer(ledger_, fromFlags_, from_, toFlags_, to_, amount_);
     }
 
     function wrap(address token_, uint256 amount_)

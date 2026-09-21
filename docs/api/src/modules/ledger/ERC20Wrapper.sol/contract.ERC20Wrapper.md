@@ -1,5 +1,5 @@
 # ERC20Wrapper
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/ERC20Wrapper.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/ERC20Wrapper.sol)
 
 
 ## Constants
@@ -35,7 +35,7 @@ string private _symbol
 ### _allowances
 
 ```solidity
-mapping(address => mapping(address => uint256)) private _allowances
+mapping(address => mapping(address => uint256)) internal _allowances
 ```
 
 
@@ -91,6 +91,10 @@ function totalSupply() public view returns (uint256);
 
 ### balanceOf
 
+Normal balance of the direct account at H(this, account_), including its subtree.
+
+Displaying group custody does not grant authority to spend descendants.
+
 
 ```solidity
 function balanceOf(address account_) public view returns (uint256);
@@ -142,14 +146,14 @@ function forceApprove(address spender_, uint256 amount_) public returns (bool);
 
 
 ```solidity
-function transfer(address to_, uint256 amount_) public returns (bool);
+function transfer(address to_, uint256 amount_) public virtual returns (bool);
 ```
 
 ### transferFrom
 
 
 ```solidity
-function transferFrom(address from_, address to_, uint256 amount_) public returns (bool);
+function transferFrom(address from_, address to_, uint256 amount_) public virtual returns (bool);
 ```
 
 ### emitTransfer

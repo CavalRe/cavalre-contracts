@@ -1,5 +1,5 @@
 # StakingRewardTokenTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/tests/modules/StakingRewardToken.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/tests/modules/StakingRewardToken.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -316,11 +316,11 @@ function testWrapperTransferFromSettlesRewards() public;
 function testDirectLedgerTransferIsUnavailable() public;
 ```
 
-### testInternalLedgerTransfersToNestedHoldersSettleRewards
+### testInternalLedgerTransfersToNestedAccountsSettleRewards
 
 
 ```solidity
-function testInternalLedgerTransfersToNestedHoldersSettleRewards() public;
+function testInternalLedgerTransfersToNestedAccountsSettleRewards() public;
 ```
 
 ### testSelfAndZeroTransfersDoNotForfeit
@@ -421,6 +421,27 @@ function testFuzzConservationAcrossFundingTransfersClaimsAndExits(uint256 seed_)
 function testFuzzCheckpointTimingDoesNotChangeEntitlement(uint256 elapsed_, uint256 split_) public;
 ```
 
+### testNestedClaimAndUnstakeUseExplicitAccountingContext
+
+
+```solidity
+function testNestedClaimAndUnstakeUseExplicitAccountingContext() public;
+```
+
+### testCustodyGroupCannotClaimDescendantRewards
+
+
+```solidity
+function testCustodyGroupCannotClaimDescendantRewards() public;
+```
+
+### testPublicStakingOperationsRejectCreditAccounts
+
+
+```solidity
+function testPublicStakingOperationsRejectCreditAccounts() public;
+```
+
 ## Structs
 ### ClaimAllCache
 
@@ -460,7 +481,7 @@ struct FuzzCache {
     uint256 funded;
     uint256 claimed;
     uint256 available;
-    uint256 receipts;
+    uint256 shares;
 }
 ```
 

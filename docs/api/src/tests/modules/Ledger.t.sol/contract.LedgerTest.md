@@ -1,5 +1,5 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -209,10 +209,10 @@ address source_
 ```
 
 
-### receiptView
+### shareView
 
 ```solidity
-ReceiptTokenView internal receiptView
+ShareTokenView internal shareView
 ```
 
 
@@ -233,15 +233,14 @@ function createInternalToken(string memory name_, string memory symbol_, uint8 d
     returns (address _tokenAddress, uint256 _flags);
 ```
 
-### createReceiptToken
+### createShareToken
 
 
 ```solidity
-function createReceiptToken(
+function createShareToken(
     string memory name_,
     string memory symbol_,
     uint8 decimals_,
-    address ledger_,
     address parent_,
     address relative_,
     string memory version_
@@ -325,53 +324,53 @@ function testLedgerCreateInternalTokenIsIdempotent() public;
 function testLedgerCreateInternalTokenVersionChangesAddressOnly() public;
 ```
 
-### testLedgerCreateReceiptTokenIsIdempotent
+### testLedgerCreateShareTokenIsIdempotent
 
 
 ```solidity
-function testLedgerCreateReceiptTokenIsIdempotent() public;
+function testLedgerCreateShareTokenIsIdempotent() public;
 ```
 
-### testLedgerCreateReceiptTokenVersionChangesAddressOnly
+### testLedgerCreateShareTokenVersionChangesAddressOnly
 
 
 ```solidity
-function testLedgerCreateReceiptTokenVersionChangesAddressOnly() public;
+function testLedgerCreateShareTokenVersionChangesAddressOnly() public;
 ```
 
-### testLedgerWrapRejectsReceiptTokenRoot
+### testLedgerWrapRejectsShareTokenRoot
 
 
 ```solidity
-function testLedgerWrapRejectsReceiptTokenRoot() public;
+function testLedgerWrapRejectsShareTokenRoot() public;
 ```
 
-### testLedgerUnwrapRejectsReceiptTokenRoot
+### testLedgerUnwrapRejectsShareTokenRoot
 
 
 ```solidity
-function testLedgerUnwrapRejectsReceiptTokenRoot() public;
+function testLedgerUnwrapRejectsShareTokenRoot() public;
 ```
 
-### testLedgerCreateReceiptTokenRejectsUnregisteredReceiptAccount
+### testLedgerCreateShareTokenRejectsUnregisteredBackingAccount
 
 
 ```solidity
-function testLedgerCreateReceiptTokenRejectsUnregisteredReceiptAccount() public;
+function testLedgerCreateShareTokenRejectsUnregisteredBackingAccount() public;
 ```
 
-### testLedgerCreateReceiptTokenRejectsGroupReceiptAccount
+### testLedgerCreateShareTokenRejectsGroupBackingAccount
 
 
 ```solidity
-function testLedgerCreateReceiptTokenRejectsGroupReceiptAccount() public;
+function testLedgerCreateShareTokenRejectsGroupBackingAccount() public;
 ```
 
-### testLedgerCreateReceiptTokenAllowsNestedReceiptTokenRoot
+### testLedgerCreateShareTokenAllowsNestedShareTokenRoot
 
 
 ```solidity
-function testLedgerCreateReceiptTokenAllowsNestedReceiptTokenRoot() public;
+function testLedgerCreateShareTokenAllowsNestedShareTokenRoot() public;
 ```
 
 ### testLedgerAddExternalTokenIsIdempotentWithoutWrapper
@@ -428,6 +427,13 @@ function testLedgerViewBalanceOfRejectsUnregisteredLedgerAndParent() public;
 
 ```solidity
 function testPackedParentAndWrapperMapping() public view;
+```
+
+### testAccountViewsRejectParentFromDifferentLedger
+
+
+```solidity
+function testAccountViewsRejectParentFromDifferentLedger() public;
 ```
 
 ### testLedgerAddSubAccountGroup
@@ -724,18 +730,18 @@ function testLedgerUnwrapExternalTokenAfterNativeWrapAllowsCallValue() public;
 function testLedgerWrapExternalTokenAfterNativeWrapAllowsCallValue() public;
 ```
 
-### testLedgerWrapReceiptTokenRootReverts
+### testLedgerWrapShareTokenRootReverts
 
 
 ```solidity
-function testLedgerWrapReceiptTokenRootReverts() public;
+function testLedgerWrapShareTokenRootReverts() public;
 ```
 
-### testLedgerUnwrapReceiptTokenRootReverts
+### testLedgerUnwrapShareTokenRootReverts
 
 
 ```solidity
-function testLedgerUnwrapReceiptTokenRootReverts() public;
+function testLedgerUnwrapShareTokenRootReverts() public;
 ```
 
 ### testLedgerWrap

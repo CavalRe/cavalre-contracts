@@ -7,10 +7,10 @@ import {LedgerLib} from "../ledger/LedgerLib.sol";
 import {TreeLib} from "./TreeLib.sol";
 
 contract TreeView is Dispatchable {
-    function checkLedgerParent(address ledger_, address parent_) private view {
+    function enforceLedgerParent(address ledger_, address parent_) private view {
         if (!LedgerLib.isLedger(LedgerLib.flags(ledger_))) revert ILedger.InvalidLedgerAccount(ledger_);
-        address _absoluteParent = parent_ == ledger_ ? ledger_ : LedgerLib.toAddress(ledger_, parent_);
-        if (!LedgerLib.isGroup(LedgerLib.flags(_absoluteParent))) revert ILedger.InvalidAccountGroup();
+        if (!LedgerLib.isGroup(LedgerLib.flags(parent_))) revert ILedger.InvalidAccountGroup();
+        if (LedgerLib.ledger(parent_) != ledger_) revert ILedger.DifferentRoots(ledger_, parent_);
     }
 
     function signatures() external pure override returns (string[] memory _signatures) {
@@ -157,7 +157,7 @@ contract TreeView is Dispatchable {
         view
         returns (uint256, uint256, address)
     {
-        checkLedgerParent(ledger_, parent_);
+        if (!LedgerLib.isLedger(LedgerLib.flags(ledger_))) revert ILedger.InvalidLedgerAccount(ledger_);
         return LedgerLib.effectiveFlags(ledger_, parent_, relative_);
     }
 

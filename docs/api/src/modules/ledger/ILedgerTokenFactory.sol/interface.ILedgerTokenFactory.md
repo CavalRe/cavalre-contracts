@@ -1,24 +1,26 @@
 # ILedgerTokenFactory
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/ILedgerTokenFactory.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/ILedgerTokenFactory.sol)
 
 
 ## Functions
-### createInternalToken
+### createInternalTokens
 
 
 ```solidity
-function createInternalToken(TokenMetadata[] memory tokens)
+function createInternalTokens(TokenMetadata[] memory tokens)
     external
     returns (address[] memory tokenAddresses, uint256[] memory flags);
 ```
 
-### createReceiptToken
+### createShareTokens
+
+Create share tokens in input order; any failed item reverts the entire batch.
 
 
 ```solidity
-function createReceiptToken(address absoluteReceiptAccount, TokenMetadata memory token)
+function createShareTokens(ShareTokenConfig[] memory tokens)
     external
-    returns (address tokenAddress, uint256 flags);
+    returns (address[] memory tokenAddresses, uint256[] memory flags);
 ```
 
 ## Structs
@@ -30,6 +32,15 @@ struct TokenMetadata {
     string symbol;
     uint8 decimals;
     string version;
+}
+```
+
+### ShareTokenConfig
+
+```solidity
+struct ShareTokenConfig {
+    address backingAccount;
+    TokenMetadata metadata;
 }
 ```
 

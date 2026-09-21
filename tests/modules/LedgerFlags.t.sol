@@ -23,6 +23,7 @@ contract LedgerFlagsTest is Test {
         LedgerLib.TokenKind actual_ = harness_.kind(flags_);
         assertEq(uint8(actual_), uint8(expected_));
         assertEq(LedgerLib.packedAddress(flags_), metadata_);
+        assertEq(LedgerLib.parent(flags_), metadata_);
         assertEq(LedgerLib.depth(flags_), depth_);
         assertEq(LedgerLib.isNative(flags_), expected_ == LedgerLib.TokenKind.Native);
         assertEq(LedgerLib.isExternal(flags_), expected_ == LedgerLib.TokenKind.External);

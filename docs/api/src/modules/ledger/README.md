@@ -5,7 +5,6 @@
 - [ILedger](ILedger.sol/interface.ILedger.md)
 - [ILedgerTokenFactory](ILedgerTokenFactory.sol/interface.ILedgerTokenFactory.md)
 - [ILedgerTokenFactoryView](ILedgerTokenFactoryView.sol/interface.ILedgerTokenFactoryView.md)
-- [ILedgerTransferHook](ILedgerTransferHook.sol/interface.ILedgerTransferHook.md)
 - [ILedgerView](ILedgerView.sol/interface.ILedgerView.md)
 - [Ledger](Ledger.sol/contract.Ledger.md)
 - [LedgerLib](LedgerLib.sol/library.LedgerLib.md)

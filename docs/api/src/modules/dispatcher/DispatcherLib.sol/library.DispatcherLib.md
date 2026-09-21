@@ -1,5 +1,5 @@
 # DispatcherLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/dispatcher/DispatcherLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/dispatcher/DispatcherLib.sol)
 
 
 ## Constants
@@ -54,11 +54,11 @@ function module(bytes4 selector_) internal view returns (address);
 function modules() internal view returns (address[] memory);
 ```
 
-### verifyModule
+### enforceModuleManifest
 
 
 ```solidity
-function verifyModule(address module_)
+function enforceModuleManifest(address module_)
     internal
     pure
     returns (bytes4[] memory _selectors, string[] memory _signatures);

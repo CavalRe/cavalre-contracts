@@ -1,5 +1,5 @@
 # IStakingRewardToken
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/modules/staking/IStakingRewardToken.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/staking/IStakingRewardToken.sol)
 
 
 ## Functions
@@ -60,6 +60,17 @@ Pays the floored token value and leaves pending units unchanged, even if the pay
 function claim(address token) external returns (uint256 claimed);
 ```
 
+### transfer
+
+Transfer direct SR balances after settling sender and recipient rewards.
+
+Only the token's registered wrapper may call. The wrapper owns allowance checks.
+
+
+```solidity
+function transfer(address token, address from, address to, uint256 amount) external;
+```
+
 ### stakingRewardToken
 
 SR configuration and balances, expressed in each token's raw decimals.
@@ -71,13 +82,22 @@ function stakingRewardToken(address token) external view returns (Configuration 
 
 ### rewardsOf
 
-Current rewards for a token-local holder key, including holders who have exited.
+Current rewards for a direct holder, including holders who have exited.
 
 Token amounts use R's raw decimals; units are internal accounting quantities.
 
 
 ```solidity
 function rewardsOf(address token, address holder) external view returns (Rewards memory);
+```
+
+### rewardsOfAccount
+
+Rewards for an internal leaf with explicit absolute parent context.
+
+
+```solidity
+function rewardsOfAccount(address token, address parent, address relative) external view returns (Rewards memory);
 ```
 
 ## Events

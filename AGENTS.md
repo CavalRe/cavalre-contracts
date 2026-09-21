@@ -25,6 +25,10 @@ Apply this throughout responses—explanations, status updates, error descriptio
 - Local variable naming: underscore suffix by default. Exception allowed for `*Context memory ctx` / `*Cache memory c`.
 - Style target: minimalist, consistent patterns, minimal locals/helpers, avoid redundant recomputation.
 - Avoid trivial one-line helper functions; prefer one core implementation and call it directly.
+- Validation naming: `is*` / `has*` return booleans; `enforce*` requires the named condition and reverts with a specific custom error on failure. Name the required condition, e.g. `enforceNonZeroAddress`.
+- Validation helpers are read-only (`view` / `pure` in Solidity). They may return validated data or context to avoid recomputation, but must not mutate state or caller-owned inputs. Name state-changing operations by their action, e.g. `prepareEpoch` or `consumeIntent`.
+- Keep descriptive names for getters, calculations, and verification reports; a function that can revert is not automatically an `enforce*` helper. Test assertions retain `assert*` names.
+- Validate at the responsible layer: Ledger owns topology/accounting, share code owns share restrictions, consuming modules own authorization. Reuse existing errors and validated data; repeat a check only when intervening work can invalidate it. Keep simple single-use checks inline.
 - Section comment style: `// -- Section Name --` (avoid boxed multi-line separators).
 - For commit msg/body requests: first inspect current changes with `git status --short`, `git diff --stat HEAD`, and `git diff --unified=0 HEAD`; `git diff HEAD` excludes untracked files, so include relevant untracked files shown by status and inspect their contents before drafting. Include only changes present in current tracked diff + relevant untracked files, never prior commits or broader session history. Return commit message + body in one single copy-pasteable fenced `text` block by default.
 
@@ -88,32 +92,35 @@ forge clean
 - **Account hierarchy**: Tree structure, parent-child via `LedgerLib.Store`
 - **Debit vs Credit**: Encoded in `LedgerLib.AccountKind`
 - **Group vs Leaf**: Groups (containers) or leaves (actual balances)
-- **Token kind**: Typed `LedgerLib.TokenKind` enum (`Unregistered`, `Native`, `External`, `Internal`); receipts are ordinary internal tokens.
+- **Token kind**: Typed `LedgerLib.TokenKind` enum (`Unregistered`, `Native`, `External`, `Internal`); shares are ordinary internal tokens.
 - **Registration**: Registered accounts have non-`Unregistered` `AccountKind`
-- **Address taxonomy**: `absolute_` = global storage key, `holder_` = token-local ERC20 holder key, `relative_` = reusable child key. Use `LedgerLib.toAddress(root, holderParent, relative)` for storage keys.
+- **Address taxonomy**: `absolute_` = recursive accounting key, `relative_` = reusable child key, `holder_` = relative key of a token root's direct child. Derive accounting keys with `LedgerLib.toAddress(absoluteParent, relative)`; registration returns absolute keys. All parent arguments are absolute. ERC20 views/events project through the direct child custodian (stored depth 3, token-relative depth 2); internal operations keep explicit account context.
+- **Custody storage**: `Store.custody` replaces `Store.ledger`. Registered direct children point to themselves; descendants inherit their parent's absolute custodian. `ledger(absolute)` derives the root from the custodian's packed parent. Roots have no custody entry and identify themselves by their flags. Unregistered leaves retain no entry: explicit parent context resolves their custody without an ancestry walk.
 
 Special addresses / roots:
 
 - `NATIVE_ADDRESS` - native token (ETH)
 - all registered roots are debit groups
 - each root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as its default credit source leaf; `address(0)` is ERC20 event-only
-- ledger root packed address slots hold module-defined metadata; parent topology is derived independently
+- packed addresses always identify absolute parents; every ledger root packs `ROOT_ADDRESS`
 
-**ERC20Wrapper / ReceiptWrapper**: Internal roots use ERC20Wrapper; receipt roots use the dedicated ReceiptWrapper subclass. Both are self-wrapped at creation. If a root has a wrapper, the wrapper address is the root address. Native/external roots do not get separate wrapper surfaces.
+**ERC20Wrapper / ShareToken**: Internal roots use ERC20Wrapper; share roots use the dedicated ShareToken subclass. Both are self-wrapped at creation. If a root has a wrapper, the wrapper address is the root address. Native/external roots do not get separate wrapper surfaces.
 
 **ERC20 Example Module**: `examples/LedgerERC20.sol` exposes ERC20 API for canonical root at `address(this)`. Metadata/supply/balances route through `LedgerLib`; allowances live in `LedgerERC20Lib`; transfers route through `Ledger.transfer(...)`.
 
 **Tree Module**: `modules/tree/TreeView.sol` owns topology/debug reads (`root`, `parent`, `flags`, `effectiveFlags`, `subAccounts`, `debugTree(s)`) so `Ledger` can stay focused on accounting state and mutations.
 
-### Receipt Module
+`LedgerLib.transfer(ledger, fromFlags, fromRelative, toFlags, toRelative, amount)` accepts already-resolved effective account flags. Callers validate parent/ledger membership through `effectiveFlags` and reuse that metadata for their own restrictions and the posting. Packed flags provide each absolute parent, depth and polarity; raw zero flags do not describe an unregistered effective leaf. Internal postings support deep accounts and credit accounts. User-facing ERC20 wrappers supply the token root as both parents to the authenticated Ledger callback.
 
-`modules/receipt/ReceiptTokenLib.sol` composes proportional issue/redeem with trusted internal settlement callbacks; consuming modules authorize issuance, burns and backing movements and guard reentrancy. Backing can be a non-token ledger such as Scale. ReceiptToken exposes only the registered-wrapper cancellation callback; ReceiptTokenView exposes conversions and state. Use `predictReceiptToken` for receipt CREATE2 addresses; `predictToken` remains internal-token-only. ReceiptTokenLib interprets the Internal ledger's packed address as its immutable registered backing leaf; ordinary internal roots pack Root. No separate receipt storage is needed. `isReceipt(address)` and `receiptAccount(address)` belong to ReceiptTokenView, not TreeView; no receipt kind or bit exists. Ledger retains all supply, balances and backing accounting. See `docs/modules/ReceiptTokens.md` for zero-state and rounding policies.
+### Share Module
+
+`modules/share/ShareTokenLib.sol` issues and burns shares through share Source using one explicit-parent/relative `issue` and `redeem` function each, without callback/data arguments. Consuming modules add and verify backing before issue, and release and verify backing after redeem; they own exact settlement-delta checks, authorization, slippage and reentrancy. Issue derives the pre-addition ratio by subtracting the supplied addition from current backing. Backing can be a non-token ledger such as Scale. ShareToken exposes ERC20 operations plus backing/conversion views through ShareTokenView. Public ERC20 transfers require direct debit leaves at both endpoints and reject credit accounts, including Source; no public cancellation endpoint or separate mutation module is installed. Use `predictShareTokenAddress` for share CREATE2 addresses; `predictERC20TokenAddress` remains internal-token-only. ShareTokenLib stores immutable token-to-backing bindings in its `cavalre.storage.ShareToken` namespace; zero means unregistered. Share roots pack `ROOT_ADDRESS` as their parent, like every other ledger. `isShareToken(address)` and `backingAccount(address)` belong to ShareTokenView, not TreeView; no share kind or bit exists. Ledger retains all supply, balances and backing accounting. See `docs/modules/ShareTokens.md` for zero-state and rounding policies.
 
 ### Staking Reward Module
 
-`modules/staking/StakingRewardToken.sol` creates internal Ledger tokens with fixed-half-life pending/available rewards. `createStakingRewardToken(S, R, T, h, metadata)` owns creation and immutable configuration; no receipt token or installed factory module is required. `T` is an absolute debit leaf on `S`; SR stores `T`, `R`, and `h` and reads `S` from the account's Ledger registration. Separate ERC-7201 storage holds configuration, reward units, and lazy per-holder checkpoints.
+`modules/staking/StakingRewardToken.sol` creates internal Ledger tokens with fixed-half-life pending/available rewards. `createStakingRewardToken(S, R, T, h, metadata)` owns creation and immutable configuration; it deploys StakingRewardWrapper, which inherits concrete ERC20Wrapper and overrides both transfer methods. No share token or installed factory module is required. `T` is an absolute debit leaf on `S`; SR stores `T`, `R`, and `h` and reads `S` from the account's Ledger registration. Separate ERC-7201 storage holds configuration, reward units, and lazy per-holder checkpoints.
 
-The default `LedgerLib.transfer` invokes the optional Dispatcher `beforeLedgerTransfer` hook for SR settlement and custody protection. SR operations pass their settlement callback directly through the internal transfer overload; this shares Ledger validation/accounting without a Dispatcher round trip or transient authorization. Custom callbacks are for trusted module code and must settle affected programs. Upgrades introducing SR must rebuild/deploy **every module with inlined LedgerLib transfer code**; old code bypasses the hook. Keep the hook installed while programs are active. See `modules/staking/README.md` for transfer, forfeiture, and final-holder semantics.
+Ledger posting has no Dispatcher settlement hook or callback overload. StakingRewardWrapper routes both ERC20 transfer methods to `StakingRewardToken.transfer(token, from, to, amount)`. That wrapper-authenticated entry point directly checkpoints rewards and applies sender forfeiture before posting through LedgerLib with resolved flags. Ordinary wrappers and ShareToken retain the Ledger callback. Other SR operations settle explicitly before their own postings; custom deep transfers remain their consuming module's responsibility. See `modules/staking/README.md` for current integration status, forfeiture, and final-holder semantics.
 
 ### Storage Pattern
 

@@ -7,10 +7,10 @@ import {ILedgerView} from "./ILedgerView.sol";
 import {LedgerLib} from "./LedgerLib.sol";
 
 contract LedgerView is Dispatchable, ILedgerView {
-    function checkLedgerParent(address ledger_, address parent_) private view {
+    function enforceLedgerParent(address ledger_, address parent_) private view {
         if (!LedgerLib.isLedger(LedgerLib.flags(ledger_))) revert ILedger.InvalidLedgerAccount(ledger_);
-        address _absoluteParent = parent_ == ledger_ ? ledger_ : LedgerLib.toAddress(ledger_, parent_);
-        if (!LedgerLib.isGroup(LedgerLib.flags(_absoluteParent))) revert ILedger.InvalidAccountGroup();
+        if (!LedgerLib.isGroup(LedgerLib.flags(parent_))) revert ILedger.InvalidAccountGroup();
+        if (LedgerLib.ledger(parent_) != ledger_) revert ILedger.DifferentRoots(ledger_, parent_);
     }
 
     function signatures() external pure override returns (string[] memory s) {
@@ -84,17 +84,17 @@ contract LedgerView is Dispatchable, ILedgerView {
     }
 
     function debitBalanceOf(address ledger_, address parent_, address relative_) external view returns (uint256) {
-        checkLedgerParent(ledger_, parent_);
-        return LedgerLib.debitBalanceOf(LedgerLib.toAddress(ledger_, parent_, relative_));
+        enforceLedgerParent(ledger_, parent_);
+        return LedgerLib.debitBalanceOf(LedgerLib.toAddress(parent_, relative_));
     }
 
     function creditBalanceOf(address ledger_, address parent_, address relative_) external view returns (uint256) {
-        checkLedgerParent(ledger_, parent_);
-        return LedgerLib.creditBalanceOf(LedgerLib.toAddress(ledger_, parent_, relative_));
+        enforceLedgerParent(ledger_, parent_);
+        return LedgerLib.creditBalanceOf(LedgerLib.toAddress(parent_, relative_));
     }
 
     function balanceOf(address ledger_, address parent_, address relative_) external view returns (uint256) {
-        checkLedgerParent(ledger_, parent_);
+        if (!LedgerLib.isLedger(LedgerLib.flags(ledger_))) revert ILedger.InvalidLedgerAccount(ledger_);
         (uint256 _flags,, address _absolute) = LedgerLib.effectiveFlags(ledger_, parent_, relative_);
         return LedgerLib.balanceOf(_absolute, LedgerLib.isCredit(_flags));
     }

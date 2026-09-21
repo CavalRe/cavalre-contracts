@@ -98,16 +98,16 @@ The `Ledger` module owns hierarchical account trees, native/external root regist
 
 - canonical root is always registered at `address(this)` during `initializeLedger(...)`
 - internal roots are self-wrapped at creation, so the returned root address is immediately an ERC20 surface
-- receipt token roots are also self-wrapped at creation and reference one registered Ledger leaf account outside their own token tree
+- share token roots are also self-wrapped at creation and reference one registered Ledger leaf account outside their own token tree
 - external root registration happens through `Ledger.addExternalToken(address[])`
-- internal root creation happens through `LedgerTokenFactory.createInternalToken(TokenMetadata[])` and is deterministic/idempotent by `(name, symbol, decimals, version)`
-- receipt token root creation happens through `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)` and is deterministic/idempotent by `(name, symbol, decimals, version)`
+- internal root creation happens through `LedgerTokenFactory.createInternalTokens(TokenMetadata[])` and is deterministic/idempotent by `(name, symbol, decimals, version)`
+- share token root creation happens through `LedgerTokenFactory.createShareTokens(ShareTokenConfig[])` and is deterministic/idempotent by `(name, symbol, decimals, version)`
 - native and external roots are registered ledger roots without self-wrapped ERC20 surfaces
 - canonical-root ERC20 behavior lives in the example ERC20 module when installed
 - `LedgerLib.wrap(...)` / `LedgerLib.unwrap(...)` depend on registered roots, not wrapper existence
 - external `Ledger.wrap(token_, amount_)` / `Ledger.unwrap(token_, amount_)` route through the per-root default source leaf
-- wrap/unwrap are valid only for external/native debit roots; internal and receipt token roots revert
-- direct/user and wrapper/ERC20 transfer paths both enforce canonical source polarity after `LedgerLib.transfer(...)`
+- wrap/unwrap are valid only for external/native debit roots; internal and share token roots revert
+- canonical ERC20 and wrapper transfer paths require direct debit leaves at both endpoints before internal Ledger postings
 
 ## Responsibilities
 
@@ -130,7 +130,7 @@ The `TreeView` module owns topology/debug reads for ledger trees.
 - child enumeration (`subAccounts`, `hasSubAccount`, `subAccountIndex`)
 - tree visualization via `debugTree(root_)` and `debugTrees(roots_)`
 
-Receipt-specific classification and backing-reference reads belong to `ReceiptTokenView`.
+Share-specific classification and backing-reference reads belong to `ShareTokenView`.
 
 `TreeLib` now reads directly from `LedgerLib`; callers no longer pass a `Ledger` handle into `debugTree(s)`.
 
@@ -148,5 +148,5 @@ The example `LedgerERC20` module is the optional ERC20 surface for the canonical
 ## Further Reading
 
 - [Ledger Notes](Ledgers.md)
-- [Receipt Token Notes](ReceiptTokens.md)
+- [Share Token Notes](ShareTokens.md)
 - [ERC20 Notes](ERC20.md)

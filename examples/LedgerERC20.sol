@@ -21,7 +21,7 @@ contract ERC20 is Dispatchable, Initializable {
     }
 
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](13);
+        _signatures = new string[](14);
         _signatures[0] = "initializeERC20()";
         _signatures[1] = "name()";
         _signatures[2] = "symbol()";
@@ -35,10 +35,11 @@ contract ERC20 is Dispatchable, Initializable {
         _signatures[10] = "increaseAllowance(address,uint256)";
         _signatures[11] = "decreaseAllowance(address,uint256)";
         _signatures[12] = "forceApprove(address,uint256)";
+        _signatures[13] = "emitTransfer(address,address,uint256)";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
-        _selectors = new bytes4[](13);
+        _selectors = new bytes4[](14);
         _selectors[0] = ERC20Lib.INITIALIZE_ERC20;
         _selectors[1] = ERC20Lib.NAME;
         _selectors[2] = ERC20Lib.SYMBOL;
@@ -52,6 +53,7 @@ contract ERC20 is Dispatchable, Initializable {
         _selectors[10] = ERC20Lib.INCREASE_ALLOWANCE;
         _selectors[11] = ERC20Lib.DECREASE_ALLOWANCE;
         _selectors[12] = ERC20Lib.FORCE_APPROVE;
+        _selectors[13] = this.emitTransfer.selector;
     }
 
     function initializeERC20() external initializer {
@@ -60,6 +62,7 @@ contract ERC20 is Dispatchable, Initializable {
         if (LedgerLib.ledger(address(this)) != address(this)) {
             revert ILedger.LedgerUninitialized();
         }
+        LedgerLib.store().wrapper[address(this)] = address(this);
     }
 
     // -- Metadata --
@@ -139,6 +142,11 @@ contract ERC20 is Dispatchable, Initializable {
         }
         ILedger(address(this)).transfer(address(this), address(this), from_, address(this), to_, amount_);
         return true;
+    }
+
+    function emitTransfer(address from_, address to_, uint256 amount_) external {
+        if (msg.sender != address(this)) revert ILedger.Unauthorized(msg.sender);
+        emit ILedger.Transfer(from_, to_, amount_);
     }
 
     function _approve(address owner_, address spender_, uint256 amount_) private {

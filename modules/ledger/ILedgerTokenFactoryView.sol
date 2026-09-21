@@ -7,11 +7,11 @@ interface ILedgerTokenFactoryView {
         pure
         returns (bytes32);
 
-    function predictToken(string memory name, string memory symbol, uint8 decimals, string memory version)
+    function predictERC20TokenAddress(string memory name, string memory symbol, uint8 decimals, string memory version)
         external
         view
         returns (address token);
-    function predictReceiptToken(string memory name, string memory symbol, uint8 decimals, string memory version)
+    function predictShareTokenAddress(string memory name, string memory symbol, uint8 decimals, string memory version)
         external
         view
         returns (address token);

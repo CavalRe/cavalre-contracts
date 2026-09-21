@@ -28,7 +28,7 @@ interface IDispatcher {
 
     function module(bytes4 selector_) external view returns (address);
 
-    function verifyModule(address module_)
+    function enforceModuleManifest(address module_)
         external
         pure
         returns (bytes4[] memory selectors_, string[] memory signatures_);

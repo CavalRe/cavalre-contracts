@@ -38,8 +38,8 @@ cavalre-contracts/
 - **Dispatchable.sol**: Abstract base contract for modules installed behind a dispatcher.
 - **Dispatcher.sol**: Immutable entrypoint that delegates calls to installed modules via `delegatecall`.
 - **Ledger.sol**: Hierarchical double-entry accounting, native/external root registration, transfer routing, and external/native wrap settlement.
-- **LedgerTokenFactory.sol**: Deterministic internal and receipt token-root creation.
-- **ReceiptToken / ReceiptTokenView**: Shared receipt arithmetic, cancellation and application-controlled settlement composition; dedicated `ReceiptWrapper` inherits ERC20 behavior. See [receipt tokens](docs/modules/ReceiptTokens.md).
+- **LedgerTokenFactory.sol**: Deterministic internal and share token-root creation.
+- **ShareTokenLib / ShareTokenView**: Internal share operations and application-controlled settlement composition; `ShareToken` adds backing/conversion views to ERC20 behavior. See [share tokens](docs/modules/ShareTokens.md).
 - **LedgerERC20.sol**: Optional canonical-root ERC20 surface layered over `LedgerLib` state via the Dispatcher.
 - **TreeView.sol**: Topology/debug surface for account-tree introspection and `debugTree(s)`.
 - **FloatLib.sol**: Custom fixed-point math library for precision arithmetic with dynamic scaling.
@@ -48,16 +48,16 @@ cavalre-contracts/
 
 - Canonical root is always registered during `initializeLedger(...)`.
 - All registered roots are debit groups.
-- Ledger uses typed token kinds (`Native`, `External`, `Internal`); receipts are internal tokens whose packed address references a registered backing account, interpreted by receipt code.
-- Internal and receipt token roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
+- Ledger uses typed token kinds (`Unregistered`, `Native`, `External`, `Internal`); shares are internal tokens with backing registered in ShareTokenLib's own namespace. Packed addresses always identify parents; every ledger packs `ROOT_ADDRESS`.
+- Internal and share token roots are self-wrapped at creation, so the root address is immediately an ERC20 surface.
 - Native and external roots do not get separate wrapper surfaces.
 - External root registration uses `Ledger.addExternalToken(address[])`.
-- Internal root creation uses `LedgerTokenFactory.createInternalToken(TokenMetadata[])` and is deterministic/idempotent: the same `(name, symbol, decimals, version)` maps to the same root.
-- Receipt token root creation uses `LedgerTokenFactory.createReceiptToken(absoluteReceiptAccount, TokenMetadata)`; each receipt token root references one registered absolute Ledger leaf account outside its own token tree and is deterministic by `(name, symbol, decimals, version)`.
+- Internal root creation uses `LedgerTokenFactory.createInternalTokens(TokenMetadata[])` and is deterministic/idempotent: the same `(name, symbol, decimals, version)` maps to the same root.
+- Share token root creation uses `LedgerTokenFactory.createShareTokens(ShareTokenConfig[])`; each share token root references one registered absolute Ledger leaf account outside its own token tree and is deterministic by `(name, symbol, decimals, version)`.
 - `LedgerView` exposes root-registry pagination through `rootCount()`, `rootAt(index)`, and `roots(start, limit)`.
 - Canonical-root ERC20 exposure is optional and illustrated by `examples/LedgerERC20.sol`.
 - Each root auto-registers `LedgerLib.SOURCE_ADDRESS` / `Source` as the default credit source leaf; `address(0)` is reserved for ERC20 mint/burn event projection.
-- Ledger decodes typed account and token kinds. `ReceiptTokenLib` owns backing registration and interpretation of the packed reference; address-based receipt inspection lives in `ReceiptTokenView`.
+- Ledger decodes typed account and token kinds. `ShareTokenLib` stores immutable backing references; `ShareTokenView.isShareToken(token)` and `backingAccount(token)` read that registration.
 
 ## Installation
 

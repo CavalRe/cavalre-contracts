@@ -17,8 +17,9 @@
 - transfers route through `Ledger.transfer(...)`, not raw `LedgerLib.transfer(...)`
 - allowance state lives in `LedgerERC20Lib`
 - allowance approvals emit `ILedger.Approval`
+- initialization registers the canonical root as its own wrapper; the authenticated `emitTransfer` callback emits custody-projected ERC20 events
 - transfer-side Ledger accounting emits `ILedger.Credit` / `ILedger.Debit`
-- canonical ERC20 transfers therefore inherit the same source-polarity gate as other user-facing transfer paths
+- canonical ERC20 transfers require direct debit leaves at both endpoints, matching ordinary wrappers and ShareToken
 
 ## Source And Zero Address
 
@@ -26,6 +27,10 @@
 each root. `address(0)` is not a registered Ledger holder and is reserved for
 ERC20 `Transfer` mint/burn projection. ERC20 surfaces should report
 `balanceOf(address(0)) == 0`.
+
+Public `transfer` and `transferFrom` reject credit accounts, including Source,
+at either endpoint, even for zero amounts. Authorized module operations use
+internal Ledger postings for minting, burning, and settlement.
 
 ## Relationship To Ledger
 
@@ -40,13 +45,13 @@ This keeps canonical-root ERC20 behavior out of `LedgerLib` while preserving `ad
 
 - canonical root uses `examples/LedgerERC20.sol` if ERC20 exposure is desired
 - internal roots are self-wrapped at creation
-- receipt token roots are self-wrapped at creation
+- share token roots are self-wrapped at creation
 - native and external roots are registered ledger roots without self-wrapped ERC20 surfaces
 
 So:
 
 - `LedgerERC20` = canonical-root surface
-- `ERC20Wrapper` = self-wrapped internal/receipt-token surface
+- `ERC20Wrapper` = self-wrapped internal/share-token surface
 
 ## Testing
 

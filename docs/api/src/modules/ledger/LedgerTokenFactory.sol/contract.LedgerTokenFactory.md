@@ -1,5 +1,5 @@
 # LedgerTokenFactory
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/ledger/LedgerTokenFactory.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/LedgerTokenFactory.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md)
@@ -20,21 +20,23 @@ function signatures() external pure virtual override returns (string[] memory _s
 function selectors() external pure virtual override returns (bytes4[] memory _selectors);
 ```
 
-### createInternalToken
+### createInternalTokens
 
 
 ```solidity
-function createInternalToken(ILedgerTokenFactory.TokenMetadata[] memory tokens_)
+function createInternalTokens(ILedgerTokenFactory.TokenMetadata[] memory tokens_)
     external
     returns (address[] memory _tokenAddresses, uint256[] memory _flags);
 ```
 
-### createReceiptToken
+### createShareTokens
+
+Create share tokens in input order; any failed item reverts the entire batch.
 
 
 ```solidity
-function createReceiptToken(address absoluteReceiptAccount_, ILedgerTokenFactory.TokenMetadata memory token_)
+function createShareTokens(ILedgerTokenFactory.ShareTokenConfig[] memory tokens_)
     external
-    returns (address _tokenAddress, uint256 _flags);
+    returns (address[] memory _tokenAddresses, uint256[] memory _flags);
 ```
 

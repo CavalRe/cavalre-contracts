@@ -9,11 +9,17 @@ interface ILedgerTokenFactory {
         string version;
     }
 
-    function createInternalToken(TokenMetadata[] memory tokens)
+    struct ShareTokenConfig {
+        address backingAccount;
+        TokenMetadata metadata;
+    }
+
+    function createInternalTokens(TokenMetadata[] memory tokens)
         external
         returns (address[] memory tokenAddresses, uint256[] memory flags);
 
-    function createReceiptToken(address absoluteReceiptAccount, TokenMetadata memory token)
+    /// @notice Create share tokens in input order; any failed item reverts the entire batch.
+    function createShareTokens(ShareTokenConfig[] memory tokens)
         external
-        returns (address tokenAddress, uint256 flags);
+        returns (address[] memory tokenAddresses, uint256[] memory flags);
 }

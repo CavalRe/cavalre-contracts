@@ -13,7 +13,7 @@ contract ERC20Wrapper {
     string private _name;
     string private _symbol;
     uint8 public immutable _decimals;
-    mapping(address => mapping(address => uint256)) private _allowances;
+    mapping(address => mapping(address => uint256)) internal _allowances;
 
     // -------------------------------------------------------------------------
     // Events (ERC-20 standard)
@@ -62,11 +62,13 @@ contract ERC20Wrapper {
     // Supply / Balances (delegated to Ledger)
     // -------------------------------------------------------------------------
 
-    function totalSupply() public view returns (uint256) {
+    function totalSupply() public view virtual returns (uint256) {
         return ILedgerView(_dispatcher).totalSupply(address(this));
     }
 
-    function balanceOf(address account_) public view returns (uint256) {
+    /// @notice Normal balance of the direct account at H(this, account_), including its subtree.
+    /// @dev Displaying group custody does not grant authority to spend descendants.
+    function balanceOf(address account_) public view virtual returns (uint256) {
         return ILedgerView(_dispatcher).balanceOf(address(this), address(this), account_);
     }
 
@@ -121,12 +123,12 @@ contract ERC20Wrapper {
     // Transfers (call back into Ledger)
     // -------------------------------------------------------------------------
 
-    function transfer(address to_, uint256 amount_) public returns (bool) {
+    function transfer(address to_, uint256 amount_) public virtual returns (bool) {
         ILedger(_dispatcher).transfer(address(this), address(this), msg.sender, address(this), to_, amount_);
         return true;
     }
 
-    function transferFrom(address from_, address to_, uint256 amount_) public returns (bool) {
+    function transferFrom(address from_, address to_, uint256 amount_) public virtual returns (bool) {
         uint256 current = _allowances[from_][msg.sender];
         if (current < amount_) {
             revert ILedger.InsufficientAllowance(address(this), from_, msg.sender, current, amount_);

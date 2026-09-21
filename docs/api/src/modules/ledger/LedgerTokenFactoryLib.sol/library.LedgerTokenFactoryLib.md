@@ -1,5 +1,5 @@
 # LedgerTokenFactoryLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/ledger/LedgerTokenFactoryLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/LedgerTokenFactoryLib.sol)
 
 
 ## Functions
@@ -10,24 +10,27 @@
 function tokenSalt(ILedgerTokenFactory.TokenMetadata memory token_) internal pure returns (bytes32);
 ```
 
-### predictToken
+### predictERC20TokenAddress
 
-Predict an ordinary internal ERC20Wrapper; receipts use different creation bytecode.
+Predict an ordinary internal ERC20Wrapper; shares use different creation bytecode.
 
 
 ```solidity
-function predictToken(ILedgerTokenFactory.TokenMetadata memory token_) internal view returns (address _token);
+function predictERC20TokenAddress(ILedgerTokenFactory.TokenMetadata memory token_)
+    internal
+    view
+    returns (address _token);
 ```
 
-### predictReceiptToken
+### predictShareTokenAddress
 
-Predict a ReceiptWrapper using shared metadata identity and dedicated creation bytecode.
+Predict a ShareToken using shared metadata identity and dedicated creation bytecode.
 
 Backing is not part of the salt. Reusing metadata with different backing must fail registration.
 
 
 ```solidity
-function predictReceiptToken(ILedgerTokenFactory.TokenMetadata memory token_) internal view returns (address);
+function predictShareTokenAddress(ILedgerTokenFactory.TokenMetadata memory token_) internal view returns (address);
 ```
 
 ### createInternalToken
@@ -39,15 +42,16 @@ function createInternalToken(ILedgerTokenFactory.TokenMetadata memory token_)
     returns (address _token, uint256 _flags);
 ```
 
-### createReceiptToken
+### createShareToken
 
-Deploy or replay a receipt wrapper and register its immutable backing through receipt code.
+Deploy or replay a share token, register its Internal ledger, and bind its backing account.
 
 Trusted internal composition: the consuming module must authorize token creation.
+Matching registrations are idempotent; conflicting backing or an existing non-share ledger reverts.
 
 
 ```solidity
-function createReceiptToken(address absoluteReceiptAccount_, ILedgerTokenFactory.TokenMetadata memory token_)
+function createShareToken(address backingAccount_, ILedgerTokenFactory.TokenMetadata memory token_)
     internal
     returns (address _token, uint256 _flags);
 ```

@@ -1,5 +1,5 @@
 # StakingRewardLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/5316bd1d9e8e7ab1df82167844d0b85518ce76e4/modules/staking/StakingRewardLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/staking/StakingRewardLib.sol)
 
 
 ## Constants
@@ -110,6 +110,19 @@ function currentHolderRewardCheckpoint(
 function stakingBacking(address token_) private view returns (StakingBackingCache memory c);
 ```
 
+### enforceDebitAccount
+
+Rewards and stake ownership belong to debit leaves. A custody group's
+aggregate balance does not create a second reward position or authorize a claim.
+
+
+```solidity
+function enforceDebitAccount(address token_, address parent_, address relative_)
+    private
+    view
+    returns (uint256 flags_, address absolute_);
+```
+
 ### stake
 
 
@@ -128,6 +141,22 @@ function unstake(address token_, address holder_, uint256 shares_, uint256 minim
     returns (uint256 amount_);
 ```
 
+### unstake
+
+The consuming module authorizes the explicit share leaf and payout recipient.
+
+
+```solidity
+function unstake(
+    address token_,
+    address parent_,
+    address relative_,
+    address recipient_,
+    uint256 shares_,
+    uint256 minimum_
+) internal returns (uint256 amount_);
+```
+
 ### reward
 
 
@@ -142,25 +171,20 @@ function reward(address token_, address funder_, uint256 amount_) internal;
 function claim(address token_, address holder_) internal returns (uint256 claimed_);
 ```
 
-### beforeLedgerTransfer
+### claim
 
-The Dispatcher hook protects custody and SR supply changes on ordinary Ledger transfers.
+The consuming module authorizes the explicit share leaf and payout recipient.
 
 
 ```solidity
-function beforeLedgerTransfer(
-    address ledger_,
-    address from_,
-    address to_,
-    bool fromIsCredit_,
-    bool toIsCredit_,
-    uint256 amount_
-) internal;
+function claim(address token_, address parent_, address relative_, address recipient_)
+    internal
+    returns (uint256 claimed_);
 ```
 
 ### settleTransferRewards
 
-Shared by SR operations and the Dispatcher hook. Settle rewards before changing share balances.
+SR operations settle rewards explicitly before changing share balances.
 Transfers behave as sender exits and receiver entries; accrued rewards stay with the sender.
 
 
@@ -182,7 +206,7 @@ Checkpoint one holder and apply any outgoing shares using the same pre-transfer 
 
 ```solidity
 function settleHolderRewards(Program storage p, address token_, address absolute_, uint256 shares_)
-    private
+    internal
     returns (Checkpoint storage position_);
 ```
 
@@ -201,6 +225,16 @@ function stakingRewardToken(address token_)
 
 ```solidity
 function rewardsOf(address token_, address holder_) internal view returns (IStakingRewardToken.Rewards memory);
+```
+
+### rewardsOfAccount
+
+
+```solidity
+function rewardsOfAccount(address token_, address parent_, address relative_)
+    internal
+    view
+    returns (IStakingRewardToken.Rewards memory);
 ```
 
 ### rewardBalances
@@ -275,6 +309,7 @@ struct StakingBackingCache {
     address ledger;
     address parent;
     address relative;
+    uint256 flags;
     uint256 balance;
     uint256 supply;
 }

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {ReceiptTokenLib} from "../receipt/ReceiptTokenLib.sol";
-import {ReceiptWrapper} from "../receipt/ReceiptWrapper.sol";
+import {ShareTokenLib} from "../share/ShareTokenLib.sol";
+import {ShareToken} from "../share/ShareToken.sol";
 import {ERC20Wrapper} from "./ERC20Wrapper.sol";
 import {ILedger} from "./ILedger.sol";
 import {ILedgerTokenFactory} from "./ILedgerTokenFactory.sol";
@@ -15,19 +15,23 @@ library LedgerTokenFactoryLib {
         return keccak256(abi.encode(token_.name, token_.symbol, token_.decimals, token_.version));
     }
 
-    /// @notice Predict an ordinary internal ERC20Wrapper; receipts use different creation bytecode.
-    function predictToken(ILedgerTokenFactory.TokenMetadata memory token_) internal view returns (address _token) {
+    /// @notice Predict an ordinary internal ERC20Wrapper; shares use different creation bytecode.
+    function predictERC20TokenAddress(ILedgerTokenFactory.TokenMetadata memory token_)
+        internal
+        view
+        returns (address _token)
+    {
         bytes memory _creationCode = abi.encodePacked(
             type(ERC20Wrapper).creationCode, abi.encode(address(this), token_.name, token_.symbol, token_.decimals)
         );
         _token = Create2.computeAddress(tokenSalt(token_), keccak256(_creationCode));
     }
 
-    /// @notice Predict a ReceiptWrapper using shared metadata identity and dedicated creation bytecode.
+    /// @notice Predict a ShareToken using shared metadata identity and dedicated creation bytecode.
     /// @dev Backing is not part of the salt. Reusing metadata with different backing must fail registration.
-    function predictReceiptToken(ILedgerTokenFactory.TokenMetadata memory token_) internal view returns (address) {
+    function predictShareTokenAddress(ILedgerTokenFactory.TokenMetadata memory token_) internal view returns (address) {
         bytes memory creationCode_ = abi.encodePacked(
-            type(ReceiptWrapper).creationCode, abi.encode(address(this), token_.name, token_.symbol, token_.decimals)
+            type(ShareToken).creationCode, abi.encode(address(this), token_.name, token_.symbol, token_.decimals)
         );
         return Create2.computeAddress(tokenSalt(token_), keccak256(creationCode_));
     }
@@ -40,7 +44,7 @@ library LedgerTokenFactoryLib {
             revert ILedger.InvalidToken(address(0), token_.name, token_.symbol, token_.decimals);
         }
 
-        _token = predictToken(token_);
+        _token = predictERC20TokenAddress(token_);
 
         // Idempotent path: the predicted wrapper is already registered as the intended internal root.
         if (LedgerLib.ledger(_token) == _token) {
@@ -60,17 +64,16 @@ library LedgerTokenFactoryLib {
         _token = address(
             new ERC20Wrapper{salt: tokenSalt(token_)}(address(this), token_.name, token_.symbol, token_.decimals)
         );
-        _flags = LedgerLib.addLedger(
-            _token, token_.name, token_.symbol, token_.decimals, LedgerLib.TokenKind.Internal, address(0)
-        );
+        _flags = LedgerLib.addLedger(_token, token_.name, token_.symbol, token_.decimals, LedgerLib.TokenKind.Internal);
 
         LedgerLib.Store storage s = LedgerLib.store();
         s.wrapper[_token] = _token;
     }
 
-    /// @notice Deploy or replay a receipt wrapper and register its immutable backing through receipt code.
+    /// @notice Deploy or replay a share token, register its Internal ledger, and bind its backing account.
     /// @dev Trusted internal composition: the consuming module must authorize token creation.
-    function createReceiptToken(address absoluteReceiptAccount_, ILedgerTokenFactory.TokenMetadata memory token_)
+    /// Matching registrations are idempotent; conflicting backing or an existing non-share ledger reverts.
+    function createShareToken(address backingAccount_, ILedgerTokenFactory.TokenMetadata memory token_)
         internal
         returns (address _token, uint256 _flags)
     {
@@ -78,22 +81,32 @@ library LedgerTokenFactoryLib {
             revert ILedger.InvalidToken(address(0), token_.name, token_.symbol, token_.decimals);
         }
 
-        _token = predictReceiptToken(token_);
-        ReceiptTokenLib.checkReceiptAccount(_token, absoluteReceiptAccount_);
+        _token = predictShareTokenAddress(token_);
+        ShareTokenLib.enforceShareTokenBackingAccount(_token, backingAccount_);
 
-        if (LedgerLib.ledger(_token) == _token) {
-            if (LedgerLib.wrapper(_token) != _token) {
-                revert ILedger.InvalidToken(_token, token_.name, token_.symbol, token_.decimals);
-            }
-            // Registration compares the full flags and metadata, including the packed backing reference.
-            return (_token, ReceiptTokenLib.register(_token, absoluteReceiptAccount_, token_));
+        ShareTokenLib.Store storage s = ShareTokenLib.store();
+        address registeredBacking_ = s.backingAccounts[_token];
+        bool ledgerRegistered_ = LedgerLib.ledger(_token) == _token;
+        if (
+            (registeredBacking_ != address(0) && registeredBacking_ != backingAccount_)
+                || (ledgerRegistered_ && (registeredBacking_ == address(0) || LedgerLib.wrapper(_token) != _token))
+        ) {
+            revert ILedger.InvalidToken(_token, token_.name, token_.symbol, token_.decimals);
         }
 
-        if (_token.code.length != 0) revert ILedger.InvalidToken(_token, token_.name, token_.symbol, token_.decimals);
+        if (!ledgerRegistered_) {
+            if (_token.code.length != 0) {
+                revert ILedger.InvalidToken(_token, token_.name, token_.symbol, token_.decimals);
+            }
 
-        _token = address(
-            new ReceiptWrapper{salt: tokenSalt(token_)}(address(this), token_.name, token_.symbol, token_.decimals)
-        );
-        _flags = ReceiptTokenLib.register(_token, absoluteReceiptAccount_, token_);
+            _token = address(
+                new ShareToken{salt: tokenSalt(token_)}(address(this), token_.name, token_.symbol, token_.decimals)
+            );
+        }
+
+        // Ledger creates the root and Source, or verifies unchanged metadata and flags on replay.
+        _flags = LedgerLib.addLedger(_token, token_.name, token_.symbol, token_.decimals, LedgerLib.TokenKind.Internal);
+        if (registeredBacking_ == address(0)) s.backingAccounts[_token] = backingAccount_;
+        LedgerLib.store().wrapper[_token] = _token;
     }
 }

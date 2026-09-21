@@ -1,5 +1,5 @@
 # Dispatcher
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/modules/dispatcher/Dispatcher.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/dispatcher/Dispatcher.sol)
 
 **Inherits:**
 [IDispatcher](/modules/dispatcher/IDispatcher.sol/interface.IDispatcher.md)
@@ -62,11 +62,11 @@ function module(bytes4 selector_) external view override returns (address);
 function modules() public view override returns (address[] memory);
 ```
 
-### verifyModule
+### enforceModuleManifest
 
 
 ```solidity
-function verifyModule(address module_)
+function enforceModuleManifest(address module_)
     external
     pure
     override

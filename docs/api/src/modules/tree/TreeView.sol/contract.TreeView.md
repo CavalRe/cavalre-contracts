@@ -1,16 +1,16 @@
 # TreeView
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/8126c41d141271ba2bd8fd7c518c8901746dfe38/modules/tree/TreeView.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/tree/TreeView.sol)
 
 **Inherits:**
 [Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md)
 
 
 ## Functions
-### checkLedgerParent
+### enforceLedgerParent
 
 
 ```solidity
-function checkLedgerParent(address ledger_, address parent_) private view;
+function enforceLedgerParent(address ledger_, address parent_) private view;
 ```
 
 ### signatures

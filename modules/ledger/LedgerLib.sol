@@ -3,8 +3,6 @@ pragma solidity ^0.8.26;
 
 import {ERC20Wrapper} from "./ERC20Wrapper.sol";
 import {ILedger} from "./ILedger.sol";
-import {ILedgerTransferHook} from "./ILedgerTransferHook.sol";
-import {DispatcherLib} from "../dispatcher/DispatcherLib.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -29,7 +27,8 @@ library LedgerLib {
         mapping(address => string) name;
         mapping(address => string) symbol;
         mapping(address => uint8) decimals;
-        mapping(address => address) ledger;
+        // Registered accounts point to their absolute depth-3 custodian; ledger roots have no entry.
+        mapping(address absolute => address custodyAccount) custody;
         mapping(address => address) wrapper;
         mapping(address parent => address[]) subs;
         mapping(address sub => uint32) subIndex;
@@ -67,8 +66,7 @@ library LedgerLib {
     uint256 constant TOKEN_KIND_MASK = uint256(0x07) << TOKEN_KIND_SHIFT;
     uint256 constant FLAG_DEPTH_SHIFT = 8;
     uint256 constant FLAG_DEPTH_MASK = uint256(0xff) << FLAG_DEPTH_SHIFT;
-    // High 160-bit lane. Non-ledger accounts pack their parent here.
-    // Ledger parents are derived as ROOT_ADDRESS; their packed lane is module-defined metadata.
+    // High 160-bit lane stores the absolute parent; every ledger packs ROOT_ADDRESS.
     uint256 constant PACK_ADDR_SHIFT = 96;
 
     //==================================================================
@@ -79,7 +77,7 @@ library LedgerLib {
         return addr_ == address(0);
     }
 
-    function checkZeroAddress(address addr_) internal pure {
+    function enforceNonZeroAddress(address addr_) internal pure {
         if (isZeroAddress(addr_)) revert ILedger.ZeroAddress();
     }
 
@@ -88,21 +86,12 @@ library LedgerLib {
         return length > 0 && length <= 64;
     }
 
-    function checkString(string memory str_) internal pure {
+    function enforceValidString(string memory str_) internal pure {
         if (!isValidString(str_)) revert ILedger.InvalidString(str_);
     }
 
     function enforceNativeValue(uint256 expected_) internal view {
         if (msg.value != expected_) revert ILedger.IncorrectAmount(msg.value, expected_);
-    }
-
-    // Transfers can only occur within the same ledger.
-    function checkLedgers(address a_, address b_) internal view returns (address) {
-        address ledgerA = ledger(a_);
-        if (a_ == b_) return ledgerA;
-        address ledgerB = ledger(b_);
-        if (ledgerA != ledgerB) revert ILedger.DifferentRoots(a_, b_);
-        return ledgerA;
     }
 
     //==================================================================
@@ -161,8 +150,6 @@ library LedgerLib {
     }
 
     function parent(uint256 flags_) internal pure returns (address) {
-        // All ledgers sit directly under Root, regardless of their packed metadata.
-        if (isLedger(flags_)) return ROOT_ADDRESS;
         return packedAddress(flags_);
     }
 
@@ -203,10 +190,11 @@ library LedgerLib {
         view
         returns (uint256 _effectiveFlags, uint256 _originalFlags, address _absolute)
     {
-        address _absoluteParent = parent_ == ledger_ ? ledger_ : toAddress(ledger_, parent_);
-        uint256 _parentFlags = flags(_absoluteParent);
+        uint256 _parentFlags = flags(parent_);
+        if (!isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
+        if (ledger(parent_) != ledger_) revert ILedger.DifferentRoots(ledger_, parent_);
 
-        _absolute = toAddress(ledger_, parent_, relative_);
+        _absolute = toAddress(parent_, relative_);
         _originalFlags = flags(_absolute);
         if (!isUnregisteredAccount(_originalFlags)) return (_originalFlags, _originalFlags, _absolute);
         if (_originalFlags != 0) revert ILedger.InvalidAddress(relative_);
@@ -251,31 +239,24 @@ library LedgerLib {
     //==================================================================
 
     /// @notice Derives a relative address from a human-readable name.
-    /// @dev Relative addresses are reusable across token trees and become holder addresses under a holder parent.
+    /// @dev Relative addresses are reusable child keys; direct children supply ERC20 custody holder addresses.
     function toAddress(string memory name_) internal pure returns (address) {
-        checkString(name_);
+        enforceValidString(name_);
         return address(uint160(uint256(keccak256(abi.encodePacked(name_)))));
     }
 
-    /// @notice Derives the next address in an address tree.
-    /// @dev Use `toAddress(parent, relative)` for holders, and `toAddress(ledger, holder)` for absolute keys.
-    function toAddress(address base_, address relative_) internal pure returns (address) {
-        checkZeroAddress(base_);
-        return address(uint160(uint256(keccak256(abi.encodePacked(base_, relative_)))));
+    /// @notice Derives an absolute accounting address from its absolute parent and relative child.
+    /// @dev H(g,r): hash the 40 packed bytes of the absolute parent and relative child; retain the low 160 bits.
+    function toAddress(address parent_, address relative_) internal pure returns (address) {
+        enforceNonZeroAddress(parent_);
+        return address(uint160(uint256(keccak256(abi.encodePacked(parent_, relative_)))));
     }
 
-    /// @notice Derives an absolute Ledger storage address in ledger scope.
-    /// @dev First derives the holder from `parent_ + relative_`, then projects it through `ledger_`.
-    function toAddress(address ledger_, address parent_, address relative_) internal pure returns (address) {
-        address _holder = parent_ == ledger_ ? relative_ : toAddress(parent_, relative_);
-        return toAddress(ledger_, _holder);
-    }
-
-    /// @notice Derives a named relative address in a parent context.
-    /// @dev This is a contextual relative value, not an absolute Ledger storage key.
+    /// @notice Derives an absolute accounting address from its absolute parent and a child name.
+    /// @dev Equivalent to toAddress(parent_, toAddress(name_)).
     function toAddress(address parent_, string memory name_) internal pure returns (address) {
-        checkZeroAddress(parent_);
-        checkString(name_);
+        enforceNonZeroAddress(parent_);
+        enforceValidString(name_);
         return address(uint160(uint256(keccak256(abi.encodePacked(parent_, toAddress(name_))))));
     }
 
@@ -283,12 +264,12 @@ library LedgerLib {
     //                         Metadata Setters
     //==================================================================
     function name(address absolute_, string memory name_) internal {
-        checkString(name_);
+        enforceValidString(name_);
         store().name[absolute_] = name_;
     }
 
     function symbol(address absolute_, string memory symbol_) internal {
-        checkString(symbol_);
+        enforceValidString(symbol_);
         store().symbol[absolute_] = symbol_;
     }
 
@@ -312,8 +293,12 @@ library LedgerLib {
         return store().decimals[absolute_];
     }
 
+    /// @dev Custody flags pack the ledger as their parent. Roots identify themselves by their flags;
+    /// unregistered leaves require explicit parent context and retain no address-only ledger lookup.
     function ledger(address absolute_) internal view returns (address) {
-        return store().ledger[absolute_];
+        address custodyAccount_ = store().custody[absolute_];
+        if (custodyAccount_ != address(0)) return parent(flags(custodyAccount_));
+        return isLedger(flags(absolute_)) ? absolute_ : address(0);
     }
 
     function wrapper(address absolute_) internal view returns (address) {
@@ -375,7 +360,7 @@ library LedgerLib {
 
     function addSubAccountGroup(address ledger_, address parent_, string memory name_, bool isCredit_)
         internal
-        returns (address _holder, uint256 _flags)
+        returns (address _absolute, uint256 _flags)
     {
         return addSubAccountGroup(ledger_, parent_, toAddress(name_), name_, isCredit_);
     }
@@ -386,14 +371,13 @@ library LedgerLib {
         address relative_,
         string memory name_,
         bool isCredit_
-    ) internal returns (address _holder, uint256 _flags) {
-        address _absoluteParent = parent_ == ledger_ ? ledger_ : toAddress(ledger_, parent_);
-        uint256 _parentFlags = flags(_absoluteParent);
+    ) internal returns (address _absolute, uint256 _flags) {
+        uint256 _parentFlags = flags(parent_);
         if (!isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
-        checkString(name_);
+        if (ledger(parent_) != ledger_) revert ILedger.DifferentRoots(ledger_, parent_);
+        enforceValidString(name_);
 
-        _holder = parent_ == ledger_ ? relative_ : toAddress(parent_, relative_);
-        address _absolute = toAddress(ledger_, parent_, relative_);
+        _absolute = toAddress(parent_, relative_);
         _flags = flags(
             parent_,
             isCredit_ ? AccountKind.CreditGroup : AccountKind.DebitGroup,
@@ -404,7 +388,7 @@ library LedgerLib {
         if (!isUnregisteredAccount(_existingFlags)) {
             if (_flags == _existingFlags && keccak256(bytes(name(_absolute))) == keccak256(bytes(name_))) {
                 // SubAccount already exists with the same name and same flags
-                return (_holder, _flags);
+                return (_absolute, _flags);
             } else {
                 // SubAccount already exists with the same name but different flags
                 revert ILedger.InvalidSubAccountGroup(name_, isCredit_);
@@ -414,37 +398,31 @@ library LedgerLib {
             revert ILedger.InvalidSubAccountGroup(name_, isCredit_);
         }
 
-        address _ledger = ledger(_absoluteParent);
-        if (_ledger != ledger_) revert ILedger.DifferentRoots(ledger_, _absoluteParent);
-
         Store storage s = store();
         s.name[_absolute] = name_;
-        s.ledger[_absolute] = _ledger;
-        s.subs[_absoluteParent].push(relative_);
-        s.subIndex[_absolute] = toSubIndex(s.subs[_absoluteParent].length);
+        s.custody[_absolute] = parent_ == ledger_ ? _absolute : s.custody[parent_];
+        s.subs[parent_].push(relative_);
+        s.subIndex[_absolute] = toSubIndex(s.subs[parent_].length);
         s.flags[_absolute] = _flags;
-        emit ILedger.SubAccountGroupAdded(_ledger, parent_, name_, isCredit_);
+        emit ILedger.SubAccountGroupAdded(ledger_, parent_, name_, isCredit_);
     }
 
     function addSubAccount(address ledger_, address parent_, string memory name_, bool isCredit_)
         internal
-        returns (address _holder, uint256 _flags)
+        returns (address _absolute, uint256 _flags)
     {
         return addSubAccount(ledger_, parent_, toAddress(name_), name_, isCredit_);
     }
 
     function addSubAccount(address ledger_, address parent_, address relative_, string memory name_, bool isCredit_)
         internal
-        returns (address _holder, uint256 _flags)
+        returns (address _absolute, uint256 _flags)
     {
-        address _absoluteParent = parent_ == ledger_ ? ledger_ : toAddress(ledger_, parent_);
-        uint256 _parentFlags = flags(_absoluteParent);
-        if (!isGroup(_parentFlags)) {
-            revert ILedger.InvalidAccountGroup();
-        }
+        uint256 _parentFlags = flags(parent_);
+        if (!isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
+        if (ledger(parent_) != ledger_) revert ILedger.DifferentRoots(ledger_, parent_);
 
-        _holder = parent_ == ledger_ ? relative_ : toAddress(parent_, relative_);
-        address _absolute = toAddress(ledger_, parent_, relative_);
+        _absolute = toAddress(parent_, relative_);
         _flags = flags(
             parent_,
             isCredit_ ? AccountKind.CreditLedger : AccountKind.DebitLedger,
@@ -455,7 +433,7 @@ library LedgerLib {
         if (!isUnregisteredAccount(_existingFlags)) {
             if (_flags == _existingFlags && keccak256(bytes(name(_absolute))) == keccak256(bytes(name_))) {
                 // SubAccount already exists with the same name and same flags
-                return (_holder, _flags);
+                return (_absolute, _flags);
             } else {
                 // SubAccount already exists with the same name but different flags
                 revert ILedger.InvalidSubAccount(relative_);
@@ -468,16 +446,13 @@ library LedgerLib {
             revert ILedger.InvalidSubAccount(relative_);
         }
 
-        address _ledger = ledger(_absoluteParent);
-        if (_ledger != ledger_) revert ILedger.DifferentRoots(ledger_, _absoluteParent);
-
         Store storage s = store();
         s.name[_absolute] = name_;
-        s.ledger[_absolute] = _ledger;
-        s.subs[_absoluteParent].push(relative_);
-        s.subIndex[_absolute] = toSubIndex(s.subs[_absoluteParent].length);
+        s.custody[_absolute] = parent_ == ledger_ ? _absolute : s.custody[parent_];
+        s.subs[parent_].push(relative_);
+        s.subIndex[_absolute] = toSubIndex(s.subs[parent_].length);
         s.flags[_absolute] = _flags;
-        emit ILedger.SubAccountAdded(_ledger, parent_, relative_, isCredit_);
+        emit ILedger.SubAccountAdded(ledger_, parent_, relative_, isCredit_);
     }
 
     function addLedger(
@@ -485,24 +460,23 @@ library LedgerLib {
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        TokenKind tokenKind_,
-        address packedAddress_
+        TokenKind tokenKind_
     ) internal returns (uint256 _flags) {
         if (isZeroAddress(ledger_) || !isValidString(name_) || !isValidString(symbol_)) {
             revert ILedger.InvalidToken(ledger_, name_, symbol_, decimals_);
         }
 
-        address _packedAddress = packedAddress_ == address(0) ? ROOT_ADDRESS : packedAddress_;
-        _flags = flags(_packedAddress, AccountKind.DebitGroup, tokenKind_, 2);
+        _flags = flags(ROOT_ADDRESS, AccountKind.DebitGroup, tokenKind_, 2);
 
         Store storage s = store();
         // Check if token already exists
-        if (s.ledger[ledger_] == ledger_) {
+        uint256 existingFlags_ = flags(ledger_);
+        if (isLedger(existingFlags_)) {
             // Token already exists
             bool _sameName = keccak256(bytes(name_)) == keccak256(bytes(name(ledger_)));
             bool _sameSymbol = keccak256(bytes(symbol_)) == keccak256(bytes(symbol(ledger_)));
             bool _sameDec = decimals(ledger_) == decimals_;
-            bool _sameFlags = _flags == flags(ledger_);
+            bool _sameFlags = _flags == existingFlags_;
             if (_sameName && _sameSymbol && _sameDec && _sameFlags) {
                 // No changes needed
                 return _flags;
@@ -512,7 +486,6 @@ library LedgerLib {
         s.name[ledger_] = name_;
         s.symbol[ledger_] = symbol_;
         s.decimals[ledger_] = decimals_;
-        s.ledger[ledger_] = ledger_;
         s.flags[ledger_] = _flags;
         s.subs[ROOT_ADDRESS].push(ledger_);
         s.subIndex[ledger_] = toSubIndex(s.subs[ROOT_ADDRESS].length);
@@ -541,9 +514,7 @@ library LedgerLib {
     }
 
     function addNativeToken() internal returns (uint256 _flags) {
-        return addLedger(
-            LedgerLib.NATIVE_ADDRESS, nativeName(), nativeSymbol(), nativeDecimals(), TokenKind.Native, address(0)
-        );
+        return addLedger(LedgerLib.NATIVE_ADDRESS, nativeName(), nativeSymbol(), nativeDecimals(), TokenKind.Native);
     }
 
     function addExternalToken(address token_) internal returns (uint256 _flags) {
@@ -556,7 +527,7 @@ library LedgerLib {
             revert ILedger.InvalidToken(token_, _name, _symbol, _decimals);
         }
 
-        return addLedger(token_, _name, _symbol, _decimals, TokenKind.External, address(0));
+        return addLedger(token_, _name, _symbol, _decimals, TokenKind.External);
     }
 
     function removeSubAccountGroup(address ledger_, address parent_, string memory name_) internal returns (address) {
@@ -565,18 +536,17 @@ library LedgerLib {
 
     function removeSubAccountGroup(address ledger_, address parent_, address relative_)
         internal
-        returns (address _holder)
+        returns (address _absolute)
     {
-        address _absoluteParent = parent_ == ledger_ ? ledger_ : toAddress(ledger_, parent_);
-        uint256 _parentFlags = flags(_absoluteParent);
+        uint256 _parentFlags = flags(parent_);
         if (!isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
+        if (ledger(parent_) != ledger_) revert ILedger.DifferentRoots(ledger_, parent_);
 
-        _holder = parent_ == ledger_ ? relative_ : toAddress(parent_, relative_);
-        address _absolute = toAddress(ledger_, parent_, relative_);
+        _absolute = toAddress(parent_, relative_);
         uint256 _flags = flags(_absolute);
 
         // Must exist and belong to this parent
-        if (isUnregisteredAccount(_flags)) return _holder;
+        if (isUnregisteredAccount(_flags)) return _absolute;
         if (parent(_flags) != parent_) revert ILedger.SubAccountGroupNotFound(relative_);
         if (!isGroup(_flags)) revert ILedger.InvalidAccountGroup();
 
@@ -586,40 +556,40 @@ library LedgerLib {
         Store storage s = store();
 
         uint256 _index = s.subIndex[_absolute]; // 1-based
-        uint256 _lastIndex = s.subs[_absoluteParent].length; // 1-based
-        address _lastChild = s.subs[_absoluteParent][_lastIndex - 1];
-        address _lastChildAbsolute = toAddress(ledger_, parent_, _lastChild);
+        uint256 _lastIndex = s.subs[parent_].length; // 1-based
+        address _lastChild = s.subs[parent_][_lastIndex - 1];
+        address _lastChildAbsolute = toAddress(parent_, _lastChild);
         if (_index != _lastIndex) {
-            s.subs[_absoluteParent][_index - 1] = _lastChild;
+            s.subs[parent_][_index - 1] = _lastChild;
             s.subIndex[_lastChildAbsolute] = toSubIndex(_index);
         }
-        s.subs[_absoluteParent].pop();
+        s.subs[parent_].pop();
 
         s.name[_absolute] = "";
-        s.ledger[_absolute] = address(0);
+        s.custody[_absolute] = address(0);
         s.subIndex[_absolute] = 0;
         s.flags[_absolute] = 0;
 
-        address _ledger = ledger(_absoluteParent);
-        if (_ledger != ledger_) revert ILedger.DifferentRoots(ledger_, _absoluteParent);
-        emit ILedger.SubAccountGroupRemoved(_ledger, parent_, relative_);
+        emit ILedger.SubAccountGroupRemoved(ledger_, parent_, relative_);
     }
 
     function removeSubAccount(address ledger_, address parent_, string memory name_) internal returns (address) {
         return removeSubAccount(ledger_, parent_, toAddress(name_));
     }
 
-    function removeSubAccount(address ledger_, address parent_, address relative_) internal returns (address _holder) {
-        address _absoluteParent = parent_ == ledger_ ? ledger_ : toAddress(ledger_, parent_);
-        uint256 _parentFlags = flags(_absoluteParent);
+    function removeSubAccount(address ledger_, address parent_, address relative_)
+        internal
+        returns (address _absolute)
+    {
+        uint256 _parentFlags = flags(parent_);
         if (!isGroup(_parentFlags)) revert ILedger.InvalidAccountGroup();
+        if (ledger(parent_) != ledger_) revert ILedger.DifferentRoots(ledger_, parent_);
 
-        _holder = parent_ == ledger_ ? relative_ : toAddress(parent_, relative_);
-        address _absolute = toAddress(ledger_, parent_, relative_);
+        _absolute = toAddress(parent_, relative_);
         uint256 _flags = flags(_absolute);
 
         // Must exist and belong to this parent
-        if (isUnregisteredAccount(_flags)) return _holder;
+        if (isUnregisteredAccount(_flags)) return _absolute;
         if (parent(_flags) != parent_) revert ILedger.SubAccountNotFound(relative_);
         if (isGroup(_flags)) revert ILedger.InvalidLedgerAccount(_absolute);
 
@@ -629,23 +599,21 @@ library LedgerLib {
         Store storage s = store();
 
         uint256 _index = s.subIndex[_absolute]; // 1-based
-        uint256 _lastIndex = s.subs[_absoluteParent].length; // 1-based
-        address _lastChild = s.subs[_absoluteParent][_lastIndex - 1];
-        address _lastChildAbsolute = toAddress(ledger_, parent_, _lastChild);
+        uint256 _lastIndex = s.subs[parent_].length; // 1-based
+        address _lastChild = s.subs[parent_][_lastIndex - 1];
+        address _lastChildAbsolute = toAddress(parent_, _lastChild);
         if (_index != _lastIndex) {
-            s.subs[_absoluteParent][_index - 1] = _lastChild;
+            s.subs[parent_][_index - 1] = _lastChild;
             s.subIndex[_lastChildAbsolute] = toSubIndex(_index);
         }
-        s.subs[_absoluteParent].pop();
+        s.subs[parent_].pop();
 
         s.name[_absolute] = "";
-        s.ledger[_absolute] = address(0);
+        s.custody[_absolute] = address(0);
         s.subIndex[_absolute] = 0;
         s.flags[_absolute] = 0;
 
-        address _ledger = ledger(_absoluteParent);
-        if (_ledger != ledger_) revert ILedger.DifferentRoots(ledger_, _absoluteParent);
-        emit ILedger.SubAccountRemoved(_ledger, parent_, relative_);
+        emit ILedger.SubAccountRemoved(ledger_, parent_, relative_);
     }
 
     //==================================================================
@@ -674,107 +642,71 @@ library LedgerLib {
 
     struct AccountCache {
         uint256 balance;
-        address holder;
         address relative;
         address absolute;
         uint256 flags;
         uint8 depth;
-        bool isUnregistered;
     }
 
-    function setAccountCache(address ledger_, address parent_, address relative_)
-        private
-        view
-        returns (AccountCache memory _acct)
-    {
-        uint256 _originalFlags;
-        _acct.holder = parent_ == ledger_ ? relative_ : toAddress(parent_, relative_);
+    function setAccountCache(uint256 flags_, address relative_) private pure returns (AccountCache memory _acct) {
         _acct.relative = relative_;
-        (_acct.flags, _originalFlags, _acct.absolute) = effectiveFlags(ledger_, parent_, relative_);
-        _acct.depth = depth(_acct.flags);
-        _acct.isUnregistered = isUnregisteredAccount(_originalFlags);
+        _acct.absolute = toAddress(parent(flags_), relative_);
+        _acct.flags = flags_;
+        _acct.depth = depth(flags_);
     }
 
-    function emitWrapperTransfer(
-        address ledger_,
-        AccountCache memory from_,
-        bool fromIsCredit_,
-        AccountCache memory to_,
-        bool toIsCredit_,
-        uint256 amount_
-    ) private {
-        ERC20Wrapper(ledger_)
-            .emitTransfer(fromIsCredit_ ? address(0) : from_.holder, toIsCredit_ ? address(0) : to_.holder, amount_);
-    }
-
-    function enforceTransfer(address ledger_, address fromParent_, address from_, address toParent_, address to_)
+    /// @dev Token roots have stored depth 2 because of the enclosing global Root.
+    /// Custodians are their direct children (article depth 2, stored depth 3).
+    function custody(address ledger_, uint256 flags_, address relative_)
         internal
         view
-        returns (address _ledger, bool _fromIsCredit, bool _toIsCredit)
+        returns (address holder_, bool isCredit_)
     {
-        if (ledger_ == address(0)) revert ILedger.ZeroAddress();
-        address _fromAbsoluteParent = fromParent_ == ledger_ ? ledger_ : toAddress(ledger_, fromParent_);
-        address _toAbsoluteParent = toParent_ == ledger_ ? ledger_ : toAddress(ledger_, toParent_);
-
-        _ledger = checkLedgers(_fromAbsoluteParent, _toAbsoluteParent);
-        if (_ledger != ledger_) revert ILedger.DifferentRoots(ledger_, _ledger);
-
-        (uint256 _fromFlags,, address _fromAbsolute) = effectiveFlags(ledger_, fromParent_, from_);
-        (uint256 _toFlags,, address _toAbsolute) = effectiveFlags(ledger_, toParent_, to_);
-
-        if (isGroup(_fromFlags)) revert ILedger.InvalidLedgerAccount(_fromAbsolute);
-        if (isGroup(_toFlags)) revert ILedger.InvalidLedgerAccount(_toAbsolute);
-        if (depth(_fromFlags) == 0) revert ILedger.ZeroDepth();
-        if (depth(_toFlags) == 0) revert ILedger.ZeroDepth();
-
-        _fromIsCredit = isCredit(_fromFlags);
-        _toIsCredit = isCredit(_toFlags);
+        // Direct leaves use their effective flags, including unregistered wallet accounts.
+        // Deeper leaves use their registered parent's custodian without registering the leaf.
+        address parent_ = parent(flags_);
+        if (parent_ == ledger_) return (relative_, isCredit(flags_));
+        address custodyAccount_ = store().custody[parent_];
+        holder_ = subAccount(ledger_, subAccountIndex(custodyAccount_) - 1);
+        isCredit_ = isCredit(flags(custodyAccount_));
     }
 
-    function transfer(
-        address ledger_,
-        address fromParent_,
-        address from_,
-        address toParent_,
-        address to_,
-        uint256 amount_
-    ) internal returns (address, bool, bool) {
-        return transfer(ledger_, fromParent_, from_, toParent_, to_, amount_, dispatchBeforeLedgerTransfer);
-    }
-
-    function dispatchBeforeLedgerTransfer(
-        address ledger_,
-        address from_,
-        address to_,
-        bool fromIsCredit_,
-        bool toIsCredit_,
-        uint256 amount_
-    ) private {
-        if (DispatcherLib.store().modules[ILedgerTransferHook.beforeLedgerTransfer.selector] != address(0)) {
-            ILedgerTransferHook(address(this))
-                .beforeLedgerTransfer(ledger_, from_, to_, fromIsCredit_, toIsCredit_, amount_);
+    function emitWrapperTransfer(address ledger_, AccountCache memory from_, AccountCache memory to_, uint256 amount_)
+        private
+    {
+        (address fromHolder_, bool fromCredit_) = custody(ledger_, from_.flags, from_.relative);
+        (address toHolder_, bool toCredit_) = custody(ledger_, to_.flags, to_.relative);
+        if (fromCredit_ && toCredit_) {
+            (fromHolder_, toHolder_) = (toHolder_, fromHolder_);
+        } else {
+            if (fromCredit_) fromHolder_ = address(0);
+            if (toCredit_) toHolder_ = address(0);
         }
+        ERC20Wrapper(ledger_).emitTransfer(fromHolder_, toHolder_, amount_);
     }
 
-    /// @dev Trusted modules may supply their own internal settlement callback instead of dispatching the hook.
-    ///      The callback runs before balances change; Ledger validation, accounting, and events are shared.
+    /// @dev Callers resolve effective flags for both endpoints on ledger_ before calling.
+    /// Flags carry each absolute parent, depth and polarity, including unregistered leaves.
+    /// This internal posting reuses that validated metadata; callers own authorization.
     function transfer(
         address ledger_,
-        address fromParent_,
+        uint256 fromFlags_,
         address from_,
-        address toParent_,
+        uint256 toFlags_,
         address to_,
-        uint256 amount_,
-        function(address, address, address, bool, bool, uint256) internal beforeTransfer_
+        uint256 amount_
     ) internal returns (address _ledger, bool _fromIsCredit, bool _toIsCredit) {
-        (_ledger, _fromIsCredit, _toIsCredit) = enforceTransfer(ledger_, fromParent_, from_, toParent_, to_);
-
-        AccountCache memory _from = setAccountCache(ledger_, fromParent_, from_);
-        AccountCache memory _to = setAccountCache(ledger_, toParent_, to_);
-        beforeTransfer_(_ledger, _from.absolute, _to.absolute, _fromIsCredit, _toIsCredit, amount_);
+        enforceNonZeroAddress(ledger_);
+        AccountCache memory _from = setAccountCache(fromFlags_, from_);
+        AccountCache memory _to = setAccountCache(toFlags_, to_);
+        if (!isLedgerAccount(_from.flags)) revert ILedger.InvalidLedgerAccount(_from.absolute);
+        if (!isLedgerAccount(_to.flags)) revert ILedger.InvalidLedgerAccount(_to.absolute);
+        _ledger = ledger_;
+        _fromIsCredit = isCredit(_from.flags);
+        _toIsCredit = isCredit(_to.flags);
         // Emit before same-account no-op so ERC20 self-transfers still produce Transfer(from, from, amount).
         if (_ledger == wrapper(_ledger)) {
-            emitWrapperTransfer(_ledger, _from, _fromIsCredit, _to, _toIsCredit, amount_);
+            emitWrapperTransfer(_ledger, _from, _to, amount_);
         }
         if (_from.absolute == _to.absolute) {
             return (_ledger, _fromIsCredit, _toIsCredit);
@@ -790,8 +722,7 @@ library LedgerLib {
                 _from.balance = _update(_from, _ledger, _fromIsCredit ? s.credits : s.debits, amount_, _fromIsCredit);
                 emit ILedger.Credit(_ledger, _from.absolute, amount_, _from.balance);
                 if (_depth > 2) {
-                    address _parent = parent(_from.flags);
-                    _from.absolute = _parent == _ledger ? _ledger : toAddress(_ledger, _parent);
+                    _from.absolute = parent(_from.flags);
                     _from.flags = flags(_from.absolute);
                 }
             }
@@ -799,8 +730,7 @@ library LedgerLib {
                 _to.balance = _update(_to, _ledger, _toIsCredit ? s.credits : s.debits, amount_, !_toIsCredit);
                 emit ILedger.Debit(_ledger, _to.absolute, amount_, _to.balance);
                 if (_depth > 2) {
-                    address _parent = parent(_to.flags);
-                    _to.absolute = _parent == _ledger ? _ledger : toAddress(_ledger, _parent);
+                    _to.absolute = parent(_to.flags);
                     _to.flags = flags(_to.absolute);
                 }
             }
@@ -836,7 +766,9 @@ library LedgerLib {
         if (isCredit(c.ledgerFlags) || (!isExternal(c.ledgerFlags) && !isNative(c.ledgerFlags))) {
             revert ILedger.InvalidLedgerAccount(ledger_);
         }
-        (, _fromIsCredit, _toIsCredit) = transfer(ledger_, fromParent_, from_, toParent_, to_, amount_);
+        (uint256 fromFlags_,,) = effectiveFlags(ledger_, fromParent_, from_);
+        (uint256 toFlags_,,) = effectiveFlags(ledger_, toParent_, to_);
+        (, _fromIsCredit, _toIsCredit) = transfer(ledger_, fromFlags_, from_, toFlags_, to_, amount_);
         // Debit-ledger wrap must move value from credit source into debit holder balance.
         if (!_fromIsCredit) revert ILedger.InvalidSubAccount(from_);
         if (_toIsCredit) revert ILedger.InvalidSubAccount(to_);
@@ -887,7 +819,9 @@ library LedgerLib {
             revert ILedger.UndercollateralizedToken(ledger_, c.liabilities, c.collateral);
         }
 
-        (, _fromIsCredit, _toIsCredit) = transfer(ledger_, fromParent_, from_, toParent_, to_, amount_);
+        (uint256 fromFlags_,,) = effectiveFlags(ledger_, fromParent_, from_);
+        (uint256 toFlags_,,) = effectiveFlags(ledger_, toParent_, to_);
+        (, _fromIsCredit, _toIsCredit) = transfer(ledger_, fromFlags_, from_, toFlags_, to_, amount_);
         // Debit-ledger unwrap burns from debit holder balance back into credit source.
         if (_fromIsCredit) revert ILedger.InvalidSubAccount(from_);
         if (!_toIsCredit) revert ILedger.InvalidSubAccount(to_);

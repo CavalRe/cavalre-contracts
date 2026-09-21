@@ -146,7 +146,7 @@ contract DispatcherTest is Test, ContextUpgradeable {
         selectors_[0] = bytes4(0);
         vm.mockCall(address(foo), abi.encodeWithSelector(Dispatchable.selectors.selector), abi.encode(selectors_));
         vm.expectRevert(abi.encodeWithSelector(IDispatcher.InvalidSignature.selector, bytes4(0), "foo()"));
-        dispatcher.verifyModule(address(foo));
+        dispatcher.enforceModuleManifest(address(foo));
 
         string[] memory signatures_ = new string[](1);
         signatures_[0] = "receive()";
@@ -154,7 +154,7 @@ contract DispatcherTest is Test, ContextUpgradeable {
         vm.mockCall(address(foo), abi.encodeWithSelector(Dispatchable.signatures.selector), abi.encode(signatures_));
         vm.mockCall(address(foo), abi.encodeWithSelector(Dispatchable.selectors.selector), abi.encode(selectors_));
         vm.expectRevert(abi.encodeWithSelector(IDispatcher.InvalidSignature.selector, selectors_[0], "receive()"));
-        dispatcher.verifyModule(address(foo));
+        dispatcher.enforceModuleManifest(address(foo));
     }
 
     function testDispatcherInit() public view {
@@ -206,7 +206,7 @@ contract DispatcherTest is Test, ContextUpgradeable {
     }
 
     function testDispatcherVerifyModule() public view {
-        (bytes4[] memory _selectors, string[] memory _signatures) = dispatcher.verifyModule(address(foo));
+        (bytes4[] memory _selectors, string[] memory _signatures) = dispatcher.enforceModuleManifest(address(foo));
         assertEq(_selectors.length, 1, "DispatcherTest: selector count");
         assertEq(_selectors[0], TestDispatchableLib.FOO, "DispatcherTest: selector");
         assertEq(_signatures.length, 1, "DispatcherTest: signature count");

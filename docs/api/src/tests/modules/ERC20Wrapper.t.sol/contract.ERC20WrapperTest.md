@@ -1,5 +1,5 @@
 # ERC20WrapperTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/40317fddb0f44411366b7cf99393417793c80ea2/tests/modules/ERC20Wrapper.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/tests/modules/ERC20Wrapper.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -129,16 +129,15 @@ function createInternalToken(string memory name_, string memory symbol_, uint8 d
     returns (address _tokenAddress, uint256 _flags);
 ```
 
-### createReceiptToken
+### createShareToken
 
 
 ```solidity
-function createReceiptToken(
+function createShareToken(
     string memory name_,
     string memory symbol_,
     uint8 decimals_,
-    address root_,
-    address holderParent_,
+    address parent_,
     address relative_,
     string memory version_
 ) internal returns (address _tokenAddress, uint256 _flags);
@@ -172,11 +171,11 @@ function testERC20WrapperMetadata() public view;
 function testERC20WrapperCreateInternalToken() public;
 ```
 
-### testERC20WrapperReceiptTokenRootMintTransferBurn
+### testERC20WrapperShareTokenRootMintTransferBurn
 
 
 ```solidity
-function testERC20WrapperReceiptTokenRootMintTransferBurn() public;
+function testERC20WrapperShareTokenRootMintTransferBurn() public;
 ```
 
 ### testERC20WrapperMintTransferBurn
@@ -207,11 +206,11 @@ function testERC20WrapperZeroTransferEmitsTransfer() public;
 function testERC20WrapperTransferMatrix() public;
 ```
 
-### testERC20WrapperReceiptTokenRootTransferMatrix
+### testERC20WrapperShareTokenRootTransferMatrix
 
 
 ```solidity
-function testERC20WrapperReceiptTokenRootTransferMatrix() public;
+function testERC20WrapperShareTokenRootTransferMatrix() public;
 ```
 
 ### _assertTransferMatrix
@@ -278,7 +277,7 @@ function _buildMatrixLegs(address root_, uint160 base_, string memory prefix_)
 ```solidity
 function _expectedWrapperTransfer(MatrixLeg memory from_, MatrixLeg memory to_)
     private
-    pure
+    view
     returns (ExpectedWrapperTransfer memory expected_);
 ```
 
@@ -286,7 +285,7 @@ function _expectedWrapperTransfer(MatrixLeg memory from_, MatrixLeg memory to_)
 
 
 ```solidity
-function _holder(MatrixLeg memory leg_) private pure returns (address);
+function _holder(MatrixLeg memory leg_) private view returns (address);
 ```
 
 ### _assertWrapperTransferLogs
