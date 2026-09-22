@@ -5,19 +5,23 @@ import {Dispatchable} from "../dispatcher/Dispatchable.sol";
 import {ILedgerTokenFactory} from "./ILedgerTokenFactory.sol";
 import {LedgerTokenFactoryLib} from "./LedgerTokenFactoryLib.sol";
 
+import {StakingRewardLib} from "../staking/StakingRewardLib.sol";
+
 contract LedgerTokenFactory is Dispatchable {
     function signatures() external pure virtual override returns (string[] memory _signatures) {
-        _signatures = new string[](2);
+        _signatures = new string[](3);
         _signatures[0] = "createInternalTokens((string,string,uint8,string)[])";
         _signatures[1] = "createShareTokens((address,(string,string,uint8,string))[])";
+        _signatures[2] = "createStakingRewardToken(address,address,uint256,(string,string,uint8,string))";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
         uint256 n;
-        _selectors = new bytes4[](2);
+        _selectors = new bytes4[](3);
         _selectors[n++] = bytes4(keccak256("createInternalTokens((string,string,uint8,string)[])"));
         _selectors[n++] = bytes4(keccak256("createShareTokens((address,(string,string,uint8,string))[])"));
-        if (n != 2) revert InvalidCommandsLength(n);
+        _selectors[n++] = ILedgerTokenFactory.createStakingRewardToken.selector;
+        if (n != 3) revert InvalidCommandsLength(n);
     }
 
     function createInternalTokens(ILedgerTokenFactory.TokenMetadata[] memory tokens_)
@@ -46,5 +50,16 @@ contract LedgerTokenFactory is Dispatchable {
             (_tokenAddresses[i_], _flags[i_]) =
                 LedgerTokenFactoryLib.createShareToken(tokens_[i_].backingAccount, tokens_[i_].metadata);
         }
+    }
+
+    /// @notice Create an SR wrapper and configure its staking and reward accounts.
+    function createStakingRewardToken(
+        address stakingGroup_,
+        address rewardGroup_,
+        uint256 halfLife_,
+        ILedgerTokenFactory.TokenMetadata memory metadata_
+    ) external returns (address) {
+        enforceIsOwner();
+        return StakingRewardLib.createStakingRewardToken(stakingGroup_, rewardGroup_, halfLife_, metadata_);
     }
 }

@@ -183,11 +183,11 @@ function testConfigurationCannotChange() public;
 function testCreationIsIdempotentWithoutResettingRewards() public;
 ```
 
-### testCreationDoesNotRequireFactoryModule
+### testExistingFactoryCreatesSRAndRuntimeRemainsIndependent
 
 
 ```solidity
-function testCreationDoesNotRequireFactoryModule() public;
+function testExistingFactoryCreatesSRAndRuntimeRemainsIndependent() public;
 ```
 
 ### testModuleFitsDeploymentLimit

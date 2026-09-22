@@ -1,5 +1,5 @@
 # ILedgerTokenFactory
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/ILedgerTokenFactory.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/modules/ledger/ILedgerTokenFactory.sol)
 
 
 ## Functions
@@ -21,6 +21,20 @@ Create share tokens in input order; any failed item reverts the entire batch.
 function createShareTokens(ShareTokenConfig[] memory tokens)
     external
     returns (address[] memory tokenAddresses, uint256[] memory flags);
+```
+
+### createStakingRewardToken
+
+Create an SR wrapper with immutable staking group, reward group and half-life.
+
+
+```solidity
+function createStakingRewardToken(
+    address stakingGroup,
+    address rewardGroup,
+    uint256 halfLife,
+    TokenMetadata memory metadata
+) external returns (address token);
 ```
 
 ## Structs

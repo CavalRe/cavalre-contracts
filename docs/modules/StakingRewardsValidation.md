@@ -1,6 +1,6 @@
 # Staking rewards validation
 
-Validated on the contracts `main` checkout based on `677321cf20df67783ec04b0e282bd84df6c300cd`, with Solidity 0.8.26, Cancun and optimizer 200. No deployment, compiler configuration or code-size-limit change was made.
+Validated on the contracts `main` checkout, including consolidation of SR creation into the existing LedgerTokenFactory after `214bd799257e6fbfaf98ddaae328ff3d69ea6e3a`. The original baseline was `677321cf20df67783ec04b0e282bd84df6c300cd`, with Solidity 0.8.26, Cancun and optimizer 200. No deployment, compiler configuration or code-size-limit change was made.
 
 ## Commands and results
 
@@ -26,10 +26,10 @@ The baseline staking failures were internal settlement, two nested-SR scenarios,
 | Contract | Runtime bytes | Initcode bytes |
 | --- | ---: | ---: |
 | StakingRewardToken | 17,599 | 17,642 |
-| StakingRewardFactory | 16,528 | 16,571 |
+| LedgerTokenFactory (internal, share and SR creation) | 22,539 | 22,582 |
 | StakingRewardWrapper | 3,422 | 4,240 |
 
-Both module implementations are instantiated and registered through Dispatcher in the tests. Runtime-size assertions enforce the standard 24,576-byte limit; initcode is below 49,152 bytes. Foundry warnings about oversized **test harnesses** do not concern these deployable implementations. Build output also includes dependency lint warnings and two OpenZeppelin AST-source notices. Foundry's optional signature-cache write outside the sandbox warns on some runs; test execution and its results are unaffected.
+The existing LedgerTokenFactory and SR runtime implementations are instantiated and registered through Dispatcher in the tests. Runtime-size assertions enforce the standard 24,576-byte limit; initcode is below 49,152 bytes. Foundry warnings about oversized **test harnesses** do not concern these deployable implementations. Build output also includes dependency lint warnings and two OpenZeppelin AST-source notices. Foundry's optional signature-cache write outside the sandbox warns on some runs; test execution and its results are unaffected.
 
 ## Unrelated baseline failures retained
 
@@ -50,4 +50,4 @@ Allocation residuals use the existing non-holder program checkpoint, not an appe
 
 ## Deferred integration
 
-cavalre-multiswap remains unchanged, including its pre-existing work. A separate task must update its contracts dependency, install the creation/runtime modules and settlement selector, regenerate ABIs/bindings for the appended configuration return field and Forfeited field semantics, adopt actual nested staking groups, remove duplicate settlement, and validate frontend and indexer behavior. Contracts were not deployed.
+cavalre-multiswap remains unchanged, including its pre-existing work. A separate task must update its contracts dependency, register SR creation on the existing token factory and install the SR runtime settlement selector, regenerate ABIs/bindings for the appended configuration return field and Forfeited field semantics, adopt actual nested staking groups, remove duplicate settlement, and validate frontend and indexer behavior. Contracts were not deployed.

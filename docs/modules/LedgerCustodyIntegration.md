@@ -32,8 +32,8 @@ that internal behavior distinct from the positive mixed-custody projection tests
 - SR tokens now deploy StakingRewardWrapper, inheriting ERC20Wrapper and overriding
   both transfers to call `StakingRewardToken.transfer(token, from, to, amount)`.
   The SR module authenticates the wrapper and settles rewards before posting.
-  SR address predictions require that wrapper's creation bytecode. Install the
-  separate StakingRewardFactory and runtime module; all internal postings settle
+  SR address predictions require that wrapper's creation bytecode. Register SR creation on the
+  existing LedgerTokenFactory and install the SR runtime module; all internal postings settle
   affected programs through the Dispatcher-only settleStakeTransfer selector.
   Refresh the Configuration return tuple for allocationRemainderUnits.
 - Any direct `LedgerLib.Store.ledger` reads must use `LedgerLib.ledger(absolute)`;

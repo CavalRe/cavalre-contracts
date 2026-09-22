@@ -6,7 +6,7 @@ The specification is [Staking Rewards: Allocation, Vesting, and Forfeiture, corr
 
 ## Configuration and deployment
 
-Install `StakingRewardFactory` and `StakingRewardToken` through the Dispatcher alongside Ledger and LedgerView. Creation has its own module so its wrapper/share deployment bytecode does not inflate runtime accounting past EIP-170. `IStakingRewardToken` describes the combined Dispatcher API. An installed LedgerTokenFactory is not required for SR creation; its internal factory library is reused.
+Install the existing `LedgerTokenFactory` and `StakingRewardToken` through the Dispatcher alongside Ledger and LedgerView. The existing factory creates internal tokens, share tokens and SR programs; no additional factory module is needed. Keeping creation there also keeps wrapper/share deployment bytecode out of runtime accounting. `IStakingRewardToken` describes the combined Dispatcher API, and `ILedgerTokenFactory` also exposes the creation entry point.
 
 The owner calls `createStakingRewardToken(stakingGroup, rewardGroup, halfLife, metadata)` with absolute registered debit groups. The staking group must be empty and exclusive to this program. Reward backing cannot lie within that same staking subtree. Metadata decimals match the underlying stake ledger. Matching creation is idempotent; a conflicting configuration reverts.
 
@@ -84,6 +84,6 @@ Wrapper balances and ERC20 events project through each program's direct child cu
 
 Tests include all article examples, transferFrom, full-supply transfers, mixed positions, self/zero storage immutability, re-entry, claims after exit, restart, long inactivity, small integer residuals, custody restrictions, nested stake/reward assets, internal postings and absence of reward-share postings on transfers/forfeiture. An independent eager reference visits three holders over 80 randomized actions; production code uses only shared accumulators and affected-holder checkpoints. Separate fuzz tests check exact supply/custody/backing conservation through repeated claims and final redemption.
 
-Deployment checks assert standard 24,576-byte runtime limits for both SR modules under Solidity 0.8.26, Cancun, optimizer 200. No code-size limit or compiler setting is relaxed.
+Deployment checks assert standard 24,576-byte runtime limits for the runtime module and existing token factory under Solidity 0.8.26, Cancun, optimizer 200. No code-size limit or compiler setting is relaxed.
 
-Deferred to a separate cavalre-multiswap task: update the contracts dependency, install both SR modules and the internal settlement selector, refresh ABIs/bindings for the appended configuration return field and changed Forfeited event field meaning, update address predictions for current wrapper bytecode, use actual nested staking groups, and remove any duplicate consumer settlement. Revalidate staking, reward funding/claims, indexers and frontend wallet flows there. No files in that repository are changed by this implementation.
+Deferred to a separate cavalre-multiswap task: update the contracts dependency, register the SR creation selector on the existing token factory and install the SR runtime settlement selector, refresh ABIs/bindings for the appended configuration return field and changed Forfeited event field meaning, update address predictions for current wrapper bytecode, use actual nested staking groups, and remove any duplicate consumer settlement. Revalidate staking, reward funding/claims, indexers and frontend wallet flows there. No files in that repository are changed by this implementation.

@@ -118,7 +118,7 @@ Special addresses / roots:
 
 ### Staking Reward Module
 
-`StakingRewardFactory` owns program creation; `StakingRewardToken` owns runtime accounting and views. Install both through Dispatcher. `StakingRewardWrapper` presents actual balances beneath a configured staking group; there is no principal receipt ledger. Reward ShareToken supply is the authoritative aggregate outstanding-unit balance, held in one custody leaf until claims.
+`LedgerTokenFactory` owns program creation; `StakingRewardToken` owns runtime accounting and views. Install both through Dispatcher. `StakingRewardWrapper` presents actual balances beneath a configured staking group; there is no principal receipt ledger. Reward ShareToken supply is the authoritative aggregate outstanding-unit balance, held in one custody leaf until claims.
 
 `LedgerLib.transfer` settles each affected staking program through the Dispatcher-only `settleStakeTransfer` selector before posting, including internal and nested paths. Do not duplicate settlement in consuming modules. Same-program transfers carry proportional pending units; exits allocate forfeited pending units to remaining stake without changing reward-share supply or custody. Final release tests remaining stake, not reward-unit ownership. Available rewards stay with their owner. Nested SR assets use actual staking subtrees, not wrapper-root accounts.
 

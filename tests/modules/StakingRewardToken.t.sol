@@ -17,7 +17,6 @@ import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {LedgerTokenFactory} from "../../modules/ledger/LedgerTokenFactory.sol";
 import {ILedgerTokenFactory} from "../../modules/ledger/ILedgerTokenFactory.sol";
 import {StakingRewardToken} from "../../modules/staking/StakingRewardToken.sol";
-import {StakingRewardFactory} from "../../modules/staking/StakingRewardFactory.sol";
 import {StakingRewardWrapper} from "../../modules/staking/StakingRewardWrapper.sol";
 import {IStakingRewardToken} from "../../modules/staking/IStakingRewardToken.sol";
 import {StakingRewardLib} from "../../modules/staking/StakingRewardLib.sol";
@@ -75,13 +74,12 @@ contract StakingRewardTokenTest is Test {
 
     function setUp() public {
         dispatcher = new Dispatcher(address(this));
-        address[] memory modules_ = new address[](5);
+        address[] memory modules_ = new address[](4);
         modules_[0] = address(new TestLedger(18, 18));
         modules_[1] = address(new LedgerTokenFactory());
         factoryImplementation = modules_[1];
         modules_[2] = address(new LedgerView());
         modules_[3] = address(new StakingRewardToken());
-        modules_[4] = address(new StakingRewardFactory());
         dispatcher.addModule(modules_);
         ledger = TestLedger(payable(address(dispatcher)));
         factory = LedgerTokenFactory(address(dispatcher));
@@ -173,17 +171,18 @@ contract StakingRewardTokenTest is Test {
         ShareTokenView(address(dispatcher)).shareTokenState(token_);
     }
 
-    function testCreationDoesNotRequireFactoryModule() public {
+    function testExistingFactoryCreatesSRAndRuntimeRemainsIndependent() public {
         address[] memory modules_ = new address[](1);
         modules_[0] = factoryImplementation;
-        dispatcher.removeModule(modules_);
+        assertEq(dispatcher.module(ILedgerTokenFactory.createStakingRewardToken.selector), factoryImplementation);
         ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x52a), "New Staking", false);
-        address second_ = rewards.createStakingRewardToken(
+        address second_ = factory.createStakingRewardToken(
             LedgerLib.toAddress(stakeToken, address(0x52a)),
             rewardGroup,
             HALF_LIFE,
             ILedgerTokenFactory.TokenMetadata("Second", "SR2", 18, "1")
         );
+        dispatcher.removeModule(modules_);
         assertEq(ledgerView.totalSupply(second_), 0);
         vm.prank(ALICE);
         rewards.stake(second_, 100e18, 100e18);
@@ -198,7 +197,7 @@ contract StakingRewardTokenTest is Test {
 
     function testModuleFitsDeploymentLimit() public {
         assertLe(address(new StakingRewardToken()).code.length, 24_576);
-        assertLe(address(new StakingRewardFactory()).code.length, 24_576);
+        assertLe(address(new LedgerTokenFactory()).code.length, 24_576);
     }
 
     function testSROperationsSettleWithoutDispatchingTransferHook() public {
