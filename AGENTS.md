@@ -118,9 +118,11 @@ Special addresses / roots:
 
 ### Staking Reward Module
 
-`modules/staking/StakingRewardToken.sol` creates internal Ledger tokens with fixed-half-life pending/available rewards. `createStakingRewardToken(S, R, T, h, metadata)` owns creation and immutable configuration; it deploys StakingRewardWrapper, which inherits concrete ERC20Wrapper and overrides both transfer methods. No share token or installed factory module is required. `T` is an absolute debit leaf on `S`; SR stores `T`, `R`, and `h` and reads `S` from the account's Ledger registration. Separate ERC-7201 storage holds configuration, reward units, and lazy per-holder checkpoints.
+`StakingRewardFactory` owns program creation; `StakingRewardToken` owns runtime accounting and views. Install both through Dispatcher. `StakingRewardWrapper` presents actual balances beneath a configured staking group; there is no principal receipt ledger. Reward ShareToken supply is the authoritative aggregate outstanding-unit balance, held in one custody leaf until claims.
 
-Ledger posting has no Dispatcher settlement hook or callback overload. StakingRewardWrapper routes both ERC20 transfer methods to `StakingRewardToken.transfer(token, from, to, amount)`. That wrapper-authenticated entry point directly checkpoints rewards and applies sender forfeiture before posting through LedgerLib with resolved flags. Ordinary wrappers and ShareToken retain the Ledger callback. Other SR operations settle explicitly before their own postings; custom deep transfers remain their consuming module's responsibility. See `modules/staking/README.md` for current integration status, forfeiture, and final-holder semantics.
+`LedgerLib.transfer` settles each affected staking program through the Dispatcher-only `settleStakeTransfer` selector before posting, including internal and nested paths. Do not duplicate settlement in consuming modules. Same-program transfers carry proportional pending units; exits allocate forfeited pending units to remaining stake without changing reward-share supply or custody. Final release tests remaining stake, not reward-unit ownership. Available rewards stay with their owner. Nested SR assets use actual staking subtrees, not wrapper-root accounts.
+
+Storage layouts remain unchanged. The existing checkpoint at the staking-group address records allocation residual units; groups cannot be holders. Final unstake credits that residual to the last eligible position. See `modules/staking/README.md` for arithmetic bounds, custody projection, access restrictions and empty-state policies.
 
 ### Storage Pattern
 

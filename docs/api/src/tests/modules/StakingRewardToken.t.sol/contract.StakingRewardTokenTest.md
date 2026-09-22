@@ -1,5 +1,5 @@
 # StakingRewardTokenTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/tests/modules/StakingRewardToken.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/tests/modules/StakingRewardToken.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -31,6 +31,13 @@ address internal constant CAROL = address(0xca201)
 
 ```solidity
 address internal constant BACKING = address(0x51a)
+```
+
+
+### REWARDS
+
+```solidity
+address internal constant REWARDS = address(0x52b)
 ```
 
 
@@ -87,7 +94,7 @@ ILedgerTokenFactory.TokenMetadata internal metadata
 ### rewards
 
 ```solidity
-StakingRewardToken internal rewards
+IStakingRewardToken internal rewards
 ```
 
 
@@ -109,6 +116,27 @@ address internal rewardToken
 
 ```solidity
 address internal srToken
+```
+
+
+### stakingGroup
+
+```solidity
+address internal stakingGroup
+```
+
+
+### rewardGroup
+
+```solidity
+address internal rewardGroup
+```
+
+
+### stakeRewardGroup
+
+```solidity
+address internal stakeRewardGroup
 ```
 
 
@@ -232,11 +260,11 @@ function testClaimAllClearsAvailableUnitsWhenTokenPayoutRoundsToZero() public;
 function testNewStakeDoesNotReceivePreviouslyFundedRewards() public;
 ```
 
-### testForfeitureRepricesUnitsAndLaterFundingUsesUnitPrice
+### testForfeiturePreservesUnitsAndLaterFundingUsesUnitPrice
 
 
 ```solidity
-function testForfeitureRepricesUnitsAndLaterFundingUsesUnitPrice() public;
+function testForfeiturePreservesUnitsAndLaterFundingUsesUnitPrice() public;
 ```
 
 ### testPartialExitPreservesAvailableRewardValue
@@ -260,18 +288,18 @@ function testFinalHolderReceivesAllRemainingRewards() public;
 function testPartialSoleHolderExitRetainsPendingRewards() public;
 ```
 
-### testLastStakerForfeitsToExitedRewardHolder
+### testLastStakerReleasePreservesExitedHolderRewards
 
 
 ```solidity
-function testLastStakerForfeitsToExitedRewardHolder() public;
+function testLastStakerReleasePreservesExitedHolderRewards() public;
 ```
 
-### testNewStakerDoesNotPreventFinalRewardHolderRelease
+### testNewStakerPreventsFinalStakerRelease
 
 
 ```solidity
-function testNewStakerDoesNotPreventFinalRewardHolderRelease() public;
+function testNewStakerPreventsFinalStakerRelease() public;
 ```
 
 ### testImmediateFinalExitAndRestart
@@ -393,11 +421,123 @@ function testStakingAnotherSRTokenSettlesBothAssetTransfers() public;
 function testRewardingAnotherSRTokenSettlesFundingAndClaimTransfers() public;
 ```
 
+### testNestedRewardCustodyCannotSpendThroughOuterWrapper
+
+
+```solidity
+function testNestedRewardCustodyCannotSpendThroughOuterWrapper() public;
+```
+
 ### testNativeStakeUsesExistingLedgerCustody
 
 
 ```solidity
 function testNativeStakeUsesExistingLedgerCustody() public;
+```
+
+### seedEightyPendingTwentyAvailable
+
+
+```solidity
+function seedEightyPendingTwentyAvailable() internal;
+```
+
+### testArticleExitedHolderExcludedFromForfeiture
+
+
+```solidity
+function testArticleExitedHolderExcludedFromForfeiture() public;
+```
+
+### testArticlePartialUnstake
+
+
+```solidity
+function testArticlePartialUnstake() public;
+```
+
+### testArticleSoleUnitOwnerIsNotFinalStaker
+
+
+```solidity
+function testArticleSoleUnitOwnerIsNotFinalStaker() public;
+```
+
+### testArticlePartialAndFullTransfer
+
+
+```solidity
+function testArticlePartialAndFullTransfer() public;
+```
+
+### testArticleMixedPositions
+
+
+```solidity
+function testArticleMixedPositions() public;
+```
+
+### testArticleContinuedFundingDoesNotRestartVesting
+
+
+```solidity
+function testArticleContinuedFundingDoesNotRestartVesting() public;
+```
+
+### testSettlementSelectorRejectsExternalCallers
+
+
+```solidity
+function testSettlementSelectorRejectsExternalCallers() public;
+```
+
+### referenceAllocate
+
+
+```solidity
+function referenceAllocate(ReferenceState memory model_, uint256 units_) internal pure;
+```
+
+### referenceStep
+
+
+```solidity
+function referenceStep(ReferenceState memory model_, uint256 random_) internal;
+```
+
+### testFuzzAgainstIndependentEagerReference
+
+
+```solidity
+function testFuzzAgainstIndependentEagerReference(uint256 seed_) public;
+```
+
+### checkpointHash
+
+
+```solidity
+function checkpointHash(address holder_) internal view returns (bytes32 digest_);
+```
+
+### testSelfAndZeroTransfersLeaveRewardStorageUntouched
+
+
+```solidity
+function testSelfAndZeroTransfersLeaveRewardStorageUntouched() public;
+```
+
+### testTransferAndForfeitureDoNotPostRewardShares
+
+
+```solidity
+function testTransferAndForfeitureDoNotPostRewardShares() public;
+```
+
+### testAllocationResidualPreservesSupplyAndClearsOnFinalExit
+
+
+```solidity
+function testAllocationResidualPreservesSupplyAndClearsOnFinalExit() public;
 ```
 
 ### assertConservation
@@ -460,6 +600,29 @@ struct NestedRewardCache {
     address holder;
     IStakingRewardToken.Rewards beforeClaim;
     IStakingRewardToken.Rewards afterClaim;
+}
+```
+
+### ReferencePosition
+
+```solidity
+struct ReferencePosition {
+    uint256 stake;
+    uint256 units;
+    uint256 pending;
+}
+```
+
+### ReferenceState
+
+```solidity
+struct ReferenceState {
+    ReferencePosition[3] positions;
+    uint256 stake;
+    uint256 units;
+    uint256 remainder;
+    uint256 funded;
+    uint256 stakeAdded;
 }
 ```
 

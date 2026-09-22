@@ -32,8 +32,10 @@ that internal behavior distinct from the positive mixed-custody projection tests
 - SR tokens now deploy StakingRewardWrapper, inheriting ERC20Wrapper and overriding
   both transfers to call `StakingRewardToken.transfer(token, from, to, amount)`.
   The SR module authenticates the wrapper and settles rewards before posting.
-  SR address predictions require that wrapper's creation bytecode. Custom deep
-  SR postings still require settlement in the consuming module.
+  SR address predictions require that wrapper's creation bytecode. Install the
+  separate StakingRewardFactory and runtime module; all internal postings settle
+  affected programs through the Dispatcher-only settleStakeTransfer selector.
+  Refresh the Configuration return tuple for allocationRemainderUnits.
 - Any direct `LedgerLib.Store.ledger` reads must use `LedgerLib.ledger(absolute)`;
   the stored mapping is now `custody`. The getter preserves its address-based
   results for registered accounts, roots and unregistered addresses.
@@ -41,8 +43,8 @@ that internal behavior distinct from the positive mixed-custody projection tests
   `LedgerLib.transfer(ledger, fromFlags, fromRelative, toFlags, toRelative, amount)`.
   Resolve effective endpoint flags once and reuse them for validation and posting.
   The flags replace the parent arguments; unregistered leaves require effective
-  metadata rather than zero stored flags. Ledger no longer dispatches SR hooks;
-  consuming modules must perform required settlement before posting.
+  metadata rather than zero stored flags. Ledger postings settle affected SR
+  programs automatically; remove duplicate settlement in consuming modules.
 - Replace token-local parent derivations in PoolLib, PoolStateLib, DepositLib,
   StakeLib, LiquidityLib/views and MultiswapLib with recursive absolute parents.
   Update TypeScript accounting-address helpers and tree consumers accordingly.

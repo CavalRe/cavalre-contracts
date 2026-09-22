@@ -1,8 +1,8 @@
 # StakingRewardToken
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/staking/StakingRewardToken.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/modules/staking/StakingRewardToken.sol)
 
 **Inherits:**
-[Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md), [IStakingRewardToken](/modules/staking/IStakingRewardToken.sol/interface.IStakingRewardToken.md)
+[Dispatchable](/modules/dispatcher/Dispatchable.sol/abstract.Dispatchable.md), [ReentrancyGuard](/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol/abstract.ReentrancyGuard.md)
 
 
 ## Constants
@@ -35,19 +35,6 @@ function signatures() external pure virtual override returns (string[] memory si
 
 ```solidity
 function selectors() external pure virtual override returns (bytes4[] memory selectors_);
-```
-
-### createStakingRewardToken
-
-
-```solidity
-function createStakingRewardToken(
-    address stakingLedger_,
-    address rewardLedger_,
-    address stakingAccount_,
-    uint256 halfLife_,
-    ILedgerTokenFactory.TokenMetadata memory metadata_
-) external nonReentrant returns (address, uint256);
 ```
 
 ### stake
@@ -85,18 +72,34 @@ function claim(address token_) external nonReentrant returns (uint256);
 function transfer(address token_, address from_, address to_, uint256 amount_) external nonReentrant;
 ```
 
+### settleStakeTransfer
+
+LedgerLib invokes this through the Dispatcher before its internal posting.
+
+
+```solidity
+function settleStakeTransfer(
+    address token_,
+    address from_,
+    address to_,
+    bool fromOutside_,
+    bool toOutside_,
+    uint256 amount_
+) external;
+```
+
 ### stakingRewardToken
 
 
 ```solidity
-function stakingRewardToken(address token_) external view returns (Configuration memory);
+function stakingRewardToken(address token_) external view returns (IStakingRewardToken.Configuration memory);
 ```
 
 ### rewardsOf
 
 
 ```solidity
-function rewardsOf(address token_, address holder_) external view returns (Rewards memory);
+function rewardsOf(address token_, address holder_) external view returns (IStakingRewardToken.Rewards memory);
 ```
 
 ### rewardsOfAccount
@@ -106,6 +109,6 @@ function rewardsOf(address token_, address holder_) external view returns (Rewar
 function rewardsOfAccount(address token_, address parent_, address relative_)
     external
     view
-    returns (Rewards memory);
+    returns (IStakingRewardToken.Rewards memory);
 ```
 

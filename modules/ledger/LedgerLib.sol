@@ -7,6 +7,9 @@ import {ILedger} from "./ILedger.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20, IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
+import {StakingRewardLib} from "../staking/StakingRewardLib.sol";
+import {IStakingRewardToken} from "../staking/IStakingRewardToken.sol";
+
 library LedgerLib {
     enum AccountKind {
         Unregistered,
@@ -712,6 +715,8 @@ library LedgerLib {
             return (_ledger, _fromIsCredit, _toIsCredit);
         }
 
+        settleStakingPrograms(_from, _to, amount_);
+
         bool _isSameSide = _fromIsCredit == _toIsCredit;
 
         Store storage s = store();
@@ -742,6 +747,62 @@ library LedgerLib {
             _depth--;
         }
         revert ILedger.ZeroDepth();
+    }
+
+    /// @dev Walk account ancestry, never holders. Every affected program is settled once,
+    /// before either balance changes, including postings made by consuming modules.
+    function settleStakingPrograms(AccountCache memory from_, AccountCache memory to_, uint256 amount_) private {
+        if (amount_ == 0) return;
+        address ancestor_ = parent(from_.flags);
+        while (!isLedger(flags(ancestor_)) && ancestor_ != ROOT_ADDRESS) {
+            address token_ = StakingRewardLib.store().reservedAccounts[ancestor_];
+            if (token_ != address(0) && StakingRewardLib.store().programs[token_].stakingGroup == ancestor_) {
+                if (isCredit(from_.flags)) revert ILedger.InvalidLedgerAccount(from_.absolute);
+                bool outside_ = !belongsToStakingGroup(parent(to_.flags), ancestor_);
+                if (!outside_ && isCredit(to_.flags)) revert ILedger.InvalidLedgerAccount(to_.absolute);
+                IStakingRewardToken(address(this))
+                    .settleStakeTransfer(token_, from_.absolute, to_.absolute, false, outside_, amount_);
+                ERC20Wrapper(token_)
+                    .emitTransfer(
+                        stakingCustodian(from_, ancestor_),
+                        outside_ ? address(0) : stakingCustodian(to_, ancestor_),
+                        amount_
+                    );
+            }
+            ancestor_ = parent(flags(ancestor_));
+        }
+        ancestor_ = parent(to_.flags);
+        while (!isLedger(flags(ancestor_)) && ancestor_ != ROOT_ADDRESS) {
+            address token_ = StakingRewardLib.store().reservedAccounts[ancestor_];
+            if (
+                token_ != address(0) && StakingRewardLib.store().programs[token_].stakingGroup == ancestor_
+                    && !belongsToStakingGroup(parent(from_.flags), ancestor_)
+            ) {
+                if (isCredit(to_.flags)) revert ILedger.InvalidLedgerAccount(to_.absolute);
+                IStakingRewardToken(address(this))
+                    .settleStakeTransfer(token_, from_.absolute, to_.absolute, true, false, amount_);
+                ERC20Wrapper(token_).emitTransfer(address(0), stakingCustodian(to_, ancestor_), amount_);
+            }
+            ancestor_ = parent(flags(ancestor_));
+        }
+    }
+
+    /// @dev Project a staking leaf through the program's direct child custodian,
+    /// just as ordinary ERC20 events project through a ledger root's direct child.
+    function stakingCustodian(AccountCache memory account_, address group_) private view returns (address) {
+        address parent_ = parent(account_.flags);
+        if (parent_ == group_) return account_.relative;
+        while (parent(flags(parent_)) != group_) parent_ = parent(flags(parent_));
+        return subAccount(group_, subAccountIndex(parent_) - 1);
+    }
+
+    function belongsToStakingGroup(address parent_, address group_) private view returns (bool) {
+        while (parent_ != ROOT_ADDRESS) {
+            if (parent_ == group_) return true;
+            if (isLedger(flags(parent_))) return false;
+            parent_ = parent(flags(parent_));
+        }
+        return false;
     }
 
     struct WrapCache {

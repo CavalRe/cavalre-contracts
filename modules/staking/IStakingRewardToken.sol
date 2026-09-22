@@ -24,6 +24,7 @@ interface IStakingRewardToken {
         address rewardShareToken;
         uint256 halfLife;
         Rewards rewards;
+        uint256 allocationRemainderUnits;
     }
 
     error NotStakingRewardToken(address token);
@@ -48,7 +49,9 @@ interface IStakingRewardToken {
     event Unstaked(address indexed token, address indexed holder, uint256 shares, uint256 stake);
     event Rewarded(address indexed token, address indexed funder, uint256 amount, uint256 units);
     event Claimed(address indexed token, address indexed holder, uint256 amount, uint256 units);
-    event Forfeited(address indexed token, address indexed account, uint256 pendingUnits, uint256 cancelledUnits);
+    event Forfeited(
+        address indexed token, address indexed account, uint256 pendingUnits, uint256 allocationRemainderUnits
+    );
 
     /// @notice Create an ERC20 wrapper over actual stakes beneath an absolute staking group.
     /// @dev Configure two registered debit groups and a positive half-life. The staking group starts empty.
@@ -63,7 +66,7 @@ interface IStakingRewardToken {
     function stake(address token, uint256 amount, uint256 minimumShares) external returns (uint256 shares);
 
     /// @notice Withdraw actual staking tokens, retaining available rewards and forfeiting proportional pending rewards.
-    /// @dev On a full exit by the last reward-unit holder, all remaining rewards become available to them.
+    /// @dev On the final eligible-stake exit, pending rewards become available; exited holders retain their rewards.
     function unstake(address token, uint256 shares, uint256 minimumStake) external returns (uint256 amount);
 
     /// @notice Fund pending rewards from the caller's R Ledger balance, allocated to current share holders.
@@ -76,6 +79,16 @@ interface IStakingRewardToken {
     /// @notice Transfer direct SR balances after settling sender and recipient rewards.
     /// @dev Only the token's registered wrapper may call. The wrapper owns allowance checks.
     function transfer(address token, address from, address to, uint256 amount) external;
+
+    /// @dev Internal posting settlement; only the Dispatcher itself may invoke this selector.
+    function settleStakeTransfer(
+        address token,
+        address from,
+        address to,
+        bool fromOutside,
+        bool toOutside,
+        uint256 amount
+    ) external;
 
     /// @notice SR configuration and balances, expressed in each token's raw decimals.
     function stakingRewardToken(address token) external view returns (Configuration memory);

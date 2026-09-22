@@ -1,5 +1,5 @@
 # LedgerLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/LedgerLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/modules/ledger/LedgerLib.sol)
 
 
 ## Constants
@@ -651,6 +651,33 @@ function transfer(
     address to_,
     uint256 amount_
 ) internal returns (address _ledger, bool _fromIsCredit, bool _toIsCredit);
+```
+
+### settleStakingPrograms
+
+Walk account ancestry, never holders. Every affected program is settled once,
+before either balance changes, including postings made by consuming modules.
+
+
+```solidity
+function settleStakingPrograms(AccountCache memory from_, AccountCache memory to_, uint256 amount_) private;
+```
+
+### stakingCustodian
+
+Project a staking leaf through the program's direct child custodian,
+just as ordinary ERC20 events project through a ledger root's direct child.
+
+
+```solidity
+function stakingCustodian(AccountCache memory account_, address group_) private view returns (address);
+```
+
+### belongsToStakingGroup
+
+
+```solidity
+function belongsToStakingGroup(address parent_, address group_) private view returns (bool);
 ```
 
 ### wrap

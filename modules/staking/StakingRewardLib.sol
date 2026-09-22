@@ -8,7 +8,6 @@ import {ILedger} from "../ledger/ILedger.sol";
 import {LedgerTokenFactoryLib} from "../ledger/LedgerTokenFactoryLib.sol";
 import {ILedgerTokenFactory} from "../ledger/ILedgerTokenFactory.sol";
 import {ShareTokenLib} from "../share/ShareTokenLib.sol";
-import {ERC20Wrapper} from "../ledger/ERC20Wrapper.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -46,8 +45,8 @@ library StakingRewardLib {
     bytes32 private constant STORE_POSITION =
         keccak256(abi.encode(uint256(keccak256("cavalre.storage.StakingRewardToken")) - 1)) & ~bytes32(uint256(0xff));
 
-    // Accumulator increments are integral units per raw share. Quantizing issuance to supply * increment
-    // makes total units exactly equal the sum of holder units, including lazy holder checkpoints.
+    // Accumulator increments are integral units per raw stake. Unallocatable units stay
+    // in the program checkpoint (keyed by its non-holder staking group) until final exit.
     uint256 internal constant UNIT_SCALE = 1e36;
     uint256 private constant WAD = 1e18;
     uint256 private constant LN2 = 693147180559945309;
@@ -240,19 +239,28 @@ library StakingRewardLib {
         }
     }
 
+    /// @dev An SR asset is its existing staking subtree. Nested programs move the same
+    /// principal between leaves of that subtree, so the enclosing program settles too.
+    function walletParent(address group_) internal view returns (address parent_) {
+        parent_ = LedgerLib.parent(LedgerLib.flags(group_));
+        while (!LedgerLib.isLedger(LedgerLib.flags(parent_))) {
+            address token_ = store().reservedAccounts[parent_];
+            if (token_ != address(0) && store().programs[token_].stakingGroup == parent_) return parent_;
+            parent_ = LedgerLib.parent(LedgerLib.flags(parent_));
+        }
+    }
+
     function stake(address token_, address holder_, uint256 amount_, uint256 minimum_) internal returns (uint256) {
         StakingBackingCache memory c = stakingBacking(token_);
         if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
         if (amount_ < minimum_) revert IStakingRewardToken.Slippage(amount_, minimum_);
-        (uint256 walletFlags_, address walletAbsolute_) = enforceDebitAccount(c.ledger, c.ledger, holder_);
+        (uint256 walletFlags_, address walletAbsolute_) = enforceDebitAccount(c.ledger, walletParent(c.parent), holder_);
         if (store().reservedAccounts[walletAbsolute_] != address(0)) {
             revert IStakingRewardToken.AccountReserved(walletAbsolute_);
         }
-        (uint256 stakingFlags_, address stakingAbsolute_) = enforceDebitAccount(c.ledger, c.parent, holder_);
+        (uint256 stakingFlags_,) = enforceDebitAccount(c.ledger, c.parent, holder_);
         // Entry eligibility starts only after the holder's old stake has been checkpointed.
-        settleTransferRewards(token_, walletAbsolute_, stakingAbsolute_, true, false, amount_);
         LedgerLib.transfer(c.ledger, walletFlags_, holder_, stakingFlags_, holder_, amount_);
-        ERC20Wrapper(token_).emitTransfer(address(0), holder_, amount_);
         emit IStakingRewardToken.Staked(token_, holder_, amount_, amount_);
         return amount_;
     }
@@ -278,10 +286,8 @@ library StakingRewardLib {
         if (ancestor_ != c.parent) revert ILedger.InvalidLedgerAccount(holderAbsolute_);
         if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
         if (amount_ < minimum_) revert IStakingRewardToken.Slippage(amount_, minimum_);
-        (uint256 recipientFlags_, address recipientAbsolute_) = enforceDebitAccount(c.ledger, c.ledger, recipient_);
-        settleTransferRewards(token_, holderAbsolute_, recipientAbsolute_, false, true, amount_);
+        (uint256 recipientFlags_,) = enforceDebitAccount(c.ledger, walletParent(c.parent), recipient_);
         LedgerLib.transfer(c.ledger, holderFlags_, relative_, recipientFlags_, recipient_, amount_);
-        ERC20Wrapper(token_).emitTransfer(parent_ == c.parent ? relative_ : holderAbsolute_, address(0), amount_);
         emit IStakingRewardToken.Unstaked(token_, parent_ == c.parent ? relative_ : holderAbsolute_, amount_, amount_);
         return amount_;
     }
@@ -300,7 +306,8 @@ library StakingRewardLib {
         if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
         RewardCache memory c;
         address rewardLedger_ = LedgerLib.ledger(p.rewardGroup);
-        (uint256 funderFlags_, address absolute_) = enforceDebitAccount(rewardLedger_, rewardLedger_, funder_);
+        (uint256 funderFlags_, address absolute_) =
+            enforceDebitAccount(rewardLedger_, walletParent(LedgerLib.toAddress(p.rewardGroup, token_)), funder_);
         if (store().reservedAccounts[absolute_] != address(0)) revert IStakingRewardToken.AccountReserved(absolute_);
         (uint256 rewardFlags_,, address rewardAbsolute_) =
             LedgerLib.effectiveFlags(rewardLedger_, p.rewardGroup, token_);
@@ -316,12 +323,9 @@ library StakingRewardLib {
         c.units = ShareTokenLib.issue(p.rewardShareToken, p.rewardShareToken, token_, amount_);
         c.increment = c.units / c.supply;
         if (c.increment == 0) revert IStakingRewardToken.ZeroAmount();
-        // Generic issuance floors the quote. SR additionally quantizes allocation to whole
-        // units per raw stake; remove only the unallocatable remainder from the same custody.
-        if (c.units % c.supply != 0) {
-            ShareTokenLib.cancel(p.rewardShareToken, p.rewardShareToken, token_, c.units % c.supply);
-        }
-        c.units = c.increment * c.supply;
+        // Preserve the issued supply. The existing group checkpoint owns the division
+        // residual; it is excluded from holder views and all proportional allocations.
+        store().positions[token_][p.stakingGroup].unclaimedUnits += c.units % c.supply;
         if (LedgerLib.totalSupply(p.rewardShareToken) != checkpoint_.unclaimedUnits + c.units) {
             revert IStakingRewardToken.InvalidConfiguration();
         }
@@ -375,7 +379,7 @@ library StakingRewardLib {
             revert IStakingRewardToken.InvalidConfiguration();
         }
         if (p.pendingUnits > c.supply - c.availableUnits) p.pendingUnits = c.supply - c.availableUnits;
-        (uint256 recipientFlags_,) = enforceDebitAccount(c.rewardLedger, c.rewardLedger, recipient_);
+        (uint256 recipientFlags_,) = enforceDebitAccount(c.rewardLedger, walletParent(c.rewardAbsolute), recipient_);
         LedgerLib.transfer(c.rewardLedger, c.rewardFlags, token_, recipientFlags_, recipient_, claimed_);
         if (
             LedgerLib.balanceOf(c.rewardAbsolute, false) != c.balance - claimed_
@@ -388,27 +392,38 @@ library StakingRewardLib {
 
     // -- Stake Transfers and Forfeiture --
 
-    /// @dev SR operations settle rewards explicitly before changing actual stake balances.
-    ///      Transfers behave as sender exits and receiver entries; accrued rewards stay with the sender.
+    /// @dev Internal Ledger postings settle rewards before changing actual stake balances.
+    ///      Transfers carry pending entitlement; available entitlement stays with its owner.
     function settleTransferRewards(
         address token_,
         address from_,
         address to_,
-        bool fromIsCredit_,
-        bool toIsCredit_,
+        bool fromOutside_,
+        bool toOutside_,
         uint256 amount_
     ) internal {
         if (from_ == to_ || amount_ == 0) return;
         Program storage p = stakingRewardProgram(token_);
-        if (!toIsCredit_) settleHolderRewards(p, token_, to_, 0);
-        if (!fromIsCredit_) settleHolderRewards(p, token_, from_, amount_);
+        if (!toOutside_) settleHolderRewards(p, token_, to_, 0);
+        if (fromOutside_) return;
+        if (toOutside_) {
+            settleHolderRewards(p, token_, from_, amount_);
+            return;
+        }
+        Checkpoint storage sender_ = settleHolderRewards(p, token_, from_, 0);
+        uint256 balance_ = LedgerLib.balanceOf(from_, false);
+        if (amount_ > balance_) revert IStakingRewardToken.InsufficientStake();
+        uint256 units_ = FixedPointMathLib.fullMulDiv(sender_.pendingUnits, amount_, balance_);
+        sender_.pendingUnits -= units_;
+        sender_.unclaimedUnits -= units_;
+        Checkpoint storage recipient_ = store().positions[token_][to_];
+        recipient_.pendingUnits += units_;
+        recipient_.unclaimedUnits += units_;
     }
 
     struct SettleHolderRewardsCache {
         uint256 balance;
         uint256 pendingUnits;
-        uint256 availableUnits;
-        uint256 cancelledUnits;
     }
 
     /// @dev Checkpoint one holder and apply outgoing stake using its pre-transfer balance.
@@ -427,27 +442,40 @@ library StakingRewardLib {
         p.updatedAt = checkpoint_.updatedAt;
         position_ = store().positions[token_][absolute_];
         if (amount_ == 0) return position_;
-        c.pendingUnits = FixedPointMathLib.fullMulDiv(position_.pendingUnits, amount_, c.balance);
-        if (c.pendingUnits == 0) return position_;
-        if (position_.unclaimedUnits == checkpoint_.unclaimedUnits && amount_ == c.balance) {
-            // A full exit by the final reward-entitlement holder releases pending rewards;
-            // the shares stay in custody until that holder claims all remaining backing.
+        uint256 remaining_ = LedgerLib.balanceOf(p.stakingGroup, false) - amount_;
+        if (remaining_ == 0) {
+            // Closing depends on eligible stake, never on ownership of all reward units.
+            // Earlier exits retain their own available units. Only undistributed allocation
+            // residuals belong to the final eligible position, like a final distribution leg.
+            position_.unclaimedUnits += store().positions[token_][p.stakingGroup].unclaimedUnits;
+            delete store().positions[token_][p.stakingGroup];
             position_.pendingUnits = 0;
             p.pendingUnits = 0;
             return position_;
         }
-        c.availableUnits = position_.unclaimedUnits - position_.pendingUnits;
-        c.cancelledUnits = FixedPointMathLib.fullMulDivUp(
-            c.pendingUnits, checkpoint_.unclaimedUnits, checkpoint_.unclaimedUnits - c.availableUnits
-        );
-        position_.unclaimedUnits -= c.cancelledUnits;
+        c.pendingUnits = amount_ == c.balance
+            ? position_.pendingUnits
+            : FixedPointMathLib.fullMulDiv(position_.pendingUnits, amount_, c.balance);
+        if (c.pendingUnits == 0) return position_;
+        position_.unclaimedUnits -= c.pendingUnits;
         position_.pendingUnits -= c.pendingUnits;
-        ShareTokenLib.cancel(p.rewardShareToken, p.rewardShareToken, token_, c.cancelledUnits);
-        p.pendingUnits = p.pendingUnits > c.pendingUnits ? p.pendingUnits - c.pendingUnits : 0;
-        if (p.pendingUnits > checkpoint_.unclaimedUnits - c.cancelledUnits) {
-            p.pendingUnits = checkpoint_.unclaimedUnits - c.cancelledUnits;
+        uint256 increment_ = c.pendingUnits / remaining_;
+        uint256 residual_ = c.pendingUnits % remaining_;
+        uint256 retained_ = (c.balance - amount_) * increment_;
+        if (remaining_ == c.balance - amount_) {
+            // This is the only allocation recipient: give its retained stake the exact
+            // residual now, preserving all pending units without accelerating vesting.
+            retained_ += residual_;
+            residual_ = 0;
         }
-        emit IStakingRewardToken.Forfeited(token_, absolute_, c.pendingUnits, c.cancelledUnits);
+        store().positions[token_][p.stakingGroup].unclaimedUnits += residual_;
+        p.unclaimedAccumulator += increment_;
+        p.pendingAccumulator += increment_;
+        position_.unclaimedUnits += retained_;
+        position_.pendingUnits += retained_;
+        position_.unclaimedAccumulator = p.unclaimedAccumulator;
+        position_.pendingAccumulator = p.pendingAccumulator;
+        emit IStakingRewardToken.Forfeited(token_, absolute_, c.pendingUnits, residual_);
     }
 
     // -- Views --
@@ -468,6 +496,7 @@ library StakingRewardLib {
         config_.rewardAccount = LedgerLib.toAddress(p.rewardGroup, token_);
         config_.rewardShareToken = p.rewardShareToken;
         config_.halfLife = p.halfLife;
+        config_.allocationRemainderUnits = store().positions[token_][p.stakingGroup].unclaimedUnits;
         Checkpoint memory checkpoint_ = currentRewardCheckpoint(p);
         config_.rewards =
             rewardBalances(checkpoint_, checkpoint_.unclaimedUnits, LedgerLib.balanceOf(config_.rewardAccount, false));

@@ -1,28 +1,27 @@
 # IStakingRewardToken
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/staking/IStakingRewardToken.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/modules/staking/IStakingRewardToken.sol)
 
 
 ## Functions
 ### createStakingRewardToken
 
-Create an SR token with immutable S, R, absolute staking account T, and half-life configuration.
+Create an ERC20 wrapper over actual stakes beneath an absolute staking group.
 
-T must be an empty debit leaf on S. Identical creation requests return the existing token.
+Configure two registered debit groups and a positive half-life. The staking group starts empty.
 
 
 ```solidity
 function createStakingRewardToken(
-    address stakingLedger,
-    address rewardLedger,
-    address stakingAccount,
+    address stakingGroup,
+    address rewardGroup,
     uint256 halfLife,
     ILedgerTokenFactory.TokenMetadata memory metadata
-) external returns (address token, uint256 flags);
+) external returns (address token);
 ```
 
 ### stake
 
-Deposit S from the caller's Ledger balance and mint principal shares.
+Transfer actual staking tokens from the caller's wallet account into their staking account.
 
 
 ```solidity
@@ -31,9 +30,9 @@ function stake(address token, uint256 amount, uint256 minimumShares) external re
 
 ### unstake
 
-Burn principal shares, retaining available rewards and forfeiting proportional pending rewards.
+Withdraw actual staking tokens, retaining available rewards and forfeiting proportional pending rewards.
 
-On a full exit by the last reward-unit holder, all remaining rewards become available to them.
+On the final eligible-stake exit, pending rewards become available; exited holders retain their rewards.
 
 
 ```solidity
@@ -71,6 +70,22 @@ Only the token's registered wrapper may call. The wrapper owns allowance checks.
 function transfer(address token, address from, address to, uint256 amount) external;
 ```
 
+### settleStakeTransfer
+
+Internal posting settlement; only the Dispatcher itself may invoke this selector.
+
+
+```solidity
+function settleStakeTransfer(
+    address token,
+    address from,
+    address to,
+    bool fromOutside,
+    bool toOutside,
+    uint256 amount
+) external;
+```
+
 ### stakingRewardToken
 
 SR configuration and balances, expressed in each token's raw decimals.
@@ -106,9 +121,9 @@ function rewardsOfAccount(address token, address parent, address relative) exter
 ```solidity
 event StakingRewardTokenCreated(
     address indexed token,
-    address indexed stakingLedger,
-    address indexed rewardLedger,
-    address stakingAccount,
+    address indexed stakingGroup,
+    address indexed rewardGroup,
+    address rewardShareToken,
     uint256 halfLife
 );
 ```
@@ -140,7 +155,9 @@ event Claimed(address indexed token, address indexed holder, uint256 amount, uin
 ### Forfeited
 
 ```solidity
-event Forfeited(address indexed token, address indexed account, uint256 pendingUnits, uint256 cancelledUnits);
+event Forfeited(
+    address indexed token, address indexed account, uint256 pendingUnits, uint256 allocationRemainderUnits
+);
 ```
 
 ## Errors
@@ -224,12 +241,15 @@ struct Configuration {
     address tokenAddress;
     uint256 totalSupply;
     address stakingLedger;
-    address stakingAccount;
+    address stakingGroup;
     uint256 stakedBalance;
     address rewardLedger;
+    address rewardGroup;
     address rewardAccount;
+    address rewardShareToken;
     uint256 halfLife;
     Rewards rewards;
+    uint256 allocationRemainderUnits;
 }
 ```
 

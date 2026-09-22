@@ -1,5 +1,5 @@
 # StakingRewardLib
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/staking/StakingRewardLib.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/modules/staking/StakingRewardLib.sol)
 
 
 ## Constants
@@ -32,13 +32,6 @@ uint256 private constant LN2 = 693147180559945309
 ```
 
 
-### REWARDS
-
-```solidity
-address internal constant REWARDS = address(uint160(uint256(keccak256("Staking Rewards"))))
-```
-
-
 ## Functions
 ### store
 
@@ -52,12 +45,11 @@ function store() internal pure returns (Store storage s);
 
 ```solidity
 function createStakingRewardToken(
-    address stakingLedger_,
-    address rewardLedger_,
-    address stakingAccount_,
+    address stakingGroup_,
+    address rewardGroup_,
     uint256 halfLife_,
     ILedgerTokenFactory.TokenMetadata memory metadata_
-) internal returns (address token_, uint256 flags_);
+) internal returns (address token_);
 ```
 
 ### protectCustodyAccount
@@ -118,32 +110,38 @@ aggregate balance does not create a second reward position or authorize a claim.
 
 ```solidity
 function enforceDebitAccount(address token_, address parent_, address relative_)
-    private
+    internal
     view
     returns (uint256 flags_, address absolute_);
+```
+
+### walletParent
+
+An SR asset is its existing staking subtree. Nested programs move the same
+principal between leaves of that subtree, so the enclosing program settles too.
+
+
+```solidity
+function walletParent(address group_) internal view returns (address parent_);
 ```
 
 ### stake
 
 
 ```solidity
-function stake(address token_, address holder_, uint256 amount_, uint256 minimum_)
-    internal
-    returns (uint256 shares_);
+function stake(address token_, address holder_, uint256 amount_, uint256 minimum_) internal returns (uint256);
 ```
 
 ### unstake
 
 
 ```solidity
-function unstake(address token_, address holder_, uint256 shares_, uint256 minimum_)
-    internal
-    returns (uint256 amount_);
+function unstake(address token_, address holder_, uint256 amount_, uint256 minimum_) internal returns (uint256);
 ```
 
 ### unstake
 
-The consuming module authorizes the explicit share leaf and payout recipient.
+The consuming module authorizes the explicit staking leaf and payout recipient.
 
 
 ```solidity
@@ -152,9 +150,9 @@ function unstake(
     address parent_,
     address relative_,
     address recipient_,
-    uint256 shares_,
+    uint256 amount_,
     uint256 minimum_
-) internal returns (uint256 amount_);
+) internal returns (uint256);
 ```
 
 ### reward
@@ -173,7 +171,7 @@ function claim(address token_, address holder_) internal returns (uint256 claime
 
 ### claim
 
-The consuming module authorizes the explicit share leaf and payout recipient.
+The consuming module authorizes the explicit staking leaf and payout recipient.
 
 
 ```solidity
@@ -184,28 +182,28 @@ function claim(address token_, address parent_, address relative_, address recip
 
 ### settleTransferRewards
 
-SR operations settle rewards explicitly before changing share balances.
-Transfers behave as sender exits and receiver entries; accrued rewards stay with the sender.
+Internal Ledger postings settle rewards before changing actual stake balances.
+Transfers carry pending entitlement; available entitlement stays with its owner.
 
 
 ```solidity
 function settleTransferRewards(
-    address ledger_,
+    address token_,
     address from_,
     address to_,
-    bool fromIsCredit_,
-    bool toIsCredit_,
+    bool fromOutside_,
+    bool toOutside_,
     uint256 amount_
-) private;
+) internal;
 ```
 
 ### settleHolderRewards
 
-Checkpoint one holder and apply any outgoing shares using the same pre-transfer balance.
+Checkpoint one holder and apply outgoing stake using its pre-transfer balance.
 
 
 ```solidity
-function settleHolderRewards(Program storage p, address token_, address absolute_, uint256 shares_)
+function settleHolderRewards(Program storage p, address token_, address absolute_, uint256 amount_)
     internal
     returns (Checkpoint storage position_);
 ```
@@ -255,7 +253,7 @@ struct Checkpoint {
     // Outstanding unclaimed units (hat U) and pending units (hat P), not token amounts.
     uint256 unclaimedUnits;
     uint256 pendingUnits;
-    // phi^(hat U): cumulative issued units per share.
+    // phi^(hat U): cumulative issued reward units per raw staked token.
     uint256 unclaimedAccumulator;
     // exp(-r * updatedAt) * phi^(hat P): the decaying pending accumulator.
     uint256 pendingAccumulator;
@@ -267,10 +265,15 @@ struct Checkpoint {
 
 ```solidity
 struct Program {
-    address rewardLedger;
+    address stakingGroup;
+    address rewardGroup;
+    address rewardShareToken;
     uint256 halfLife;
-    Checkpoint checkpoint;
-    address stakingAccount;
+    // Outstanding reward units are the reward ShareToken's supply, not a second stored balance.
+    uint256 pendingUnits;
+    uint256 unclaimedAccumulator;
+    uint256 pendingAccumulator;
+    uint256 updatedAt;
 }
 ```
 
@@ -288,8 +291,11 @@ struct Store {
 
 ```solidity
 struct CreateStakingRewardTokenCache {
+    address stakingLedger;
+    address rewardLedger;
     address rewardAccount;
     uint256 flags;
+    uint256 rewardDecimals;
 }
 ```
 
@@ -308,20 +314,8 @@ struct CurrentHolderRewardCheckpointCache {
 struct StakingBackingCache {
     address ledger;
     address parent;
-    address relative;
     uint256 flags;
     uint256 balance;
-    uint256 supply;
-}
-```
-
-### StakeCache
-
-```solidity
-struct StakeCache {
-    StakingBackingCache backing;
-    uint256 decimals;
-    uint256 shareDecimals;
 }
 ```
 
@@ -341,7 +335,11 @@ struct RewardCache {
 ```solidity
 struct ClaimCache {
     address absolute;
+    address rewardLedger;
+    address rewardAbsolute;
+    uint256 rewardFlags;
     uint256 balance;
+    uint256 supply;
     uint256 availableUnits;
 }
 ```
@@ -352,8 +350,6 @@ struct ClaimCache {
 struct SettleHolderRewardsCache {
     uint256 balance;
     uint256 pendingUnits;
-    uint256 availableUnits;
-    uint256 cancelledUnits;
 }
 ```
 

@@ -1,108 +1,89 @@
-# StakingRewardToken
+# Staking rewards
 
-SR wraps actual staking-token accounts beneath a configured debit group. Configuration consists of absolute `stakingGroup` and `rewardGroup` addresses, a fixed positive half-life, and wrapper metadata. Ledger derives both underlying assets from the groups. The SR wrapper has no principal ledger or principal conversion ratio.
+SR is one position: actual principal in a staking subtree, eligibility for future funding, and pending reward entitlement. Available rewards stay separately claimable by their owner, including after a complete exit. There are no epochs, locks, maturity dates or promised APR. Each program fixes one reward asset and one positive vesting half-life.
 
-## Implementation status
+The specification is [Staking Rewards: Allocation, Vesting, and Forfeiture, corrected revision cd55afd](https://github.com/CavalRe/cavalre-multiswap/blob/cd55afd540bdf847bbb3373cc380c24429727c8d/apps/site/blog/2026-09-14-staking-rewards.md).
 
-The direct-account refactor is in progress. Nested SR asset accounting is awaiting design review. The composed creation path currently makes StakingRewardToken exceed the EIP-170 runtime limit; deployment is blocked until creation is separated from runtime accounting. Custom deep transfers still require explicit settlement in their consuming module. Initial reward donations remain under review; the current shared issuance path requires both reward supply and prior backing to be zero at initialization.
+## Configuration and deployment
 
-## Setup and use
+Install `StakingRewardFactory` and `StakingRewardToken` through the Dispatcher alongside Ledger and LedgerView. Creation has its own module so its wrapper/share deployment bytecode does not inflate runtime accounting past EIP-170. `IStakingRewardToken` describes the combined Dispatcher API. An installed LedgerTokenFactory is not required for SR creation; its internal factory library is reused.
 
-1. Register empty staking and reward groups on the relevant underlying ledgers. The reward backing branch must not lie inside this program's staking group.
-2. The SR owner calls `createStakingRewardToken(stakingGroup, rewardGroup, halfLife, metadata)`. It returns the ERC20 wrapper address. The metadata decimals must match the staking token's raw units.
-3. User stakes live at `H(stakingGroup, user)`. `stake` and `unstake` transfer the actual underlying tokens between wallet accounts and staking accounts. The existing minimum-amount arguments remain in the ABI; amounts have no principal-share conversion.
-4. Wrapper `balanceOf` reads the user's staking account. `totalSupply` reads the staking group's normal aggregate balance, excluding other programs and unstaked tokens.
-5. Wrapper transfers directly invoke SR settlement before moving the actual stakes. The SR wrapper emits its own ERC20 mint, burn, and transfer events, while Ledger emits the underlying asset's custody events.
+The owner calls `createStakingRewardToken(stakingGroup, rewardGroup, halfLife, metadata)` with absolute registered debit groups. The staking group must be empty and exclusive to this program. Reward backing cannot lie within that same staking subtree. Metadata decimals match the underlying stake ledger. Matching creation is idempotent; a conflicting configuration reverts.
 
-Creation also registers the program's reward backing leaf at `H(rewardGroup, srWrapper)`, creates a ShareToken backed by that leaf, and registers one SR custody leaf at `H(rewardShareToken, srWrapper)`. All outstanding reward shares remain in that custody account. Reward-share supply is the authoritative aggregate outstanding-unit balance; users' reward entitlements remain lazy SR checkpoints.
+Creation deploys a StakingRewardWrapper, creates a reward backing leaf at `H(rewardGroup, srWrapper)`, and creates a ShareToken backed by that leaf. Its decimals are reward decimals plus 36. All reward shares remain in the single custody leaf `H(rewardShareToken, srWrapper)` until claims burn them. Share supply is authoritative aggregate outstanding units; SR does not store a second unit supply. SR wraps actual staking balances and introduces no principal receipt ledger.
 
-The reward ShareToken has the reward asset's decimals plus 36, preserving the existing raw `1e36` reward-unit precision. Both decimals and the resulting quantities must fit their Solidity types. Funding first moves and verifies backing, then issues reward shares. SR removes any issuance remainder that cannot be allocated as an integral number of units per raw stake, preserving exact allocation conservation. Claims redeem custody shares; zero-payout claims clear them through an authorized custody burn. Forfeiture uses one combined custody burn without releasing backing.
+## Balances and notation
 
-Metadata uses `TokenMetadata`: name, symbol, decimals, and version. Matching creation requests are idempotent. A different configuration for the same wrapper identity reverts. The staking group must begin empty and cannot be reserved by another program. Reward-share metadata derives a program-specific identity from the SR wrapper address. All creation remains trusted internal library composition; an installed LedgerTokenFactory module is not required by this draft.
+| Article quantity | Authoritative representation |
+| --- | --- |
+| `S_i^j`, eligible holder stake | Actual debit leaf balance beneath `stakingGroup` |
+| `S_i`, total eligible stake | Staking group's Ledger balance |
+| `U_i`, unclaimed reward backing | Reward backing leaf's Ledger balance |
+| `hatU_i`, outstanding reward units | Reward ShareToken supply |
+| `hatU_i^j`, holder outstanding units | Lazy holder checkpoint plus allocation accumulator delta |
+| `hatP_i^j`, holder pending units | Decayed checkpoint plus pending accumulator delta |
+| `hatA_i^j`, holder available units | `hatU_i^j - hatP_i^j` |
 
-Operations move existing Ledger balances. Wrap external or native assets before staking and unwrap them after withdrawal. Ordinary share tokens can supply those balances. Staking and rewards may use the same underlying ledger, with separate account contexts. Nested SR wrappers require the separate accounting decision described above.
+Units convert at `U_i / hatU_i`. Funding and claims preserve this ratio in exact arithmetic. Transfers and forfeitures change neither quantity. The cumulative allocation accumulator is history, not another unit supply. Both accumulators retain their history through empty programs and restarts.
 
-## Accounting
+`Checkpoint` stores outstanding units, pending units, two accumulator snapshots and time. `Program` stores aggregate pending units, the cumulative outstanding-allocation accumulator, the stored decaying pending-allocation accumulator, and time, alongside immutable configuration. No storage fields, namespaces or packed layouts were changed for this implementation.
 
-The [unit-first derivation](https://caval.re/blog/staking-rewards) defines the accumulators and action rules. Hats denote reward **units**; unhatted rewards are amounts of `R`. In particular, $U_i$ is unclaimed reward-token backing and $\hat U_i$ is outstanding unclaimed units. Neither is cumulative funding $T_i$.
+The program's existing checkpoint mapping also holds an allocation-residual balance at the **staking-group address**. A group is not a holder: all holder operations reject it. Only that checkpoint's `unclaimedUnits` field is used. It receives integer division residuals, never proportional allocations, and clears on final unstake. `Configuration.allocationRemainderUnits` exposes this balance. The exact outstanding-unit identity is:
 
-### Stored and derived values
+```text
+reward ShareToken supply = sum(holder outstanding units) + allocation residual units
+```
 
-Each holder stores a five-field `Checkpoint`. Aggregate views construct the same shape using ShareToken supply and the four stored aggregate reward fields. For a holder, the accumulators are snapshots of the shared accumulators at that holder's last checkpoint.
+This sum is a test invariant, never a production loop.
 
-| Checkpoint field | Aggregate notation | Holder notation |
-| --- | --- | --- |
-| `unclaimedUnits` | $\hat U_i$, derived from reward ShareToken supply. | $\hat U_i^j$ |
-| `pendingUnits` | $\hat P_i$ | $\hat P_i^j$ |
-| `unclaimedAccumulator` | $\phi_i^{\hat U}$ | Saved $\phi_i^{\hat U}$ |
-| `pendingAccumulator` | $e^{-rt}\phi_i^{\hat P}$ | Saved $e^{-rt}\phi_i^{\hat P}$ |
-| `updatedAt` | Aggregate checkpoint time | Holder checkpoint time |
+## Action ordering
 
-Here $r=\ln(2)/h$. `pendingAccumulator` stores the decaying form, so the implementation uses elapsed time and never evaluates an ever-growing $e^{rt}$. Aggregate `pendingUnits` is retained for constant-time aggregate pending/available views; the core action amounts do not depend on it.
+Every affected program advances shared elapsed-time decay, reconstructs affected holders with their old stakes, applies entitlement changes, and saves snapshots before the principal posting. Account ancestry determines which programs are affected; there is no scan of users, programs or funding history.
 
-Ledger supplies actual aggregate stake $S_i$, each staking-account balance $S_i^j$, reward backing $U_i$, and reward ShareToken supply $\hat U_i$. SR stores aggregate pending units, the two accumulators, and their timestamp; each holder retains the five-field checkpoint. Cumulative funding $T_i$ and claims $C_i$ are not stored; reward, claim, and Ledger events supply historical accounting. Available units, per-unit value, and holder token amounts are derived.
+- **Stake:** checkpoint the receiving leaf before adding principal. New stake receives only subsequent allocations.
+- **Fund:** require positive total stake. Issue `F * hatU_i / U_i` shares, or `F * 1e36` when backing and units are both zero. Add issued units as aggregate pending and increment both accumulators by issued units divided by eligible stake. Funding touches no holders.
+- **Vest:** pending decays by `2^(-dt / halfLife)`; outstanding units do not decay. Whole half-lives use binary shifts; a fractional half-life uses Solady `expWad`. Stored decaying accumulators avoid exponentials of absolute timestamps. New funding does not restart older vesting.
+- **Claim:** redeem all available units, with no partial-claim amount. Principal and holder pending units are unchanged. Backing and ShareToken supply fall together; full redemption clears the backing exactly. Claims and unstaking are separate operations.
+- **Unstake with remaining stake:** compute `F_units = x * holderPending / holderStakeBefore` once. Remove that same quantity from holder outstanding and pending units. Increment both accumulators by `F_units / remainingStake`. Credit the actor's retained stake before saving snapshots. Available entitlement stays unchanged. A sole staker's partial exit returns all forfeiture to their retained stake without accelerating vesting.
+- **Final unstake:** test zero remaining eligible stake. Make the final staker's pending units available and assign the recorded allocation residual to that position. Do not alter any earlier exited holder's available rewards. Do not increment either allocation accumulator, burn shares or move backing.
+- **Transfer:** checkpoint both endpoints. Compute `M_units = x * senderPending / senderStakeBefore` once; subtract it from sender outstanding and pending units and add it to recipient outstanding and pending units. Available balances stay unchanged; unrelated holders receive nothing. No allocation increment or final-staker release occurs, even for a full-supply transfer.
 
-`Rewards.unclaimedUnits` and `Rewards.unclaimed` expose current outstanding units and their token value. They replace the former `totalUnits` and `total` field names without changing the return tuple's types or order. The per-user checkpoint fields and SR namespace remain unchanged; the approved Program layout now stores the group configuration and derives aggregate outstanding units from ShareToken supply.
+Transfers and ordinary forfeitures never mint, burn or transfer reward custody shares. The only Ledger postings for those actions are principal movements. A full transfer moves all sender pending units exactly. Both ERC20 transfer methods use the same settlement path. Self and zero transfers preserve reward storage while retaining events, balance checks and allowance semantics.
 
-### Time and funding
+## Rounding and empty states
 
-Between actions, aggregate pending units and the stored pending accumulator decay by $2^{-\Delta t/h}$. Whole half-lives use binary shifts; fractional half-lives use Solady's `expWad`. Each action updates the aggregate checkpoint and only the holders it touches. There are no scheduled periods or loops over holders.
+Raw reward units have `1e36` precision per raw reward-token unit at initialization. Full-precision integer multiplication/division floors partial quantities. Checked overflow reverts; decimals plus 36 must fit uint8, decimal scaling and all uint256 arithmetic must fit.
 
-Funding $\Delta T_i$ issues units at the existing token-per-unit value:
+Funding uses the ShareToken's floored proportional issuance quote **without** cancelling an allocation remainder. If issued units are `Q` and stake is `S`, accumulator increments are `Q / S`, holder allocations sum to `S * (Q / S)`, and the residual `Q % S` stays recorded in the program checkpoint. Funding too small to produce a positive increment reverts atomically.
 
-$$
-\Delta\hat U_i=\Delta T_i\frac{\hat U_i}{U_i}.
-$$
+Forfeiture uses the same rule after debiting the exact computed forfeiture: allocate `S_remaining * floor(F_units / S_remaining)` and retain `F_units % S_remaining` in the program checkpoint. No residual goes to an exited or zero-stake holder. On final unstake the last eligible position receives the residual, analogous to the final-recipient residual rule in existing distribution accounting. A sole-staker partial exit credits the residual directly to that sole recipient's retained stake and keeps its complete pending balance.
 
-If there are no outstanding units, initial issuance is $\Delta T_i\times10^{36}$. This unit scale is an implementation precision choice, independent of token decimals. The implementation floors issuance, then rounds it down to a multiple of the current raw aggregate stake. Both stored accumulators increment by issued units divided by that supply; `unclaimedUnits` and `pendingUnits` increase by the issued units.
+Each allocation residual is strictly less than its raw eligible-stake denominator. Its token value is bounded by that denominator times `U_i / hatU_i`; the bound is not an unconditional promise of less than one token atom for arbitrarily large stakes. Choose stake/reward magnitudes appropriate to the 1e36 unit precision. Residuals remain fully backed, cannot be claimed twice, and cannot prevent complete redemption or restart. Their aggregate amount is visible, rather than silently repricing existing units.
 
-Integral unit-per-share increments make issued units exactly equal total holder allocations, including holders not yet checkpointed. Funding too small to increment the accumulators reverts. Rounding issuance down slightly increases existing unit value; quantities that overflow uint256 revert.
+Claim payouts floor to raw token atoms, leaving less than one token atom in backing per partial redemption. As in ShareToken redemption, that remainder benefits remaining shares; the final share redemption takes the exact remaining backing. A claim whose entire available entitlement rounds to zero clears those available units through custody cancellation. This is the explicit redemption rounding policy, not forfeiture repricing. Proportional issuance itself can floor by less than one internal unit.
 
-### Holder checkpoints
+Decay and separate accumulator paths round independently. Negative pending-accumulator deltas caused by precision loss clamp to zero; holder pending is bounded by holder outstanding. Aggregate pending is an independently decayed estimate and can differ from the sum of lazily reconstructed pending balances in final precision digits. Available **units** are always the exact holder difference. Token views independently floor the three conversions, so displayed pending plus available can be one raw atom below displayed unclaimed. The reference tests bound internal-unit errors from allocation quantization and the count of independently rounded decay paths; token-level timing tests allow one raw atom for fractional exponential approximation.
 
-Before changing a holder's stake balance, `currentHolderRewardCheckpoint` reconstructs their rewards using the **old** Ledger staking-account balance:
+## Reward-token assumptions
 
-1. Add that balance times the change in `unclaimedAccumulator` to their saved `unclaimedUnits`.
-2. Decay their saved `pendingUnits` and saved `pendingAccumulator` from their checkpoint time to now.
-3. Add the old share balance times the difference between the current shared pending accumulator and the decayed saved accumulator to their pending units.
-4. Save the current shared accumulators and timestamp.
+Funding and claims move existing Ledger balances; wrap supported external/native assets first and unwrap payouts separately. The fixed-price economic derivation assumes backing changes only through funding and claims. Transfer-tax, rebasing and external custody losses are not normalized by this module.
 
-This reconstructs prior allocations; it does not issue aggregate units again. Independently rounded decay paths can differ, so a negative pending-accumulator difference contributes zero. Holder pending units are bounded by their unclaimed units. Aggregate pending decays independently and is likewise bounded after claims and forfeitures.
+An authorized internal donation to a live reward backing leaf explicitly raises backing per reward share; future funding uses that live ratio. Public wrappers cannot target that internal leaf. A donation before any units exist produces a mismatched zero state, and ShareToken rejects funding rather than gifting that backing to the next staker. This module exposes no donation-recovery or admin sweep. Consumers must preserve exact backing changes, authorizations and solvency. Tests cover the live donation behavior separately from the fixed-backing model.
 
-### Claim all
+## Internal postings and nested SR
 
-After checkpointing, `claim(srToken)` cancels all $\hat A_i^j=\hat U_i^j-\hat P_i^j$ available units and pays
+`LedgerLib.transfer` walks each endpoint's registered ancestors. For each affected staking group it calls `settleStakeTransfer` through the Dispatcher exactly once, before either principal balance changes. Only the Dispatcher itself can call this selector. Public wrapper authentication and consuming-module authorization remain unchanged. Ledger/Share storage layouts remain unchanged.
 
-$$
-\left\lfloor\hat A_i^j\frac{U_i}{\hat U_i}\right\rfloor.
-$$
+A same-program posting carries pending entitlement; leaving a program is an unstake; entering one checkpoints the receiver. Crossing nested or sibling programs applies those rules independently to each affected program. Credit leaves cannot participate in eligible staking balances. All internal consumers must use LedgerLib postings, never edit balance mappings directly. A deployment containing SR programs must retain its settlement selector.
 
-The holder's unclaimed units become exactly their pending units. Their pending units and stake are unchanged. The same available-unit count is removed from the aggregate, and the payout is transferred from the reward account to the holder. The accumulators receive no allocation increment.
+For an SR asset, use its **existing staking subtree**, not accounts beneath its wrapper address. To stake SR again, create an empty nested staking group inside the outer program's staking group. To fund rewards with SR, place the new program's reward group there. The nearest enclosing staking program supplies the wallet-account parent. Principal moves between actual leaves, and the enclosing program's pending entitlement follows that movement. Available outer-program rewards stay on the economic leaf where they vested and can be claimed through an authorized explicit-account consumer.
 
-A claim with no available units reverts. Available units whose token value rounds to zero can still be cleared; residual backing benefits the remaining units. Claiming the entire outstanding unit supply drains the remaining reward backing. Claims remain separate from principal withdrawals, so exited holders can claim later.
+Wrapper balances and ERC20 events project through each program's direct child custodian. A displayed custody-group balance never authorizes spending or claiming descendant positions. Internal `claim`/`unstake` overloads require the consuming module to authorize the explicit leaf and payout recipient. No public arbitrary-account mutation endpoint was added.
 
-### Unstake and transfer
+## Validation and downstream integration
 
-For an ordinary exit, remove the fraction of pending units corresponding to the outgoing stake. Its mathematical change is
+Tests include all article examples, transferFrom, full-supply transfers, mixed positions, self/zero storage immutability, re-entry, claims after exit, restart, long inactivity, small integer residuals, custody restrictions, nested stake/reward assets, internal postings and absence of reward-share postings on transfers/forfeiture. An independent eager reference visits three holders over 80 randomized actions; production code uses only shared accumulators and affected-holder checkpoints. Separate fuzz tests check exact supply/custody/backing conservation through repeated claims and final redemption.
 
-$$
-\Delta\hat P_i^j=\frac{\Delta S_i^j}{S_i^j}\hat P_i^j,
-\qquad
-\Delta\hat U_i^j=\frac{\hat U_i}{\hat U_i-\hat A_i^j}\Delta\hat P_i^j.
-$$
+Deployment checks assert standard 24,576-byte runtime limits for both SR modules under Solidity 0.8.26, Cancun, optimizer 200. No code-size limit or compiler setting is relaxed.
 
-Both changes are negative. The implementation floors the pending-unit removal and rounds the unclaimed-unit cancellation up, applying the same removals to the aggregate. The reward backing stays in its existing account. This preserves the exiting holder's available token value up to rounding and reprices surviving units. Later funding therefore accumulates **units**, not token amounts. No forfeiture account or unallocated-reward balance is needed.
-
-On a full exit by the sole reward-unit holder ($\hat U_i^j=\hat U_i>0$), holder and aggregate pending units become zero; unclaimed units and reward backing remain unchanged. The holder can immediately claim the full remaining reward balance. A partial exit uses ordinary forfeiture. The sole reward-unit holder can differ from the last staker: exited holders can retain unclaimed units, and new stakers may have no reward units yet.
-
-An SR transfer applies the same exit rules to the sender and checkpoints the recipient before moving actual stakes. Funding touches no holder checkpoint; staking, claiming, and unstaking touch one; transfers touch their two endpoints. After complete redemption, later funding uses initial issuance again. Accumulator history and holder snapshots can remain in place without a reset or holder loop.
-
-## Transfers and integration
-
-StakingRewardWrapper inherits ERC20 metadata and allowance handling and overrides balances, supply, transfer, and transferFrom. Its transfers call `StakingRewardToken.transfer(token, from, to, amount)` on Dispatcher. That entry point authenticates the configured wrapper, resolves accounts under its staking group, and settles both holders at their old balances before Ledger posting. Available rewards stay with the sender. Pending forfeiture and the final-holder release use the established equations above. Self and zero transfers do not write reward checkpoints; self transfers still require sufficient stake.
-
-LedgerLib has no SR hook or settlement callback. An internal consuming module must authorize its explicit account context and settle the affected program before posting. Existing internal claim and unstake overloads accept explicit parent and relative accounts within the program's staking subtree. Groups cannot claim descendant entitlements. Public underlying-token transfers cannot spend the staking or reward groups as ordinary debit leaves.
-
-Group-based nested SR composition is not implemented. In particular, the old root-based route for an SR stake/reward asset cannot be reused merely by substituting a group address: reward ownership and settlement at each program boundary must first be specified. Existing tests retain those unresolved cases and the raw-transfer settlement regression.
-
-Aggregate outstanding reward units are not duplicated in SR storage. User reward checkpoints still hold outstanding and pending entitlements and accumulator snapshots. Source and the reward custody account are controlled through authorized SR share operations; no public cancellation endpoint is introduced.
+Deferred to a separate cavalre-multiswap task: update the contracts dependency, install both SR modules and the internal settlement selector, refresh ABIs/bindings for the appended configuration return field and changed Forfeited event field meaning, update address predictions for current wrapper bytecode, use actual nested staking groups, and remove any duplicate consumer settlement. Revalidate staking, reward funding/claims, indexers and frontend wallet flows there. No files in that repository are changed by this implementation.

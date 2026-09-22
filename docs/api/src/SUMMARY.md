@@ -42,6 +42,7 @@
     - [ShareTokenView](modules/share/ShareTokenView.sol/contract.ShareTokenView.md)
   - [❱ staking](modules/staking/README.md)
     - [IStakingRewardToken](modules/staking/IStakingRewardToken.sol/interface.IStakingRewardToken.md)
+    - [StakingRewardFactory](modules/staking/StakingRewardFactory.sol/contract.StakingRewardFactory.md)
     - [StakingRewardLib](modules/staking/StakingRewardLib.sol/library.StakingRewardLib.md)
     - [StakingRewardToken](modules/staking/StakingRewardToken.sol/contract.StakingRewardToken.md)
     - [StakingRewardWrapper](modules/staking/StakingRewardWrapper.sol/contract.StakingRewardWrapper.md)
