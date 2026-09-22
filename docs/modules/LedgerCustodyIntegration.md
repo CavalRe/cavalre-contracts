@@ -35,7 +35,8 @@ that internal behavior distinct from the positive mixed-custody projection tests
   SR address predictions require that wrapper's creation bytecode. Register SR creation on the
   existing LedgerTokenFactory and install the SR runtime module; all internal postings settle
   affected programs through the Dispatcher-only settleStakeTransfer selector.
-  Refresh the Configuration return tuple for allocationRemainderUnits.
+  Refresh the Configuration return tuple for allocationRemainderUnits. SR creation
+  rejects SR stake/reward assets, including nesting introduced in reverse creation order.
 - Any direct `LedgerLib.Store.ledger` reads must use `LedgerLib.ledger(absolute)`;
   the stored mapping is now `custody`. The getter preserves its address-based
   results for registered accounts, roots and unregistered addresses.
@@ -67,7 +68,7 @@ that internal behavior distinct from the positive mixed-custody projection tests
   callback/data arguments. Add and verify backing before issue; release and verify
   backing after redeem, atomically. Preserve exact backing/supply-delta checks in
   the consuming module. Issue prices against current backing minus the addition.
-- Pass explicit parent/relative contexts to share and nested staking operations;
+- Pass explicit parent/relative contexts to share and internal staking-account operations;
   wrapper allowances never authorize spending descendant custody.
 - Public ERC20 transfers cannot mint or burn through credit accounts. Keep credit
   postings inside authorized module operations for issuance, redemption and settlement.

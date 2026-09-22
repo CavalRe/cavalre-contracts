@@ -52,6 +52,22 @@ function createStakingRewardToken(
 ) internal returns (address token_);
 ```
 
+### enforceUnreservedAncestors
+
+
+```solidity
+function enforceUnreservedAncestors(address absolute_) private view;
+```
+
+### enforceUnreservedDescendants
+
+Creation-only topology check; an empty subtree can already contain SR custody.
+
+
+```solidity
+function enforceUnreservedDescendants(address group_) private view;
+```
+
 ### protectCustodyAccount
 
 
@@ -117,8 +133,7 @@ function enforceDebitAccount(address token_, address parent_, address relative_)
 
 ### walletParent
 
-An SR asset is its existing staking subtree. Nested programs move the same
-principal between leaves of that subtree, so the enclosing program settles too.
+Resolve the wallet parent for an accounting group.
 
 
 ```solidity

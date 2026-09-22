@@ -99,12 +99,17 @@ library StakingRewardLib {
         c.flags = LedgerLib.flags(stakingGroup_);
         if (
             halfLife_ == 0 || c.stakingLedger == address(0) || c.rewardLedger == address(0)
+                || store().programs[c.stakingLedger].halfLife != 0 || store().programs[c.rewardLedger].halfLife != 0
                 || !LedgerLib.isDebitGroup(c.flags) || LedgerLib.isLedger(c.flags)
                 || !LedgerLib.isDebitGroup(LedgerLib.flags(rewardGroup_))
                 || LedgerLib.isLedger(LedgerLib.flags(rewardGroup_))
                 || metadata_.decimals != LedgerLib.decimals(c.stakingLedger)
                 || LedgerLib.debitBalanceOf(stakingGroup_) != 0 || LedgerLib.creditBalanceOf(stakingGroup_) != 0
         ) revert IStakingRewardToken.InvalidConfiguration();
+        // Neither asset may be an SR position, regardless of program creation order.
+        enforceUnreservedAncestors(stakingGroup_);
+        enforceUnreservedAncestors(rewardGroup_);
+        enforceUnreservedDescendants(stakingGroup_);
         // Reward backing must not contribute to this program's staking aggregate.
         for (
             address ancestor_ = rewardGroup_;
@@ -138,6 +143,27 @@ library StakingRewardLib {
         emit IStakingRewardToken.StakingRewardTokenCreated(
             token_, stakingGroup_, rewardGroup_, p.rewardShareToken, halfLife_
         );
+    }
+
+    function enforceUnreservedAncestors(address absolute_) private view {
+        while (absolute_ != LedgerLib.ROOT_ADDRESS) {
+            if (store().reservedAccounts[absolute_] != address(0)) {
+                revert IStakingRewardToken.AccountReserved(absolute_);
+            }
+            absolute_ = LedgerLib.parent(LedgerLib.flags(absolute_));
+        }
+    }
+
+    /// @dev Creation-only topology check; an empty subtree can already contain SR custody.
+    function enforceUnreservedDescendants(address group_) private view {
+        address[] memory children_ = LedgerLib.subAccounts(group_);
+        for (uint256 i_; i_ < children_.length; ++i_) {
+            address absolute_ = LedgerLib.toAddress(group_, children_[i_]);
+            if (store().reservedAccounts[absolute_] != address(0)) {
+                revert IStakingRewardToken.AccountReserved(absolute_);
+            }
+            if (LedgerLib.isGroup(LedgerLib.flags(absolute_))) enforceUnreservedDescendants(absolute_);
+        }
     }
 
     function protectCustodyAccount(address token_, address absolute_) private {
@@ -239,8 +265,7 @@ library StakingRewardLib {
         }
     }
 
-    /// @dev An SR asset is its existing staking subtree. Nested programs move the same
-    /// principal between leaves of that subtree, so the enclosing program settles too.
+    /// @dev Resolve the wallet parent for an accounting group.
     function walletParent(address group_) internal view returns (address parent_) {
         parent_ = LedgerLib.parent(LedgerLib.flags(group_));
         while (!LedgerLib.isLedger(LedgerLib.flags(parent_))) {

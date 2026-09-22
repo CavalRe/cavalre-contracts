@@ -8,6 +8,7 @@
 Create an ERC20 wrapper over actual stakes beneath an absolute staking group.
 
 Configure two registered debit groups and a positive half-life. The staking group starts empty.
+Nested SR stake/reward assets are rejected, including programs created inside a prospective outer stake group.
 
 
 ```solidity

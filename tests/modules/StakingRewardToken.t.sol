@@ -792,105 +792,103 @@ contract StakingRewardTokenTest is Test {
         assertEq(rewards.stakingRewardToken(srToken).rewards.unclaimedUnits, 0);
     }
 
-    function testStakingAnotherSRTokenSettlesBothAssetTransfers() public {
-        (address innerGroup_,) = ledger.addSubAccountGroup(stakeToken, stakingGroup, BACKING, "Nested Backing", false);
-        address second_ = rewards.createStakingRewardToken(
+    function testCannotStakeAnotherSRToken() public {
+        (address innerGroup_,) = ledger.addSubAccountGroup(stakeToken, stakingGroup, BACKING, "Nested", false);
+        (innerGroup_,) = ledger.addSubAccountGroup(stakeToken, innerGroup_, BACKING, "Staking", false);
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, stakingGroup));
+        factory.createStakingRewardToken(
             innerGroup_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Staked SR", "SRSR", 18, "1")
         );
-        stakeFor(ALICE, 100e18);
-        stakeFor(BOB, 100e18);
-        rewards.reward(srToken, 120e6);
-        vm.warp(HALF_LIFE);
-        vm.expectEmit(true, true, false, true, srToken);
-        emit ERC20Wrapper.Transfer(ALICE, BACKING, 100e18);
-        vm.expectEmit(true, true, false, true, second_);
-        emit ERC20Wrapper.Transfer(address(0), ALICE, 100e18);
-        vm.prank(ALICE);
-        rewards.stake(second_, 100e18, 100e18);
-        assertRewards(ALICE, 30e6, 0, 30e6);
-        assertRewards(BOB, 60e6, 30e6, 30e6);
-        assertEq(rewards.rewardsOfAccount(srToken, innerGroup_, ALICE).pending, 30e6);
-        assertEq(IERC20(srToken).balanceOf(BACKING), 100e18);
-        assertEq(IERC20(second_).balanceOf(ALICE), 100e18);
-        rewards.reward(srToken, 30e6);
-        assertEq(rewards.rewardsOfAccount(srToken, innerGroup_, ALICE).pending, 45e6);
-        vm.prank(ALICE);
-        rewards.unstake(second_, 100e18, 100e18);
-        assertEq(IERC20(srToken).balanceOf(ALICE), 100e18);
-        assertEq(IERC20(second_).totalSupply(), 0);
-        assertEq(rewards.rewardsOfAccount(srToken, innerGroup_, ALICE).unclaimedUnits, 0);
-        assertRewards(ALICE, 75e6, 45e6, 30e6);
-        assertRewards(BOB, 75e6, 45e6, 30e6);
-        assertConservation(150e6, 0);
     }
 
-    struct NestedRewardCache {
-        address token;
-        address holder;
-        IStakingRewardToken.Rewards beforeClaim;
-        IStakingRewardToken.Rewards afterClaim;
-    }
-
-    function testRewardingAnotherSRTokenSettlesFundingAndClaimTransfers() public {
-        NestedRewardCache memory c;
-        ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x52a), "New Staking", false);
-        (c.holder,) = ledger.addSubAccountGroup(stakeToken, stakingGroup, REWARDS, "Nested Rewards", false);
-        c.token = rewards.createStakingRewardToken(
-            LedgerLib.toAddress(stakeToken, address(0x52a)),
-            c.holder,
-            HALF_LIFE,
-            ILedgerTokenFactory.TokenMetadata("SR Rewards", "SRREW", 18, "1")
+    function testCannotRewardAnotherSRToken() public {
+        (address secondGroup_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x52a), "Second", false);
+        (address innerGroup_,) = ledger.addSubAccountGroup(stakeToken, stakingGroup, REWARDS, "Nested", false);
+        (innerGroup_,) = ledger.addSubAccountGroup(stakeToken, innerGroup_, REWARDS, "Rewards", false);
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, stakingGroup));
+        factory.createStakingRewardToken(
+            secondGroup_, innerGroup_, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("SR Rewards", "SRREW", 18, "1")
         );
-        stakeFor(ALICE, 100e18);
-        stakeFor(BOB, 100e18);
-        rewards.reward(srToken, 120e6);
-        vm.prank(CAROL);
-        rewards.stake(c.token, 100e18, 100e18);
-        vm.warp(HALF_LIFE);
-        vm.prank(ALICE);
-        rewards.reward(c.token, 100e18);
-        assertRewards(ALICE, 30e6, 0, 30e6);
-        assertRewards(BOB, 60e6, 30e6, 30e6);
-        assertEq(rewards.rewardsOfAccount(srToken, c.holder, c.token).unclaimed, 30e6);
-        rewards.reward(srToken, 30e6);
-        vm.warp(2 * HALF_LIFE);
-        c.beforeClaim = rewards.rewardsOfAccount(srToken, c.holder, c.token);
-        assertEq(c.beforeClaim.unclaimed, 45e6);
-        assertEq(c.beforeClaim.pending, 22.5e6);
-        assertEq(c.beforeClaim.available, 22.5e6);
-        vm.prank(CAROL);
-        assertEq(rewards.claim(c.token), 50e18);
-        c.afterClaim = rewards.rewardsOfAccount(srToken, c.holder, c.token);
-        assertLt(c.afterClaim.unclaimedUnits, c.beforeClaim.unclaimedUnits);
-        assertEq(c.afterClaim.pendingUnits, c.beforeClaim.pendingUnits / 2);
-        assertApproxEqAbs(c.afterClaim.available, c.beforeClaim.available, 1);
-        assertEq(IERC20(srToken).balanceOf(CAROL), 50e18);
-        assertRewards(CAROL, 11.25e6, 11.25e6, 0);
     }
 
-    function testNestedRewardCustodyCannotSpendThroughOuterWrapper() public {
+    function testCannotUseStakingGroupAsRewardGroup() public {
         (address secondGroup_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x991), "Second", false);
-        address second_ = rewards.createStakingRewardToken(
-            secondGroup_, stakingGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("SR rewards", "SRS", 18, "1")
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, stakingGroup));
+        factory.createStakingRewardToken(
+            secondGroup_, stakingGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("SR Rewards", "SRS", 18, "1")
         );
-        stakeFor(ALICE, 100);
-        vm.prank(BOB);
-        rewards.stake(second_, 100, 0);
+    }
+
+    function testCannotCreateOuterSRAboveExistingStakingGroup() public {
+        (address outerGroup_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x992), "Outer", false);
+        (address innerGroup_,) = ledger.addSubAccountGroup(stakeToken, outerGroup_, BACKING, "Nested", false);
+        (innerGroup_,) = ledger.addSubAccountGroup(stakeToken, innerGroup_, BACKING, "Inner", false);
+        address inner_ = factory.createStakingRewardToken(
+            innerGroup_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Inner SR", "ISR", 18, "1")
+        );
+        // A zero balance must not let a later program turn the inner asset into SR.
+        assertEq(IERC20(inner_).totalSupply(), 0);
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, innerGroup_));
+        factory.createStakingRewardToken(
+            outerGroup_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Outer SR", "OSR", 18, "1")
+        );
         vm.prank(ALICE);
-        rewards.reward(second_, 100);
-        vm.prank(second_);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IStakingRewardToken.AccountReserved.selector, LedgerLib.toAddress(stakingGroup, second_)
-            )
+        rewards.stake(inner_, 100e18, 0);
+        assertEq(IERC20(inner_).balanceOf(ALICE), 100e18);
+    }
+
+    function testCannotCreateOuterSRAboveExistingRewardBacking() public {
+        (address outerGroup_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x993), "Outer", false);
+        (address innerGroup_,) = ledger.addSubAccountGroup(stakeToken, outerGroup_, REWARDS, "Rewards", false);
+        (address secondGroup_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x994), "Second", false);
+        address second_ = factory.createStakingRewardToken(
+            secondGroup_, innerGroup_, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Inner Rewards", "ISR", 18, "1")
         );
-        IERC20(srToken).transfer(CAROL, 100);
-        assertEq(IERC20(srToken).balanceOf(second_), 100);
+        address backing_ = LedgerLib.toAddress(innerGroup_, second_);
+        assertEq(ledgerView.balanceOf(stakeToken, innerGroup_, second_), 0);
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, backing_));
+        factory.createStakingRewardToken(
+            outerGroup_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Outer SR", "OSR", 18, "1")
+        );
+        vm.prank(ALICE);
+        rewards.stake(second_, 100e18, 0);
         vm.prank(BOB);
-        rewards.unstake(second_, 100, 0);
-        vm.prank(BOB);
-        assertEq(rewards.claim(second_), 100);
-        assertEq(IERC20(srToken).balanceOf(BOB), 100);
+        rewards.reward(second_, 100e18);
+        assertEq(rewards.rewardsOf(second_, ALICE).pending, 100e18);
+    }
+
+    function testCannotUseRegisteredSRWrapperAsStakeOrRewardToken() public {
+        // Registering the wrapper as an external root must not bypass the subtree guard.
+        address[] memory tokens_ = new address[](1);
+        tokens_[0] = srToken;
+        ledger.addExternalToken(tokens_);
+        (address srGroup_,) = ledger.addSubAccountGroup(srToken, srToken, BACKING, "SR Assets", false);
+        (address secondGroup_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x995), "Second", false);
+        ILedgerTokenFactory.TokenMetadata memory metadata_ = ILedgerTokenFactory.TokenMetadata("Nested", "NSR", 18, "1");
+        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        factory.createStakingRewardToken(srGroup_, rewardGroup, HALF_LIFE, metadata_);
+        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        factory.createStakingRewardToken(secondGroup_, srGroup_, HALF_LIFE, metadata_);
+    }
+
+    function testIndependentProgramsAllowOrdinaryNestedAccounts() public {
+        (address group_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x996), "Programs", false);
+        (address leftGroup_,) = ledger.addSubAccountGroup(stakeToken, group_, ALICE, "Left", false);
+        (address rightGroup_,) = ledger.addSubAccountGroup(stakeToken, group_, BOB, "Right", false);
+        (address custody_,) = ledger.addSubAccountGroup(stakeToken, leftGroup_, BACKING, "Custody", false);
+        ledger.addSubAccount(stakeToken, custody_, ALICE, "Alice", false);
+        address left_ = factory.createStakingRewardToken(
+            leftGroup_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Left SR", "LSR", 18, "1")
+        );
+        address right_ = factory.createStakingRewardToken(
+            rightGroup_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Right SR", "RSR", 18, "1")
+        );
+        vm.startPrank(ALICE);
+        rewards.stake(left_, 100e18, 0);
+        rewards.stake(right_, 50e18, 0);
+        vm.stopPrank();
+        assertEq(IERC20(left_).balanceOf(ALICE), 100e18);
+        assertEq(IERC20(right_).balanceOf(ALICE), 50e18);
     }
 
     function testNativeStakeUsesExistingLedgerCustody() public {

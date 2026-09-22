@@ -407,25 +407,53 @@ function testDifferentDecimalsAndNestedBacking() public;
 function testStakeAndRewardCanUseTheSameLedger() public;
 ```
 
-### testStakingAnotherSRTokenSettlesBothAssetTransfers
+### testCannotStakeAnotherSRToken
 
 
 ```solidity
-function testStakingAnotherSRTokenSettlesBothAssetTransfers() public;
+function testCannotStakeAnotherSRToken() public;
 ```
 
-### testRewardingAnotherSRTokenSettlesFundingAndClaimTransfers
+### testCannotRewardAnotherSRToken
 
 
 ```solidity
-function testRewardingAnotherSRTokenSettlesFundingAndClaimTransfers() public;
+function testCannotRewardAnotherSRToken() public;
 ```
 
-### testNestedRewardCustodyCannotSpendThroughOuterWrapper
+### testCannotUseStakingGroupAsRewardGroup
 
 
 ```solidity
-function testNestedRewardCustodyCannotSpendThroughOuterWrapper() public;
+function testCannotUseStakingGroupAsRewardGroup() public;
+```
+
+### testCannotCreateOuterSRAboveExistingStakingGroup
+
+
+```solidity
+function testCannotCreateOuterSRAboveExistingStakingGroup() public;
+```
+
+### testCannotCreateOuterSRAboveExistingRewardBacking
+
+
+```solidity
+function testCannotCreateOuterSRAboveExistingRewardBacking() public;
+```
+
+### testCannotUseRegisteredSRWrapperAsStakeOrRewardToken
+
+
+```solidity
+function testCannotUseRegisteredSRWrapperAsStakeOrRewardToken() public;
+```
+
+### testIndependentProgramsAllowOrdinaryNestedAccounts
+
+
+```solidity
+function testIndependentProgramsAllowOrdinaryNestedAccounts() public;
 ```
 
 ### testNativeStakeUsesExistingLedgerCustody
@@ -587,17 +615,6 @@ function testPublicStakingOperationsRejectCreditAccounts() public;
 
 ```solidity
 struct ClaimAllCache {
-    IStakingRewardToken.Rewards beforeClaim;
-    IStakingRewardToken.Rewards afterClaim;
-}
-```
-
-### NestedRewardCache
-
-```solidity
-struct NestedRewardCache {
-    address token;
-    address holder;
     IStakingRewardToken.Rewards beforeClaim;
     IStakingRewardToken.Rewards afterClaim;
 }
