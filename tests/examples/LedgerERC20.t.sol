@@ -233,11 +233,29 @@ contract LedgerERC20Test is Test {
         assertEq(token.totalSupply(), 1000);
     }
 
-    function testCanonicalSelfBalanceCheckAndCallbackAuthentication() public {
+    function testCanonicalSelfTransferBalanceAndCallbackAuthentication() public {
+        bytes memory insufficient_ = abi.encodeWithSelector(
+            ILedger.InsufficientBalance.selector,
+            address(dispatcher),
+            address(dispatcher),
+            LedgerLib.toAddress(address(dispatcher), alice),
+            1
+        );
         vm.startPrank(alice);
-        vm.expectRevert();
+        vm.expectRevert(insufficient_);
         token.transfer(alice, 1);
+        vm.expectEmit(true, true, false, true, address(dispatcher));
+        emit ILedger.Transfer(alice, alice, 0);
+        assertTrue(token.transfer(alice, 0));
+        token.approve(bob, 1);
         vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, alice));
         token.emitTransfer(alice, bob, 1);
+        vm.stopPrank();
+        vm.prank(bob);
+        vm.expectRevert(insufficient_);
+        token.transferFrom(alice, alice, 1);
+        assertEq(token.allowance(alice, bob), 1);
+        assertEq(token.balanceOf(alice), 0);
+        assertEq(token.totalSupply(), 0);
     }
 }

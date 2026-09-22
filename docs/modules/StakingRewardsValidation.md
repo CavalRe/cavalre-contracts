@@ -1,13 +1,13 @@
 # Staking rewards validation
 
-Validated the nested-SR creation guard against `e6a8c3c767c1d31e45ede64daf973748db0d85e1`, which already consolidated SR creation into LedgerTokenFactory. The original accounting baseline was `677321cf20df67783ec04b0e282bd84df6c300cd`. Validation uses Solidity 0.8.26, Cancun and optimizer 200. No deployment, compiler configuration or code-size-limit change was made.
+Validated the public Ledger transfer regression fixes against `9f5b9d18ca68a6c084b53892ea80189e01c996fb`, which includes the nested-SR creation guard and consolidated LedgerTokenFactory. The original accounting baseline was `677321cf20df67783ec04b0e282bd84df6c300cd`. Validation uses Solidity 0.8.26, Cancun and optimizer 200. No deployment, compiler configuration or code-size-limit change was made.
 
 ## Commands and results
 
 | Command/check | Result |
 | --- | --- |
 | Baseline `forge test` | 257 passed, 8 failed |
-| `forge test --match-path 'tests/**'` | 277 passed, 4 failed; the same four failures reproduced before this change are listed below |
+| `forge test --match-path 'tests/**'` | 281 passed, 0 failed |
 | StakingRewardTokenTest suite | 59 passed, 0 failed |
 | `forge test --match-contract StakingRewardTokenTest` | Passed, including 256-run fuzz cases |
 | Independent eager reference | 256 cases, 80 randomized actions each; no accumulator logic in reference |
@@ -25,20 +25,23 @@ The original staking failures covered internal settlement, two nested-SR scenari
 
 | Contract | Runtime bytes | Initcode bytes |
 | --- | ---: | ---: |
+| Ledger | 18,631 | 19,400 |
 | StakingRewardToken | 17,599 | 17,642 |
 | LedgerTokenFactory (internal, share and SR creation) | 23,098 | 23,141 |
 | StakingRewardWrapper | 3,422 | 4,240 |
 
 The existing LedgerTokenFactory and SR runtime implementations are instantiated and registered through Dispatcher in the tests. Runtime-size assertions enforce the standard 24,576-byte limit; initcode is below 49,152 bytes. Foundry warnings about oversized **test harnesses** do not concern these deployable implementations. Build output also includes dependency lint warnings and two OpenZeppelin AST-source notices. Foundry's optional signature-cache write outside the sandbox warns on some runs; test execution and its results are unaffected.
 
-## Unrelated baseline failures retained
+## Public transfer regressions resolved
 
-- `tests/examples/LedgerERC20.t.sol::testCanonicalSelfBalanceCheckAndCallbackAuthentication`: expected revert does not occur.
-- `tests/modules/Ledger.t.sol::testLedgerTransfer`: actual `DifferentRoots` differs from expected `InvalidAccountGroup`.
-- `tests/modules/LedgerCustody.t.sol::testPublicCustodyRestrictionsAndSelfAllowance`: expected revert does not occur.
-- `tests/modules/ShareToken.t.sol::testShareTokenCustodyProjectionAndPublicRestrictions`: expected revert does not occur.
+The four remaining baseline failures exposed two missing checks in the authenticated public Ledger callback: both parents must equal the token root, and a self-transfer must have sufficient sender balance before the internal no-op. The callback now also validates debit leaves before checking the balance. Internal Ledger postings retain their existing behavior.
 
-These failures were reproduced before editing and remain outside the SR corrections. The full-suite command therefore exits 1; it is not reported as a fully passing suite.
+All four original tests passed after the production fix, before any test edits. They are retained and strengthened with exact custom-error payloads, allowance rollback, unchanged balances, and checks for both invalid parent endpoints. Three were renamed for clarity:
+
+- `tests/examples/LedgerERC20.t.sol::testCanonicalSelfTransferBalanceAndCallbackAuthentication`: rejects unfunded self-transfers and transferFrom, preserves allowance, permits a zero self-transfer event, and authenticates event callbacks.
+- `tests/modules/Ledger.t.sol::testPublicTransferRejectsForeignParents`: rejects foreign source or destination parents without changing balances or supply.
+- `tests/modules/LedgerCustody.t.sol::testPublicCustodyRestrictionsAndSelfTransferAllowance`: rejects group endpoints and nested parents, including a zero self-transfer, while preserving custody balances and enforcing self-transfer allowance behavior.
+- `tests/modules/ShareToken.t.sol::testShareTokenCustodyProjectionAndPublicRestrictions`: retains custody projection and redemption coverage, rejects excessive self-transfers and transferFrom with allowance rollback, and permits a funded self-transfer.
 
 ## Arithmetic and access coverage
 

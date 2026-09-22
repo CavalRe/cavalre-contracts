@@ -1,5 +1,5 @@
 # ILedger
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/modules/ledger/ILedger.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/modules/ledger/ILedger.sol)
 
 
 ## Functions
@@ -72,9 +72,10 @@ function removeSubAccount(address ledger, address parent, address relative) exte
 
 ### transfer
 
-Authenticated ERC20 callback restricted to direct accounts (both parents equal ledger).
+Authenticated ERC20 callback restricted to direct debit leaves (both parents equal ledger).
 
-Authorized modules use LedgerLib.transfer with explicit absolute parents for deeper postings.
+Deeper postings use authorized modules and LedgerLib.transfer with resolved account flags.
+Self-transfers require sufficient balance and emit Transfer without changing balances.
 
 
 ```solidity

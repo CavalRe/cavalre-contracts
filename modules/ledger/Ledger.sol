@@ -155,15 +155,20 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         if (msg.sender != LedgerLib.wrapper(ledger_) && (msg.sender != address(this) || ledger_ != address(this))) {
             revert ILedger.Unauthorized(msg.sender);
         }
-        // Public transfers require debit endpoints; credit accounts, including Source,
-        // are reserved for authorized internal postings.
+        if (fromParent_ != ledger_ || toParent_ != ledger_) revert ILedger.InvalidAccountGroup();
+        // Public transfers require direct debit leaves; groups and credit accounts,
+        // including Source, are reserved for authorized internal postings.
         (uint256 fromFlags_,, address fromAbsolute_) = LedgerLib.effectiveFlags(ledger_, fromParent_, from_);
         (uint256 toFlags_,, address toAbsolute_) = LedgerLib.effectiveFlags(ledger_, toParent_, to_);
-        if (from_ == address(0) || LedgerLib.isCredit(fromFlags_)) {
+        if (from_ == address(0) || !LedgerLib.isDebitLedger(fromFlags_)) {
             revert ILedger.InvalidLedgerAccount(fromAbsolute_);
         }
-        if (to_ == address(0) || LedgerLib.isCredit(toFlags_)) {
+        if (to_ == address(0) || !LedgerLib.isDebitLedger(toFlags_)) {
             revert ILedger.InvalidLedgerAccount(toAbsolute_);
+        }
+        // Internal self-postings are no-ops; the ERC20 surface still checks spendable balance.
+        if (from_ == to_ && LedgerLib.balanceOf(fromAbsolute_, false) < amount_) {
+            revert ILedger.InsufficientBalance(ledger_, fromParent_, fromAbsolute_, amount_);
         }
         // Reuse the resolved metadata for leaf validation, accounting and events.
         LedgerLib.transfer(ledger_, fromFlags_, from_, toFlags_, to_, amount_);

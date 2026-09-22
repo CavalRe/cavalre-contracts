@@ -1,5 +1,5 @@
 # LedgerCustodyTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/tests/modules/LedgerCustody.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/tests/modules/LedgerCustody.t.sol)
 
 **Inherits:**
 [ERC20WrapperTest](/tests/modules/ERC20Wrapper.t.sol/contract.ERC20WrapperTest.md)
@@ -49,11 +49,11 @@ function testRecursiveAddressRejectsFormerHolderFlattening() public;
 function testSelfInternalAndZeroEventsKeepCustodyBalances() public;
 ```
 
-### testPublicCustodyRestrictionsAndSelfAllowance
+### testPublicCustodyRestrictionsAndSelfTransferAllowance
 
 
 ```solidity
-function testPublicCustodyRestrictionsAndSelfAllowance() public;
+function testPublicCustodyRestrictionsAndSelfTransferAllowance() public;
 ```
 
 ### testFuzzCustodyConservationAcrossPostings

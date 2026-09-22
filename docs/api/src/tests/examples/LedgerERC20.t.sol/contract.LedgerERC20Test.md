@@ -1,5 +1,5 @@
 # LedgerERC20Test
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/tests/examples/LedgerERC20.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/tests/examples/LedgerERC20.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -119,11 +119,11 @@ function testERC20TransferRejectsCanonicalCreditLeafSender() public;
 function testERC20TransferFromRejectsCanonicalCreditLeafSender() public;
 ```
 
-### testCanonicalSelfBalanceCheckAndCallbackAuthentication
+### testCanonicalSelfTransferBalanceAndCallbackAuthentication
 
 
 ```solidity
-function testCanonicalSelfBalanceCheckAndCallbackAuthentication() public;
+function testCanonicalSelfTransferBalanceAndCallbackAuthentication() public;
 ```
 
 ## Errors

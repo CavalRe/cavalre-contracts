@@ -184,28 +184,57 @@ contract LedgerCustodyTest is ERC20WrapperTest {
         }
     }
 
-    function testPublicCustodyRestrictionsAndSelfAllowance() public {
+    function testPublicCustodyRestrictionsAndSelfTransferAllowance() public {
         Custodian memory c = makeCustodian(address(0x301), false);
+        bytes memory groupError_ = abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, c.absolute);
         vm.prank(c.holder);
-        vm.expectRevert();
+        vm.expectRevert(groupError_);
         token.transfer(alice, 1);
         vm.prank(c.holder);
         token.approve(bob, 1);
         vm.prank(bob);
-        vm.expectRevert();
+        vm.expectRevert(groupError_);
         token.transferFrom(c.holder, alice, 1);
         assertEq(token.allowance(c.holder, bob), 1);
+        vm.prank(carol);
+        vm.expectRevert(groupError_);
+        token.transfer(c.holder, 1);
         vm.prank(address(token));
         vm.expectRevert(ILedger.InvalidAccountGroup.selector);
         ledgers.transfer(address(token), c.absolute, alice, address(token), bob, 1);
+        vm.prank(address(token));
+        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
+        ledgers.transfer(address(token), address(token), carol, c.absolute, alice, 1);
+        vm.prank(address(token));
+        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
+        ledgers.transfer(address(token), c.absolute, alice, c.absolute, alice, 0);
+        assertEq(token.balanceOf(c.holder), 60);
+        assertEq(token.balanceOf(carol), 40);
+        assertEq(ledgerView.balanceOf(address(token), c.absolute, alice), 100);
         vm.prank(alice);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILedger.InsufficientBalance.selector,
+                address(token),
+                address(token),
+                LedgerLib.toAddress(address(token), alice),
+                1
+            )
+        );
         token.transfer(alice, 1);
         ledgers.mint(address(token), address(token), alice, 10);
         vm.prank(alice);
         token.approve(bob, 11);
         vm.prank(bob);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILedger.InsufficientBalance.selector,
+                address(token),
+                address(token),
+                LedgerLib.toAddress(address(token), alice),
+                11
+            )
+        );
         token.transferFrom(alice, alice, 11);
         assertEq(token.allowance(alice, bob), 11);
         vm.prank(bob);

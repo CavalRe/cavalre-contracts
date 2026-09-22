@@ -32,8 +32,9 @@ interface ILedger {
     // ─────────────────────────────────────────────────────────────────────────────
     // Transfers (full routed; explicit parents)
     // ─────────────────────────────────────────────────────────────────────────────
-    /// @notice Authenticated ERC20 callback restricted to direct accounts (both parents equal ledger).
-    /// @dev Authorized modules use LedgerLib.transfer with explicit absolute parents for deeper postings.
+    /// @notice Authenticated ERC20 callback restricted to direct debit leaves (both parents equal ledger).
+    /// @dev Deeper postings use authorized modules and LedgerLib.transfer with resolved account flags.
+    /// Self-transfers require sufficient balance and emit Transfer without changing balances.
     function transfer(address ledger, address fromParent, address from, address toParent, address to, uint256 amount)
         external;
 

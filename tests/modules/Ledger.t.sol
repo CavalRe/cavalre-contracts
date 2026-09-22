@@ -1981,7 +1981,7 @@ contract LedgerTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Transfers / approvals / allowance / transferFrom (routed)
     // ─────────────────────────────────────────────────────────────────────────
-    function testLedgerTransfer() public {
+    function testPublicTransferRejectsForeignParents() public {
         vm.startPrank(alice);
 
         address dispatcherRoot = r1;
@@ -2001,6 +2001,12 @@ contract LedgerTest is Test {
         vm.expectRevert(ILedger.InvalidAccountGroup.selector);
         // attempt: fromParent=dispatcherRoot, toParent=testLedgerRoot (different root)
         ledger.transfer(dispatcherRoot, dispatcherRoot, alice, testLedgerRoot, bob, 100);
+        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
+        ledger.transfer(dispatcherRoot, testLedgerRoot, alice, dispatcherRoot, bob, 100);
+        assertEq(ledgerView.debitBalanceOf(dispatcherRoot, dispatcherRoot, alice), 300);
+        assertEq(ledgerView.debitBalanceOf(dispatcherRoot, dispatcherRoot, bob), 700);
+        assertEq(ledgerView.totalSupply(dispatcherRoot), 1000);
+        vm.stopPrank();
     }
 
     function testLedgerRejectsRemovedTransferSelector() public {

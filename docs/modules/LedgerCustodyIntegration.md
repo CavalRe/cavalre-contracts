@@ -22,6 +22,13 @@ for immutable token-to-backing bindings; share roots pack `ROOT_ADDRESS`.
 SR validates debit leaves for funding, shares and reward positions; a displayed
 group custody balance cannot claim rewards belonging to its descendants.
 
+The authenticated public transfer callback rejects either parent unless it equals
+the token root, before resolving account flags. Self-transfers still require the
+sender's balance to cover the amount, including when called through transferFrom.
+A rejected transfer preserves allowances. A valid self-transfer emits Transfer
+and leaves balances unchanged; transferFrom also consumes finite allowance. These
+checks apply to ordinary wrappers, ShareToken and the canonical ERC20 surface.
+
 Internal postings retain their existing leaf-side rules. No new group solvency
 constraint is imposed: if a group's normal balance is negative, its unsigned net
 balance view reverts on checked subtraction, as before. Regression coverage keeps

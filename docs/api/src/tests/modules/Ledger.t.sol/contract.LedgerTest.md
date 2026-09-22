@@ -1,5 +1,5 @@
 # LedgerTest
-[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/a40e08a217d6c3655416be8a6de882a5e4963112/tests/modules/Ledger.t.sol)
+[Git Source](https://github.com/CavalRe/cavalre-contracts/blob/main/tests/modules/Ledger.t.sol)
 
 **Inherits:**
 [Test](/node_modules/forge-std/src/Test.sol/abstract.Test.md)
@@ -849,11 +849,11 @@ function testLedgerUnwrapNativeRejectsValue() public;
 function testLedgerUnwrapNonNativeRejectsValue() public;
 ```
 
-### testLedgerTransfer
+### testPublicTransferRejectsForeignParents
 
 
 ```solidity
-function testLedgerTransfer() public;
+function testPublicTransferRejectsForeignParents() public;
 ```
 
 ### testLedgerRejectsRemovedTransferSelector

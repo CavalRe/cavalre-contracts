@@ -793,16 +793,16 @@ contract ShareTokenTest is Test {
         assertEq(token_.balanceOf(custodian_), 100);
         assertShareTokenRoot();
         vm.prank(custodian_);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, group_));
         token_.transfer(alice_, 1);
         vm.prank(custodian_);
         token_.approve(alice_, 1);
         vm.prank(alice_);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, group_));
         token_.transferFrom(custodian_, alice_, 1);
         assertEq(token_.allowance(custodian_, alice_), 1);
         vm.prank(custodian_);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, group_));
         token_.transfer(bob_, 1);
         assertEq(token_.balanceOf(custodian_), 100);
         vm.expectEmit(true, true, false, true, address(token_));
@@ -816,9 +816,24 @@ contract ShareTokenTest is Test {
         assertShareTokenRoot();
         app_.issue(address(token_), alice_, 50, false);
         assertShareTokenRoot();
+        assertEq(token_.balanceOf(alice_), 40);
+        bytes memory insufficient_ = abi.encodeWithSelector(
+            ILedger.InsufficientBalance.selector,
+            address(token_),
+            address(token_),
+            LedgerLib.toAddress(address(token_), alice_),
+            41
+        );
         vm.prank(alice_);
-        vm.expectRevert();
+        vm.expectRevert(insufficient_);
         token_.transfer(alice_, 41);
+        vm.prank(alice_);
+        token_.approve(bob_, 41);
+        vm.prank(bob_);
+        vm.expectRevert(insufficient_);
+        token_.transferFrom(alice_, alice_, 41);
+        assertEq(token_.allowance(alice_, bob_), 41);
+        assertEq(token_.balanceOf(alice_), 40);
         vm.prank(alice_);
         token_.approve(bob_, 40);
         vm.prank(bob_);
