@@ -198,7 +198,8 @@ function claim(address token_, address parent_, address relative_, address recip
 ### settleTransferRewards
 
 Internal Ledger postings settle rewards before changing actual stake balances.
-Transfers carry pending entitlement; available entitlement stays with its owner.
+Outgoing stake forfeits pending before incoming stake becomes eligible.
+Available entitlement stays with its owner, including on final-staker release.
 
 
 ```solidity

@@ -539,7 +539,7 @@ contract StakingRewardTokenTest is Test {
         assertRewards(BOB, 120e6, 90e6, 30e6);
     }
 
-    function testWrapperTransferFromSettlesRewards() public {
+    function testWrapperTransferFromAppliesLastStakerRelease() public {
         stakeFor(ALICE, 100e18);
         rewards.reward(srToken, 100e6);
         vm.warp(HALF_LIFE);
@@ -559,8 +559,8 @@ contract StakingRewardTokenTest is Test {
         vm.prank(CAROL);
         IERC20(srToken).transferFrom(ALICE, BOB, 100e18);
         assertEq(IERC20(srToken).allowance(ALICE, CAROL), 0);
-        assertRewards(ALICE, 50e6, 0, 50e6);
-        assertRewards(BOB, 50e6, 50e6, 0);
+        assertRewards(ALICE, 100e6, 0, 100e6);
+        assertRewards(BOB, 0, 0, 0);
 
         vm.prank(ALICE);
         IERC20(srToken).approve(CAROL, 1);
@@ -568,8 +568,8 @@ contract StakingRewardTokenTest is Test {
         vm.expectRevert(IStakingRewardToken.InsufficientStake.selector);
         IERC20(srToken).transferFrom(ALICE, BOB, 1);
         assertEq(IERC20(srToken).allowance(ALICE, CAROL), 1);
-        assertRewards(ALICE, 50e6, 0, 50e6);
-        assertRewards(BOB, 50e6, 50e6, 0);
+        assertRewards(ALICE, 100e6, 0, 100e6);
+        assertRewards(BOB, 0, 0, 0);
 
         vm.prank(BOB);
         IERC20(srToken).approve(CAROL, type(uint256).max);
@@ -610,13 +610,16 @@ contract StakingRewardTokenTest is Test {
         rewards.reward(srToken, 100e6);
         vm.warp(HALF_LIFE);
         ledger.rawTransfer(stakeToken, stakingGroup, ALICE, group_, BOB, 100e18);
-        assertRewards(ALICE, 50e6, 0, 50e6);
-        assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).unclaimed, 50e6);
+        assertRewards(ALICE, 100e6, 0, 100e6);
+        assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).unclaimed, 0);
         rewards.reward(srToken, 40e6);
-        assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).unclaimed, 90e6);
-        assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).pending, 90e6);
+        assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).unclaimed, 40e6);
+        assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).pending, 40e6);
         ledger.rawTransfer(stakeToken, group_, BOB, stakingGroup, BOB, 100e18);
-        assertRewards(BOB, 90e6, 90e6, 0);
+        assertRewards(BOB, 0, 0, 0);
+        assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).available, 40e6);
+        assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).pending, 0);
+        assertEq(IERC20(srToken).balanceOf(BOB), 100e18);
     }
 
     function testSelfAndZeroTransfersDoNotForfeit() public {
@@ -964,39 +967,117 @@ contract StakingRewardTokenTest is Test {
         assertConservation(100e6, 0);
     }
 
-    function testArticlePartialAndFullTransfer() public {
+    function testPartialAndFullTransferRedistributeToRemainingStake() public {
         seedEightyPendingTwentyAvailable();
-        stakeFor(CAROL, 100e18);
+        stakeFor(CAROL, 75e18);
         uint256 snapshot_ = vm.snapshotState();
         vm.prank(ALICE);
         IERC20(srToken).transfer(BOB, 25e18);
-        assertRewards(ALICE, 80e6, 60e6, 20e6);
-        assertRewards(BOB, 20e6, 20e6, 0);
-        assertRewards(CAROL, 0, 0, 0);
+        assertRewards(ALICE, 90e6, 70e6, 20e6);
+        assertRewards(BOB, 0, 0, 0);
+        assertRewards(CAROL, 10e6, 10e6, 0);
         assertEq(IERC20(srToken).balanceOf(ALICE), 75e18);
         assertConservation(100e6, 0);
         vm.revertToState(snapshot_);
         vm.prank(ALICE);
         IERC20(srToken).transfer(BOB, 100e18);
         assertRewards(ALICE, 20e6, 0, 20e6);
-        assertRewards(BOB, 80e6, 80e6, 0);
-        assertRewards(CAROL, 0, 0, 0);
+        assertRewards(BOB, 0, 0, 0);
+        assertRewards(CAROL, 80e6, 80e6, 0);
         assertConservation(100e6, 0);
     }
 
-    function testArticleMixedPositions() public {
+    function testPartialTransferRewardsOnlyRecipientsExistingStake() public {
+        seedEightyPendingTwentyAvailable();
+        stakeFor(BOB, 25e18);
+        stakeFor(CAROL, 25e18);
+        vm.expectEmit(true, true, false, true, address(dispatcher));
+        emit IStakingRewardToken.Forfeited(
+            srToken, LedgerLib.toAddress(stakingGroup, ALICE), 40e6 * StakingRewardLib.UNIT_SCALE, 0
+        );
+        vm.prank(ALICE);
+        IERC20(srToken).transfer(BOB, 50e18);
+        // Retained stake is 50:25:25; Bob's incoming 50 earns none of the forfeiture.
+        assertRewards(ALICE, 80e6, 60e6, 20e6);
+        assertRewards(BOB, 10e6, 10e6, 0);
+        assertRewards(CAROL, 10e6, 10e6, 0);
+        assertEq(IERC20(srToken).balanceOf(BOB), 75e18);
+        assertEq(IERC20(srToken).totalSupply(), 150e18);
+        assertConservation(100e6, 0);
+        rewards.reward(srToken, 150e6);
+        assertRewards(ALICE, 130e6, 110e6, 20e6);
+        assertRewards(BOB, 85e6, 85e6, 0);
+        assertRewards(CAROL, 35e6, 35e6, 0);
+        assertConservation(250e6, 0);
+    }
+
+    function testFullSupplyTransferReleasesResidualAndPreservesExitedRewards() public {
+        stakeFor(CAROL, 1);
+        rewards.reward(srToken, 2);
+        vm.prank(CAROL);
+        rewards.unstake(srToken, 1, 0);
+        stakeFor(ALICE, 3);
+        rewards.reward(srToken, 1);
+        assertEq(rewards.stakingRewardToken(srToken).allocationRemainderUnits, 1);
+        vm.prank(ALICE);
+        IERC20(srToken).transfer(BOB, 3);
+        assertEq(rewards.rewardsOf(srToken, ALICE).unclaimedUnits, StakingRewardLib.UNIT_SCALE);
+        assertEq(rewards.rewardsOf(srToken, ALICE).pendingUnits, 0);
+        assertEq(rewards.rewardsOf(srToken, BOB).unclaimedUnits, 0);
+        assertEq(rewards.rewardsOf(srToken, BOB).pendingUnits, 0);
+        assertRewards(CAROL, 2, 0, 2);
+        assertEq(rewards.stakingRewardToken(srToken).allocationRemainderUnits, 0);
+        assertEq(rewards.stakingRewardToken(srToken).rewards.pendingUnits, 0);
+        assertEq(IERC20(srToken).totalSupply(), 3);
+        assertConservation(3, 0);
+        vm.prank(ALICE);
+        assertEq(rewards.claim(srToken), 1);
+        vm.prank(CAROL);
+        assertEq(rewards.claim(srToken), 2);
+        rewards.reward(srToken, 6);
+        assertRewards(BOB, 6, 6, 0);
+        assertConservation(9, 3);
+        vm.prank(BOB);
+        rewards.unstake(srToken, 3, 0);
+        vm.prank(BOB);
+        assertEq(rewards.claim(srToken), 6);
+        assertConservation(9, 9);
+    }
+
+    function testPartialSoleHolderTransferRetainsExactPending() public {
+        stakeFor(ALICE, 7);
+        rewards.reward(srToken, 1);
+        vm.warp(HALF_LIFE);
+        IStakingRewardToken.Rewards memory before_ = rewards.rewardsOf(srToken, ALICE);
+        uint256 residual_ = rewards.stakingRewardToken(srToken).allocationRemainderUnits;
+        vm.prank(ALICE);
+        IERC20(srToken).transfer(BOB, 4);
+        IStakingRewardToken.Rewards memory after_ = rewards.rewardsOf(srToken, ALICE);
+        assertEq(after_.unclaimedUnits, before_.unclaimedUnits);
+        assertEq(after_.pendingUnits, before_.pendingUnits);
+        assertEq(rewards.rewardsOf(srToken, BOB).unclaimedUnits, 0);
+        assertEq(rewards.stakingRewardToken(srToken).allocationRemainderUnits, residual_);
+        assertEq(IERC20(srToken).balanceOf(ALICE), 3);
+        assertEq(IERC20(srToken).balanceOf(BOB), 4);
+        assertConservation(1, 0);
+    }
+
+    function testTransferReentryPreservesAvailableAndExcludesIncomingStake() public {
         seedEightyPendingTwentyAvailable();
         stakeFor(BOB, 100e18);
         vm.prank(ALICE);
         IERC20(srToken).transfer(BOB, 100e18);
         vm.prank(BOB);
         IERC20(srToken).transfer(ALICE, 100e18);
-        assertRewards(ALICE, 60e6, 40e6, 20e6);
-        assertRewards(BOB, 40e6, 40e6, 0);
+        assertRewards(ALICE, 20e6, 0, 20e6);
+        assertRewards(BOB, 80e6, 80e6, 0);
+        rewards.reward(srToken, 100e6);
+        assertRewards(ALICE, 70e6, 50e6, 20e6);
+        assertRewards(BOB, 130e6, 130e6, 0);
         vm.warp(2 * HALF_LIFE);
-        assertRewards(ALICE, 60e6, 20e6, 40e6);
-        assertRewards(BOB, 40e6, 20e6, 20e6);
-        assertConservation(100e6, 0);
+        assertRewards(ALICE, 70e6, 25e6, 45e6);
+        assertRewards(BOB, 130e6, 65e6, 65e6);
+        assertConservation(200e6, 0);
     }
 
     function testArticleContinuedFundingDoesNotRestartVesting() public {
@@ -1070,31 +1151,29 @@ contract StakingRewardTokenTest is Test {
         } else if (model_.positions[actor_].stake != 0) {
             uint256 beforeStake_ = model_.positions[actor_].stake;
             amount_ = (random_ >> 32) % 2 == 0 ? beforeStake_ : 1 + amount_ % beforeStake_;
-            uint256 moved_ = model_.positions[actor_].pending * amount_ / beforeStake_;
+            uint256 forfeited_ = model_.positions[actor_].pending * amount_ / beforeStake_;
             if (action_ == 3) {
-                uint256 recipient_ = (actor_ + 1) % 3;
                 vm.prank(holders_[actor_]);
-                IERC20(srToken).transfer(holders_[recipient_], amount_);
-                model_.positions[actor_].stake -= amount_;
-                model_.positions[recipient_].stake += amount_;
-                model_.positions[actor_].units -= moved_;
-                model_.positions[actor_].pending -= moved_;
-                model_.positions[recipient_].units += moved_;
-                model_.positions[recipient_].pending += moved_;
+                IERC20(srToken).transfer(holders_[(actor_ + 1) % 3], amount_);
             } else {
                 vm.prank(holders_[actor_]);
                 rewards.unstake(srToken, amount_, 0);
-                model_.positions[actor_].stake -= amount_;
-                model_.stake -= amount_;
-                if (model_.stake == 0) {
-                    model_.positions[actor_].pending = 0;
-                    model_.positions[actor_].units += model_.remainder;
-                    model_.remainder = 0;
-                } else if (model_.stake != model_.positions[actor_].stake) {
-                    model_.positions[actor_].units -= moved_;
-                    model_.positions[actor_].pending -= moved_;
-                    referenceAllocate(model_, moved_);
-                }
+            }
+            // Exit and distribute eagerly before admitting the transferred principal.
+            model_.positions[actor_].stake -= amount_;
+            model_.stake -= amount_;
+            if (model_.stake == 0) {
+                model_.positions[actor_].pending = 0;
+                model_.positions[actor_].units += model_.remainder;
+                model_.remainder = 0;
+            } else if (model_.stake != model_.positions[actor_].stake) {
+                model_.positions[actor_].units -= forfeited_;
+                model_.positions[actor_].pending -= forfeited_;
+                referenceAllocate(model_, forfeited_);
+            }
+            if (action_ == 3) {
+                model_.positions[(actor_ + 1) % 3].stake += amount_;
+                model_.stake += amount_;
             }
         }
     }

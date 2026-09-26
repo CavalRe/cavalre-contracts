@@ -1,5 +1,20 @@
 # Staking rewards validation
 
+## Transfer forfeiture update
+
+Validated against main at `862588c20656d3decde2ec4489b85062b919840f`, using Foundry 1.7.1 and the unchanged Solidity 0.8.26, Cancun, optimizer-200 configuration. Same-program transfers now reuse exit forfeiture before checkpointing the recipient's old stake. Full-supply transfers reuse final-staker release. The earlier article's pending-transfer examples have been updated to this policy; existing coverage is retained.
+
+- Baseline staking suite: 59 passed, 0 failed.
+- Updated staking suite: 62 passed, 0 failed, including 256-run fuzz tests and the independent 80-action eager reference.
+- Full `forge test`: 284 passed, 0 failed, 0 skipped across 17 suites.
+- Changed Solidity formatting and `git diff --check`: passed.
+- Production SR runtime: 17,346 bytes; initcode: 17,389 bytes. Other production sizes below are unchanged.
+- Storage layouts, wrapper APIs, compiler settings and cavalre-multiswap are unchanged. No deployment performed.
+
+Additional regression cases cover the recipient's existing stake versus incoming principal, full-supply residual release while earlier holders retain available rewards, and exact pending preservation on a sole holder's partial transfer.
+
+## Previous Ledger transfer validation
+
 Validated the public Ledger transfer regression fixes against `9f5b9d18ca68a6c084b53892ea80189e01c996fb`, which includes the nested-SR creation guard and consolidated LedgerTokenFactory. The original accounting baseline was `677321cf20df67783ec04b0e282bd84df6c300cd`. Validation uses Solidity 0.8.26, Cancun and optimizer 200. No deployment, compiler configuration or code-size-limit change was made.
 
 ## Commands and results

@@ -418,7 +418,8 @@ library StakingRewardLib {
     // -- Stake Transfers and Forfeiture --
 
     /// @dev Internal Ledger postings settle rewards before changing actual stake balances.
-    ///      Transfers carry pending entitlement; available entitlement stays with its owner.
+    ///      Outgoing stake forfeits pending before incoming stake becomes eligible.
+    ///      Available entitlement stays with its owner, including on final-staker release.
     function settleTransferRewards(
         address token_,
         address from_,
@@ -429,21 +430,9 @@ library StakingRewardLib {
     ) internal {
         if (from_ == to_ || amount_ == 0) return;
         Program storage p = stakingRewardProgram(token_);
+        if (!fromOutside_) settleHolderRewards(p, token_, from_, amount_);
+        // The recipient's old stake participates in redistribution; incoming principal does not.
         if (!toOutside_) settleHolderRewards(p, token_, to_, 0);
-        if (fromOutside_) return;
-        if (toOutside_) {
-            settleHolderRewards(p, token_, from_, amount_);
-            return;
-        }
-        Checkpoint storage sender_ = settleHolderRewards(p, token_, from_, 0);
-        uint256 balance_ = LedgerLib.balanceOf(from_, false);
-        if (amount_ > balance_) revert IStakingRewardToken.InsufficientStake();
-        uint256 units_ = FixedPointMathLib.fullMulDiv(sender_.pendingUnits, amount_, balance_);
-        sender_.pendingUnits -= units_;
-        sender_.unclaimedUnits -= units_;
-        Checkpoint storage recipient_ = store().positions[token_][to_];
-        recipient_.pendingUnits += units_;
-        recipient_.unclaimedUnits += units_;
     }
 
     struct SettleHolderRewardsCache {
