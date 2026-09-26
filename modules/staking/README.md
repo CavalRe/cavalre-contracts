@@ -1,18 +1,20 @@
 # Staking rewards
 
+> WIP: the Ledger settlement hook has been removed. `LedgerLib` has no SR dependencies. Replacement settlement above Ledger is not yet implemented, so the intended behavior described below is not fully functional. Contract names changed to `StakingRewards`, `StakingRewardsToken`, and `StakingRewardsLib`; existing function selectors and storage namespaces are unchanged.
+
 Holding SR represents actual principal in a staking subtree and eligibility for future funding. Pending rewards belong to the holder: transfers and unstakes forfeit proportional pending rewards to remaining eligible stake before incoming principal participates. Available rewards stay separately claimable by their owner, including after a complete exit. There are no epochs, locks, maturity dates or promised APR. Each program fixes one reward asset and one positive vesting half-life.
 
 The allocation and vesting derivation is [Staking Rewards: Allocation, Vesting, and Forfeiture, corrected revision cd55afd](https://github.com/CavalRe/cavalre-multiswap/blob/cd55afd540bdf847bbb3373cc380c24429727c8d/apps/site/blog/2026-09-14-staking-rewards.md). The transfer-forfeiture rules below supersede that revision's pending-transfer behavior.
 
 ## Configuration and deployment
 
-Install the existing `LedgerTokenFactory` and `StakingRewardToken` through the Dispatcher alongside Ledger and LedgerView. The existing factory creates internal tokens, share tokens and SR programs; no additional factory module is needed. Keeping creation there also keeps wrapper/share deployment bytecode out of runtime accounting. `IStakingRewardToken` describes the combined Dispatcher API, and `ILedgerTokenFactory` also exposes the creation entry point.
+Install the existing `LedgerTokenFactory` and `StakingRewards` through the Dispatcher alongside Ledger and LedgerView. The existing factory creates internal tokens, share tokens and SR programs; no additional factory module is needed. Keeping creation there also keeps wrapper/share deployment bytecode out of runtime accounting. `IStakingRewards` describes the combined Dispatcher API, and `ILedgerTokenFactory` also exposes the creation entry point.
 
 The owner calls `createStakingRewardToken(stakingGroup, rewardGroup, halfLife, metadata)` with absolute registered debit groups. The staking group must be empty and exclusive to this program. Reward backing cannot lie within that same staking subtree. Metadata decimals match the underlying stake ledger. Matching creation is idempotent; a conflicting configuration reverts.
 
 SR tokens cannot be used as either the staking asset or the reward asset of another SR program. Creation rejects groups inside an existing SR staking subtree and registered SR wrapper roots. It also rejects a new staking subtree containing an existing program's staking group or reward backing, even if balances are zero, so reversing creation order cannot introduce nesting. These checks inspect account topology only during creation and add no storage. Ordinary nested Ledger accounts, independent programs on the same asset, and shared reward groups remain supported.
 
-Creation deploys a StakingRewardWrapper, creates a reward backing leaf at `H(rewardGroup, srWrapper)`, and creates a ShareToken backed by that leaf. Its decimals are reward decimals plus 36. All reward shares remain in the single custody leaf `H(rewardShareToken, srWrapper)` until claims burn them. Share supply is authoritative aggregate outstanding units; SR does not store a second unit supply. SR wraps actual staking balances and introduces no principal receipt ledger.
+Creation deploys a StakingRewardsToken, creates a reward backing leaf at `H(rewardGroup, srWrapper)`, and creates a ShareToken backed by that leaf. Its decimals are reward decimals plus 36. All reward shares remain in the single custody leaf `H(rewardShareToken, srWrapper)` until claims burn them. Share supply is authoritative aggregate outstanding units; SR does not store a second unit supply. SR wraps actual staking balances and introduces no principal receipt ledger.
 
 ## Balances and notation
 
@@ -40,7 +42,7 @@ This sum is a test invariant, never a production loop.
 
 ## Action ordering
 
-Every affected program advances shared elapsed-time decay, reconstructs affected holders with their old stakes, applies entitlement changes, and saves snapshots before the principal posting. Account ancestry determines which programs are affected; there is no scan of users, programs or funding history.
+Every affected program advances shared elapsed-time decay, reconstructs affected holders with their old stakes, applies entitlement changes, and saves snapshots before the principal posting. The mechanism for invoking that settlement above Ledger remains unfinished.
 
 - **Stake:** checkpoint the receiving leaf before adding principal. New stake receives only subsequent allocations.
 - **Fund:** require positive total stake. Issue `F * hatU_i / U_i` shares, or `F * 1e36` when backing and units are both zero. Add issued units as aggregate pending and increment both accumulators by issued units divided by eligible stake. Funding touches no holders.
@@ -74,9 +76,7 @@ An authorized internal donation to a live reward backing leaf explicitly raises 
 
 ## Internal postings and custody
 
-`LedgerLib.transfer` walks each endpoint's registered ancestors. For each affected staking group it calls `settleStakeTransfer` through the Dispatcher exactly once, before either principal balance changes. Only the Dispatcher itself can call this selector. Public wrapper authentication and consuming-module authorization remain unchanged. Ledger/Share storage layouts remain unchanged.
-
-A same-program posting settles the sender's exit and then the recipient's entry; leaving a program is an unstake; entering one checkpoints the receiver. Crossing independent programs applies those rules to each affected program. Credit leaves cannot participate in eligible staking balances. All internal consumers must use LedgerLib postings, never edit balance mappings directly. A deployment containing SR programs must retain its settlement selector.
+Ledger postings do not detect SR programs or settle rewards. The replacement SR settlement path must be agreed and implemented above Ledger. The existing `settleStakeTransfer` selector remains in the WIP runtime, but Ledger no longer calls it.
 
 Internal custody accounts can still sit beneath a program's staking group. Each debit leaf remains a separate reward position: movements between distinct leaves apply forfeiture even if their ERC20 events project to the same custodian. Available rewards stay on the leaf where they vested or received final-staker release and can be claimed through an authorized explicit-account consumer. Aggregating a pool's custody leaves into one reward position is separate future work. This account nesting does not create another SR program.
 
@@ -88,4 +88,4 @@ Tests retain the article's funding, vesting and unstake examples and revise its 
 
 Deployment checks assert standard 24,576-byte runtime limits for the runtime module and existing token factory under Solidity 0.8.26, Cancun, optimizer 200. No code-size limit or compiler setting is relaxed.
 
-Deferred to a separate cavalre-multiswap task: update the contracts dependency, register the SR creation selector on the existing token factory and install the SR runtime settlement selector, refresh ABIs/bindings for the appended configuration return field and changed Forfeited event field meaning, update address predictions for current wrapper bytecode, keep SR programs unnested, and remove any duplicate consumer settlement. Revalidate staking, reward funding/claims, indexers and frontend wallet flows there. No files in that repository are changed by this implementation.
+Deferred to a separate cavalre-multiswap task: update the contracts dependency, register the SR creation selector on the existing token factory and install the SR runtime settlement selector, refresh ABIs/bindings for the appended configuration return field and changed Forfeited event field meaning, update address predictions for current wrapper bytecode, keep SR programs unnested, and complete the agreed settlement integration above Ledger. Revalidate staking, reward funding/claims, indexers and frontend wallet flows there. No files in that repository are changed by this implementation.

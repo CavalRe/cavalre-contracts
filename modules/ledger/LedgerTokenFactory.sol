@@ -5,7 +5,7 @@ import {Dispatchable} from "../dispatcher/Dispatchable.sol";
 import {ILedgerTokenFactory} from "./ILedgerTokenFactory.sol";
 import {LedgerTokenFactoryLib} from "./LedgerTokenFactoryLib.sol";
 
-import {StakingRewardLib} from "../staking/StakingRewardLib.sol";
+import {StakingRewardsLib} from "../staking/StakingRewardsLib.sol";
 
 contract LedgerTokenFactory is Dispatchable {
     function signatures() external pure virtual override returns (string[] memory _signatures) {
@@ -60,6 +60,6 @@ contract LedgerTokenFactory is Dispatchable {
         ILedgerTokenFactory.TokenMetadata memory metadata_
     ) external returns (address) {
         enforceIsOwner();
-        return StakingRewardLib.createStakingRewardToken(stakingGroup_, rewardGroup_, halfLife_, metadata_);
+        return StakingRewardsLib.createStakingRewardToken(stakingGroup_, rewardGroup_, halfLife_, metadata_);
     }
 }

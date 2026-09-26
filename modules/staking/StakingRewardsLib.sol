@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {IStakingRewardToken} from "./IStakingRewardToken.sol";
-import {StakingRewardWrapper} from "./StakingRewardWrapper.sol";
+import {IStakingRewards} from "./IStakingRewards.sol";
+import {StakingRewardsToken} from "./StakingRewardsToken.sol";
 import {LedgerLib} from "../ledger/LedgerLib.sol";
 import {ILedger} from "../ledger/ILedger.sol";
 import {LedgerTokenFactoryLib} from "../ledger/LedgerTokenFactoryLib.sol";
@@ -12,7 +12,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-library StakingRewardLib {
+library StakingRewardsLib {
     struct Checkpoint {
         // Outstanding unclaimed units (hat U) and pending units (hat P), not token amounts.
         uint256 unclaimedUnits;
@@ -77,14 +77,14 @@ library StakingRewardLib {
         CreateStakingRewardTokenCache memory c;
         bytes32 salt_ = LedgerTokenFactoryLib.tokenSalt(metadata_);
         bytes memory creationCode_ = abi.encodePacked(
-            type(StakingRewardWrapper).creationCode,
+            type(StakingRewardsToken).creationCode,
             abi.encode(address(this), metadata_.name, metadata_.symbol, metadata_.decimals)
         );
         token_ = Create2.computeAddress(salt_, keccak256(creationCode_));
         Program storage p = store().programs[token_];
         if (p.halfLife != 0) {
             if (p.stakingGroup != stakingGroup_ || p.rewardGroup != rewardGroup_ || p.halfLife != halfLife_) {
-                revert IStakingRewardToken.AlreadyConfigured(token_);
+                revert IStakingRewards.AlreadyConfigured(token_);
             }
             return token_;
         }
@@ -105,7 +105,7 @@ library StakingRewardLib {
                 || LedgerLib.isLedger(LedgerLib.flags(rewardGroup_))
                 || metadata_.decimals != LedgerLib.decimals(c.stakingLedger)
                 || LedgerLib.debitBalanceOf(stakingGroup_) != 0 || LedgerLib.creditBalanceOf(stakingGroup_) != 0
-        ) revert IStakingRewardToken.InvalidConfiguration();
+        ) revert IStakingRewards.InvalidConfiguration();
         // Neither asset may be an SR position, regardless of program creation order.
         enforceUnreservedAncestors(stakingGroup_);
         enforceUnreservedAncestors(rewardGroup_);
@@ -116,12 +116,12 @@ library StakingRewardLib {
             ancestor_ != LedgerLib.ROOT_ADDRESS;
             ancestor_ = LedgerLib.parent(LedgerLib.flags(ancestor_))
         ) {
-            if (ancestor_ == stakingGroup_) revert IStakingRewardToken.InvalidConfiguration();
+            if (ancestor_ == stakingGroup_) revert IStakingRewards.InvalidConfiguration();
         }
         c.rewardDecimals = uint256(LedgerLib.decimals(c.rewardLedger)) + 36;
-        if (c.rewardDecimals > type(uint8).max) revert IStakingRewardToken.InvalidConfiguration();
+        if (c.rewardDecimals > type(uint8).max) revert IStakingRewards.InvalidConfiguration();
         token_ = address(
-            new StakingRewardWrapper{salt: salt_}(address(this), metadata_.name, metadata_.symbol, metadata_.decimals)
+            new StakingRewardsToken{salt: salt_}(address(this), metadata_.name, metadata_.symbol, metadata_.decimals)
         );
         (c.rewardAccount,) = LedgerLib.addSubAccount(c.rewardLedger, rewardGroup_, token_, "Rewards", false);
         protectCustodyAccount(token_, stakingGroup_);
@@ -140,7 +140,7 @@ library StakingRewardLib {
         p.rewardGroup = rewardGroup_;
         p.halfLife = halfLife_;
         p.updatedAt = block.timestamp;
-        emit IStakingRewardToken.StakingRewardTokenCreated(
+        emit IStakingRewards.StakingRewardTokenCreated(
             token_, stakingGroup_, rewardGroup_, p.rewardShareToken, halfLife_
         );
     }
@@ -148,7 +148,7 @@ library StakingRewardLib {
     function enforceUnreservedAncestors(address absolute_) private view {
         while (absolute_ != LedgerLib.ROOT_ADDRESS) {
             if (store().reservedAccounts[absolute_] != address(0)) {
-                revert IStakingRewardToken.AccountReserved(absolute_);
+                revert IStakingRewards.AccountReserved(absolute_);
             }
             absolute_ = LedgerLib.parent(LedgerLib.flags(absolute_));
         }
@@ -160,7 +160,7 @@ library StakingRewardLib {
         for (uint256 i_; i_ < children_.length; ++i_) {
             address absolute_ = LedgerLib.toAddress(group_, children_[i_]);
             if (store().reservedAccounts[absolute_] != address(0)) {
-                revert IStakingRewardToken.AccountReserved(absolute_);
+                revert IStakingRewards.AccountReserved(absolute_);
             }
             if (LedgerLib.isGroup(LedgerLib.flags(absolute_))) enforceUnreservedDescendants(absolute_);
         }
@@ -168,14 +168,14 @@ library StakingRewardLib {
 
     function protectCustodyAccount(address token_, address absolute_) private {
         if (store().reservedAccounts[absolute_] != address(0) || LedgerLib.balanceOf(absolute_, false) != 0) {
-            revert IStakingRewardToken.AccountReserved(absolute_);
+            revert IStakingRewards.AccountReserved(absolute_);
         }
         store().reservedAccounts[absolute_] = token_;
     }
 
     function stakingRewardProgram(address token_) internal view returns (Program storage p) {
         p = store().programs[token_];
-        if (p.halfLife == 0) revert IStakingRewardToken.NotStakingRewardToken(token_);
+        if (p.halfLife == 0) revert IStakingRewards.NotStakingRewardToken(token_);
     }
 
     // -- Time and Checkpoints --
@@ -277,16 +277,16 @@ library StakingRewardLib {
 
     function stake(address token_, address holder_, uint256 amount_, uint256 minimum_) internal returns (uint256) {
         StakingBackingCache memory c = stakingBacking(token_);
-        if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
-        if (amount_ < minimum_) revert IStakingRewardToken.Slippage(amount_, minimum_);
+        if (amount_ == 0) revert IStakingRewards.ZeroAmount();
+        if (amount_ < minimum_) revert IStakingRewards.Slippage(amount_, minimum_);
         (uint256 walletFlags_, address walletAbsolute_) = enforceDebitAccount(c.ledger, walletParent(c.parent), holder_);
         if (store().reservedAccounts[walletAbsolute_] != address(0)) {
-            revert IStakingRewardToken.AccountReserved(walletAbsolute_);
+            revert IStakingRewards.AccountReserved(walletAbsolute_);
         }
         (uint256 stakingFlags_,) = enforceDebitAccount(c.ledger, c.parent, holder_);
         // Entry eligibility starts only after the holder's old stake has been checkpointed.
         LedgerLib.transfer(c.ledger, walletFlags_, holder_, stakingFlags_, holder_, amount_);
-        emit IStakingRewardToken.Staked(token_, holder_, amount_, amount_);
+        emit IStakingRewards.Staked(token_, holder_, amount_, amount_);
         return amount_;
     }
 
@@ -309,11 +309,11 @@ library StakingRewardLib {
         address ancestor_ = parent_;
         while (ancestor_ != c.parent && ancestor_ != c.ledger) ancestor_ = LedgerLib.parent(LedgerLib.flags(ancestor_));
         if (ancestor_ != c.parent) revert ILedger.InvalidLedgerAccount(holderAbsolute_);
-        if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
-        if (amount_ < minimum_) revert IStakingRewardToken.Slippage(amount_, minimum_);
+        if (amount_ == 0) revert IStakingRewards.ZeroAmount();
+        if (amount_ < minimum_) revert IStakingRewards.Slippage(amount_, minimum_);
         (uint256 recipientFlags_,) = enforceDebitAccount(c.ledger, walletParent(c.parent), recipient_);
         LedgerLib.transfer(c.ledger, holderFlags_, relative_, recipientFlags_, recipient_, amount_);
-        emit IStakingRewardToken.Unstaked(token_, parent_ == c.parent ? relative_ : holderAbsolute_, amount_, amount_);
+        emit IStakingRewards.Unstaked(token_, parent_ == c.parent ? relative_ : holderAbsolute_, amount_, amount_);
         return amount_;
     }
 
@@ -346,11 +346,11 @@ library StakingRewardLib {
     /// @param amount_ Reward-ledger tokens to contribute, in raw token units.
     function reward(address token_, address parent_, address funder_, uint256 amount_) internal {
         Program storage p = stakingRewardProgram(token_);
-        if (amount_ == 0) revert IStakingRewardToken.ZeroAmount();
+        if (amount_ == 0) revert IStakingRewards.ZeroAmount();
         RewardCache memory c;
         address rewardLedger_ = LedgerLib.ledger(p.rewardGroup);
         (uint256 funderFlags_, address absolute_) = enforceDebitAccount(rewardLedger_, parent_, funder_);
-        if (store().reservedAccounts[absolute_] != address(0)) revert IStakingRewardToken.AccountReserved(absolute_);
+        if (store().reservedAccounts[absolute_] != address(0)) revert IStakingRewards.AccountReserved(absolute_);
         (uint256 rewardFlags_,, address rewardAbsolute_) =
             LedgerLib.effectiveFlags(rewardLedger_, p.rewardGroup, token_);
         c.balance = LedgerLib.balanceOf(rewardAbsolute_, false);
@@ -358,27 +358,27 @@ library StakingRewardLib {
         // Funding may remove stake from this same program. Read the resulting stake and checkpoint after
         // the transfer hook has settled forfeiture, so we neither allocate to departed stake nor overwrite settlement.
         c.supply = LedgerLib.balanceOf(p.stakingGroup, false);
-        if (c.supply == 0) revert IStakingRewardToken.NoStake();
+        if (c.supply == 0) revert IStakingRewards.NoStake();
         Checkpoint memory checkpoint_ = currentRewardCheckpoint(p);
         if (
             LedgerLib.balanceOf(rewardAbsolute_, false) != c.balance + amount_
                 || LedgerLib.totalSupply(p.rewardShareToken) != checkpoint_.unclaimedUnits
-        ) revert IStakingRewardToken.InvalidConfiguration();
+        ) revert IStakingRewards.InvalidConfiguration();
         // Backing tokens stay in the reward account; internal shares measure each holder's entitlement to them.
         c.units = ShareTokenLib.issue(p.rewardShareToken, p.rewardShareToken, token_, amount_);
         c.increment = c.units / c.supply;
-        if (c.increment == 0) revert IStakingRewardToken.ZeroAmount();
+        if (c.increment == 0) revert IStakingRewards.ZeroAmount();
         // Preserve the issued supply. The existing group checkpoint owns the division
         // residual; it is excluded from holder views and all proportional allocations.
         store().positions[token_][p.stakingGroup].unclaimedUnits += c.units % c.supply;
         if (LedgerLib.totalSupply(p.rewardShareToken) != checkpoint_.unclaimedUnits + c.units) {
-            revert IStakingRewardToken.InvalidConfiguration();
+            revert IStakingRewards.InvalidConfiguration();
         }
         p.pendingUnits = checkpoint_.pendingUnits + c.units;
         p.unclaimedAccumulator = checkpoint_.unclaimedAccumulator + c.increment;
         p.pendingAccumulator = checkpoint_.pendingAccumulator + c.increment;
         p.updatedAt = checkpoint_.updatedAt;
-        emit IStakingRewardToken.Rewarded(token_, funder_, amount_, c.units);
+        emit IStakingRewards.Rewarded(token_, funder_, amount_, c.units);
     }
 
     struct ClaimCache {
@@ -441,7 +441,7 @@ library StakingRewardLib {
         if (ancestor_ != p.stakingGroup) revert ILedger.InvalidLedgerAccount(c.absolute);
         Checkpoint storage position_ = settleHolderRewards(p, token_, c.absolute, 0);
         c.availableUnits = position_.unclaimedUnits - position_.pendingUnits;
-        if (c.availableUnits == 0) revert IStakingRewardToken.InsufficientRewards();
+        if (c.availableUnits == 0) revert IStakingRewards.InsufficientRewards();
         c.rewardLedger = LedgerLib.ledger(p.rewardGroup);
         (c.rewardFlags,, c.rewardAbsolute) = LedgerLib.effectiveFlags(c.rewardLedger, p.rewardGroup, token_);
         c.balance = LedgerLib.balanceOf(c.rewardAbsolute, false);
@@ -452,7 +452,7 @@ library StakingRewardLib {
         if (claimed_ == 0) {
             ShareTokenLib.cancel(p.rewardShareToken, p.rewardShareToken, token_, c.availableUnits);
         } else if (ShareTokenLib.redeem(p.rewardShareToken, p.rewardShareToken, token_, c.availableUnits) != claimed_) {
-            revert IStakingRewardToken.InvalidConfiguration();
+            revert IStakingRewards.InvalidConfiguration();
         }
         if (p.pendingUnits > c.supply - c.availableUnits) p.pendingUnits = c.supply - c.availableUnits;
         (uint256 recipientFlags_,) = enforceDebitAccount(c.rewardLedger, recipientParent_, recipient_);
@@ -460,8 +460,8 @@ library StakingRewardLib {
         if (
             LedgerLib.balanceOf(c.rewardAbsolute, false) != c.balance - claimed_
                 || LedgerLib.totalSupply(p.rewardShareToken) != c.supply - c.availableUnits
-        ) revert IStakingRewardToken.InvalidConfiguration();
-        emit IStakingRewardToken.Claimed(
+        ) revert IStakingRewards.InvalidConfiguration();
+        emit IStakingRewards.Claimed(
             token_, parent_ == p.stakingGroup ? relative_ : c.absolute, claimed_, c.availableUnits
         );
     }
@@ -498,7 +498,7 @@ library StakingRewardLib {
     {
         SettleHolderRewardsCache memory c;
         c.balance = LedgerLib.balanceOf(absolute_, false);
-        if (amount_ > c.balance) revert IStakingRewardToken.InsufficientStake();
+        if (amount_ > c.balance) revert IStakingRewards.InsufficientStake();
         Checkpoint memory checkpoint_ = currentRewardCheckpoint(p);
         store().positions[token_][absolute_] =
             currentHolderRewardCheckpoint(store().positions[token_][absolute_], checkpoint_, c.balance, p.halfLife);
@@ -540,16 +540,12 @@ library StakingRewardLib {
         position_.pendingUnits += retained_;
         position_.unclaimedAccumulator = p.unclaimedAccumulator;
         position_.pendingAccumulator = p.pendingAccumulator;
-        emit IStakingRewardToken.Forfeited(token_, absolute_, c.pendingUnits, residual_);
+        emit IStakingRewards.Forfeited(token_, absolute_, c.pendingUnits, residual_);
     }
 
     // -- Views --
 
-    function stakingRewardToken(address token_)
-        internal
-        view
-        returns (IStakingRewardToken.Configuration memory config_)
-    {
+    function stakingRewardToken(address token_) internal view returns (IStakingRewards.Configuration memory config_) {
         Program storage p = stakingRewardProgram(token_);
         config_.tokenAddress = token_;
         config_.stakingGroup = p.stakingGroup;
@@ -567,14 +563,14 @@ library StakingRewardLib {
             rewardBalances(checkpoint_, checkpoint_.unclaimedUnits, LedgerLib.balanceOf(config_.rewardAccount, false));
     }
 
-    function rewardsOf(address token_, address holder_) internal view returns (IStakingRewardToken.Rewards memory) {
+    function rewardsOf(address token_, address holder_) internal view returns (IStakingRewards.Rewards memory) {
         return rewardsOfAccount(token_, stakingRewardProgram(token_).stakingGroup, holder_);
     }
 
     function rewardsOfAccount(address token_, address parent_, address relative_)
         internal
         view
-        returns (IStakingRewardToken.Rewards memory)
+        returns (IStakingRewards.Rewards memory)
     {
         Program storage p = stakingRewardProgram(token_);
         (, address absolute_) = enforceDebitAccount(LedgerLib.ledger(p.stakingGroup), parent_, relative_);
@@ -596,7 +592,7 @@ library StakingRewardLib {
     function rewardBalances(Checkpoint memory checkpoint_, uint256 unclaimedUnits_, uint256 balance_)
         private
         pure
-        returns (IStakingRewardToken.Rewards memory rewards_)
+        returns (IStakingRewards.Rewards memory rewards_)
     {
         rewards_.unclaimedUnits = checkpoint_.unclaimedUnits;
         rewards_.pendingUnits = checkpoint_.pendingUnits;

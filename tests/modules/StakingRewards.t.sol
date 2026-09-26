@@ -16,10 +16,10 @@ import {ShareTokenView} from "../../modules/share/ShareTokenView.sol";
 import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {LedgerTokenFactory} from "../../modules/ledger/LedgerTokenFactory.sol";
 import {ILedgerTokenFactory} from "../../modules/ledger/ILedgerTokenFactory.sol";
-import {StakingRewardToken} from "../../modules/staking/StakingRewardToken.sol";
-import {StakingRewardWrapper} from "../../modules/staking/StakingRewardWrapper.sol";
-import {IStakingRewardToken} from "../../modules/staking/IStakingRewardToken.sol";
-import {StakingRewardLib} from "../../modules/staking/StakingRewardLib.sol";
+import {StakingRewards} from "../../modules/staking/StakingRewards.sol";
+import {StakingRewardsToken} from "../../modules/staking/StakingRewardsToken.sol";
+import {IStakingRewards} from "../../modules/staking/IStakingRewards.sol";
+import {StakingRewardsLib} from "../../modules/staking/StakingRewardsLib.sol";
 
 contract NestedStakingApplication is Dispatchable {
     function signatures() external pure override returns (string[] memory signatures_) {
@@ -43,7 +43,7 @@ contract NestedStakingApplication is Dispatchable {
         returns (uint256)
     {
         enforceIsOwner();
-        return StakingRewardLib.claim(token_, parent_, relative_, recipient_);
+        return StakingRewardsLib.claim(token_, parent_, relative_, recipient_);
     }
 
     function unstakeAt(address token_, address parent_, address relative_, address recipient_, uint256 shares_)
@@ -51,12 +51,12 @@ contract NestedStakingApplication is Dispatchable {
         returns (uint256)
     {
         enforceIsOwner();
-        return StakingRewardLib.unstake(token_, parent_, relative_, recipient_, shares_, 0);
+        return StakingRewardsLib.unstake(token_, parent_, relative_, recipient_, shares_, 0);
     }
 
     function rewardAt(address token_, address parent_, address funder_, uint256 amount_) external {
         enforceIsOwner();
-        StakingRewardLib.reward(token_, parent_, funder_, amount_);
+        StakingRewardsLib.reward(token_, parent_, funder_, amount_);
     }
 
     function claimTo(address token_, address parent_, address relative_, address recipientParent_, address recipient_)
@@ -64,18 +64,18 @@ contract NestedStakingApplication is Dispatchable {
         returns (uint256)
     {
         enforceIsOwner();
-        return StakingRewardLib.claim(token_, parent_, relative_, recipientParent_, recipient_);
+        return StakingRewardsLib.claim(token_, parent_, relative_, recipientParent_, recipient_);
     }
 }
 
-contract StakingRewardTokenTest is Test {
+contract StakingRewardsTest is Test {
     Dispatcher internal dispatcher;
     TestLedger internal ledger;
     LedgerView internal ledgerView;
     LedgerTokenFactory internal factory;
     address internal factoryImplementation;
     ILedgerTokenFactory.TokenMetadata internal metadata;
-    IStakingRewardToken internal rewards;
+    IStakingRewards internal rewards;
     address internal stakeToken;
     address internal rewardToken;
     address internal srToken;
@@ -96,12 +96,12 @@ contract StakingRewardTokenTest is Test {
         modules_[1] = address(new LedgerTokenFactory());
         factoryImplementation = modules_[1];
         modules_[2] = address(new LedgerView());
-        modules_[3] = address(new StakingRewardToken());
+        modules_[3] = address(new StakingRewards());
         dispatcher.addModule(modules_);
         ledger = TestLedger(payable(address(dispatcher)));
         factory = LedgerTokenFactory(address(dispatcher));
         ledgerView = LedgerView(address(dispatcher));
-        rewards = IStakingRewardToken(address(dispatcher));
+        rewards = IStakingRewards(address(dispatcher));
         ledger.initializeTestLedger();
 
         ILedgerTokenFactory.TokenMetadata[] memory tokens_ = new ILedgerTokenFactory.TokenMetadata[](2);
@@ -129,7 +129,7 @@ contract StakingRewardTokenTest is Test {
     }
 
     function assertRewards(address holder_, uint256 unclaimed_, uint256 pending_, uint256 available_) internal view {
-        IStakingRewardToken.Rewards memory state_ = rewards.rewardsOf(srToken, holder_);
+        IStakingRewards.Rewards memory state_ = rewards.rewardsOf(srToken, holder_);
         assertApproxEqAbs(state_.unclaimed, unclaimed_, 1);
         assertApproxEqAbs(state_.pending, pending_, 1);
         assertApproxEqAbs(state_.available, available_, 1);
@@ -139,7 +139,7 @@ contract StakingRewardTokenTest is Test {
     function testConfigurationOwnedBySR() public {
         uint256 underlyingSupply_ = IERC20(stakeToken).totalSupply();
         stakeFor(ALICE, 100e18);
-        IStakingRewardToken.Configuration memory config_ = rewards.stakingRewardToken(srToken);
+        IStakingRewards.Configuration memory config_ = rewards.stakingRewardToken(srToken);
         assertEq(config_.tokenAddress, srToken);
         assertEq(config_.stakingLedger, stakeToken);
         assertEq(config_.stakingGroup, LedgerLib.toAddress(stakeToken, BACKING));
@@ -156,13 +156,13 @@ contract StakingRewardTokenTest is Test {
     }
 
     function testConfigurationCannotChange() public {
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AlreadyConfigured.selector, srToken));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AlreadyConfigured.selector, srToken));
         rewards.createStakingRewardToken(stakingGroup, rewardGroup, 1 days, metadata);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AlreadyConfigured.selector, srToken));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AlreadyConfigured.selector, srToken));
         rewards.createStakingRewardToken(stakingGroup, stakeRewardGroup, HALF_LIFE, metadata);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AlreadyConfigured.selector, srToken));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AlreadyConfigured.selector, srToken));
         rewards.createStakingRewardToken(address(0), rewardGroup, HALF_LIFE, metadata);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AlreadyConfigured.selector, srToken));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AlreadyConfigured.selector, srToken));
         rewards.createStakingRewardToken(stakeRewardGroup, rewardGroup, HALF_LIFE, metadata);
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(IDispatcher.OwnableUnauthorizedAccount.selector, ALICE));
@@ -213,7 +213,7 @@ contract StakingRewardTokenTest is Test {
     }
 
     function testModuleFitsDeploymentLimit() public {
-        assertLe(address(new StakingRewardToken()).code.length, 24_576);
+        assertLe(address(new StakingRewards()).code.length, 24_576);
         assertLe(address(new LedgerTokenFactory()).code.length, 24_576);
     }
 
@@ -236,27 +236,27 @@ contract StakingRewardTokenTest is Test {
     function testInvalidConfiguration() public {
         (address group_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x52a), "New Staking", false);
         ILedgerTokenFactory.TokenMetadata memory metadata_ = ILedgerTokenFactory.TokenMetadata("Second", "SR2", 18, "1");
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(group_, rewardGroup, 0, metadata_);
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(stakeToken, rewardGroup, HALF_LIFE, metadata_);
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(group_, rewardToken, HALF_LIFE, metadata_);
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(group_, address(0), HALF_LIFE, metadata_);
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(address(0), rewardGroup, HALF_LIFE, metadata_);
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(group_, group_, HALF_LIFE, metadata_);
         (address nested_,) = ledger.addSubAccountGroup(stakeToken, group_, REWARDS, "Rewards", false);
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(group_, nested_, HALF_LIFE, metadata_);
         metadata_.decimals = 6;
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(group_, rewardGroup, HALF_LIFE, metadata_);
         metadata_.decimals = 18;
         ledger.mint(stakeToken, group_, ALICE, 1);
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(group_, rewardGroup, HALF_LIFE, metadata_);
     }
 
@@ -264,7 +264,7 @@ contract StakingRewardTokenTest is Test {
         (address group_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x52a), "New Staking", false);
         ILedgerTokenFactory.TokenMetadata memory metadata_ = ILedgerTokenFactory.TokenMetadata("Second", "SR2", 18, "1");
         bytes memory creationCode_ = abi.encodePacked(
-            type(StakingRewardWrapper).creationCode,
+            type(StakingRewardsToken).creationCode,
             abi.encode(address(dispatcher), metadata_.name, metadata_.symbol, metadata_.decimals)
         );
         address predicted_ = Create2.computeAddress(
@@ -273,7 +273,7 @@ contract StakingRewardTokenTest is Test {
             address(dispatcher)
         );
         ledger.mint(stakeToken, group_, ALICE, 1);
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(group_, rewardGroup, HALF_LIFE, metadata_);
         assertEq(predicted_.code.length, 0);
         assertEq(ledgerView.balanceOf(stakeToken, group_, ALICE), 1);
@@ -288,7 +288,7 @@ contract StakingRewardTokenTest is Test {
     }
 
     function testCannotUseCreditBacking() public {
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         rewards.createStakingRewardToken(
             LedgerLib.toAddress(stakeToken, LedgerLib.SOURCE_ADDRESS),
             rewardGroup,
@@ -299,9 +299,7 @@ contract StakingRewardTokenTest is Test {
 
     function testCannotConfigureTwoProgramsOnOneBackingAccount() public {
         vm.expectRevert(
-            abi.encodeWithSelector(
-                IStakingRewardToken.AccountReserved.selector, LedgerLib.toAddress(stakeToken, BACKING)
-            )
+            abi.encodeWithSelector(IStakingRewards.AccountReserved.selector, LedgerLib.toAddress(stakeToken, BACKING))
         );
         rewards.createStakingRewardToken(
             LedgerLib.toAddress(stakeToken, BACKING),
@@ -312,13 +310,13 @@ contract StakingRewardTokenTest is Test {
     }
 
     function testFundingRequiresStake() public {
-        vm.expectRevert(IStakingRewardToken.NoStake.selector);
+        vm.expectRevert(IStakingRewards.NoStake.selector);
         rewards.reward(srToken, 100e6);
     }
 
     struct ClaimAllCache {
-        IStakingRewardToken.Rewards beforeClaim;
-        IStakingRewardToken.Rewards afterClaim;
+        IStakingRewards.Rewards beforeClaim;
+        IStakingRewards.Rewards afterClaim;
     }
 
     function testClaimAllLeavesOnlyPendingUnits() public {
@@ -327,7 +325,7 @@ contract StakingRewardTokenTest is Test {
         rewards.reward(srToken, 100e6);
         assertRewards(ALICE, 100e6, 100e6, 0);
         vm.prank(ALICE);
-        vm.expectRevert(IStakingRewardToken.InsufficientRewards.selector);
+        vm.expectRevert(IStakingRewards.InsufficientRewards.selector);
         rewards.claim(srToken);
         vm.warp(HALF_LIFE);
         assertRewards(ALICE, 100e6, 50e6, 50e6);
@@ -341,7 +339,7 @@ contract StakingRewardTokenTest is Test {
         assertEq(rewards.stakingRewardToken(srToken).rewards.pendingUnits, c.beforeClaim.pendingUnits);
         assertRewards(ALICE, 50e6, 50e6, 0);
         vm.prank(ALICE);
-        vm.expectRevert(IStakingRewardToken.InsufficientRewards.selector);
+        vm.expectRevert(IStakingRewards.InsufficientRewards.selector);
         rewards.claim(srToken);
         vm.warp(2 * HALF_LIFE);
         assertRewards(ALICE, 50e6, 25e6, 25e6);
@@ -361,11 +359,11 @@ contract StakingRewardTokenTest is Test {
         assertGt(rewards.rewardsOf(srToken, ALICE).unclaimedUnits, rewards.rewardsOf(srToken, ALICE).pendingUnits);
         vm.prank(ALICE);
         assertEq(rewards.claim(srToken), 0);
-        assertEq(rewards.rewardsOf(srToken, ALICE).unclaimedUnits, StakingRewardLib.UNIT_SCALE / 2);
-        assertEq(rewards.rewardsOf(srToken, ALICE).pendingUnits, StakingRewardLib.UNIT_SCALE / 2);
+        assertEq(rewards.rewardsOf(srToken, ALICE).unclaimedUnits, StakingRewardsLib.UNIT_SCALE / 2);
+        assertEq(rewards.rewardsOf(srToken, ALICE).pendingUnits, StakingRewardsLib.UNIT_SCALE / 2);
         assertConservation(1, 0);
         vm.prank(ALICE);
-        vm.expectRevert(IStakingRewardToken.InsufficientRewards.selector);
+        vm.expectRevert(IStakingRewards.InsufficientRewards.selector);
         rewards.claim(srToken);
         vm.startPrank(ALICE);
         rewards.unstake(srToken, 100e18, 100e18);
@@ -539,9 +537,7 @@ contract StakingRewardTokenTest is Test {
         stakeFor(BOB, 100e18);
         rewards.reward(srToken, 120e6);
         vm.warp(HALF_LIFE);
-        vm.expectCall(
-            address(dispatcher), abi.encodeCall(IStakingRewardToken.transfer, (srToken, ALICE, BOB, 100e18)), 1
-        );
+        vm.expectCall(address(dispatcher), abi.encodeCall(IStakingRewards.transfer, (srToken, ALICE, BOB, 100e18)), 1);
         vm.expectCall(address(dispatcher), abi.encodeWithSelector(ILedger.transfer.selector), 0);
         vm.prank(ALICE);
         vm.expectEmit(true, true, false, true, stakeToken);
@@ -569,9 +565,7 @@ contract StakingRewardTokenTest is Test {
         assertRewards(BOB, 0, 0, 0);
         vm.prank(ALICE);
         IERC20(srToken).approve(CAROL, 100e18);
-        vm.expectCall(
-            address(dispatcher), abi.encodeCall(IStakingRewardToken.transfer, (srToken, ALICE, BOB, 100e18)), 1
-        );
+        vm.expectCall(address(dispatcher), abi.encodeCall(IStakingRewards.transfer, (srToken, ALICE, BOB, 100e18)), 1);
         vm.expectCall(address(dispatcher), abi.encodeWithSelector(ILedger.transfer.selector), 0);
         vm.prank(CAROL);
         IERC20(srToken).transferFrom(ALICE, BOB, 100e18);
@@ -582,7 +576,7 @@ contract StakingRewardTokenTest is Test {
         vm.prank(ALICE);
         IERC20(srToken).approve(CAROL, 1);
         vm.prank(CAROL);
-        vm.expectRevert(IStakingRewardToken.InsufficientStake.selector);
+        vm.expectRevert(IStakingRewards.InsufficientStake.selector);
         IERC20(srToken).transferFrom(ALICE, BOB, 1);
         assertEq(IERC20(srToken).allowance(ALICE, CAROL), 1);
         assertRewards(ALICE, 100e6, 0, 100e6);
@@ -610,13 +604,13 @@ contract StakingRewardTokenTest is Test {
         assertRewards(ALICE, 100e6, 50e6, 50e6);
         assertRewards(BOB, 0, 0, 0);
         vm.prank(ALICE);
-        vm.expectRevert(IStakingRewardToken.UnauthorizedTransfer.selector);
+        vm.expectRevert(IStakingRewards.UnauthorizedTransfer.selector);
         rewards.transfer(srToken, ALICE, BOB, 1);
         vm.prank(stakeToken);
-        vm.expectRevert(IStakingRewardToken.UnauthorizedTransfer.selector);
+        vm.expectRevert(IStakingRewards.UnauthorizedTransfer.selector);
         rewards.transfer(srToken, ALICE, BOB, 1);
         vm.prank(stakeToken);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.NotStakingRewardToken.selector, stakeToken));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.NotStakingRewardToken.selector, stakeToken));
         rewards.transfer(stakeToken, ALICE, BOB, 1);
     }
 
@@ -650,7 +644,7 @@ contract StakingRewardTokenTest is Test {
         vm.expectEmit(true, true, false, true, srToken);
         emit ERC20Wrapper.Transfer(ALICE, BOB, 0);
         IERC20(srToken).transfer(BOB, 0);
-        vm.expectRevert(IStakingRewardToken.InsufficientStake.selector);
+        vm.expectRevert(IStakingRewards.InsufficientStake.selector);
         IERC20(srToken).transfer(ALICE, 100e18 + 1);
         vm.stopPrank();
         assertRewards(ALICE, 100e6, 50e6, 50e6);
@@ -691,13 +685,13 @@ contract StakingRewardTokenTest is Test {
         rewards.reward(srToken, 120e6);
         vm.warp(HALF_LIFE);
         vm.startPrank(BOB);
-        vm.expectRevert(IStakingRewardToken.InsufficientStake.selector);
+        vm.expectRevert(IStakingRewards.InsufficientStake.selector);
         rewards.unstake(srToken, 150e18, 0);
-        vm.expectRevert(IStakingRewardToken.InsufficientStake.selector);
+        vm.expectRevert(IStakingRewards.InsufficientStake.selector);
         rewards.unstake(srToken, 201e18, 0);
         vm.stopPrank();
         vm.prank(CAROL);
-        vm.expectRevert(IStakingRewardToken.InsufficientStake.selector);
+        vm.expectRevert(IStakingRewards.InsufficientStake.selector);
         rewards.unstake(srToken, 1e18, 0);
         assertEq(IERC20(srToken).totalSupply(), 200e18);
         assertEq(IERC20(srToken).balanceOf(ALICE), 100e18);
@@ -754,7 +748,7 @@ contract StakingRewardTokenTest is Test {
         vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, stakingGroup));
         IERC20(stakeToken).transfer(BACKING, 100e18);
         vm.prank(BOB);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.Slippage.selector, 100e18, 101e18));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.Slippage.selector, 100e18, 101e18));
         rewards.stake(srToken, 100e18, 101e18);
         vm.prank(BOB);
         assertEq(rewards.stake(srToken, 100e18, 100e18), 100e18);
@@ -836,8 +830,8 @@ contract StakingRewardTokenTest is Test {
         // Alice/Bob; the new 60 goes 20/40, using the remaining 60/120 stake. Each retains 30 available.
         vm.prank(ALICE);
         rewards.reward(token_, group_, 60e6);
-        IStakingRewardToken.Rewards memory alice_ = rewards.rewardsOf(token_, ALICE);
-        IStakingRewardToken.Rewards memory bob_ = rewards.rewardsOf(token_, BOB);
+        IStakingRewards.Rewards memory alice_ = rewards.rewardsOf(token_, ALICE);
+        IStakingRewards.Rewards memory bob_ = rewards.rewardsOf(token_, BOB);
         assertApproxEqAbs(alice_.pending, 40e6, 1);
         assertApproxEqAbs(alice_.available, 30e6, 1);
         assertApproxEqAbs(bob_.pending, 80e6, 1);
@@ -846,7 +840,7 @@ contract StakingRewardTokenTest is Test {
         assertEq(IERC20(token_).totalSupply(), 180e6);
         assertEq(IERC20(rewardToken).balanceOf(ALICE), 0);
         assertEq(ledgerView.balanceOf(rewardToken, rewardGroup, token_), 180e6);
-        assertEq(rewards.stakingRewardToken(token_).rewards.unclaimedUnits, 180e6 * StakingRewardLib.UNIT_SCALE);
+        assertEq(rewards.stakingRewardToken(token_).rewards.unclaimedUnits, 180e6 * StakingRewardsLib.UNIT_SCALE);
     }
 
     function testClaimDirectlyIntoSameProgramStake() public {
@@ -862,10 +856,10 @@ contract StakingRewardTokenTest is Test {
         assertEq(IERC20(token_).balanceOf(ALICE), 150e6);
         assertEq(IERC20(rewardToken).balanceOf(ALICE), 0);
         assertEq(ledgerView.balanceOf(rewardToken, rewardGroup, token_), 50e6);
-        IStakingRewardToken.Rewards memory state_ = rewards.rewardsOf(token_, ALICE);
+        IStakingRewards.Rewards memory state_ = rewards.rewardsOf(token_, ALICE);
         assertEq(state_.pending, 50e6);
         assertEq(state_.available, 0);
-        assertEq(state_.unclaimedUnits, 50e6 * StakingRewardLib.UNIT_SCALE);
+        assertEq(state_.unclaimedUnits, 50e6 * StakingRewardsLib.UNIT_SCALE);
     }
 
     function testCrossProgramStakeFundingAndClaimsDoNotStakeRewardBacking() public {
@@ -911,7 +905,7 @@ contract StakingRewardTokenTest is Test {
         vm.warp(HALF_LIFE);
         bytes32 before_ = rewardAccountState(token_);
         vm.prank(ALICE);
-        vm.expectRevert(IStakingRewardToken.NoStake.selector);
+        vm.expectRevert(IStakingRewards.NoStake.selector);
         rewards.reward(token_, group_, 100e6);
         assertEq(rewardAccountState(token_), before_);
     }
@@ -993,7 +987,7 @@ contract StakingRewardTokenTest is Test {
         assertEq(ledgerView.balanceOf(rewardToken, rewardGroup, srToken), 70e6);
 
         address backing_ = LedgerLib.toAddress(rewardGroup, srToken);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, backing_));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AccountReserved.selector, backing_));
         app_.rewardAt(srToken, rewardGroup, srToken, 1);
     }
 
@@ -1055,7 +1049,7 @@ contract StakingRewardTokenTest is Test {
     function testCannotStakeAnotherSRToken() public {
         (address innerGroup_,) = ledger.addSubAccountGroup(stakeToken, stakingGroup, BACKING, "Nested", false);
         (innerGroup_,) = ledger.addSubAccountGroup(stakeToken, innerGroup_, BACKING, "Staking", false);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, stakingGroup));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AccountReserved.selector, stakingGroup));
         factory.createStakingRewardToken(
             innerGroup_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Staked SR", "SRSR", 18, "1")
         );
@@ -1065,7 +1059,7 @@ contract StakingRewardTokenTest is Test {
         (address secondGroup_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x52a), "Second", false);
         (address innerGroup_,) = ledger.addSubAccountGroup(stakeToken, stakingGroup, REWARDS, "Nested", false);
         (innerGroup_,) = ledger.addSubAccountGroup(stakeToken, innerGroup_, REWARDS, "Rewards", false);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, stakingGroup));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AccountReserved.selector, stakingGroup));
         factory.createStakingRewardToken(
             secondGroup_, innerGroup_, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("SR Rewards", "SRREW", 18, "1")
         );
@@ -1073,7 +1067,7 @@ contract StakingRewardTokenTest is Test {
 
     function testCannotUseStakingGroupAsRewardGroup() public {
         (address secondGroup_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x991), "Second", false);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, stakingGroup));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AccountReserved.selector, stakingGroup));
         factory.createStakingRewardToken(
             secondGroup_, stakingGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("SR Rewards", "SRS", 18, "1")
         );
@@ -1088,7 +1082,7 @@ contract StakingRewardTokenTest is Test {
         );
         // A zero balance must not let a later program turn the inner asset into SR.
         assertEq(IERC20(inner_).totalSupply(), 0);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, innerGroup_));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AccountReserved.selector, innerGroup_));
         factory.createStakingRewardToken(
             outerGroup_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Outer SR", "OSR", 18, "1")
         );
@@ -1106,7 +1100,7 @@ contract StakingRewardTokenTest is Test {
         );
         address backing_ = LedgerLib.toAddress(innerGroup_, second_);
         assertEq(ledgerView.balanceOf(stakeToken, innerGroup_, second_), 0);
-        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, backing_));
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewards.AccountReserved.selector, backing_));
         factory.createStakingRewardToken(
             outerGroup_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Outer SR", "OSR", 18, "1")
         );
@@ -1125,9 +1119,9 @@ contract StakingRewardTokenTest is Test {
         (address srGroup_,) = ledger.addSubAccountGroup(srToken, srToken, BACKING, "SR Assets", false);
         (address secondGroup_,) = ledger.addSubAccountGroup(stakeToken, stakeToken, address(0x995), "Second", false);
         ILedgerTokenFactory.TokenMetadata memory metadata_ = ILedgerTokenFactory.TokenMetadata("Nested", "NSR", 18, "1");
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         factory.createStakingRewardToken(srGroup_, rewardGroup, HALF_LIFE, metadata_);
-        vm.expectRevert(IStakingRewardToken.InvalidConfiguration.selector);
+        vm.expectRevert(IStakingRewards.InvalidConfiguration.selector);
         factory.createStakingRewardToken(secondGroup_, srGroup_, HALF_LIFE, metadata_);
     }
 
@@ -1249,8 +1243,8 @@ contract StakingRewardTokenTest is Test {
         stakeFor(BOB, 25e18);
         stakeFor(CAROL, 25e18);
         vm.expectEmit(true, true, false, true, address(dispatcher));
-        emit IStakingRewardToken.Forfeited(
-            srToken, LedgerLib.toAddress(stakingGroup, ALICE), 40e6 * StakingRewardLib.UNIT_SCALE, 0
+        emit IStakingRewards.Forfeited(
+            srToken, LedgerLib.toAddress(stakingGroup, ALICE), 40e6 * StakingRewardsLib.UNIT_SCALE, 0
         );
         vm.prank(ALICE);
         IERC20(srToken).transfer(BOB, 50e18);
@@ -1278,7 +1272,7 @@ contract StakingRewardTokenTest is Test {
         assertEq(rewards.stakingRewardToken(srToken).allocationRemainderUnits, 1);
         vm.prank(ALICE);
         IERC20(srToken).transfer(BOB, 3);
-        assertEq(rewards.rewardsOf(srToken, ALICE).unclaimedUnits, StakingRewardLib.UNIT_SCALE);
+        assertEq(rewards.rewardsOf(srToken, ALICE).unclaimedUnits, StakingRewardsLib.UNIT_SCALE);
         assertEq(rewards.rewardsOf(srToken, ALICE).pendingUnits, 0);
         assertEq(rewards.rewardsOf(srToken, BOB).unclaimedUnits, 0);
         assertEq(rewards.rewardsOf(srToken, BOB).pendingUnits, 0);
@@ -1305,11 +1299,11 @@ contract StakingRewardTokenTest is Test {
         stakeFor(ALICE, 7);
         rewards.reward(srToken, 1);
         vm.warp(HALF_LIFE);
-        IStakingRewardToken.Rewards memory before_ = rewards.rewardsOf(srToken, ALICE);
+        IStakingRewards.Rewards memory before_ = rewards.rewardsOf(srToken, ALICE);
         uint256 residual_ = rewards.stakingRewardToken(srToken).allocationRemainderUnits;
         vm.prank(ALICE);
         IERC20(srToken).transfer(BOB, 4);
-        IStakingRewardToken.Rewards memory after_ = rewards.rewardsOf(srToken, ALICE);
+        IStakingRewards.Rewards memory after_ = rewards.rewardsOf(srToken, ALICE);
         assertEq(after_.unclaimedUnits, before_.unclaimedUnits);
         assertEq(after_.pendingUnits, before_.pendingUnits);
         assertEq(rewards.rewardsOf(srToken, BOB).unclaimedUnits, 0);
@@ -1352,7 +1346,7 @@ contract StakingRewardTokenTest is Test {
     }
 
     function testSettlementSelectorRejectsExternalCallers() public {
-        vm.expectRevert(IStakingRewardToken.UnauthorizedTransfer.selector);
+        vm.expectRevert(IStakingRewards.UnauthorizedTransfer.selector);
         rewards.settleStakeTransfer(srToken, ALICE, BOB, false, false, 1);
     }
 
@@ -1397,8 +1391,8 @@ contract StakingRewardTokenTest is Test {
         } else if (action_ == 1) {
             rewards.reward(srToken, amount_);
             model_.funded += amount_;
-            model_.units += amount_ * StakingRewardLib.UNIT_SCALE;
-            referenceAllocate(model_, amount_ * StakingRewardLib.UNIT_SCALE);
+            model_.units += amount_ * StakingRewardsLib.UNIT_SCALE;
+            referenceAllocate(model_, amount_ * StakingRewardsLib.UNIT_SCALE);
         } else if (action_ == 2) {
             uint256 halves_ = 1 + amount_ % 5;
             vm.warp(block.timestamp + halves_ * HALF_LIFE);
@@ -1449,7 +1443,7 @@ contract StakingRewardTokenTest is Test {
             uint256 bound_ = 4 * (step_ + 1) ** 2 * (model_.stakeAdded + 3);
             uint256 pending_;
             for (uint256 j_; j_ < 3; ++j_) {
-                IStakingRewardToken.Rewards memory actual_ = rewards.rewardsOf(srToken, holders_[j_]);
+                IStakingRewards.Rewards memory actual_ = rewards.rewardsOf(srToken, holders_[j_]);
                 assertEq(IERC20(srToken).balanceOf(holders_[j_]), model_.positions[j_].stake);
                 assertApproxEqAbs(actual_.unclaimedUnits, model_.positions[j_].units, bound_);
                 assertApproxEqAbs(actual_.pendingUnits, model_.positions[j_].pending, bound_);
@@ -1542,8 +1536,8 @@ contract StakingRewardTokenTest is Test {
     function testAllocationResidualPreservesSupplyAndClearsOnFinalExit() public {
         stakeFor(ALICE, 3);
         rewards.reward(srToken, 1);
-        IStakingRewardToken.Configuration memory config_ = rewards.stakingRewardToken(srToken);
-        assertEq(config_.rewards.unclaimedUnits, StakingRewardLib.UNIT_SCALE);
+        IStakingRewards.Configuration memory config_ = rewards.stakingRewardToken(srToken);
+        assertEq(config_.rewards.unclaimedUnits, StakingRewardsLib.UNIT_SCALE);
         assertEq(config_.allocationRemainderUnits, 1);
         stakeFor(BOB, 7);
         uint256 beforeSupply_ = config_.rewards.unclaimedUnits;
@@ -1563,10 +1557,10 @@ contract StakingRewardTokenTest is Test {
     }
 
     struct ConservationCache {
-        IStakingRewardToken.Rewards alice;
-        IStakingRewardToken.Rewards bob;
-        IStakingRewardToken.Rewards carol;
-        IStakingRewardToken.Configuration config;
+        IStakingRewards.Rewards alice;
+        IStakingRewards.Rewards bob;
+        IStakingRewards.Rewards carol;
+        IStakingRewards.Configuration config;
     }
 
     function assertConservation(uint256 funded_, uint256 claimed_) internal view {
@@ -1649,13 +1643,13 @@ contract StakingRewardTokenTest is Test {
         rewards.reward(srToken, 100e6);
         uint256 snapshot_ = vm.snapshotState();
         vm.warp(elapsed_);
-        IStakingRewardToken.Rewards memory expected_ = rewards.rewardsOf(srToken, ALICE);
+        IStakingRewards.Rewards memory expected_ = rewards.rewardsOf(srToken, ALICE);
         vm.revertToState(snapshot_);
         vm.warp(split_);
         // A new holder action checkpoints aggregate state without touching Alice.
         stakeFor(BOB, 1e18);
         vm.warp(elapsed_);
-        IStakingRewardToken.Rewards memory actual_ = rewards.rewardsOf(srToken, ALICE);
+        IStakingRewards.Rewards memory actual_ = rewards.rewardsOf(srToken, ALICE);
         assertEq(actual_.unclaimedUnits, expected_.unclaimedUnits);
         assertApproxEqAbs(actual_.pending, expected_.pending, 1);
         assertApproxEqAbs(actual_.available, expected_.available, 1);

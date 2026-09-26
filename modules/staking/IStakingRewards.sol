@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import {ILedgerTokenFactory} from "../ledger/ILedgerTokenFactory.sol";
 
-interface IStakingRewardToken {
+interface IStakingRewards {
     struct Rewards {
         uint256 unclaimedUnits;
         uint256 pendingUnits;
