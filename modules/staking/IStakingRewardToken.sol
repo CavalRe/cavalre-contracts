@@ -70,12 +70,40 @@ interface IStakingRewardToken {
     /// @dev On the final eligible-stake exit, pending rewards become available; exited holders retain their rewards.
     function unstake(address token, uint256 shares, uint256 minimumStake) external returns (uint256 amount);
 
-    /// @notice Fund pending rewards from the caller's R Ledger balance, allocated to current share holders.
+    /// @notice Add funded rewards, allocated as pending rewards in proportion to current stake.
+    /// @dev Moves existing tokens from the caller's reward-ledger wallet account to rewardGroup / token.
+    /// Funding requires nonzero stake. Checkpoints record holder entitlements; no per-holder reward accounts are created.
+    /// Existing rewards keep their accrued vesting. This does not withdraw tokens from the caller's staking account.
+    /// @param token SR wrapper address identifying the program to fund, not the token used as reward backing.
+    /// @param amount Amount to contribute, in the configured reward ledger's raw token units.
     function reward(address token, uint256 amount) external;
 
-    /// @notice Redeem all available reward units into the caller's R Ledger balance.
-    /// @dev Pays the floored token value and leaves pending units unchanged, even if the payout rounds to zero.
+    /// @notice Fund pending rewards directly from the caller's leaf under a chosen reward-account parent.
+    /// @dev The parent must be the reward ledger root or a registered staking group in that ledger.
+    /// Departing stake forfeits pending rewards under the usual rules; new funding is allocated after that exit.
+    /// Funding that would leave the recipient program without stake reverts atomically.
+    /// @param token SR wrapper identifying the program to fund.
+    /// @param funderParent Absolute parent of the caller's funding leaf, such as USD.cav's configured Stake group.
+    /// @param amount Contribution in the configured reward ledger's raw token units.
+    function reward(address token, address funderParent, uint256 amount) external;
+
+    /// @notice Collect all of the caller's available rewards without withdrawing their stake.
+    /// @dev Settles elapsed vesting, redeems all available reward units, and pays from rewardGroup / token
+    /// into the caller's reward-ledger wallet account. Remaining pending units stay pending.
+    /// The payout is rounded down; available units are consumed even when their token value rounds to zero.
+    /// This does not stake the payout or increase a recipient's SR wrapper balance automatically.
+    /// @param token SR wrapper address identifying the program whose rewards are being claimed.
+    /// @return claimed Amount paid, in the configured reward ledger's raw token units.
     function claim(address token) external returns (uint256 claimed);
+
+    /// @notice Collect all available rewards directly into the caller's leaf under a chosen reward-account parent.
+    /// @dev The parent must be the reward ledger root or a registered staking group in that ledger.
+    /// Paying into Stake increases that program's public SR balance without giving the incoming balance past rewards.
+    /// Remaining pending rewards stay with the claiming position. Available units are consumed even for a zero payout.
+    /// @param token SR wrapper identifying the program whose rewards are being claimed.
+    /// @param recipientParent Absolute parent of the caller's payout leaf in the configured reward ledger.
+    /// @return claimed Payout in raw reward-ledger token units, rounded down from the redeemed units.
+    function claim(address token, address recipientParent) external returns (uint256 claimed);
 
     /// @notice Transfer direct SR balances after settling sender and recipient rewards.
     /// @dev Only the token's registered wrapper may call. The wrapper owns allowance checks.

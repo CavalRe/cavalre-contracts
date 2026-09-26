@@ -23,15 +23,19 @@ import {StakingRewardLib} from "../../modules/staking/StakingRewardLib.sol";
 
 contract NestedStakingApplication is Dispatchable {
     function signatures() external pure override returns (string[] memory signatures_) {
-        signatures_ = new string[](2);
+        signatures_ = new string[](4);
         signatures_[0] = "claimAt(address,address,address,address)";
         signatures_[1] = "unstakeAt(address,address,address,address,uint256)";
+        signatures_[2] = "rewardAt(address,address,address,uint256)";
+        signatures_[3] = "claimTo(address,address,address,address,address)";
     }
 
     function selectors() external pure override returns (bytes4[] memory selectors_) {
-        selectors_ = new bytes4[](2);
+        selectors_ = new bytes4[](4);
         selectors_[0] = this.claimAt.selector;
         selectors_[1] = this.unstakeAt.selector;
+        selectors_[2] = this.rewardAt.selector;
+        selectors_[3] = this.claimTo.selector;
     }
 
     function claimAt(address token_, address parent_, address relative_, address recipient_)
@@ -48,6 +52,19 @@ contract NestedStakingApplication is Dispatchable {
     {
         enforceIsOwner();
         return StakingRewardLib.unstake(token_, parent_, relative_, recipient_, shares_, 0);
+    }
+
+    function rewardAt(address token_, address parent_, address funder_, uint256 amount_) external {
+        enforceIsOwner();
+        StakingRewardLib.reward(token_, parent_, funder_, amount_);
+    }
+
+    function claimTo(address token_, address parent_, address relative_, address recipientParent_, address recipient_)
+        external
+        returns (uint256)
+    {
+        enforceIsOwner();
+        return StakingRewardLib.claim(token_, parent_, relative_, recipientParent_, recipient_);
     }
 }
 
@@ -793,6 +810,246 @@ contract StakingRewardTokenTest is Test {
         assertEq(IERC20(rewardToken).balanceOf(ALICE), 200e6);
         assertEq(rewards.stakingRewardToken(second_).rewards.unclaimedUnits, 0);
         assertEq(rewards.stakingRewardToken(srToken).rewards.unclaimedUnits, 0);
+    }
+
+    // -- Explicit Reward Accounts --
+
+    function createRewardStakeProgram() internal returns (address token_, address group_) {
+        (group_,) = ledger.addSubAccountGroup(rewardToken, rewardToken, BACKING, "Reward Stake", false);
+        token_ = factory.createStakingRewardToken(
+            group_, rewardGroup, HALF_LIFE, ILedgerTokenFactory.TokenMetadata("Staked Reward", "SRR", 6, "explicit")
+        );
+    }
+
+    function testFundingFromStakeAllocatesAfterExitAndPreservesAvailableRewards() public {
+        (address token_, address group_) = createRewardStakeProgram();
+        ledger.mint(rewardToken, rewardToken, ALICE, 120e6);
+        ledger.mint(rewardToken, rewardToken, BOB, 120e6);
+        vm.prank(ALICE);
+        rewards.stake(token_, 120e6, 0);
+        vm.prank(BOB);
+        rewards.stake(token_, 120e6, 0);
+        rewards.reward(token_, 120e6);
+        vm.warp(HALF_LIFE);
+
+        // Alice exits half her stake to fund the program. Her forfeited 15 pending rewards go 5/10 to
+        // Alice/Bob; the new 60 goes 20/40, using the remaining 60/120 stake. Each retains 30 available.
+        vm.prank(ALICE);
+        rewards.reward(token_, group_, 60e6);
+        IStakingRewardToken.Rewards memory alice_ = rewards.rewardsOf(token_, ALICE);
+        IStakingRewardToken.Rewards memory bob_ = rewards.rewardsOf(token_, BOB);
+        assertApproxEqAbs(alice_.pending, 40e6, 1);
+        assertApproxEqAbs(alice_.available, 30e6, 1);
+        assertApproxEqAbs(bob_.pending, 80e6, 1);
+        assertApproxEqAbs(bob_.available, 30e6, 1);
+        assertEq(IERC20(token_).balanceOf(ALICE), 60e6);
+        assertEq(IERC20(token_).totalSupply(), 180e6);
+        assertEq(IERC20(rewardToken).balanceOf(ALICE), 0);
+        assertEq(ledgerView.balanceOf(rewardToken, rewardGroup, token_), 180e6);
+        assertEq(rewards.stakingRewardToken(token_).rewards.unclaimedUnits, 180e6 * StakingRewardLib.UNIT_SCALE);
+    }
+
+    function testClaimDirectlyIntoSameProgramStake() public {
+        (address token_, address group_) = createRewardStakeProgram();
+        ledger.mint(rewardToken, rewardToken, ALICE, 100e6);
+        vm.prank(ALICE);
+        rewards.stake(token_, 100e6, 0);
+        rewards.reward(token_, 100e6);
+        vm.warp(HALF_LIFE);
+
+        vm.prank(ALICE);
+        assertEq(rewards.claim(token_, group_), 50e6);
+        assertEq(IERC20(token_).balanceOf(ALICE), 150e6);
+        assertEq(IERC20(rewardToken).balanceOf(ALICE), 0);
+        assertEq(ledgerView.balanceOf(rewardToken, rewardGroup, token_), 50e6);
+        IStakingRewardToken.Rewards memory state_ = rewards.rewardsOf(token_, ALICE);
+        assertEq(state_.pending, 50e6);
+        assertEq(state_.available, 0);
+        assertEq(state_.unclaimedUnits, 50e6 * StakingRewardLib.UNIT_SCALE);
+    }
+
+    function testCrossProgramStakeFundingAndClaimsDoNotStakeRewardBacking() public {
+        (address token_, address group_) = createRewardStakeProgram();
+        ledger.mint(rewardToken, rewardToken, BOB, 120e6);
+        vm.prank(BOB);
+        rewards.stake(token_, 120e6, 0);
+        stakeFor(ALICE, 100e18);
+        rewards.reward(token_, 120e6);
+        rewards.reward(srToken, 100e6);
+        vm.warp(HALF_LIFE);
+
+        // Claiming one program's income gives Alice a new position in the reward token's SR program.
+        // Bob keeps the old program income; Alice's newly received stake starts with no historical rewards.
+        vm.prank(ALICE);
+        assertEq(rewards.claim(srToken, group_), 50e6);
+        assertEq(IERC20(token_).balanceOf(ALICE), 50e6);
+        assertEq(IERC20(rewardToken).balanceOf(ALICE), 0);
+        assertEq(rewards.rewardsOf(token_, ALICE).unclaimedUnits, 0);
+        assertEq(rewards.rewardsOf(token_, BOB).available, 60e6);
+        assertRewards(ALICE, 50e6, 50e6, 0);
+
+        // Funding another program from Bob's SR balance settles his exit, without crediting that program's
+        // backing as a new staker in the reward token's program.
+        vm.prank(BOB);
+        rewards.reward(srToken, group_, 60e6);
+        assertEq(IERC20(token_).balanceOf(BOB), 60e6);
+        assertEq(IERC20(token_).totalSupply(), 110e6);
+        assertEq(IERC20(rewardToken).balanceOf(BOB), 0);
+        assertEq(ledgerView.balanceOf(rewardToken, rewardGroup, srToken), 110e6);
+        assertEq(IERC20(token_).balanceOf(srToken), 0);
+        assertEq(rewards.rewardsOf(token_, srToken).unclaimedUnits, 0);
+        assertEq(rewards.rewardsOf(token_, BOB).available, 60e6);
+        assertRewards(ALICE, 110e6, 110e6, 0);
+    }
+
+    function testFundingAllRemainingStakeRevertsWithoutReleasingPendingRewards() public {
+        (address token_, address group_) = createRewardStakeProgram();
+        ledger.mint(rewardToken, rewardToken, ALICE, 100e6);
+        vm.prank(ALICE);
+        rewards.stake(token_, 100e6, 0);
+        rewards.reward(token_, 100e6);
+        vm.warp(HALF_LIFE);
+        bytes32 before_ = rewardAccountState(token_);
+        vm.prank(ALICE);
+        vm.expectRevert(IStakingRewardToken.NoStake.selector);
+        rewards.reward(token_, group_, 100e6);
+        assertEq(rewardAccountState(token_), before_);
+    }
+
+    function testPublicExplicitAccountsRejectCustodyParentsAndWrongLedger() public {
+        (address group_,) = ledger.addSubAccountGroup(rewardToken, rewardToken, CAROL, "Custody", false);
+        ledger.mint(rewardToken, group_, ALICE, 100e6);
+        stakeFor(ALICE, 100e18);
+        rewards.reward(srToken, 100e6);
+        vm.warp(HALF_LIFE);
+
+        // The caller's address appearing below a custody group does not authorize that internal account.
+        vm.startPrank(ALICE);
+        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
+        rewards.reward(srToken, group_, 1);
+        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
+        rewards.claim(srToken, group_);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, rewardToken, stakingGroup));
+        rewards.reward(srToken, stakingGroup, 1);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, rewardToken, stakingGroup));
+        rewards.claim(srToken, stakingGroup);
+        vm.stopPrank();
+        assertEq(ledgerView.balanceOf(rewardToken, group_, ALICE), 100e6);
+        assertRewards(ALICE, 100e6, 50e6, 50e6);
+    }
+
+    function testExplicitAccountsRejectCreditAndGroupLeaves() public {
+        (, address group_) = createRewardStakeProgram();
+        (address credit_,) = ledger.addSubAccount(rewardToken, group_, ALICE, "Credit", true);
+        (address custody_,) = ledger.addSubAccountGroup(rewardToken, group_, BOB, "Custody", false);
+        stakeFor(ALICE, 100e18);
+        stakeFor(BOB, 100e18);
+        rewards.reward(srToken, 100e6);
+        vm.warp(HALF_LIFE);
+        vm.startPrank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, credit_));
+        rewards.reward(srToken, group_, 1);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, credit_));
+        rewards.claim(srToken, group_);
+        vm.stopPrank();
+        vm.startPrank(BOB);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, custody_));
+        rewards.reward(srToken, group_, 1);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, custody_));
+        rewards.claim(srToken, group_);
+        vm.stopPrank();
+        assertRewards(ALICE, 50e6, 25e6, 25e6);
+        assertRewards(BOB, 50e6, 25e6, 25e6);
+    }
+
+    function testApplicationUsesPoolIdentityForExplicitFundingAndClaimAccounts() public {
+        (address rewardSR_, address rewardStake_) = createRewardStakeProgram();
+        address[] memory modules_ = new address[](1);
+        modules_[0] = address(new NestedStakingApplication());
+        dispatcher.addModule(modules_);
+        NestedStakingApplication app_ = NestedStakingApplication(address(dispatcher));
+        (address pool_,) =
+            ledger.addSubAccountGroup(address(dispatcher), address(dispatcher), address(0xcafe), "Pool", false);
+        assertEq(pool_, LedgerLib.toAddress(address(dispatcher), address(0xcafe)));
+        stakeFor(ALICE, 100e18);
+        ledger.rawTransfer(stakeToken, stakingGroup, ALICE, stakingGroup, pool_, 100e18);
+        rewards.reward(srToken, 100e6);
+        vm.warp(HALF_LIFE);
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(IDispatcher.OwnableUnauthorizedAccount.selector, ALICE));
+        app_.claimTo(srToken, stakingGroup, pool_, rewardStake_, pool_);
+        assertEq(app_.claimTo(srToken, stakingGroup, pool_, rewardStake_, pool_), 50e6);
+        assertEq(IERC20(rewardSR_).balanceOf(pool_), 50e6);
+        assertEq(IERC20(rewardToken).balanceOf(pool_), 0);
+        assertEq(rewards.rewardsOf(rewardSR_, pool_).unclaimedUnits, 0);
+
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(IDispatcher.OwnableUnauthorizedAccount.selector, ALICE));
+        app_.rewardAt(srToken, rewardStake_, pool_, 20e6);
+        app_.rewardAt(srToken, rewardStake_, pool_, 20e6);
+        assertEq(IERC20(rewardSR_).balanceOf(pool_), 30e6);
+        assertEq(rewards.rewardsOf(srToken, pool_).pending, 70e6);
+        assertEq(rewards.rewardsOf(srToken, pool_).available, 0);
+        assertEq(ledgerView.balanceOf(rewardToken, rewardGroup, srToken), 70e6);
+
+        address backing_ = LedgerLib.toAddress(rewardGroup, srToken);
+        vm.expectRevert(abi.encodeWithSelector(IStakingRewardToken.AccountReserved.selector, backing_));
+        app_.rewardAt(srToken, rewardGroup, srToken, 1);
+    }
+
+    function rewardAccountState(address token_) internal view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                rewards.stakingRewardToken(token_),
+                rewards.rewardsOf(token_, ALICE),
+                rewards.rewardsOf(token_, BOB),
+                IERC20(token_).balanceOf(ALICE),
+                IERC20(token_).balanceOf(BOB),
+                IERC20(rewardToken).balanceOf(ALICE),
+                IERC20(rewardToken).balanceOf(BOB),
+                IERC20(rewardToken).totalSupply(),
+                ledgerView.balanceOf(rewardToken, rewardGroup, token_)
+            )
+        );
+    }
+
+    function testFuzzDirectFundingAndClaimMatchComposedOperations(
+        uint256 aliceStake_,
+        uint256 bobStake_,
+        uint256 funding_,
+        uint256 elapsed_
+    ) public {
+        (address token_, address group_) = createRewardStakeProgram();
+        aliceStake_ = bound(aliceStake_, 1e6, 1e18);
+        bobStake_ = bound(bobStake_, 1e6, 1e18);
+        funding_ = bound(funding_, 1, aliceStake_);
+        elapsed_ = bound(elapsed_, 1, 4 * HALF_LIFE);
+        ledger.mint(rewardToken, rewardToken, ALICE, aliceStake_);
+        ledger.mint(rewardToken, rewardToken, BOB, bobStake_);
+        vm.prank(ALICE);
+        rewards.stake(token_, aliceStake_, 0);
+        vm.prank(BOB);
+        rewards.stake(token_, bobStake_, 0);
+        rewards.reward(token_, 1e18);
+        vm.warp(elapsed_);
+        uint256 snapshot_ = vm.snapshotState();
+
+        vm.startPrank(ALICE);
+        rewards.reward(token_, group_, funding_);
+        uint256 claimed_ = rewards.claim(token_, group_);
+        vm.stopPrank();
+        bytes32 direct_ = rewardAccountState(token_);
+        assertTrue(vm.revertToStateAndDelete(snapshot_));
+
+        // An independent composition uses the existing exit, wallet funding, wallet claim, and entry APIs.
+        // Identical state proves direct routing preserves forfeiture, vesting, reward units, and token balances.
+        vm.startPrank(ALICE);
+        rewards.unstake(token_, funding_, 0);
+        rewards.reward(token_, funding_);
+        assertEq(rewards.claim(token_), claimed_);
+        if (claimed_ != 0) rewards.stake(token_, claimed_, 0);
+        vm.stopPrank();
+        assertEq(rewardAccountState(token_), direct_);
     }
 
     function testCannotStakeAnotherSRToken() public {
