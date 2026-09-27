@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {ERC20WrapperTest} from "./ERC20Wrapper.t.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import {ERC20TokenTest} from "./ERC20Token.t.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
-import {ERC20Wrapper} from "../../modules/ledger/ERC20Wrapper.sol";
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {TreeLib} from "../../modules/tree/TreeLib.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 
-contract LedgerCustodyTest is ERC20WrapperTest {
+contract LedgerCustodyTest is ERC20TokenTest {
     struct Custodian {
         address holder;
         address absolute;
@@ -171,13 +172,13 @@ contract LedgerCustodyTest is ERC20WrapperTest {
         for (uint256 i_; i_ < 2; ++i_) {
             Custodian memory c = makeCustodian(address(uint160(0x201 + i_)), i_ == 1);
             vm.expectEmit(true, true, false, true, address(token));
-            emit ERC20Wrapper.Transfer(c.holder, c.holder, 5);
+            emit IERC20.Transfer(c.holder, c.holder, 5);
             ledgers.rawTransfer(address(token), c.absolute, alice, c.absolute, alice, 5);
             vm.expectEmit(true, true, false, true, address(token));
-            emit ERC20Wrapper.Transfer(c.holder, c.holder, 5);
+            emit IERC20.Transfer(c.holder, c.holder, 5);
             ledgers.rawTransfer(address(token), c.absolute, bob, c.absolute, alice, 5);
             vm.expectEmit(true, true, false, true, address(token));
-            emit ERC20Wrapper.Transfer(c.holder, c.holder, 0);
+            emit IERC20.Transfer(c.holder, c.holder, 0);
             ledgers.rawTransfer(address(token), c.absolute, alice, c.absolute, bob, 0);
             assertEq(token.balanceOf(c.holder), 60);
             assertSupply();
@@ -199,15 +200,17 @@ contract LedgerCustodyTest is ERC20WrapperTest {
         vm.prank(carol);
         vm.expectRevert(groupError_);
         token.transfer(c.holder, 1);
+        // Authorized accounting can move deep balances; public ERC20 holders cannot choose those accounts.
+        (uint256 nestedFlags_,,) = tree.effectiveFlags(address(token), c.absolute, alice);
+        (uint256 walletFlags_,,) = tree.effectiveFlags(address(token), address(token), bob);
         vm.prank(address(token));
-        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
-        ledgers.transfer(address(token), c.absolute, alice, address(token), bob, 1);
+        ledgers.transfer(address(token), nestedFlags_, alice, walletFlags_, bob, 1);
+        assertEq(ledgerView.balanceOf(address(token), c.absolute, alice), 99);
+        assertEq(token.balanceOf(bob), 1);
         vm.prank(address(token));
-        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
-        ledgers.transfer(address(token), address(token), carol, c.absolute, alice, 1);
+        ledgers.transfer(address(token), walletFlags_, bob, nestedFlags_, alice, 1);
         vm.prank(address(token));
-        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
-        ledgers.transfer(address(token), c.absolute, alice, c.absolute, alice, 0);
+        ledgers.transfer(address(token), nestedFlags_, alice, nestedFlags_, alice, 0);
         assertEq(token.balanceOf(c.holder), 60);
         assertEq(token.balanceOf(carol), 40);
         assertEq(ledgerView.balanceOf(address(token), c.absolute, alice), 100);
@@ -239,7 +242,7 @@ contract LedgerCustodyTest is ERC20WrapperTest {
         assertEq(token.allowance(alice, bob), 11);
         vm.prank(bob);
         vm.expectEmit(true, true, false, true, address(token));
-        emit ERC20Wrapper.Transfer(alice, alice, 10);
+        emit IERC20.Transfer(alice, alice, 10);
         token.transferFrom(alice, alice, 10);
         assertEq(token.allowance(alice, bob), 1);
         assertEq(token.balanceOf(alice), 10);

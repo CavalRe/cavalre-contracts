@@ -109,16 +109,6 @@ interface IStakingRewards {
     /// @dev Only the token's registered wrapper may call. The wrapper owns allowance checks.
     function transfer(address token, address from, address to, uint256 amount) external;
 
-    /// @dev Internal posting settlement; only the Dispatcher itself may invoke this selector.
-    function settleStakeTransfer(
-        address token,
-        address from,
-        address to,
-        bool fromOutside,
-        bool toOutside,
-        uint256 amount
-    ) external;
-
     /// @notice SR configuration and balances, expressed in each token's raw decimals.
     function stakingRewardToken(address token) external view returns (Configuration memory);
 

@@ -71,22 +71,6 @@ Only the token's registered wrapper may call. The wrapper owns allowance checks.
 function transfer(address token, address from, address to, uint256 amount) external;
 ```
 
-### settleStakeTransfer
-
-Internal posting settlement; only the Dispatcher itself may invoke this selector.
-
-
-```solidity
-function settleStakeTransfer(
-    address token,
-    address from,
-    address to,
-    bool fromOutside,
-    bool toOutside,
-    uint256 amount
-) external;
-```
-
 ### stakingRewardToken
 
 SR configuration and balances, expressed in each token's raw decimals.

@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {Test} from "forge-std/src/Test.sol";
 import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {Dispatchable} from "../../modules/dispatcher/Dispatchable.sol";
 import {IDispatcher} from "../../modules/dispatcher/IDispatcher.sol";
 import {Ledger} from "../../modules/ledger/Ledger.sol";
 import {TreeLib} from "../../modules/tree/TreeLib.sol";
-import {ERC20Wrapper} from "../../modules/ledger/ERC20Wrapper.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {TreeView} from "../../modules/tree/TreeView.sol";
@@ -153,13 +154,14 @@ contract ShareTokenTest is Test {
 
     function setUp() public {
         dispatcher_ = new Dispatcher(address(this));
-        address[] memory modules_ = new address[](6);
+        address[] memory modules_ = new address[](7);
         modules_[0] = address(new Ledger(18, "Ether", "ETH", 18));
         modules_[1] = address(new LedgerView());
         modules_[2] = address(new LedgerTokenFactory());
         modules_[3] = address(new LedgerTokenFactoryView());
         modules_[4] = address(new ShareTokenView());
         modules_[5] = address(new ShareApplication());
+        modules_[6] = address(new TreeView());
         dispatcher_.addModule(modules_);
         Ledger(payable(address(dispatcher_))).initializeLedger("Ledger", "L");
         app_ = ShareApplication(address(dispatcher_));
@@ -180,9 +182,6 @@ contract ShareTokenTest is Test {
     }
 
     function testShareTokenRegistrationStoresBackingAndPacksParent() public {
-        address[] memory modules_ = new address[](1);
-        modules_[0] = address(new TreeView());
-        dispatcher_.addModule(modules_);
         create(false, 18, 18, false);
         TreeView tree_ = TreeView(address(dispatcher_));
         IShareTokenView view_ = IShareTokenView(address(dispatcher_));
@@ -237,8 +236,6 @@ contract ShareTokenTest is Test {
         app_.issue(address(token_), alice_, 100e6, false);
         address backing_ = token_.shareTokenState().backingAccount;
         address[] memory modules_ = new address[](1);
-        modules_[0] = address(new TreeView());
-        dispatcher_.addModule(modules_);
         TreeView tree_ = TreeView(address(dispatcher_));
         uint256 flags_ = tree_.flags(address(token_));
         assertEq(LedgerLib.packedAddress(flags_), LedgerLib.ROOT_ADDRESS);
@@ -394,13 +391,13 @@ contract ShareTokenTest is Test {
         vm.prank(bob_);
         app_.cancelAt(address(token_), address(token_), alice_, 40);
         vm.expectEmit(true, true, false, true, address(token_));
-        emit ERC20Wrapper.Transfer(alice_, address(0), 40);
+        emit IERC20.Transfer(alice_, address(0), 40);
         app_.cancelAt(address(token_), address(token_), alice_, 40);
         assertEq(token_.balanceOf(alice_), 60);
         assertEq(token_.totalSupply(), 60);
         assertEq(token_.shareTokenState().backing, 100);
         vm.expectEmit(true, true, false, true, address(token_));
-        emit ERC20Wrapper.Transfer(alice_, address(0), 60);
+        emit IERC20.Transfer(alice_, address(0), 60);
         app_.cancelAt(address(token_), address(token_), alice_, 60);
         assertEq(token_.balanceOf(alice_), 0);
         assertEq(token_.totalSupply(), 0);
@@ -724,17 +721,9 @@ contract ShareTokenTest is Test {
         (bool success_,) = address(dispatcher_)
             .call(abi.encodeWithSignature("issueReceipt(address,address,uint256)", address(token_), bob_, 100));
         assertFalse(success_);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, bob_));
         vm.prank(bob_);
-        Ledger(payable(address(dispatcher_)))
-            .transfer(
-                address(0x500),
-                LedgerLib.toAddress(address(0x500), address(0x501)),
-                address(0x502),
-                address(0x500),
-                bob_,
-                100
-            );
+        Ledger(payable(address(dispatcher_))).transfer(address(0x500), 0, address(0x502), 0, bob_, 100);
         assertEq(token_.shareTokenState().backing, 100);
         assertEq(token_.totalSupply(), 100);
     }
@@ -780,15 +769,12 @@ contract ShareTokenTest is Test {
     }
 
     function testShareTokenCustodyProjectionAndPublicRestrictions() public {
-        address[] memory modules_ = new address[](1);
-        modules_[0] = address(new TreeView());
-        dispatcher_.addModule(modules_);
         create(false, 18, 18, false);
         Ledger ledger_ = Ledger(payable(address(dispatcher_)));
         address custodian_ = address(0xcafe);
         (address group_,) = ledger_.addSubAccountGroup(address(token_), address(token_), custodian_, "Custody", false);
         vm.expectEmit(true, true, false, true, address(token_));
-        emit ERC20Wrapper.Transfer(address(0), custodian_, 100);
+        emit IERC20.Transfer(address(0), custodian_, 100);
         app_.issueAt(address(token_), group_, bob_, 100);
         assertEq(token_.balanceOf(custodian_), 100);
         assertShareTokenRoot();
@@ -806,7 +792,7 @@ contract ShareTokenTest is Test {
         token_.transfer(bob_, 1);
         assertEq(token_.balanceOf(custodian_), 100);
         vm.expectEmit(true, true, false, true, address(token_));
-        emit ERC20Wrapper.Transfer(custodian_, address(0), 20);
+        emit IERC20.Transfer(custodian_, address(0), 20);
         app_.cancelAt(address(token_), group_, bob_, 20);
         assertEq(token_.balanceOf(custodian_), 80);
         assertShareTokenRoot();
@@ -838,7 +824,7 @@ contract ShareTokenTest is Test {
         token_.approve(bob_, 40);
         vm.prank(bob_);
         vm.expectEmit(true, true, false, true, address(token_));
-        emit ERC20Wrapper.Transfer(alice_, alice_, 40);
+        emit IERC20.Transfer(alice_, alice_, 40);
         token_.transferFrom(alice_, alice_, 40);
         assertEq(token_.allowance(alice_, bob_), 0);
         assertShareTokenRoot();

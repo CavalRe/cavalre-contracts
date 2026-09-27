@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {Test, console} from "forge-std/src/Test.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 
 import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {Ledger} from "../../modules/ledger/Ledger.sol";
-import {ERC20Wrapper} from "../../modules/ledger/ERC20Wrapper.sol";
+import {ERC20Token} from "../../modules/ledger/ERC20Token.sol";
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {ILedgerTokenFactory} from "../../modules/ledger/ILedgerTokenFactory.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
@@ -16,7 +18,7 @@ import {TreeView} from "../../modules/tree/TreeView.sol";
 
 import {TestLedger, MockERC20} from "./Ledger.t.sol";
 
-contract ERC20WrapperTest is Test {
+contract ERC20TokenTest is Test {
     bytes32 internal constant TRANSFER_TOPIC = keccak256("Transfer(address,address,uint256)");
 
     Dispatcher internal dispatcher;
@@ -24,7 +26,7 @@ contract ERC20WrapperTest is Test {
     LedgerTokenFactory internal ledgerTokenFactory;
     LedgerView internal ledgerView;
     TreeView internal tree;
-    ERC20Wrapper internal token;
+    ERC20Token internal token;
     MockERC20 internal externalToken;
 
     address internal owner = address(0xA11CE);
@@ -83,7 +85,7 @@ contract ERC20WrapperTest is Test {
 
         if (isVerbose) console.log("Adding new token to ledger");
         (address token_,) = createInternalToken("Internal Test Token", "ITT", 18, "");
-        token = ERC20Wrapper(token_);
+        token = ERC20Token(token_);
         ledgers.addSubAccount(address(token), address(token), source_, LedgerLib.SOURCE_NAME, true);
 
         if (isVerbose) console.log("Creating external token");
@@ -135,7 +137,7 @@ contract ERC20WrapperTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Metadata
     // ─────────────────────────────────────────────────────────────────────────
-    function testERC20WrapperInit() public view {
+    function testERC20TokenInit() public view {
         bool isVerbose = true;
 
         if (isVerbose) console.log("Display Account Hierarchy");
@@ -150,7 +152,7 @@ contract ERC20WrapperTest is Test {
         assertEq(token.totalSupply(), 0);
     }
 
-    function testERC20WrapperMetadata() public view {
+    function testERC20TokenMetadata() public view {
         assertEq(token.name(), "Internal Test Token");
         assertEq(token.symbol(), "ITT");
         assertEq(token.decimals(), 18);
@@ -163,31 +165,31 @@ contract ERC20WrapperTest is Test {
         assertEq(ledgerView.totalSupply(address(token)), 0);
     }
 
-    function testERC20WrapperCreateInternalToken() public {
+    function testERC20TokenCreateInternalToken() public {
         vm.startPrank(owner);
 
         (address _newRoot,) = createInternalToken("New Test Token", "NTT", 18, "");
         address _newToken = _newRoot;
-        assertEq(ERC20Wrapper(_newToken).name(), "New Test Token");
-        assertEq(ERC20Wrapper(_newToken).symbol(), "NTT");
-        assertEq(ERC20Wrapper(_newToken).decimals(), 18);
-        assertEq(ERC20Wrapper(_newToken).totalSupply(), 0);
+        assertEq(ERC20Token(_newToken).name(), "New Test Token");
+        assertEq(ERC20Token(_newToken).symbol(), "NTT");
+        assertEq(ERC20Token(_newToken).decimals(), 18);
+        assertEq(ERC20Token(_newToken).totalSupply(), 0);
 
         assertEq(ledgerView.name(_newRoot), "New Test Token");
         assertEq(ledgerView.symbol(_newRoot), "NTT");
         assertEq(ledgerView.decimals(_newRoot), 18);
     }
 
-    function testERC20WrapperShareTokenRootMintTransferBurn() public {
+    function testERC20TokenShareTokenRootMintTransferBurn() public {
         vm.startPrank(owner);
         (address shareToken_,) = createShareToken("Share Token", "CLM", 18, address(token), source_, "");
         vm.stopPrank();
 
-        ERC20Wrapper share = ERC20Wrapper(shareToken_);
+        ERC20Token share = ERC20Token(shareToken_);
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(share));
-        emit ERC20Wrapper.Transfer(address(0), alice, 1_000);
+        emit IERC20.Transfer(address(0), alice, 1_000);
         ledgers.mint(shareToken_, shareToken_, alice, 1_000);
 
         assertEq(share.totalSupply(), 1_000);
@@ -195,7 +197,7 @@ contract ERC20WrapperTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true, address(share));
-        emit ERC20Wrapper.Transfer(alice, bob, 400);
+        emit IERC20.Transfer(alice, bob, 400);
         assertTrue(share.transfer(bob, 400));
 
         assertEq(share.balanceOf(alice), 600);
@@ -204,7 +206,7 @@ contract ERC20WrapperTest is Test {
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(share));
-        emit ERC20Wrapper.Transfer(bob, address(0), 150);
+        emit IERC20.Transfer(bob, address(0), 150);
         ledgers.burn(shareToken_, shareToken_, bob, 150);
 
         assertEq(share.balanceOf(bob), 250);
@@ -214,7 +216,7 @@ contract ERC20WrapperTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Mint / Transfer / Burn
     // ─────────────────────────────────────────────────────────────────────────
-    function testERC20WrapperMintTransferBurn() public {
+    function testERC20TokenMintTransferBurn() public {
         bool isVerbose = false;
 
         vm.startPrank(alice);
@@ -250,26 +252,26 @@ contract ERC20WrapperTest is Test {
         assertEq(token.balanceOf(address(0)), 0);
     }
 
-    function testERC20WrapperTransferToSelfEmitsTransfer() public {
+    function testERC20TokenTransferToSelfEmitsTransfer() public {
         vm.prank(owner);
         ledgers.mint(address(token), address(token), alice, 1_000);
 
         vm.startPrank(alice);
         vm.expectEmit(true, true, true, true, address(token));
-        emit ERC20Wrapper.Transfer(alice, alice, 250);
+        emit IERC20.Transfer(alice, alice, 250);
         assertTrue(token.transfer(alice, 250));
 
         assertEq(token.balanceOf(alice), 1_000);
         assertEq(token.totalSupply(), 1_000);
     }
 
-    function testERC20WrapperZeroTransferEmitsTransfer() public {
+    function testERC20TokenZeroTransferEmitsTransfer() public {
         vm.prank(owner);
         ledgers.mint(address(token), address(token), alice, 1_000);
 
         vm.startPrank(alice);
         vm.expectEmit(true, true, true, true, address(token));
-        emit ERC20Wrapper.Transfer(alice, bob, 0);
+        emit IERC20.Transfer(alice, bob, 0);
         assertTrue(token.transfer(bob, 0));
 
         assertEq(token.balanceOf(alice), 1_000);
@@ -277,7 +279,7 @@ contract ERC20WrapperTest is Test {
         assertEq(token.totalSupply(), 1_000);
     }
 
-    function testERC20WrapperTransferMatrix() public {
+    function testERC20TokenTransferMatrix() public {
         vm.startPrank(owner);
         MatrixLeg[] memory froms = _buildMatrixLegs(address(token), 0x1000, "from");
         MatrixLeg[] memory tos = _buildMatrixLegs(address(token), 0x2000, "to");
@@ -286,7 +288,7 @@ contract ERC20WrapperTest is Test {
         _assertTransferMatrix(address(token), froms, tos);
     }
 
-    function testERC20WrapperShareTokenRootTransferMatrix() public {
+    function testERC20TokenShareTokenRootTransferMatrix() public {
         address shareToken_;
 
         vm.startPrank(owner);
@@ -311,7 +313,7 @@ contract ERC20WrapperTest is Test {
 
         // The same credit leaves remain available internally, but neither public
         // ERC20 endpoint may be credit-sided, even for zero-value transfers.
-        ERC20Wrapper wrapper_ = ERC20Wrapper(root_);
+        ERC20Token wrapper_ = ERC20Token(root_);
         address[2] memory credits_ = [source_, froms[4].relative];
         for (uint256 i_; i_ < credits_.length; ++i_) {
             ledgers.rawTransfer(root_, root_, credits_[i_], root_, alice, 10);
@@ -352,7 +354,7 @@ contract ERC20WrapperTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Approvals: approve / transferFrom / increase / decrease / forceApprove
     // ─────────────────────────────────────────────────────────────────────────
-    function testERC20WrapperApproveTransferFromandAllowanceMutators() public {
+    function testERC20TokenApproveTransferFromandAllowanceMutators() public {
         bool isVerbose = false;
 
         vm.prank(owner);
@@ -364,8 +366,8 @@ contract ERC20WrapperTest is Test {
         // approve (alice → bob: 150)
         if (isVerbose) console.log("Approve (alice -> bob: 150)");
         vm.startPrank(alice);
-        // vm.expectEmit(true, true, true, true);
-        // emit ERC20Wrapper.Approval(alice, bob, 150);
+        vm.expectEmit(true, true, false, true, address(token));
+        emit IERC20.Approval(alice, bob, 150);
         assertTrue(token.approve(bob, 150));
         assertEq(token.allowance(alice, bob), 150);
 
@@ -373,8 +375,8 @@ contract ERC20WrapperTest is Test {
         vm.stopPrank();
         vm.startPrank(bob);
 
-        // vm.expectEmit(true, true, true, true);
-        // emit ERC20Wrapper.Transfer(alice, bob, 120);
+        vm.expectEmit(true, true, false, true, address(token));
+        emit IERC20.Transfer(alice, bob, 120);
         if (isVerbose) console.log("Transfer (alice -> bob: 120)");
         assertTrue(token.transferFrom(alice, bob, 120));
 
@@ -386,16 +388,16 @@ contract ERC20WrapperTest is Test {
         vm.stopPrank();
         vm.startPrank(alice);
 
-        // vm.expectEmit(true, true, true, true);
-        // emit ERC20Wrapper.Approval(alice, bob, 100);
+        vm.expectEmit(true, true, false, true, address(token));
+        emit IERC20.Approval(alice, bob, 100);
         if (isVerbose) console.log("Increase Allowance (alice -> bob: 70)");
         bool okInc = token.increaseAllowance(bob, 70);
         assertTrue(okInc);
         assertEq(token.allowance(alice, bob), 100);
 
         // decreaseAllowance by alice (-40 ⇒ 60)
-        // vm.expectEmit(true, true, true, true);
-        // emit ERC20Wrapper.Approval(alice, bob, 60);
+        vm.expectEmit(true, true, false, true, address(token));
+        emit IERC20.Approval(alice, bob, 60);
         if (isVerbose) console.log("Decrease Allowance (alice -> bob: 40)");
         bool okDec = token.decreaseAllowance(bob, 40);
         assertTrue(okDec);
@@ -407,10 +409,12 @@ contract ERC20WrapperTest is Test {
         );
         token.decreaseAllowance(bob, 61);
 
-        // forceApprove non-zero→non-zero (safety pattern inside LedgerLib)
+        // forceApprove non-zero→non-zero emits the zero reset before the new allowance.
         // current=60, set to 200
-        // vm.expectEmit(true, true, true, true);
-        // emit ERC20Wrapper.Approval(alice, bob, 200);
+        vm.expectEmit(true, true, false, true, address(token));
+        emit IERC20.Approval(alice, bob, 0);
+        vm.expectEmit(true, true, false, true, address(token));
+        emit IERC20.Approval(alice, bob, 200);
         if (isVerbose) console.log("Force Approve (alice -> bob: 200)");
         assertTrue(token.forceApprove(bob, 200));
         assertEq(token.allowance(alice, bob), 200);
@@ -419,7 +423,7 @@ contract ERC20WrapperTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // transferFrom allowance depletion exact match
     // ─────────────────────────────────────────────────────────────────────────
-    function testERC20WrapperTransferFromExactAllowance() public {
+    function testERC20TokenTransferFromExactAllowance() public {
         vm.startPrank(owner);
         ledgers.mint(address(token), address(token), alice, 250);
         vm.stopPrank();
@@ -437,24 +441,38 @@ contract ERC20WrapperTest is Test {
         assertEq(token.allowance(alice, bob), 0);
     }
 
+    function testERC20TokenTransferFromPreservesInfiniteAllowance() public {
+        vm.prank(owner);
+        ledgers.mint(address(token), address(token), alice, 250);
+
+        vm.prank(alice);
+        token.approve(bob, type(uint256).max);
+        vm.prank(bob);
+        assertTrue(token.transferFrom(alice, bob, 250));
+
+        assertEq(token.balanceOf(alice), 0);
+        assertEq(token.balanceOf(bob), 250);
+        assertEq(token.allowance(alice, bob), type(uint256).max);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Mint/Burn emit ERC20 Transfer events
     // ─────────────────────────────────────────────────────────────────────────
-    function testERC20WrapperMintBurnEmitsTransfer() public {
+    function testERC20TokenMintBurnEmitsTransfer() public {
         vm.startPrank(owner);
 
         vm.expectEmit(true, true, true, true, address(token));
-        emit ERC20Wrapper.Transfer(address(0), alice, 50);
+        emit IERC20.Transfer(address(0), alice, 50);
         ledgers.mint(address(token), address(token), alice, 50);
 
         vm.expectEmit(true, true, true, true, address(token));
-        emit ERC20Wrapper.Transfer(alice, address(0), 20);
+        emit IERC20.Transfer(alice, address(0), 20);
         ledgers.burn(address(token), address(token), alice, 20);
 
         vm.stopPrank();
     }
 
-    function testERC20WrapperEtherscanStyleTransferIndexReconcilesHolders() public {
+    function testERC20TokenEtherscanStyleTransferIndexReconcilesHolders() public {
         address testTokenAddress;
         address surplus = LedgerLib.toAddress("Surplus");
 
@@ -463,7 +481,7 @@ contract ERC20WrapperTest is Test {
         ledgers.addSubAccount(testTokenAddress, testTokenAddress, surplus, "Surplus", false);
         vm.stopPrank();
 
-        ERC20Wrapper testToken = ERC20Wrapper(testTokenAddress);
+        ERC20Token testToken = ERC20Token(testTokenAddress);
 
         vm.recordLogs();
 
@@ -509,16 +527,16 @@ contract ERC20WrapperTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Reverts: direct calls into wrapper transfer path MUST fail
     // ─────────────────────────────────────────────────────────────────────────
-    function testERC20WrapperLedgerWrapperFunctionsUnauthorized() public {
+    function testERC20TokenLedgerWrapperFunctionsUnauthorized() public {
         vm.prank(carol);
         vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, carol));
-        ledgers.transfer(address(token), address(token), alice, address(token), bob, 1);
+        ledgers.transfer(address(token), 0, alice, 0, bob, 1);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Sanity: multiple holders and totals
     // ─────────────────────────────────────────────────────────────────────────
-    function testERC20WrapperMultiHolderAccounting() public {
+    function testERC20TokenMultiHolderAccounting() public {
         vm.startPrank(owner);
         ledgers.mint(address(token), address(token), alice, 400);
         ledgers.mint(address(token), address(token), bob, 600);
@@ -695,7 +713,7 @@ contract ERC20WrapperTest is Test {
             assertEq(indexedBalances[holder_], 0, "zero address must not index as holder");
             return;
         }
-        assertEq(indexedBalances[holder_], ERC20Wrapper(token_).balanceOf(holder_), "indexed holder balance");
+        assertEq(indexedBalances[holder_], ERC20Token(token_).balanceOf(holder_), "indexed holder balance");
     }
 
     function _indexedHolderCount() private view returns (uint256 count_) {

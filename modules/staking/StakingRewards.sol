@@ -3,7 +3,6 @@ pragma solidity ^0.8.26;
 
 import {Dispatchable} from "../dispatcher/Dispatchable.sol";
 import {LedgerLib} from "../ledger/LedgerLib.sol";
-import {ERC20Wrapper} from "../ledger/ERC20Wrapper.sol";
 import {IStakingRewards} from "./IStakingRewards.sol";
 import {ILedger} from "../ledger/ILedger.sol";
 import {StakingRewardsLib} from "./StakingRewardsLib.sol";
@@ -19,7 +18,7 @@ contract StakingRewards is Dispatchable, ReentrancyGuard {
     }
 
     function signatures() external pure virtual override returns (string[] memory signatures_) {
-        signatures_ = new string[](11);
+        signatures_ = new string[](10);
         signatures_[0] = "stake(address,uint256,uint256)";
         signatures_[1] = "unstake(address,uint256,uint256)";
         signatures_[2] = "reward(address,uint256)";
@@ -28,14 +27,13 @@ contract StakingRewards is Dispatchable, ReentrancyGuard {
         signatures_[5] = "rewardsOf(address,address)";
         signatures_[6] = "rewardsOfAccount(address,address,address)";
         signatures_[7] = "transfer(address,address,address,uint256)";
-        signatures_[8] = "settleStakeTransfer(address,address,address,bool,bool,uint256)";
-        signatures_[9] = "reward(address,address,uint256)";
-        signatures_[10] = "claim(address,address)";
+        signatures_[8] = "reward(address,address,uint256)";
+        signatures_[9] = "claim(address,address)";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory selectors_) {
         uint256 n_;
-        selectors_ = new bytes4[](11);
+        selectors_ = new bytes4[](10);
         selectors_[n_++] = IStakingRewards.stake.selector;
         selectors_[n_++] = IStakingRewards.unstake.selector;
         selectors_[n_++] = bytes4(keccak256("reward(address,uint256)"));
@@ -44,7 +42,6 @@ contract StakingRewards is Dispatchable, ReentrancyGuard {
         selectors_[n_++] = IStakingRewards.rewardsOf.selector;
         selectors_[n_++] = IStakingRewards.rewardsOfAccount.selector;
         selectors_[n_++] = IStakingRewards.transfer.selector;
-        selectors_[n_++] = IStakingRewards.settleStakeTransfer.selector;
         selectors_[n_++] = bytes4(keccak256("reward(address,address,uint256)"));
         selectors_[n_++] = bytes4(keccak256("claim(address,address)"));
         if (n_ != selectors_.length) revert InvalidCommandsLength(n_);
@@ -94,8 +91,8 @@ contract StakingRewards is Dispatchable, ReentrancyGuard {
     }
 
     /// @notice Collect all available rewards directly into the caller's wallet or staking leaf.
-    /// @dev Paying into Stake lets the recipient hold the reward as an SR token. Ledger hooks settle the
-    /// recipient's existing rewards before the incoming payout begins earning; remaining pending rewards are retained.
+    /// @dev Paying into Stake lets the recipient hold the reward as an SR token; pending rewards are retained.
+    /// The recipient's staking program is checkpointed before the incoming payout becomes eligible.
     /// @param token_ SR wrapper identifying the program whose rewards are being claimed.
     /// @param recipientParent_ Absolute parent of the caller's payout leaf in the configured reward ledger.
     /// @return Payout in raw reward-ledger token units, rounded down from the redeemed reward units.
@@ -115,6 +112,7 @@ contract StakingRewards is Dispatchable, ReentrancyGuard {
         if (token_ == address(0) || s.programs[token_].stakingGroup != parent_) revert ILedger.InvalidAccountGroup();
     }
 
+    /// @dev Called by the SR token override. Settle both holders before posting the stake movement.
     function transfer(address token_, address from_, address to_, uint256 amount_) external nonReentrant {
         enforceIsDelegated();
         if (msg.sender != token_) revert IStakingRewards.UnauthorizedTransfer();
@@ -122,27 +120,14 @@ contract StakingRewards is Dispatchable, ReentrancyGuard {
         address stakingLedger_ = LedgerLib.ledger(p.stakingGroup);
         (uint256 fromFlags_, address fromAbsolute_) =
             StakingRewardsLib.enforceDebitAccount(stakingLedger_, p.stakingGroup, from_);
-        (uint256 toFlags_,) = StakingRewardsLib.enforceDebitAccount(stakingLedger_, p.stakingGroup, to_);
+        (uint256 toFlags_, address toAbsolute_) =
+            StakingRewardsLib.enforceDebitAccount(stakingLedger_, p.stakingGroup, to_);
         if (from_ != to_ && amount_ != 0 && StakingRewardsLib.store().reservedAccounts[fromAbsolute_] != address(0)) {
             revert IStakingRewards.AccountReserved(fromAbsolute_);
         }
         if (amount_ > LedgerLib.balanceOf(fromAbsolute_, false)) revert IStakingRewards.InsufficientStake();
+        StakingRewardsLib.settleTransferRewards(token_, fromAbsolute_, toAbsolute_, false, false, amount_);
         LedgerLib.transfer(stakingLedger_, fromFlags_, from_, toFlags_, to_, amount_);
-        if (from_ == to_ || amount_ == 0) ERC20Wrapper(token_).emitTransfer(from_, to_, amount_);
-    }
-
-    /// @dev LedgerLib invokes this through the Dispatcher before its internal posting.
-    function settleStakeTransfer(
-        address token_,
-        address from_,
-        address to_,
-        bool fromOutside_,
-        bool toOutside_,
-        uint256 amount_
-    ) external {
-        enforceIsDelegated();
-        if (msg.sender != address(this)) revert IStakingRewards.UnauthorizedTransfer();
-        StakingRewardsLib.settleTransferRewards(token_, from_, to_, fromOutside_, toOutside_, amount_);
     }
 
     function stakingRewardToken(address token_) external view returns (IStakingRewards.Configuration memory) {

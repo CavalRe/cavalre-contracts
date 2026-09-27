@@ -43,7 +43,7 @@ contract TestLedger is Ledger {
         _signatures[4] = "addExternalToken(address[])";
         _signatures[5] = "removeSubAccountGroup(address,address,address)";
         _signatures[6] = "removeSubAccount(address,address,address)";
-        _signatures[7] = "transfer(address,address,address,address,address,uint256)";
+        _signatures[7] = "transfer(address,uint256,address,uint256,address,uint256)";
         _signatures[8] = "wrap(address,uint256)";
         _signatures[9] = "unwrap(address,uint256)";
         _signatures[10] = "receive()";
@@ -68,7 +68,7 @@ contract TestLedger is Ledger {
         _selectors[n++] = bytes4(keccak256("addExternalToken(address[])"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,address)"));
-        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("transfer(address,uint256,address,uint256,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         _selectors[n++] = bytes4(0);
@@ -1981,32 +1981,26 @@ contract LedgerTest is Test {
     // ─────────────────────────────────────────────────────────────────────────
     // Transfers / approvals / allowance / transferFrom (routed)
     // ─────────────────────────────────────────────────────────────────────────
-    function testPublicTransferRejectsForeignParents() public {
-        vm.startPrank(alice);
-
-        address dispatcherRoot = r1;
-        address testLedgerRoot = address(testLedger);
-
-        // Mint → transfer to bob under the same root
-        ledger.mint(dispatcherRoot, dispatcherRoot, alice, 1000);
+    function testTransferFlagsRejectForeignParents() public {
         vm.stopPrank();
-        vm.startPrank(dispatcherRoot);
-        ledger.transfer(dispatcherRoot, dispatcherRoot, alice, dispatcherRoot, bob, 700);
+        vm.prank(alice);
+        ledger.mint(r1, r1, alice, 1000);
+        (uint256 fromFlags_,,) = tree.effectiveFlags(r1, r1, alice);
+        (uint256 toFlags_,,) = tree.effectiveFlags(r1, r1, bob);
+        vm.prank(r1);
+        (address ledger_, bool fromCredit_, bool toCredit_) = ledger.transfer(r1, fromFlags_, alice, toFlags_, bob, 700);
+        assertEq(ledger_, r1);
+        assertFalse(fromCredit_);
+        assertFalse(toCredit_);
+        assertEq(ledgerView.debitBalanceOf(r1, r1, alice), 300);
+        assertEq(ledgerView.debitBalanceOf(r1, r1, bob), 700);
 
-        assertEq(ledgerView.debitBalanceOf(dispatcherRoot, dispatcherRoot, alice), 300, "alice");
-        assertEq(ledgerView.debitBalanceOf(dispatcherRoot, dispatcherRoot, bob), 700, "bob");
-        assertEq(ledgerView.totalSupply(dispatcherRoot), 1000, "supply");
-
-        // Public callbacks require both parents to equal the authenticated token root.
-        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
-        // attempt: fromParent=dispatcherRoot, toParent=testLedgerRoot (different root)
-        ledger.transfer(dispatcherRoot, dispatcherRoot, alice, testLedgerRoot, bob, 100);
-        vm.expectRevert(ILedger.InvalidAccountGroup.selector);
-        ledger.transfer(dispatcherRoot, testLedgerRoot, alice, dispatcherRoot, bob, 100);
-        assertEq(ledgerView.debitBalanceOf(dispatcherRoot, dispatcherRoot, alice), 300);
-        assertEq(ledgerView.debitBalanceOf(dispatcherRoot, dispatcherRoot, bob), 700);
-        assertEq(ledgerView.totalSupply(dispatcherRoot), 1000);
-        vm.stopPrank();
+        // Callers resolve flags through the ledger's topology checks before an authorized posting.
+        vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, r1, testLedger));
+        tree.effectiveFlags(r1, testLedger, bob);
+        vm.expectRevert(abi.encodeWithSelector(ILedger.DifferentRoots.selector, r1, testLedger));
+        tree.effectiveFlags(r1, testLedger, alice);
+        assertEq(ledgerView.totalSupply(r1), 1000);
     }
 
     function testLedgerRejectsRemovedTransferSelector() public {
@@ -2025,6 +2019,10 @@ contract LedgerTest is Test {
             address(dispatcher).call(abi.encodeWithSelector(selector_, r1, r1, r1, bob, 400));
         assertFalse(success_);
         assertEq(data_, abi.encodeWithSelector(IDispatcher.CommandNotFound.selector, selector_));
+        selector_ = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
+        (success_, data_) = address(dispatcher).call(abi.encodeWithSelector(selector_, r1, r1, alice, r1, bob, 400));
+        assertFalse(success_);
+        assertEq(data_, abi.encodeWithSelector(IDispatcher.CommandNotFound.selector, selector_));
         assertEq(ledgerView.balanceOf(r1, r1, alice), 1000);
         assertEq(ledgerView.balanceOf(r1, r1, bob), 0);
 
@@ -2036,7 +2034,7 @@ contract LedgerTest is Test {
     function testLedgerExplicitTransferAuthenticatesBeforeAccounting() public {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(ILedger.Unauthorized.selector, bob));
-        ledger.transfer(r1, r1, charlie, r1, bob, 1);
+        ledger.transfer(r1, 0, charlie, 0, bob, 1);
         vm.stopPrank();
     }
 
@@ -2120,12 +2118,10 @@ contract LedgerTest is Test {
         ledger.rawTransfer(r1, r100, alice, r101, bob, 400);
     }
 
-    function testLedgerTransferRejectsCreditFromParent() public {
-        vm.startPrank(r1);
+    function testTransferFlagsRejectLeafParent() public {
         address sourceParent_ = LedgerLib.toAddress(r1, source_);
-
         vm.expectRevert(ILedger.InvalidAccountGroup.selector);
-        ledger.transfer(r1, sourceParent_, alice, r1, bob, 1);
+        tree.effectiveFlags(r1, sourceParent_, alice);
     }
 
     function testLedgerTransferAllowsBurnToZeroAddress() public {
@@ -2141,28 +2137,35 @@ contract LedgerTest is Test {
         assertEq(ledgerView.totalSupply(r1), 600, "supply burned");
     }
 
-    function testLedgerTransferRejectsMintFromZeroAddress() public {
-        vm.startPrank(alice);
-        ledger.mint(r1, r100, alice, 1000);
+    function testLedgerTransferAllowsAuthorizedMintFromSource() public {
         vm.stopPrank();
-
+        vm.prank(alice);
+        ledger.mint(r1, r100, alice, 1000);
+        (uint256 fromFlags_,,) = tree.effectiveFlags(r1, r1, source_);
+        (uint256 toFlags_,,) = tree.effectiveFlags(r1, r1, bob);
         vm.prank(r1);
-        vm.expectRevert(abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(r1, source_)));
-        ledger.transfer(r1, r1, source_, r1, bob, 400);
+        (address ledger_, bool fromCredit_, bool toCredit_) =
+            ledger.transfer(r1, fromFlags_, source_, toFlags_, bob, 400);
+        assertEq(ledger_, r1);
+        assertTrue(fromCredit_);
+        assertFalse(toCredit_);
+        assertEq(ledgerView.balanceOf(r1, r1, bob), 400);
+        assertEq(ledgerView.creditBalanceOf(r1, r1, source_), 1400);
+        assertEq(ledgerView.totalSupply(r1), 1400);
     }
 
-    function testLedgerTransferRejectsMintFromCreditLeaf() public {
-        address creditLeaf_ = LedgerLib.toAddress("creditLeaf");
-
-        vm.startPrank(alice);
-        ledger.addSubAccount(r1, r1, creditLeaf_, "creditLeaf", true);
+    function testLedgerTransferAllowsAuthorizedMintFromCreditLeaf() public {
         vm.stopPrank();
-
+        address creditLeaf_ = LedgerLib.toAddress("creditLeaf");
+        vm.prank(alice);
+        ledger.addSubAccount(r1, r1, creditLeaf_, "creditLeaf", true);
+        (uint256 fromFlags_,,) = tree.effectiveFlags(r1, r1, creditLeaf_);
+        (uint256 toFlags_,,) = tree.effectiveFlags(r1, r1, bob);
         vm.prank(r1);
-        vm.expectRevert(
-            abi.encodeWithSelector(ILedger.InvalidLedgerAccount.selector, LedgerLib.toAddress(r1, creditLeaf_))
-        );
-        ledger.transfer(r1, r1, creditLeaf_, r1, bob, 400);
+        ledger.transfer(r1, fromFlags_, creditLeaf_, toFlags_, bob, 400);
+        assertEq(ledgerView.balanceOf(r1, r1, bob), 400);
+        assertEq(ledgerView.creditBalanceOf(r1, r1, creditLeaf_), 400);
+        assertEq(ledgerView.totalSupply(r1), 400);
     }
 
     function testLedgerTransferAllowsBurnToCreditLeaf() public {

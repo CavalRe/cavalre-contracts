@@ -10,9 +10,9 @@ import {Dispatchable} from "../../modules/dispatcher/Dispatchable.sol";
 import {Dispatcher} from "../../modules/dispatcher/Dispatcher.sol";
 import {IDispatcher} from "../../modules/dispatcher/IDispatcher.sol";
 import {LedgerLib} from "../../modules/ledger/LedgerLib.sol";
-import {ERC20Wrapper} from "../../modules/ledger/ERC20Wrapper.sol";
 import {ILedger} from "../../modules/ledger/ILedger.sol";
 import {ShareTokenView} from "../../modules/share/ShareTokenView.sol";
+import {TreeView} from "../../modules/tree/TreeView.sol";
 import {LedgerView} from "../../modules/ledger/LedgerView.sol";
 import {LedgerTokenFactory} from "../../modules/ledger/LedgerTokenFactory.sol";
 import {ILedgerTokenFactory} from "../../modules/ledger/ILedgerTokenFactory.sol";
@@ -23,19 +23,21 @@ import {StakingRewardsLib} from "../../modules/staking/StakingRewardsLib.sol";
 
 contract NestedStakingApplication is Dispatchable {
     function signatures() external pure override returns (string[] memory signatures_) {
-        signatures_ = new string[](4);
+        signatures_ = new string[](5);
         signatures_[0] = "claimAt(address,address,address,address)";
         signatures_[1] = "unstakeAt(address,address,address,address,uint256)";
         signatures_[2] = "rewardAt(address,address,address,uint256)";
         signatures_[3] = "claimTo(address,address,address,address,address)";
+        signatures_[4] = "transferWithinProgram(address,address,address,address,address,uint256)";
     }
 
     function selectors() external pure override returns (bytes4[] memory selectors_) {
-        selectors_ = new bytes4[](4);
+        selectors_ = new bytes4[](5);
         selectors_[0] = this.claimAt.selector;
         selectors_[1] = this.unstakeAt.selector;
         selectors_[2] = this.rewardAt.selector;
         selectors_[3] = this.claimTo.selector;
+        selectors_[4] = this.transferWithinProgram.selector;
     }
 
     function claimAt(address token_, address parent_, address relative_, address recipient_)
@@ -66,6 +68,38 @@ contract NestedStakingApplication is Dispatchable {
         enforceIsOwner();
         return StakingRewardsLib.claim(token_, parent_, relative_, recipientParent_, recipient_);
     }
+
+    struct TransferWithinProgramCache {
+        address ledger;
+        address stakingGroup;
+        address fromAbsolute;
+        address toAbsolute;
+        uint256 fromFlags;
+        uint256 toFlags;
+    }
+
+    /// @dev This test consumer owns authorization and explicit SR settlement; Ledger only posts balances.
+    function transferWithinProgram(
+        address token_,
+        address fromParent_,
+        address from_,
+        address toParent_,
+        address to_,
+        uint256 amount_
+    ) external {
+        enforceIsOwner();
+        TransferWithinProgramCache memory c;
+        c.stakingGroup = StakingRewardsLib.stakingRewardProgram(token_).stakingGroup;
+        c.ledger = LedgerLib.ledger(c.stakingGroup);
+        (c.fromFlags, c.fromAbsolute) = StakingRewardsLib.enforceDebitAccount(c.ledger, fromParent_, from_);
+        (c.toFlags, c.toAbsolute) = StakingRewardsLib.enforceDebitAccount(c.ledger, toParent_, to_);
+        if (
+            StakingRewardsLib.stakingTokenForParent(fromParent_) != token_
+                || StakingRewardsLib.stakingTokenForParent(toParent_) != token_
+        ) revert ILedger.InvalidAccountGroup();
+        StakingRewardsLib.settleTransferRewards(token_, c.fromAbsolute, c.toAbsolute, false, false, amount_);
+        LedgerLib.transfer(c.ledger, c.fromFlags, from_, c.toFlags, to_, amount_);
+    }
 }
 
 contract StakingRewardsTest is Test {
@@ -88,15 +122,18 @@ contract StakingRewardsTest is Test {
     address internal constant BACKING = address(0x51a);
     address internal constant REWARDS = address(0x52b);
     uint256 internal constant HALF_LIFE = 7 days;
+    bytes4 internal constant REMOVED_SETTLEMENT_SELECTOR =
+        bytes4(keccak256("settleStakeTransfer(address,address,address,bool,bool,uint256)"));
 
     function setUp() public {
         dispatcher = new Dispatcher(address(this));
-        address[] memory modules_ = new address[](4);
+        address[] memory modules_ = new address[](5);
         modules_[0] = address(new TestLedger(18, 18));
         modules_[1] = address(new LedgerTokenFactory());
         factoryImplementation = modules_[1];
         modules_[2] = address(new LedgerView());
         modules_[3] = address(new StakingRewards());
+        modules_[4] = address(new TreeView());
         dispatcher.addModule(modules_);
         ledger = TestLedger(payable(address(dispatcher)));
         factory = LedgerTokenFactory(address(dispatcher));
@@ -539,11 +576,12 @@ contract StakingRewardsTest is Test {
         vm.warp(HALF_LIFE);
         vm.expectCall(address(dispatcher), abi.encodeCall(IStakingRewards.transfer, (srToken, ALICE, BOB, 100e18)), 1);
         vm.expectCall(address(dispatcher), abi.encodeWithSelector(ILedger.transfer.selector), 0);
+        vm.expectCall(address(dispatcher), abi.encodeWithSelector(REMOVED_SETTLEMENT_SELECTOR), 0);
         vm.prank(ALICE);
         vm.expectEmit(true, true, false, true, stakeToken);
-        emit ERC20Wrapper.Transfer(BACKING, BACKING, 100e18);
+        emit IERC20.Transfer(BACKING, BACKING, 100e18);
         vm.expectEmit(true, true, false, true, srToken);
-        emit ERC20Wrapper.Transfer(ALICE, BOB, 100e18);
+        emit IERC20.Transfer(ALICE, BOB, 100e18);
         IERC20(srToken).transfer(BOB, 100e18);
         assertRewards(ALICE, 30e6, 0, 30e6);
         assertRewards(BOB, 90e6, 60e6, 30e6);
@@ -567,6 +605,7 @@ contract StakingRewardsTest is Test {
         IERC20(srToken).approve(CAROL, 100e18);
         vm.expectCall(address(dispatcher), abi.encodeCall(IStakingRewards.transfer, (srToken, ALICE, BOB, 100e18)), 1);
         vm.expectCall(address(dispatcher), abi.encodeWithSelector(ILedger.transfer.selector), 0);
+        vm.expectCall(address(dispatcher), abi.encodeWithSelector(REMOVED_SETTLEMENT_SELECTOR), 0);
         vm.prank(CAROL);
         IERC20(srToken).transferFrom(ALICE, BOB, 100e18);
         assertEq(IERC20(srToken).allowance(ALICE, CAROL), 0);
@@ -614,19 +653,27 @@ contract StakingRewardsTest is Test {
         rewards.transfer(stakeToken, ALICE, BOB, 1);
     }
 
-    function testInternalLedgerTransfersToNestedAccountsSettleRewards() public {
+    function testExplicitSRTransfersToNestedAccountsSettleRewards() public {
+        address[] memory modules_ = new address[](1);
+        modules_[0] = address(new NestedStakingApplication());
+        dispatcher.addModule(modules_);
+        NestedStakingApplication app_ = NestedStakingApplication(address(dispatcher));
         address group_ = address(0x601);
         (group_,) = ledger.addSubAccountGroup(stakeToken, stakingGroup, group_, "Group", false);
         stakeFor(ALICE, 100e18);
         rewards.reward(srToken, 100e6);
         vm.warp(HALF_LIFE);
-        ledger.rawTransfer(stakeToken, stakingGroup, ALICE, group_, BOB, 100e18);
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(IDispatcher.OwnableUnauthorizedAccount.selector, ALICE));
+        app_.transferWithinProgram(srToken, stakingGroup, ALICE, group_, BOB, 100e18);
+        vm.expectCall(address(dispatcher), abi.encodeWithSelector(REMOVED_SETTLEMENT_SELECTOR), 0);
+        app_.transferWithinProgram(srToken, stakingGroup, ALICE, group_, BOB, 100e18);
         assertRewards(ALICE, 100e6, 0, 100e6);
         assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).unclaimed, 0);
         rewards.reward(srToken, 40e6);
         assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).unclaimed, 40e6);
         assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).pending, 40e6);
-        ledger.rawTransfer(stakeToken, group_, BOB, stakingGroup, BOB, 100e18);
+        app_.transferWithinProgram(srToken, group_, BOB, stakingGroup, BOB, 100e18);
         assertRewards(BOB, 0, 0, 0);
         assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).available, 40e6);
         assertEq(rewards.rewardsOfAccount(srToken, group_, BOB).pending, 0);
@@ -639,10 +686,10 @@ contract StakingRewardsTest is Test {
         vm.warp(HALF_LIFE);
         vm.startPrank(ALICE);
         vm.expectEmit(true, true, false, true, srToken);
-        emit ERC20Wrapper.Transfer(ALICE, ALICE, 100e18);
+        emit IERC20.Transfer(ALICE, ALICE, 100e18);
         IERC20(srToken).transfer(ALICE, 100e18);
         vm.expectEmit(true, true, false, true, srToken);
-        emit ERC20Wrapper.Transfer(ALICE, BOB, 0);
+        emit IERC20.Transfer(ALICE, BOB, 0);
         IERC20(srToken).transfer(BOB, 0);
         vm.expectRevert(IStakingRewards.InsufficientStake.selector);
         IERC20(srToken).transfer(ALICE, 100e18 + 1);
@@ -1345,9 +1392,16 @@ contract StakingRewardsTest is Test {
         assertConservation(400e6, 0);
     }
 
-    function testSettlementSelectorRejectsExternalCallers() public {
-        vm.expectRevert(IStakingRewards.UnauthorizedTransfer.selector);
-        rewards.settleStakeTransfer(srToken, ALICE, BOB, false, false, 1);
+    function testRemovedSettlementSelectorIsUnavailable() public {
+        // Neither an external caller nor a Dispatcher self-call can reach the removed hook.
+        address[2] memory callers_ = [address(this), address(dispatcher)];
+        for (uint256 i_; i_ < callers_.length; ++i_) {
+            vm.prank(callers_[i_]);
+            (bool success_, bytes memory data_) = address(dispatcher)
+                .call(abi.encodeWithSelector(REMOVED_SETTLEMENT_SELECTOR, srToken, ALICE, BOB, false, false, 1));
+            assertFalse(success_);
+            assertEq(data_, abi.encodeWithSelector(IDispatcher.CommandNotFound.selector, REMOVED_SETTLEMENT_SELECTOR));
+        }
     }
 
     struct ReferencePosition {

@@ -72,22 +72,6 @@ function claim(address token_) external nonReentrant returns (uint256);
 function transfer(address token_, address from_, address to_, uint256 amount_) external nonReentrant;
 ```
 
-### settleStakeTransfer
-
-LedgerLib invokes this through the Dispatcher before its internal posting.
-
-
-```solidity
-function settleStakeTransfer(
-    address token_,
-    address from_,
-    address to_,
-    bool fromOutside_,
-    bool toOutside_,
-    uint256 amount_
-) external;
-```
-
 ### stakingRewardToken
 
 

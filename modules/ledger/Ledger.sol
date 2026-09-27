@@ -54,7 +54,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _signatures[4] = "addExternalToken(address[])";
         _signatures[5] = "removeSubAccountGroup(address,address,address)";
         _signatures[6] = "removeSubAccount(address,address,address)";
-        _signatures[7] = "transfer(address,address,address,address,address,uint256)";
+        _signatures[7] = "transfer(address,uint256,address,uint256,address,uint256)";
         _signatures[8] = "wrap(address,uint256)";
         _signatures[9] = "unwrap(address,uint256)";
         _signatures[10] = "receive()";
@@ -70,7 +70,7 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
         _selectors[n++] = bytes4(keccak256("addExternalToken(address[])"));
         _selectors[n++] = bytes4(keccak256("removeSubAccountGroup(address,address,address)"));
         _selectors[n++] = bytes4(keccak256("removeSubAccount(address,address,address)"));
-        _selectors[n++] = bytes4(keccak256("transfer(address,address,address,address,address,uint256)"));
+        _selectors[n++] = bytes4(keccak256("transfer(address,uint256,address,uint256,address,uint256)"));
         _selectors[n++] = bytes4(keccak256("wrap(address,uint256)"));
         _selectors[n++] = bytes4(keccak256("unwrap(address,uint256)"));
         _selectors[n++] = bytes4(0);
@@ -145,33 +145,18 @@ contract Ledger is Dispatchable, Initializable, ReentrancyGuard {
 
     function transfer(
         address ledger_,
-        address fromParent_,
+        uint256 fromFlags_,
         address from_,
-        address toParent_,
+        uint256 toFlags_,
         address to_,
         uint256 amount_
-    ) external {
+    ) external returns (address, bool, bool) {
         // Wrapper calls must come from the root wrapper; canonical ERC20 may call via address(this).
         if (msg.sender != LedgerLib.wrapper(ledger_) && (msg.sender != address(this) || ledger_ != address(this))) {
             revert ILedger.Unauthorized(msg.sender);
         }
-        if (fromParent_ != ledger_ || toParent_ != ledger_) revert ILedger.InvalidAccountGroup();
-        // Public transfers require direct debit leaves; groups and credit accounts,
-        // including Source, are reserved for authorized internal postings.
-        (uint256 fromFlags_,, address fromAbsolute_) = LedgerLib.effectiveFlags(ledger_, fromParent_, from_);
-        (uint256 toFlags_,, address toAbsolute_) = LedgerLib.effectiveFlags(ledger_, toParent_, to_);
-        if (from_ == address(0) || !LedgerLib.isDebitLedger(fromFlags_)) {
-            revert ILedger.InvalidLedgerAccount(fromAbsolute_);
-        }
-        if (to_ == address(0) || !LedgerLib.isDebitLedger(toFlags_)) {
-            revert ILedger.InvalidLedgerAccount(toAbsolute_);
-        }
-        // Internal self-postings are no-ops; the ERC20 surface still checks spendable balance.
-        if (from_ == to_ && LedgerLib.balanceOf(fromAbsolute_, false) < amount_) {
-            revert ILedger.InsufficientBalance(ledger_, fromParent_, fromAbsolute_, amount_);
-        }
-        // Reuse the resolved metadata for leaf validation, accounting and events.
-        LedgerLib.transfer(ledger_, fromFlags_, from_, toFlags_, to_, amount_);
+        // Trusted callers resolve flags and enforce their own token/account policies before posting.
+        return LedgerLib.transfer(ledger_, fromFlags_, from_, toFlags_, to_, amount_);
     }
 
     function wrap(address token_, uint256 amount_)

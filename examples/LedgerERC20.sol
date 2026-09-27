@@ -128,8 +128,7 @@ contract ERC20 is Dispatchable, Initializable {
     // -- Transfers --
 
     function transfer(address to_, uint256 amount_) external returns (bool) {
-        ILedger(address(this)).transfer(address(this), address(this), msg.sender, address(this), to_, amount_);
-        return true;
+        return ERC20Lib.transfer(msg.sender, to_, amount_);
     }
 
     function transferFrom(address from_, address to_, uint256 amount_) external returns (bool) {
@@ -140,8 +139,7 @@ contract ERC20 is Dispatchable, Initializable {
         if (current_ != type(uint256).max) {
             ERC20Lib.store().allowances[from_][msg.sender] = current_ - amount_;
         }
-        ILedger(address(this)).transfer(address(this), address(this), from_, address(this), to_, amount_);
-        return true;
+        return ERC20Lib.transfer(from_, to_, amount_);
     }
 
     function emitTransfer(address from_, address to_, uint256 amount_) external {

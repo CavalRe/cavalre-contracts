@@ -30,13 +30,14 @@ interface ILedger {
     function removeSubAccount(address ledger, address parent, address relative) external returns (address);
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Transfers (full routed; explicit parents)
+    // Transfers (permissioned; resolved account flags)
     // ─────────────────────────────────────────────────────────────────────────────
-    /// @notice Authenticated ERC20 callback restricted to direct debit leaves (both parents equal ledger).
-    /// @dev Deeper postings use authorized modules and LedgerLib.transfer with resolved account flags.
-    /// Self-transfers require sufficient balance and emit Transfer without changing balances.
-    function transfer(address ledger, address fromParent, address from, address toParent, address to, uint256 amount)
-        external;
+    /// @notice Post an authorized transfer using the same resolved flags as LedgerLib.transfer.
+    /// @dev Callers resolve flags for this ledger and enforce their own account restrictions and settlement.
+    /// Flags carry the absolute parent, depth, and polarity; deep and credit accounts are supported.
+    function transfer(address ledger, uint256 fromFlags, address from, uint256 toFlags, address to, uint256 amount)
+        external
+        returns (address, bool fromIsCredit, bool toIsCredit);
 
     // ─────────────────────────────────────────────────────────────────────────────
     function wrap(address token_, uint256 amount_)

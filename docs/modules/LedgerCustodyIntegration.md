@@ -22,9 +22,11 @@ for immutable token-to-backing bindings; share roots pack `ROOT_ADDRESS`.
 SR validates debit leaves for funding, shares and reward positions; a displayed
 group custody balance cannot claim rewards belonging to its descendants.
 
-The authenticated public transfer callback rejects either parent unless it equals
-the token root, before resolving account flags. Self-transfers still require the
-sender's balance to cover the amount, including when called through transferFrom.
+The authenticated Ledger transfer callback accepts resolved effective flags and
+returns the LedgerLib posting result. ERC20 token code resolves direct-root flags
+and enforces debit-leaf restrictions before calling it. External tokens require
+TreeView alongside LedgerView. Self-transfers require the sender's balance to
+cover the amount, including when called through transferFrom.
 A rejected transfer preserves allowances. A valid self-transfer emits Transfer
 and leaves balances unchanged; transferFrom also consumes finite allowance. These
 checks apply to ordinary wrappers, ShareToken and the canonical ERC20 surface.
@@ -36,12 +38,12 @@ that internal behavior distinct from the positive mixed-custody projection tests
 
 ## cavalre-multiswap follow-up (not changed here)
 
-- SR tokens now deploy StakingRewardWrapper, inheriting ERC20Wrapper and overriding
-  both transfers to call `StakingRewardToken.transfer(token, from, to, amount)`.
+- SR tokens deploy StakingRewardsToken, inheriting ERC20Token and overriding
+  both transfers to call `StakingRewards.transfer(token, from, to, amount)`.
   The SR module authenticates the wrapper and settles rewards before posting.
   SR address predictions require that wrapper's creation bytecode. Register SR creation on the
-  existing LedgerTokenFactory and install the SR runtime module; all internal postings settle
-  affected programs through the Dispatcher-only settleStakeTransfer selector.
+  existing LedgerTokenFactory and install the SR runtime module. Consuming modules must
+  explicitly settle affected SR positions before internal postings; Ledger has no SR hooks.
   Refresh the Configuration return tuple for allocationRemainderUnits. SR creation
   rejects SR stake/reward assets, including nesting introduced in reverse creation order.
 - Any direct `LedgerLib.Store.ledger` reads must use `LedgerLib.ledger(absolute)`;
@@ -49,10 +51,11 @@ that internal behavior distinct from the positive mixed-custody projection tests
   results for registered accounts, roots and unregistered addresses.
 - Update the contracts dependency and callers of
   `LedgerLib.transfer(ledger, fromFlags, fromRelative, toFlags, toRelative, amount)`.
+  The permissioned `Ledger.transfer` uses the same signature and returns `(address, bool, bool)`.
   Resolve effective endpoint flags once and reuse them for validation and posting.
   The flags replace the parent arguments; unregistered leaves require effective
-  metadata rather than zero stored flags. Ledger postings settle affected SR
-  programs automatically; remove duplicate settlement in consuming modules.
+  metadata rather than zero stored flags. Preserve explicit SR settlement in
+  consuming modules; the obsolete settlement callback selector is removed.
 - Replace token-local parent derivations in PoolLib, PoolStateLib, DepositLib,
   StakeLib, LiquidityLib/views and MultiswapLib with recursive absolute parents.
   Update TypeScript accounting-address helpers and tree consumers accordingly.

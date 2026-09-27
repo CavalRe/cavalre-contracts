@@ -275,6 +275,16 @@ library StakingRewardsLib {
         }
     }
 
+    /// @dev Resolve a validated account parent's SR program without relying on stored flags for implicit leaves.
+    function stakingTokenForParent(address parent_) internal view returns (address token_) {
+        while (!LedgerLib.isLedger(LedgerLib.flags(parent_))) {
+            token_ = store().reservedAccounts[parent_];
+            if (token_ != address(0) && store().programs[token_].stakingGroup == parent_) return token_;
+            parent_ = LedgerLib.parent(LedgerLib.flags(parent_));
+        }
+        return address(0);
+    }
+
     function stake(address token_, address holder_, uint256 amount_, uint256 minimum_) internal returns (uint256) {
         StakingBackingCache memory c = stakingBacking(token_);
         if (amount_ == 0) revert IStakingRewards.ZeroAmount();
@@ -283,8 +293,9 @@ library StakingRewardsLib {
         if (store().reservedAccounts[walletAbsolute_] != address(0)) {
             revert IStakingRewards.AccountReserved(walletAbsolute_);
         }
-        (uint256 stakingFlags_,) = enforceDebitAccount(c.ledger, c.parent, holder_);
+        (uint256 stakingFlags_, address stakingAbsolute_) = enforceDebitAccount(c.ledger, c.parent, holder_);
         // Entry eligibility starts only after the holder's old stake has been checkpointed.
+        settleTransferRewards(token_, walletAbsolute_, stakingAbsolute_, true, false, amount_);
         LedgerLib.transfer(c.ledger, walletFlags_, holder_, stakingFlags_, holder_, amount_);
         emit IStakingRewards.Staked(token_, holder_, amount_, amount_);
         return amount_;
@@ -311,20 +322,15 @@ library StakingRewardsLib {
         if (ancestor_ != c.parent) revert ILedger.InvalidLedgerAccount(holderAbsolute_);
         if (amount_ == 0) revert IStakingRewards.ZeroAmount();
         if (amount_ < minimum_) revert IStakingRewards.Slippage(amount_, minimum_);
-        (uint256 recipientFlags_,) = enforceDebitAccount(c.ledger, walletParent(c.parent), recipient_);
+        (uint256 recipientFlags_, address recipientAbsolute_) =
+            enforceDebitAccount(c.ledger, walletParent(c.parent), recipient_);
+        settleTransferRewards(token_, holderAbsolute_, recipientAbsolute_, false, true, amount_);
         LedgerLib.transfer(c.ledger, holderFlags_, relative_, recipientFlags_, recipient_, amount_);
         emit IStakingRewards.Unstaked(token_, parent_ == c.parent ? relative_ : holderAbsolute_, amount_, amount_);
         return amount_;
     }
 
     // -- Funding and Claims --
-
-    struct RewardCache {
-        uint256 supply;
-        uint256 balance;
-        uint256 units;
-        uint256 increment;
-    }
 
     /// @notice Fund pending rewards from a holder's ordinary reward-ledger wallet account.
     /// @dev The consuming module must authorize funder_. Use the explicit-parent overload for staking or pool accounts.
@@ -336,9 +342,17 @@ library StakingRewardsLib {
         reward(token_, walletParent(LedgerLib.toAddress(p.rewardGroup, token_)), funder_, amount_);
     }
 
+    struct RewardCache {
+        address stakingToken;
+        uint256 supply;
+        uint256 balance;
+        uint256 units;
+        uint256 increment;
+    }
+
     /// @notice Fund pending rewards from an explicitly identified debit leaf in the reward ledger.
     /// @dev The consuming module authorizes parent_ / funder_. Funding moves actual tokens into rewardGroup / token_.
-    /// The Ledger settles any departing stake and forfeiture before new rewards are allocated to remaining stake.
+    /// Funding from stake settles that program's exit before moving tokens or allocating new rewards.
     /// Reward shares and accumulators record entitlements without creating per-holder reward accounts.
     /// @param token_ SR wrapper identifying the recipient program, not the reward backing asset.
     /// @param parent_ Absolute parent of the funding leaf; may be a staking group or an application-owned group.
@@ -354,9 +368,13 @@ library StakingRewardsLib {
         (uint256 rewardFlags_,, address rewardAbsolute_) =
             LedgerLib.effectiveFlags(rewardLedger_, p.rewardGroup, token_);
         c.balance = LedgerLib.balanceOf(rewardAbsolute_, false);
+        c.stakingToken = stakingTokenForParent(parent_);
+        if (c.stakingToken != address(0)) {
+            // Reward backing is outside Stake; preserve available rewards and forfeit the outgoing pending share.
+            settleTransferRewards(c.stakingToken, absolute_, rewardAbsolute_, false, true, amount_);
+        }
         LedgerLib.transfer(rewardLedger_, funderFlags_, funder_, rewardFlags_, token_, amount_);
-        // Funding may remove stake from this same program. Read the resulting stake and checkpoint after
-        // the transfer hook has settled forfeiture, so we neither allocate to departed stake nor overwrite settlement.
+        // Funding may remove stake from this same program. Allocation uses the resulting stake balance.
         c.supply = LedgerLib.balanceOf(p.stakingGroup, false);
         if (c.supply == 0) revert IStakingRewards.NoStake();
         Checkpoint memory checkpoint_ = currentRewardCheckpoint(p);
@@ -379,16 +397,6 @@ library StakingRewardsLib {
         p.pendingAccumulator = checkpoint_.pendingAccumulator + c.increment;
         p.updatedAt = checkpoint_.updatedAt;
         emit IStakingRewards.Rewarded(token_, funder_, amount_, c.units);
-    }
-
-    struct ClaimCache {
-        address absolute;
-        address rewardLedger;
-        address rewardAbsolute;
-        uint256 rewardFlags;
-        uint256 balance;
-        uint256 supply;
-        uint256 availableUnits;
     }
 
     /// @notice Claim all available rewards for a direct staking holder, paying the same holder's wallet.
@@ -417,9 +425,21 @@ library StakingRewardsLib {
         return claim(token_, parent_, relative_, walletParent(LedgerLib.toAddress(p.rewardGroup, token_)), recipient_);
     }
 
+    struct ClaimCache {
+        address absolute;
+        address rewardLedger;
+        address rewardAbsolute;
+        address recipientAbsolute;
+        address stakingToken;
+        uint256 rewardFlags;
+        uint256 balance;
+        uint256 supply;
+        uint256 availableUnits;
+    }
+
     /// @notice Claim a staking leaf's entire available entitlement into an explicitly identified reward-ledger leaf.
     /// @dev The consuming module authorizes both accounts. Settles vesting and retains remaining pending units.
-    /// Reward units are redeemed before payout; Ledger transfer hooks then settle any recipient staking position
+    /// Reward units are redeemed before payout; SR explicitly settles any recipient staking position
     /// before the incoming balance participates. Claims into Stake therefore receive no past reward entitlement.
     /// @param token_ SR wrapper identifying the program whose rewards are being claimed.
     /// @param parent_ Absolute parent of the holder's debit leaf within this program's staking subtree.
@@ -455,7 +475,13 @@ library StakingRewardsLib {
             revert IStakingRewards.InvalidConfiguration();
         }
         if (p.pendingUnits > c.supply - c.availableUnits) p.pendingUnits = c.supply - c.availableUnits;
-        (uint256 recipientFlags_,) = enforceDebitAccount(c.rewardLedger, recipientParent_, recipient_);
+        uint256 recipientFlags_;
+        (recipientFlags_, c.recipientAbsolute) = enforceDebitAccount(c.rewardLedger, recipientParent_, recipient_);
+        c.stakingToken = stakingTokenForParent(recipientParent_);
+        if (c.stakingToken != address(0)) {
+            // Snapshot only the recipient's old stake; the incoming payout earns future rewards.
+            settleTransferRewards(c.stakingToken, c.rewardAbsolute, c.recipientAbsolute, true, false, claimed_);
+        }
         LedgerLib.transfer(c.rewardLedger, c.rewardFlags, token_, recipientFlags_, recipient_, claimed_);
         if (
             LedgerLib.balanceOf(c.rewardAbsolute, false) != c.balance - claimed_
@@ -468,7 +494,7 @@ library StakingRewardsLib {
 
     // -- Stake Transfers and Forfeiture --
 
-    /// @dev Internal Ledger postings settle rewards before changing actual stake balances.
+    /// @dev SR operations call this explicitly before changing actual stake balances.
     ///      Outgoing stake forfeits pending before incoming stake becomes eligible.
     ///      Available entitlement stays with its owner, including on final-staker release.
     function settleTransferRewards(

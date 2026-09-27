@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {ERC20Wrapper} from "./ERC20Wrapper.sol";
+import {ERC20Token} from "./ERC20Token.sol";
 import {ILedger} from "./ILedger.sol";
 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -682,7 +682,7 @@ library LedgerLib {
             if (fromCredit_) fromHolder_ = address(0);
             if (toCredit_) toHolder_ = address(0);
         }
-        ERC20Wrapper(ledger_).emitTransfer(fromHolder_, toHolder_, amount_);
+        ERC20Token(ledger_).emitTransfer(fromHolder_, toHolder_, amount_);
     }
 
     /// @dev Callers resolve effective flags for both endpoints on ledger_ before calling.

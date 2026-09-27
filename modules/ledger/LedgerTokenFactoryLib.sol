@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import {ShareTokenLib} from "../share/ShareTokenLib.sol";
 import {ShareToken} from "../share/ShareToken.sol";
-import {ERC20Wrapper} from "./ERC20Wrapper.sol";
+import {ERC20Token} from "./ERC20Token.sol";
 import {ILedger} from "./ILedger.sol";
 import {ILedgerTokenFactory} from "./ILedgerTokenFactory.sol";
 import {LedgerLib} from "./LedgerLib.sol";
@@ -15,14 +15,14 @@ library LedgerTokenFactoryLib {
         return keccak256(abi.encode(token_.name, token_.symbol, token_.decimals, token_.version));
     }
 
-    /// @notice Predict an ordinary internal ERC20Wrapper; shares use different creation bytecode.
+    /// @notice Predict an ordinary internal ERC20Token; shares use different creation bytecode.
     function predictERC20TokenAddress(ILedgerTokenFactory.TokenMetadata memory token_)
         internal
         view
         returns (address _token)
     {
         bytes memory _creationCode = abi.encodePacked(
-            type(ERC20Wrapper).creationCode, abi.encode(address(this), token_.name, token_.symbol, token_.decimals)
+            type(ERC20Token).creationCode, abi.encode(address(this), token_.name, token_.symbol, token_.decimals)
         );
         _token = Create2.computeAddress(tokenSalt(token_), keccak256(_creationCode));
     }
@@ -62,7 +62,7 @@ library LedgerTokenFactoryLib {
 
         // Internal roots remain self-wrapped so the root address is immediately usable as an ERC20 surface.
         _token = address(
-            new ERC20Wrapper{salt: tokenSalt(token_)}(address(this), token_.name, token_.symbol, token_.decimals)
+            new ERC20Token{salt: tokenSalt(token_)}(address(this), token_.name, token_.symbol, token_.decimals)
         );
         _flags = LedgerLib.addLedger(_token, token_.name, token_.symbol, token_.decimals, LedgerLib.TokenKind.Internal);
 

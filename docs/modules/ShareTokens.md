@@ -77,11 +77,12 @@ as required by the application. ShareTokenLib does not choose funding/payout
 accounts or invoke an ERC20 on a non-token backing ledger.
 
 Share mint/burn operations resolve effective endpoint flags and pass them to the
-single `LedgerLib.transfer` implementation. Ledger posting settles affected SR
-programs through the Dispatcher-only staking settlement selector. Public five-argument Ledger
-transfer remains absent. ERC20 wrappers supply direct-account parents to the
-authenticated six-argument callback; native/external receive, wrap and unwrap
-behavior is preserved. The SR-owned public transfer path remains separate work.
+single `LedgerLib.transfer` implementation. Consuming SR operations explicitly settle
+affected positions before posting; Ledger has no SR settlement hooks. Public
+five-argument Ledger transfer remains absent. ERC20 tokens resolve direct-account
+flags and pass them to the authenticated six-argument callback; native/external
+receive, wrap and unwrap behavior is preserved. StakingRewardsToken overrides
+both ERC20 transfers and routes settlement through the authenticated SR module.
 
 ## Arithmetic and boundary policy
 
