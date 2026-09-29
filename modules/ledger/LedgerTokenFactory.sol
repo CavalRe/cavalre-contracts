@@ -12,7 +12,7 @@ contract LedgerTokenFactory is Dispatchable {
         _signatures = new string[](3);
         _signatures[0] = "createInternalTokens((string,string,uint8,string)[])";
         _signatures[1] = "createShareTokens((address,(string,string,uint8,string))[])";
-        _signatures[2] = "createStakingRewardToken(address,address,uint256,(string,string,uint8,string))";
+        _signatures[2] = "createStakingRewardToken(address,uint256,(string,string,uint8,string))";
     }
 
     function selectors() external pure virtual override returns (bytes4[] memory _selectors) {
@@ -52,14 +52,13 @@ contract LedgerTokenFactory is Dispatchable {
         }
     }
 
-    /// @notice Create an SR wrapper and configure its staking and reward accounts.
+    /// @notice Create an SR ledger root with Stake/Source credit offsets and its reward program.
     function createStakingRewardToken(
-        address stakingGroup_,
         address rewardGroup_,
         uint256 halfLife_,
         ILedgerTokenFactory.TokenMetadata memory metadata_
     ) external returns (address) {
         enforceIsOwner();
-        return StakingRewardsLib.createStakingRewardToken(stakingGroup_, rewardGroup_, halfLife_, metadata_);
+        return StakingRewardsLib.createStakingRewardToken(rewardGroup_, halfLife_, metadata_);
     }
 }

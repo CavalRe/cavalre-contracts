@@ -22,11 +22,8 @@ interface ILedgerTokenFactory {
     function createShareTokens(ShareTokenConfig[] memory tokens)
         external
         returns (address[] memory tokenAddresses, uint256[] memory flags);
-    /// @notice Create an SR wrapper with immutable staking group, reward group and half-life.
-    function createStakingRewardToken(
-        address stakingGroup,
-        address rewardGroup,
-        uint256 halfLife,
-        TokenMetadata memory metadata
-    ) external returns (address token);
+    /// @notice Create a self-wrapped SR ledger with a fixed reward group and half-life.
+    function createStakingRewardToken(address rewardGroup, uint256 halfLife, TokenMetadata memory metadata)
+        external
+        returns (address token);
 }

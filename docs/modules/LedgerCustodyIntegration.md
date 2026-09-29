@@ -9,9 +9,9 @@ Use `H(g,r)` recursively. Direct ERC20 holder keys remain the relative children 
 the token root. Wrappers read both custody aggregates and project events through
 that same direct child. Public transfers require direct debit leaves at both
 endpoints and reject credit accounts, including Source; they do not authorize
-descendant withdrawals. Internal share issue/redeem/cancel and SR claim/unstake
-accept explicit account context. SR `rewardsOfAccount` exposes nested
-reward reads. Ledger's `Store.custody` replaces `Store.ledger` at the same field
+descendant withdrawals. Internal share issue/redeem/cancel and authorized SR transfers/claims
+accept explicit account context. SR `rewardsOfAccount` now accepts only direct
+debit holder leaves; nested accounts are ineligible. Ledger's `Store.custody` replaces `Store.ledger` at the same field
 position. Registered accounts point to their absolute direct-child custodian;
 the ledger is derived from that custodian's packed parent. Ledger roots identify
 themselves by their flags and need no custody entry. Unregistered effective leaves
@@ -43,9 +43,11 @@ that internal behavior distinct from the positive mixed-custody projection tests
   The SR module authenticates the wrapper and settles rewards before posting.
   SR address predictions require that wrapper's creation bytecode. Register SR creation on the
   existing LedgerTokenFactory and install the SR runtime module. Consuming modules must
-  explicitly settle affected SR positions before internal postings; Ledger has no SR hooks.
-  Refresh the Configuration return tuple for allocationRemainderUnits. SR creation
-  rejects SR stake/reward assets, including nesting introduced in reverse creation order.
+  route SR movements through `StakingRewardsLib.transfer`, which settles eligible
+  holders and maintains Stake/Source credit offsets; Ledger has no SR hooks.
+  The SR factory now takes only rewardGroup, halfLife and metadata. Remove stake/unstake
+  selectors. SR reward assets are supported; nested reward backing is ineligible.
+  See the staking README for root creation and self-reward setup.
 - Any direct `LedgerLib.Store.ledger` reads must use `LedgerLib.ledger(absolute)`;
   the stored mapping is now `custody`. The getter preserves its address-based
   results for registered accounts, roots and unregistered addresses.

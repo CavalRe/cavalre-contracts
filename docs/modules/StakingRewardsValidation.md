@@ -1,3 +1,28 @@
+# Option 2 validation — 2026-09-29
+
+Implemented against `4f246d2a2146316be2c8cabafb42b78030deba65` using the existing Solidity 0.8.26, Cancun, optimizer 200 configuration.
+
+- Full `forge test`: **297 passed, 0 failed, 0 skipped**, 17 suites.
+- SR suite: **73 passed**, including the retained eager-reference and conservation fuzz tests (256 runs each).
+- All 70 previous SR test scenarios retained or adapted to the new model; three additional tests cover credit-offset issuance/redemption, a single wrapper Transfer event, and final exit with reserves remaining.
+- Ledger, LedgerLib and ERC20Token source unchanged; no SR hooks. Former hook and stake/unstake selectors remain unavailable.
+- Checkpoint, Program and Store field layouts compared against the baseline: unchanged. Existing subtree programs are explicitly rejected; migration is not included.
+- Formatting on changed Solidity files and `git diff --check`: passed.
+
+| Contract | Runtime bytes | Initcode bytes |
+| --- | ---: | ---: |
+| StakingRewards | 15,515 | 15,558 |
+| LedgerTokenFactory | 23,873 | 23,916 |
+| StakingRewardsToken | 2,651 | 3,462 |
+
+Production contracts remain below the 24,576-byte runtime and 49,152-byte initcode limits. Factory runtime headroom is 703 bytes. No compiler settings or code-size limits changed.
+
+See [the module documentation](../../modules/staking/README.md) for the new creation signature and required explicit SR transfer path. cavalre-multiswap was not edited; downstream integration and deployment remain separate work.
+
+The reports below describe earlier implementations, not the current eligibility or nesting rules.
+
+---
+
 # Staking rewards validation
 
 ## Transfer forfeiture update

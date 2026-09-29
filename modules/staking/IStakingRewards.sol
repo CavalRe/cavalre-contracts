@@ -16,6 +16,7 @@ interface IStakingRewards {
         address tokenAddress;
         uint256 totalSupply;
         address stakingLedger;
+        // Compatibility view: always the token ledger root, not configurable.
         address stakingGroup;
         uint256 stakedBalance;
         address rewardLedger;
@@ -36,7 +37,6 @@ interface IStakingRewards {
     error NoStake();
     error InsufficientRewards();
     error InsufficientStake();
-    error Slippage(uint256 amount, uint256 minimum);
 
     event StakingRewardTokenCreated(
         address indexed token,
@@ -45,45 +45,35 @@ interface IStakingRewards {
         address rewardShareToken,
         uint256 halfLife
     );
-    event Staked(address indexed token, address indexed holder, uint256 stake, uint256 shares);
-    event Unstaked(address indexed token, address indexed holder, uint256 shares, uint256 stake);
     event Rewarded(address indexed token, address indexed funder, uint256 amount, uint256 units);
     event Claimed(address indexed token, address indexed holder, uint256 amount, uint256 units);
     event Forfeited(
         address indexed token, address indexed account, uint256 pendingUnits, uint256 allocationRemainderUnits
     );
 
-    /// @notice Create an ERC20 wrapper over actual stakes beneath an absolute staking group.
-    /// @dev Configure two registered debit groups and a positive half-life. The staking group starts empty.
-    /// Nested SR stake/reward assets are rejected, including programs created inside a prospective outer stake group.
+    /// @notice Create an SR ledger root with credit Stake/Source leaves and a debit Rewards group.
+    /// @dev Direct debit leaves earn rewards; nested leaves and groups do not. Reward backing is
+    /// rewardGroup / token, a debit leaf. For self rewards, pass the predicted token's Rewards group.
     function createStakingRewardToken(
-        address stakingGroup,
         address rewardGroup,
         uint256 halfLife,
         ILedgerTokenFactory.TokenMetadata memory metadata
     ) external returns (address token);
 
-    /// @notice Transfer actual staking tokens from the caller's wallet account into their staking account.
-    function stake(address token, uint256 amount, uint256 minimumShares) external returns (uint256 shares);
-
-    /// @notice Withdraw actual staking tokens, retaining available rewards and forfeiting proportional pending rewards.
-    /// @dev On the final eligible-stake exit, pending rewards become available; exited holders retain their rewards.
-    function unstake(address token, uint256 shares, uint256 minimumStake) external returns (uint256 amount);
-
     /// @notice Add funded rewards, allocated as pending rewards in proportion to current stake.
     /// @dev Moves existing tokens from the caller's reward-ledger wallet account to rewardGroup / token.
     /// Funding requires nonzero stake. Checkpoints record holder entitlements; no per-holder reward accounts are created.
-    /// Existing rewards keep their accrued vesting. This does not withdraw tokens from the caller's staking account.
+    /// Existing rewards keep their accrued vesting. If the reward token is SR, funding reduces the caller's eligible balance and applies forfeiture.
     /// @param token SR wrapper address identifying the program to fund, not the token used as reward backing.
     /// @param amount Amount to contribute, in the configured reward ledger's raw token units.
     function reward(address token, uint256 amount) external;
 
     /// @notice Fund pending rewards directly from the caller's leaf under a chosen reward-account parent.
-    /// @dev The parent must be the reward ledger root or a registered staking group in that ledger.
+    /// @dev The parent must be the reward ledger root. Application-owned accounts require an authorized consumer.
     /// Departing stake forfeits pending rewards under the usual rules; new funding is allocated after that exit.
     /// Funding that would leave the recipient program without stake reverts atomically.
     /// @param token SR wrapper identifying the program to fund.
-    /// @param funderParent Absolute parent of the caller's funding leaf, such as USD.cav's configured Stake group.
+    /// @param funderParent Absolute parent of the caller's funding leaf, which must equal the reward ledger root.
     /// @param amount Contribution in the configured reward ledger's raw token units.
     function reward(address token, address funderParent, uint256 amount) external;
 
@@ -91,14 +81,14 @@ interface IStakingRewards {
     /// @dev Settles elapsed vesting, redeems all available reward units, and pays from rewardGroup / token
     /// into the caller's reward-ledger wallet account. Remaining pending units stay pending.
     /// The payout is rounded down; available units are consumed even when their token value rounds to zero.
-    /// This does not stake the payout or increase a recipient's SR wrapper balance automatically.
+    /// If the reward asset is SR, the payout becomes eligible after settling the recipient's old balance.
     /// @param token SR wrapper address identifying the program whose rewards are being claimed.
     /// @return claimed Amount paid, in the configured reward ledger's raw token units.
     function claim(address token) external returns (uint256 claimed);
 
     /// @notice Collect all available rewards directly into the caller's leaf under a chosen reward-account parent.
-    /// @dev The parent must be the reward ledger root or a registered staking group in that ledger.
-    /// Paying into Stake increases that program's public SR balance without giving the incoming balance past rewards.
+    /// @dev The parent must be the reward ledger root. Application-owned accounts require an authorized consumer.
+    /// Paying into an SR ledger increases eligible stake without giving incoming tokens past rewards.
     /// Remaining pending rewards stay with the claiming position. Available units are consumed even for a zero payout.
     /// @param token SR wrapper identifying the program whose rewards are being claimed.
     /// @param recipientParent Absolute parent of the caller's payout leaf in the configured reward ledger.
